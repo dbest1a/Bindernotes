@@ -267,6 +267,72 @@ describe("highlight helpers", () => {
     expect(dedupeHighlights(highlights)).toEqual(highlights);
   });
 
+  it("keeps highlights from different binders distinct even when the text range matches", () => {
+    const highlights: Highlight[] = [
+      {
+        id: "hl-binder-1",
+        owner_id: "user-1",
+        binder_id: "binder-1",
+        lesson_id: "lesson-shared",
+        anchor_text: "same phrase",
+        color: "yellow",
+        note_id: null,
+        start_offset: 4,
+        end_offset: 15,
+        created_at: "2026-04-22T08:00:00.000Z",
+      },
+      {
+        id: "hl-binder-2",
+        owner_id: "user-1",
+        binder_id: "binder-2",
+        lesson_id: "lesson-shared",
+        anchor_text: "same phrase",
+        color: "blue",
+        note_id: null,
+        start_offset: 4,
+        end_offset: 15,
+        created_at: "2026-04-22T08:30:00.000Z",
+      },
+    ];
+
+    expect(dedupeHighlights(highlights)).toEqual(highlights);
+  });
+
+  it("does not render deleted highlights back into the lesson", () => {
+    const highlights: Highlight[] = [
+      {
+        id: "hl-active",
+        owner_id: "user-1",
+        binder_id: "binder-1",
+        lesson_id: "lesson-1",
+        anchor_text: "important",
+        color: "yellow",
+        note_id: null,
+        start_offset: 0,
+        end_offset: 9,
+        status: "active",
+        created_at: "2026-04-22T08:00:00.000Z",
+      },
+      {
+        id: "hl-deleted",
+        owner_id: "user-1",
+        binder_id: "binder-1",
+        lesson_id: "lesson-1",
+        anchor_text: "important",
+        color: "pink",
+        note_id: null,
+        start_offset: 10,
+        end_offset: 19,
+        status: "deleted",
+        created_at: "2026-04-22T09:00:00.000Z",
+      },
+    ];
+
+    expect(buildHighlightSegments(highlights, "important again important")).toEqual([
+      { id: "hl-active", color: "yellow", start: 0, end: 9 },
+    ]);
+  });
+
   it("stores highlight metadata so refreshed rows can recover offsets", () => {
     withMockWindowStorage(() => {
       const saved: Highlight = {

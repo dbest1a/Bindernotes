@@ -81,6 +81,21 @@ export function createHealthySeedHealth(suite: SuiteTemplate): SeedHealth {
   };
 }
 
+export function createLegacySeedHealth(
+  suite: SuiteTemplate,
+  message = `${suite.title} legacy system content is available in this environment.`,
+): SeedHealth {
+  return {
+    suiteTemplateId: suite.id,
+    suiteSlug: suite.slug,
+    suiteTitle: suite.title,
+    status: "healthy",
+    expectedVersion: SYSTEM_SEED_VERSION,
+    actualVersion: SYSTEM_SEED_VERSION,
+    message,
+  };
+}
+
 export function createMissingSeedError(binderId: string, actualVersion?: string | null) {
   const suite = findSystemSuiteByBinderId(binderId);
   if (!suite) {

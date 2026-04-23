@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHealthySeedHealth, createMissingSeedError } from "@/lib/seed-health";
+import { createHealthySeedHealth, createLegacySeedHealth, createMissingSeedError } from "@/lib/seed-health";
 import { buildSystemFolderFromSuite, systemSuiteTemplates } from "@/lib/history-suite-seeds";
 import {
   buildLearnerWorkspaceMessage,
@@ -105,5 +105,89 @@ describe("workspace diagnostics", () => {
 
     expect(diagnostics.some((diagnostic) => diagnostic.code === "missing_public_binder")).toBe(false);
     expect(diagnostics.some((diagnostic) => diagnostic.code === "missing_folder")).toBe(false);
+  });
+
+  it("treats legacy published Algebra content as healthy when new suite tables are absent", () => {
+    const diagnostics = buildWorkspaceDiagnostics({
+      suites: [],
+      currentSeedVersions: [],
+      workspacePresetRows: [],
+      binders: [
+        {
+          id: "binder-algebra-foundations",
+          owner_id: "system",
+          title: "Algebra 1 Foundations",
+          slug: "algebra-1-foundations",
+          description: "Algebra",
+          subject: "Mathematics",
+          level: "Foundations",
+          status: "published",
+          price_cents: 0,
+          cover_url: null,
+          pinned: true,
+          created_at: "2026-04-22T00:00:00.000Z",
+          updated_at: "2026-04-22T00:00:00.000Z",
+        },
+      ],
+      folders: [],
+      lessonsByBinderId: {
+        "binder-algebra-foundations": 9,
+      },
+      queryChecks: [
+        {
+          scope: "suite_templates",
+          error: {
+            code: "PGRST205",
+            message: "Could not find the table 'public.suite_templates' in the schema cache",
+          },
+        },
+        {
+          scope: "seed_versions",
+          error: {
+            code: "PGRST205",
+            message: "Could not find the table 'public.seed_versions' in the schema cache",
+          },
+        },
+      ],
+    });
+
+    const seedHealth = buildSeedHealthFromCounts({
+      suites: [],
+      currentSeedVersions: [],
+      binders: [
+        {
+          id: "binder-algebra-foundations",
+          owner_id: "system",
+          title: "Algebra 1 Foundations",
+          slug: "algebra-1-foundations",
+          description: "Algebra",
+          subject: "Mathematics",
+          level: "Foundations",
+          status: "published",
+          price_cents: 0,
+          cover_url: null,
+          pinned: true,
+          created_at: "2026-04-22T00:00:00.000Z",
+          updated_at: "2026-04-22T00:00:00.000Z",
+        },
+      ],
+      lessonsByBinderId: {
+        "binder-algebra-foundations": 9,
+      },
+      diagnostics,
+      fallbackSeedHealth: [createLegacySeedHealth(systemSuiteTemplates[0])],
+    });
+
+    expect(
+      diagnostics.some(
+        (diagnostic) =>
+          diagnostic.code === "missing_suite_template" &&
+          diagnostic.scope === "suite-algebra-foundations",
+      ),
+    ).toBe(false);
+    expect(seedHealth.find((item) => item.suiteTemplateId === "suite-algebra-foundations")).toMatchObject({
+      status: "healthy",
+      actualVersion: systemSuiteTemplates[0] ? createLegacySeedHealth(systemSuiteTemplates[0]).actualVersion : null,
+    });
   });
 });

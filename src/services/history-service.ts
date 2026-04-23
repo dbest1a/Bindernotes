@@ -11,6 +11,7 @@ import {
 } from "@/lib/history-suite-seeds";
 import {
   createHealthySeedHealth,
+  createLegacySeedHealth,
   createMissingSeedError,
   findSystemSuiteByBinderId,
   isMissingSeedError,
@@ -59,13 +60,26 @@ export async function getSeedHealthForBinder(binder: Binder): Promise<SeedHealth
     return createHealthySeedHealth(fallbackSuite);
   }
 
+  const legacySeedHealth = await getLegacySeedHealthForBinder(binder, fallbackSuite);
+
   const { data: suiteData, error: suiteError } = await supabase
     .from("suite_templates")
     .select("*")
     .eq("id", fallbackSuite.id)
     .maybeSingle();
 
-  if (suiteError || !suiteData) {
+  if (suiteError) {
+    if (legacySeedHealth && isMissingBackendSeedSchemaError(suiteError)) {
+      return legacySeedHealth;
+    }
+    throw suiteError;
+  }
+
+  if (!suiteData) {
+    if (legacySeedHealth) {
+      return legacySeedHealth;
+    }
+
     if (strictSeedHealthMode) {
       throw createMissingSeedError(binder.id);
     }
@@ -83,6 +97,9 @@ export async function getSeedHealthForBinder(binder: Binder): Promise<SeedHealth
     .maybeSingle();
 
   if (seedError) {
+    if (legacySeedHealth && isMissingBackendSeedSchemaError(seedError)) {
+      return legacySeedHealth;
+    }
     throw seedError;
   }
 
@@ -111,6 +128,8 @@ export async function getHistorySuiteData(input: {
     });
   }
 
+  const legacySeedHealth = await getLegacySeedHealthForBinder(input.binder, suite);
+
   const { data: suiteData, error: suiteError } = await supabase
     .from("suite_templates")
     .select("*")
@@ -118,10 +137,27 @@ export async function getHistorySuiteData(input: {
     .maybeSingle();
 
   if (suiteError) {
+    if (legacySeedHealth && isMissingBackendSeedSchemaError(suiteError)) {
+      return buildLocalHistorySuiteData({
+        binder: input.binder,
+        profile: input.profile,
+        suite,
+        seedHealth: legacySeedHealth,
+      });
+    }
     throw suiteError;
   }
 
   if (!suiteData) {
+    if (legacySeedHealth) {
+      return buildLocalHistorySuiteData({
+        binder: input.binder,
+        profile: input.profile,
+        suite,
+        seedHealth: legacySeedHealth,
+      });
+    }
+
     if (strictSeedHealthMode) {
       throw createMissingSeedError(input.binder.id);
     }
@@ -170,6 +206,14 @@ export async function getHistorySuiteData(input: {
     templateMythsResult.error;
 
   if (templateError) {
+    if (legacySeedHealth && isMissingBackendSeedSchemaError(templateError)) {
+      return buildLocalHistorySuiteData({
+        binder: input.binder,
+        profile: input.profile,
+        suite,
+        seedHealth: legacySeedHealth,
+      });
+    }
     throw templateError;
   }
 
@@ -264,6 +308,51 @@ export async function getHistorySuiteData(input: {
     argumentEdges: (argumentEdgesResult.data ?? []) as HistoryArgumentEdge[],
     mythChecks: (mythChecksResult.data ?? []) as HistoryMythCheck[],
   };
+}
+
+async function getLegacySeedHealthForBinder(
+  binder: Binder,
+  suite: SuiteTemplate,
+): Promise<SeedHealth | null> {
+  if (!supabase || !findSystemSuiteByBinderId(binder.id)) {
+    return null;
+  }
+
+  const { count, error } = await supabase
+    .from("binder_lessons")
+    .select("id", { count: "exact", head: true })
+    .eq("binder_id", binder.id);
+
+  if (error || !count) {
+    return null;
+  }
+
+  return createLegacySeedHealth(
+    suite,
+    `${suite.title} is available through legacy published binder rows in this environment.`,
+  );
+}
+
+function isMissingBackendSeedSchemaError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as {
+    code?: string;
+    message?: string;
+  };
+  const message = record.message?.toLowerCase() ?? "";
+
+  return (
+    record.code === "42P01" ||
+    record.code === "PGRST205" ||
+    record.code === "42703" ||
+    record.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("could not find the table") ||
+    message.includes("could not find the")
+  );
 }
 
 export async function createHistoryEvent(

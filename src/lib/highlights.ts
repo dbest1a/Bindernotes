@@ -185,11 +185,6 @@ export function resolveHighlightRange(
   const exactText = highlight.selected_text?.trim() || highlight.anchor_text.trim();
   const selectors = normalizeSelectors(highlight.selector_json);
 
-  const directRange = getHighlightRange(highlight);
-  if (directRange && rangeMatchesText(directRange, plainText, exactText)) {
-    return { range: directRange, confidence: 1, needsReview: false };
-  }
-
   const blockRange = selectors.find(
     (selector): selector is HighlightSelectorBlock => selector.type === "BlockSelector",
   );
@@ -203,6 +198,11 @@ export function resolveHighlightRange(
     if (rangeMatchesText(range, plainText, exactText)) {
       return { range, confidence: 0.98, needsReview: false };
     }
+  }
+
+  const directRange = getHighlightRange(highlight);
+  if (directRange && rangeMatchesText(directRange, plainText, exactText)) {
+    return { range: directRange, confidence: 1, needsReview: false };
   }
 
   const positionSelector = selectors.find(
@@ -280,13 +280,15 @@ export function trimHighlightToRange(
 export function dedupeHighlights(highlights: Highlight[]): Highlight[] {
   const byIdentity = new Map<string, Highlight>();
 
-  highlights.forEach((highlight) => {
+  highlights
+    .filter((highlight) => highlight.status !== "deleted")
+    .forEach((highlight) => {
     const identity = buildHighlightIdentity(highlight);
     const existing = byIdentity.get(identity);
     if (!existing || compareHighlightPriority(existing, highlight) < 0) {
       byIdentity.set(identity, highlight);
     }
-  });
+    });
 
   return Array.from(byIdentity.values()).sort(compareHighlightsForDisplay);
 }

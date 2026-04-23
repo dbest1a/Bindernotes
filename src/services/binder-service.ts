@@ -527,6 +527,15 @@ async function getDashboardStatus(
         version: string;
       }>,
       binders,
+      lessonsByBinderId: Object.fromEntries(
+        ((lessonsResult.data ?? []) as Array<{ binder_id: string }>).reduce(
+          (entries, lesson) => {
+            entries.set(lesson.binder_id, (entries.get(lesson.binder_id) ?? 0) + 1);
+            return entries;
+          },
+          new Map<string, number>(),
+        ),
+      ),
       diagnostics: mergedDiagnostics,
       fallbackSeedHealth: systemSuiteTemplates.map((suite) => createHealthySeedHealth(suite)),
     }),
@@ -701,6 +710,91 @@ function shouldUseShadowFallback(binderId: string, error: unknown) {
   }
 
   return true;
+}
+
+function isLegacyHighlightSchemaError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as { message?: string };
+  const message = record.message?.toLowerCase() ?? "";
+
+  return [
+    "start_offset",
+    "end_offset",
+    "document_id",
+    "selected_text",
+    "prefix_text",
+    "suffix_text",
+    "selector_json",
+    "reanchor_confidence",
+    "source_version_id",
+    "status",
+    "updated_at",
+  ].some((token) => message.includes(token));
+}
+
+function buildLegacyHighlightInsertPayload(input: {
+  ownerId: string;
+  binderId: string;
+  lessonId: string;
+  anchorText: string;
+  color: HighlightColor;
+  startOffset?: number;
+  endOffset?: number;
+}) {
+  return {
+    owner_id: input.ownerId,
+    binder_id: input.binderId,
+    lesson_id: input.lessonId,
+    anchor_text: input.anchorText,
+    color: input.color,
+    note_id: null,
+    start_offset: input.startOffset ?? null,
+    end_offset: input.endOffset ?? null,
+  };
+}
+
+function buildLegacyHighlightInsertPayloadWithoutOffsets(input: {
+  ownerId: string;
+  binderId: string;
+  lessonId: string;
+  anchorText: string;
+  color: HighlightColor;
+}) {
+  return {
+    owner_id: input.ownerId,
+    binder_id: input.binderId,
+    lesson_id: input.lessonId,
+    anchor_text: input.anchorText,
+    color: input.color,
+    note_id: null,
+  };
+}
+
+function buildLegacyHighlightUpdatePayload(input: {
+  anchorText: string;
+  color: HighlightColor;
+  startOffset?: number;
+  endOffset?: number;
+}) {
+  return {
+    anchor_text: input.anchorText,
+    color: input.color,
+    start_offset: input.startOffset ?? null,
+    end_offset: input.endOffset ?? null,
+  };
+}
+
+function buildLegacyHighlightUpdatePayloadWithoutOffsets(input: {
+  anchorText: string;
+  color: HighlightColor;
+}) {
+  return {
+    anchor_text: input.anchorText,
+    color: input.color,
+  };
 }
 
 function mergePublishedDemoBinders(remoteBinders: Binder[]) {
@@ -1418,19 +1512,7 @@ export async function createHighlight(input: {
     .single();
 
   if (attemptWithOffsets.error) {
-    const message = attemptWithOffsets.error.message.toLowerCase();
-    const missingOffsetColumns =
-      message.includes("start_offset") ||
-      message.includes("end_offset") ||
-      message.includes("document_id") ||
-      message.includes("selected_text") ||
-      message.includes("prefix_text") ||
-      message.includes("suffix_text") ||
-      message.includes("selector_json") ||
-      message.includes("reanchor_confidence") ||
-      message.includes("source_version_id");
-
-    if (!missingOffsetColumns) {
+    if (!isLegacyHighlightSchemaError(attemptWithOffsets.error)) {
       if (shouldUseShadowFallback(input.binderId, attemptWithOffsets.error)) {
         const saved: Highlight = {
           id: crypto.randomUUID(),
@@ -1444,14 +1526,43 @@ export async function createHighlight(input: {
       throw attemptWithOffsets.error;
     }
 
-    const legacyAttempt = await supabase
+    const legacyAttemptWithOffsets = await supabase
       .from("highlights")
-      .insert(highlight)
+      .insert(
+        buildLegacyHighlightInsertPayload({
+          ownerId: input.ownerId,
+          binderId: input.binderId,
+          lessonId: input.lessonId,
+          anchorText: input.anchorText,
+          color: input.color,
+          startOffset: input.startOffset,
+          endOffset: input.endOffset,
+        }),
+      )
       .select("*")
       .single();
 
-    data = legacyAttempt.data;
-    error = legacyAttempt.error;
+    if (legacyAttemptWithOffsets.error && isLegacyHighlightSchemaError(legacyAttemptWithOffsets.error)) {
+      const legacyAttemptWithoutOffsets = await supabase
+        .from("highlights")
+        .insert(
+          buildLegacyHighlightInsertPayloadWithoutOffsets({
+            ownerId: input.ownerId,
+            binderId: input.binderId,
+            lessonId: input.lessonId,
+            anchorText: input.anchorText,
+            color: input.color,
+          }),
+        )
+        .select("*")
+        .single();
+
+      data = legacyAttemptWithoutOffsets.data;
+      error = legacyAttemptWithoutOffsets.error;
+    } else {
+      data = legacyAttemptWithOffsets.data;
+      error = legacyAttemptWithOffsets.error;
+    }
   } else {
     data = attemptWithOffsets.data;
     error = attemptWithOffsets.error;
@@ -1556,35 +1667,45 @@ export async function updateHighlight(input: {
     .single();
 
   if (attemptWithOffsets.error) {
-    const message = attemptWithOffsets.error.message.toLowerCase();
-    const missingOffsetColumns =
-      message.includes("start_offset") ||
-      message.includes("end_offset") ||
-      message.includes("document_id") ||
-      message.includes("selected_text") ||
-      message.includes("prefix_text") ||
-      message.includes("suffix_text") ||
-      message.includes("selector_json") ||
-      message.includes("reanchor_confidence") ||
-      message.includes("source_version_id");
-
-    if (!missingOffsetColumns) {
+    if (!isLegacyHighlightSchemaError(attemptWithOffsets.error)) {
       throw attemptWithOffsets.error;
     }
 
-    const legacyAttempt = await supabase
+    const legacyAttemptWithOffsets = await supabase
       .from("highlights")
-      .update({
-        anchor_text: input.anchorText,
-        color: input.color,
-      })
+      .update(
+        buildLegacyHighlightUpdatePayload({
+          anchorText: input.anchorText,
+          color: input.color,
+          startOffset: input.startOffset,
+          endOffset: input.endOffset,
+        }),
+      )
       .eq("owner_id", input.ownerId)
       .eq("id", input.highlightId)
       .select("*")
       .single();
 
-    data = legacyAttempt.data;
-    error = legacyAttempt.error;
+    if (legacyAttemptWithOffsets.error && isLegacyHighlightSchemaError(legacyAttemptWithOffsets.error)) {
+      const legacyAttemptWithoutOffsets = await supabase
+        .from("highlights")
+        .update(
+          buildLegacyHighlightUpdatePayloadWithoutOffsets({
+            anchorText: input.anchorText,
+            color: input.color,
+          }),
+        )
+        .eq("owner_id", input.ownerId)
+        .eq("id", input.highlightId)
+        .select("*")
+        .single();
+
+      data = legacyAttemptWithoutOffsets.data;
+      error = legacyAttemptWithoutOffsets.error;
+    } else {
+      data = legacyAttemptWithOffsets.data;
+      error = legacyAttemptWithOffsets.error;
+    }
   } else {
     data = attemptWithOffsets.data;
     error = attemptWithOffsets.error;
@@ -2213,10 +2334,10 @@ function buildHighlightShadowKey(highlight: Highlight) {
     typeof highlight.end_offset === "number" &&
     highlight.end_offset > highlight.start_offset
   ) {
-    return `${highlight.owner_id}:${highlight.lesson_id}:${highlight.start_offset}:${highlight.end_offset}`;
+    return `${highlight.owner_id}:${highlight.binder_id}:${highlight.lesson_id}:${highlight.start_offset}:${highlight.end_offset}`;
   }
 
-  return `${highlight.owner_id}:${highlight.lesson_id}:${highlight.anchor_text.trim().toLowerCase()}`;
+  return `${highlight.owner_id}:${highlight.binder_id}:${highlight.lesson_id}:${highlight.anchor_text.trim().toLowerCase()}`;
 }
 
 function sanitizeDemoHighlights(highlights: Highlight[]) {
