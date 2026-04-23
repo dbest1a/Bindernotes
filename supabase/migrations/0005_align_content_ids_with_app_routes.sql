@@ -162,9 +162,6 @@ create index workspace_preferences_user_binder_idx on public.workspace_preferenc
 create index folder_binders_owner_folder_idx on public.folder_binders(owner_id, folder_id);
 create index folder_binders_owner_binder_idx on public.folder_binders(owner_id, binder_id);
 
-drop function if exists public.owns_published_or_enrolled(uuid);
-drop function if exists public.owns_published_or_enrolled(text);
-
 create or replace function public.owns_published_or_enrolled(target_binder_id text)
 returns boolean
 language sql
@@ -174,13 +171,23 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.binders
-    where id = target_binder_id and status = 'published'
+    where id::text = target_binder_id::text and status = 'published'
   )
   or exists (
     select 1 from public.enrollments
-    where user_id = auth.uid() and binder_id = target_binder_id
+    where user_id = auth.uid() and binder_id::text = target_binder_id::text
   )
   or public.is_admin();
+$$;
+
+create or replace function public.owns_published_or_enrolled(target_binder_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.owns_published_or_enrolled(target_binder_id::text);
 $$;
 
 alter table public.binders enable row level security;
