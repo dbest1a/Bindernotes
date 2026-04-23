@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "node -e \"process.exit(1)\"",
+  "github": {
+    "autoJobCancelation": false
+  },
   "headers": [
     {
       "source": "/(.*)",
