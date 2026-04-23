@@ -3,7 +3,7 @@ import {
   accentOptions,
   animationLevelOptions,
   applyPreset,
-  applyWorkspaceStyle,
+  applyWorkspaceMode,
   backgroundStyleOptions,
   densityOptions,
   ensureWindowFramesForEnabledModules,
@@ -15,11 +15,12 @@ import {
   shadowOptions,
   verticalSpaceOptions,
   workspaceModules,
+  workspaceModeOptions,
   workspacePresets,
-  workspaceStyleOptions,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import type {
+  WorkspaceMode,
   WorkspaceModuleId,
   WorkspacePreferences,
   WorkspaceThemeId,
@@ -83,7 +84,9 @@ export function WorkspaceSettings({
   preferences,
 }: WorkspaceSettingsProps) {
   const isLayoutMode = mode === "layout";
-  const isFullStudio = preferences.workspaceStyle === "full-studio";
+  const isCanvas = preferences.activeMode === "canvas";
+  const isModular = preferences.activeMode === "modular";
+  const isFullStudio = isCanvas || preferences.workspaceStyle === "full-studio";
   const isGuided = preferences.workspaceStyle === "guided";
 
   const setNext = (next: WorkspacePreferences) =>
@@ -99,6 +102,10 @@ export function WorkspaceSettings({
       ...preferences,
       theme: updater(preferences.theme),
     });
+  };
+
+  const changeMode = (workspaceMode: WorkspaceMode) => {
+    setNext(applyWorkspaceMode(preferences, workspaceMode));
   };
 
   const confirmAndRunReset = async (
@@ -189,25 +196,25 @@ export function WorkspaceSettings({
         data-workspace-settings-scroll="true"
       >
         <Section
-          description="Choose how much modular control Binder Notes should expose."
-          title="Workspace style"
+          description="Choose how much workspace control BinderNotes should expose."
+          title="Study mode"
         >
           <div className="grid gap-2">
-            {workspaceStyleOptions.map((style) => (
+            {workspaceModeOptions.map((workspaceMode) => (
               <button
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  preferences.workspaceStyle === style.id
+                  preferences.activeMode === workspaceMode.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/55",
                 )}
-                key={style.id}
-                onClick={() => setNext(applyWorkspaceStyle(preferences, style.id))}
+                key={workspaceMode.id}
+                onClick={() => changeMode(workspaceMode.id)}
                 type="button"
               >
-                <span className="block text-sm font-medium">{style.name}</span>
+                <span className="block text-sm font-medium">{workspaceMode.name}</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {style.description}
+                  {workspaceMode.description}
                 </span>
               </button>
             ))}
@@ -244,6 +251,76 @@ export function WorkspaceSettings({
           </div>
         </Section>
 
+        {isModular ? (
+          <Section
+            description="Keep study panels orderly without opening the full canvas controls."
+            title="Study panels"
+          >
+            <div className="grid gap-4">
+              <ControlGroup title="Panel density">
+                {(["comfortable", "compact"] as const).map((density) => (
+                  <ThemeChoice
+                    active={preferences.modular.panelDensity === density}
+                    key={density}
+                    onClick={() =>
+                      setNext({
+                        ...preferences,
+                        modular: {
+                          ...preferences.modular,
+                          panelDensity: density,
+                        },
+                        theme: {
+                          ...preferences.theme,
+                          compactMode: density === "compact",
+                        },
+                      })
+                    }
+                  >
+                    {density === "comfortable" ? "Comfortable" : "Compact"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Side panel">
+                {(["left", "right"] as const).map((position) => (
+                  <ThemeChoice
+                    active={preferences.modular.sidePanelPosition === position}
+                    key={position}
+                    onClick={() =>
+                      setNext({
+                        ...preferences,
+                        modular: {
+                          ...preferences.modular,
+                          sidePanelPosition: position,
+                        },
+                      })
+                    }
+                  >
+                    {position === "left" ? "Left side" : "Right side"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Save layout per binder">
+                <ToggleChoice
+                  active={preferences.modular.saveLayoutPerBinder}
+                  description="Remember this binder's selected preset and panel mix."
+                  label={preferences.modular.saveLayoutPerBinder ? "On" : "Off"}
+                  onClick={() =>
+                    setNext({
+                      ...preferences,
+                      modular: {
+                        ...preferences.modular,
+                        saveLayoutPerBinder: !preferences.modular.saveLayoutPerBinder,
+                      },
+                    })
+                  }
+                />
+              </ControlGroup>
+            </div>
+          </Section>
+        ) : null}
+
         <Section
           description="Theme, density, roundness, and color stay consistent across the app."
           title="Look & feel"
@@ -261,10 +338,17 @@ export function WorkspaceSettings({
                     )}
                     key={theme.id}
                     onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        id: theme.id as WorkspaceThemeId,
-                      }))
+                      setNext({
+                        ...preferences,
+                        modular: {
+                          ...preferences.modular,
+                          colorPreset: isModular ? (theme.id as WorkspaceThemeId) : preferences.modular.colorPreset,
+                        },
+                        theme: {
+                          ...preferences.theme,
+                          id: theme.id as WorkspaceThemeId,
+                        },
+                      })
                     }
                     type="button"
                   >
@@ -395,10 +479,17 @@ export function WorkspaceSettings({
                   active={preferences.theme.animationLevel === level}
                   key={level}
                   onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      animationLevel: level,
-                    }))
+                    setNext({
+                      ...preferences,
+                      modular: {
+                        ...preferences.modular,
+                        motionLevel: isModular ? level : preferences.modular.motionLevel,
+                      },
+                      theme: {
+                        ...preferences.theme,
+                        animationLevel: level,
+                      },
+                    })
                   }
                 >
                   {animationLabels[level]}
@@ -422,76 +513,85 @@ export function WorkspaceSettings({
           </div>
         </Section>
 
-        <Section
-          description="Adjust the study atmosphere and how much room the canvas gives you vertically."
-          title="Canvas / workspace"
-        >
-          <div className="grid gap-4">
-            <ControlGroup layout="grid" title="Background">
-              {backgroundStyleOptions.map((backgroundStyle) => (
-                <ThemeChoice
-                  active={preferences.theme.backgroundStyle === backgroundStyle}
-                  className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                  key={backgroundStyle}
+        {isCanvas ? (
+          <Section
+            description="Adjust the study atmosphere and how much room the canvas gives you vertically."
+            title="Canvas / workspace"
+          >
+            <div className="grid gap-4">
+              <ControlGroup layout="grid" title="Background">
+                {backgroundStyleOptions.map((backgroundStyle) => (
+                  <ThemeChoice
+                    active={preferences.theme.backgroundStyle === backgroundStyle}
+                    className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                    key={backgroundStyle}
+                    onClick={() =>
+                      updateTheme((current) => ({
+                        ...current,
+                        backgroundStyle,
+                      }))
+                    }
+                  >
+                    {backgroundLabels[backgroundStyle]}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup layout="stack" title="Vertical workspace">
+                {verticalSpaceOptions.map((verticalSpace) => (
+                  <ThemeChoice
+                    active={preferences.theme.verticalSpace === verticalSpace}
+                    className="min-h-12 w-full justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                    key={verticalSpace}
+                    onClick={() =>
+                      updateTheme((current) => ({
+                        ...current,
+                        verticalSpace,
+                      }))
+                    }
+                  >
+                    {verticalSpaceLabels[verticalSpace]}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Snap mode">
+                <ToggleChoice
+                  active={preferences.theme.snapMode}
+                  description="Snap windows to the visible canvas edges while dragging in creator mode"
+                  label={preferences.theme.snapMode ? "On" : "Off"}
+                  onClick={() =>
+                    setNext({
+                      ...preferences,
+                      canvas: {
+                        ...preferences.canvas,
+                        snapBehavior: preferences.theme.snapMode ? "off" : "edges",
+                      },
+                      theme: {
+                        ...preferences.theme,
+                        snapMode: !preferences.theme.snapMode,
+                      },
+                    })
+                  }
+                />
+              </ControlGroup>
+
+              <ControlGroup title="Focus mode">
+                <ToggleChoice
+                  active={preferences.theme.focusMode}
+                  description="Reduce workspace chrome and let the canvas feel more immersive"
+                  label={preferences.theme.focusMode ? "On" : "Off"}
                   onClick={() =>
                     updateTheme((current) => ({
                       ...current,
-                      backgroundStyle,
+                      focusMode: !current.focusMode,
                     }))
                   }
-                >
-                  {backgroundLabels[backgroundStyle]}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
-
-            <ControlGroup layout="stack" title="Vertical workspace">
-              {verticalSpaceOptions.map((verticalSpace) => (
-                <ThemeChoice
-                  active={preferences.theme.verticalSpace === verticalSpace}
-                  className="min-h-12 w-full justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                  key={verticalSpace}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      verticalSpace,
-                    }))
-                  }
-                >
-                  {verticalSpaceLabels[verticalSpace]}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
-
-            <ControlGroup title="Snap mode">
-              <ToggleChoice
-                active={preferences.theme.snapMode}
-                description="Snap windows to the visible canvas edges while dragging in creator mode"
-                label={preferences.theme.snapMode ? "On" : "Off"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    snapMode: !current.snapMode,
-                  }))
-                }
-              />
-            </ControlGroup>
-
-            <ControlGroup title="Focus mode">
-              <ToggleChoice
-                active={preferences.theme.focusMode}
-                description="Reduce workspace chrome and let the canvas feel more immersive"
-                label={preferences.theme.focusMode ? "On" : "Off"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    focusMode: !current.focusMode,
-                  }))
-                }
-              />
-            </ControlGroup>
-          </div>
-        </Section>
+                />
+              </ControlGroup>
+            </div>
+          </Section>
+        ) : null}
 
         <Section
           description="Keep graphs readable without having to enter layout mode."

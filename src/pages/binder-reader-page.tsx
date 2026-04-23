@@ -20,6 +20,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { WorkspaceRenderBoundary } from "@/components/workspace/workspace-render-boundary";
+import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
+import { SimpleSettingsPanel } from "@/components/workspace/simple-settings-panel";
 import { WorkspaceSettings } from "@/components/workspace/workspace-settings";
 import {
   type WorkspaceModuleContext,
@@ -59,14 +61,14 @@ import {
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
 import {
-  applyWorkspaceStyle,
+  applyWorkspaceMode,
   applyPreset,
   createStickyNoteLayout,
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
   workspacePresets,
-  workspaceStyleOptions,
+  workspaceModeOptions,
 } from "@/lib/workspace-preferences";
 import { emptyDoc } from "@/lib/utils";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
@@ -83,6 +85,7 @@ import type {
   LessonTextSelection,
   MathBlock,
   WorkspaceModuleId,
+  WorkspaceMode,
   WorkspacePreferences,
   WorkspacePresetId,
   WorkspaceWindowFrame,
@@ -173,7 +176,9 @@ export function BinderReaderPage() {
   const isCompact = useCompactWorkspace();
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
-  const isLayoutEditing = layoutMode === "setup";
+  const isSimpleMode = active?.activeMode === "simple";
+  const isCanvasMode = active?.activeMode === "canvas";
+  const isLayoutEditing = layoutMode === "setup" && !isSimpleMode;
   const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
   const lessons = binderQuery.data?.lessons ?? [];
@@ -261,11 +266,16 @@ export function BinderReaderPage() {
       return;
     }
 
+    if (active.activeMode === "simple") {
+      setLayoutMode("study");
+      return;
+    }
+
     setLayoutMode(active.locked ? "study" : "setup");
     if (!active.locked) {
       setPreferencesOpen(false);
     }
-  }, [active?.binderId, active?.locked, active?.updatedAt]);
+  }, [active?.activeMode, active?.binderId, active?.locked, active?.updatedAt]);
 
   const historyEnabled =
     binderQuery.data?.binder.subject === "History" ||
@@ -337,7 +347,7 @@ export function BinderReaderPage() {
       return;
     }
 
-    if (active.workspaceStyle === "guided") {
+    if (active.activeMode === "simple") {
       setPreferencesOpen(true);
       return;
     }
@@ -734,9 +744,9 @@ export function BinderReaderPage() {
     [ensureNotesVisible],
   );
 
-  const applyStyleChoice = useCallback(
-    (workspaceStyle: WorkspacePreferences["workspaceStyle"]) => {
-      updateWorkspace((current) => applyWorkspaceStyle(current, workspaceStyle));
+  const applyModeChoice = useCallback(
+    (workspaceMode: WorkspaceMode) => {
+      updateWorkspace((current) => applyWorkspaceMode(current, workspaceMode));
       setPreferencesOpen(false);
     },
     [updateWorkspace],
@@ -745,10 +755,20 @@ export function BinderReaderPage() {
   const toggleFocusMode = useCallback(() => {
     updateWorkspace((current) => ({
       ...current,
-      theme: {
-        ...current.theme,
-        focusMode: !current.theme.focusMode,
-      },
+      simple:
+        current.activeMode === "simple"
+          ? {
+              ...current.simple,
+              focusMode: !current.simple.focusMode,
+            }
+          : current.simple,
+      theme:
+        current.activeMode === "simple"
+          ? current.theme
+          : {
+              ...current.theme,
+              focusMode: !current.theme.focusMode,
+            },
     }));
   }, [updateWorkspace]);
 
@@ -763,24 +783,38 @@ export function BinderReaderPage() {
         return;
       }
 
-      if (active?.theme.focusMode) {
+      const focusMode =
+        active?.activeMode === "simple" ? active.simple.focusMode : active?.theme.focusMode;
+
+      if (focusMode) {
         updateWorkspace((current) =>
-          current.theme.focusMode
+          current.activeMode === "simple" && current.simple.focusMode
             ? {
                 ...current,
-                theme: {
-                  ...current.theme,
+                simple: {
+                  ...current.simple,
                   focusMode: false,
                 },
               }
-            : current,
+            : current.theme.focusMode
+              ? {
+                  ...current,
+                  theme: {
+                    ...current.theme,
+                    focusMode: false,
+                  },
+                }
+              : current,
         );
       }
     };
 
     document.addEventListener("fullscreenchange", syncFocusState);
 
-    if (active?.theme.focusMode) {
+    const focusMode =
+      active?.activeMode === "simple" ? active.simple.focusMode : active?.theme.focusMode;
+
+    if (focusMode) {
       if (document.fullscreenElement !== node && node.requestFullscreen) {
         void node.requestFullscreen().catch(() => {
           // Keep the CSS-driven focus fallback even if the browser fullscreen request is denied.
@@ -793,7 +827,7 @@ export function BinderReaderPage() {
     }
 
     return () => document.removeEventListener("fullscreenchange", syncFocusState);
-  }, [active?.theme.focusMode, updateWorkspace]);
+  }, [active?.activeMode, active?.simple.focusMode, active?.theme.focusMode, updateWorkspace]);
 
   const ensureMathWorkspaceVisible = useCallback(
     (options?: { enterLayoutWhenAdded?: boolean }) => {
@@ -1654,8 +1688,10 @@ export function BinderReaderPage() {
   const currentPresetLabel =
     workspacePresets.find((preset) => preset.id === active.preset)?.name ?? "Split Study";
   const showUtilityUi = isLayoutEditing || active.theme.showUtilityUi;
-  const workspaceStyleLabel =
-    workspaceStyleOptions.find((option) => option.id === active.workspaceStyle)?.name ?? "Guided";
+  const workspaceModeLabel =
+    workspaceModeOptions.find((option) => option.id === active.activeMode)?.name ?? "Simple View";
+  const activeFocusMode =
+    active.activeMode === "simple" ? active.simple.focusMode : active.theme.focusMode;
 
   const context: WorkspaceModuleContext = {
     binder: binderQuery.data.binder,
@@ -2085,11 +2121,17 @@ export function BinderReaderPage() {
           </p>
           <h1 className="workspace-topbar__title">{selectedLesson.title}</h1>
           <p className="workspace-topbar__copy">
-            {workspaceStyleLabel}
+            {workspaceModeLabel}
             {" • "}
-            {currentPresetLabel}
+            {active.activeMode === "simple" ? "Learning module" : currentPresetLabel}
             {" • "}
-            {isLayoutEditing ? "Layout editing" : active.locked ? "Locked study mode" : "Studio mode"}
+            {isLayoutEditing
+              ? "Layout editing"
+              : active.activeMode === "simple"
+                ? "Simple study"
+                : active.locked
+                  ? "Locked study mode"
+                  : "Studio mode"}
           </p>
           {showUtilityUi ? (
               <div className="workspace-topbar__meta">
@@ -2127,14 +2169,14 @@ export function BinderReaderPage() {
             onClick={toggleFocusMode}
             size="sm"
             type="button"
-            variant={active.theme.focusMode ? "default" : "outline"}
+            variant={activeFocusMode ? "default" : "outline"}
           >
-            {active.theme.focusMode ? (
+            {activeFocusMode ? (
               <Minimize2 data-icon="inline-start" />
             ) : (
               <Maximize2 data-icon="inline-start" />
             )}
-            {active.theme.focusMode ? "Exit focus" : "Focus canvas"}
+            {activeFocusMode ? "Exit focus" : active.activeMode === "simple" ? "Focus" : "Focus canvas"}
           </Button>
           {!isLayoutEditing ? (
             <Button
@@ -2155,7 +2197,11 @@ export function BinderReaderPage() {
               variant="outline"
             >
               <LayoutPanelLeft data-icon="inline-start" />
-              {active.workspaceStyle === "guided" ? "Change workspace" : "Edit layout"}
+              {active.activeMode === "simple"
+                ? "Change view"
+                : active.activeMode === "modular"
+                  ? "Adjust panels"
+                  : "Edit layout"}
             </Button>
           ) : (
             <>
@@ -2188,26 +2234,26 @@ export function BinderReaderPage() {
         <section className="grid gap-3 rounded-[22px] border border-border/70 bg-card/90 p-5 shadow-soft">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Choose your workspace style
+              Choose your study view
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-              Start with the amount of control that feels right.
+              Start with the amount of workspace control that feels right.
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Guided keeps the source and notes centered. Flexible lets you resize and adjust the main
-              windows. Full Studio opens the whole modular workspace. You can switch later in settings.
+              Simple View keeps the lesson calm and full-screen. Study Panels gives you structured modules.
+              Canvas opens the advanced movable workspace. You can switch later in settings.
             </p>
           </div>
           <div className="grid gap-3 lg:grid-cols-3">
-            {workspaceStyleOptions.map((option) => (
+            {workspaceModeOptions.map((option) => (
               <button
                 className={`rounded-2xl border px-4 py-4 text-left transition ${
-                  active.workspaceStyle === option.id
+                  active.activeMode === option.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
                 }`}
                 key={option.id}
-                onClick={() => applyStyleChoice(option.id)}
+                onClick={() => applyModeChoice(option.id)}
                 type="button"
               >
                 <p className="text-sm font-semibold">{option.name}</p>
@@ -2218,7 +2264,38 @@ export function BinderReaderPage() {
         </section>
       ) : null}
 
-      {isCompact ? (
+      {active.activeMode === "simple" ? (
+        <section className="simple-presentation-stage">
+          {preferencesOpen ? (
+            <>
+              <button
+                aria-label="Close simple settings"
+                className="workspace-preferences-backdrop"
+                onClick={() => setPreferencesOpen(false)}
+                type="button"
+              />
+              <section className="workspace-preferences-popover">
+                <SimpleSettingsPanel
+                  onChange={(next) => workspace.commit(next)}
+                  onClose={() => setPreferencesOpen(false)}
+                  preferences={active}
+                />
+              </section>
+            </>
+          ) : null}
+          <WorkspaceRenderBoundary
+            resetKey={`${selectedLesson.id}:${active.updatedAt}:simple`}
+            title="This simple study view could not render"
+          >
+            <SimplePresentationShell
+              context={context}
+              onChange={(next) => workspace.commit(next)}
+              onOpenSettings={() => setPreferencesOpen(true)}
+              preferences={active}
+            />
+          </WorkspaceRenderBoundary>
+        </section>
+      ) : isCompact ? (
         <section className="grid gap-4">
           {isLayoutEditing ? (
             <WorkspaceSettings
@@ -2324,6 +2401,16 @@ export function BinderReaderPage() {
                 onCommitFrame={(moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
                   updateWorkspace((current) => ({
                     ...current,
+                    canvas:
+                      current.activeMode === "canvas"
+                        ? {
+                            ...current.canvas,
+                            panelPositions: {
+                              ...current.canvas.panelPositions,
+                              [moduleId]: frame,
+                            },
+                          }
+                        : current.canvas,
                     windowLayout: {
                       ...current.windowLayout,
                       [moduleId]: frame,

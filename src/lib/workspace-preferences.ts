@@ -1,5 +1,15 @@
 import type {
+  FullCanvasSettings,
+  FullCanvasSnapBehavior,
   HighlightColor,
+  ModularPanelDensity,
+  ModularSidePanelPosition,
+  ModularStudySettings,
+  SimplePresentationFontSize,
+  SimplePresentationMotion,
+  SimplePresentationReadingWidth,
+  SimplePresentationSettings,
+  SimplePresentationTheme,
   WorkspaceAnimationLevel,
   WorkspaceBackgroundStyle,
   StickyNoteLayout,
@@ -14,6 +24,7 @@ import type {
   WorkspacePresetId,
   WorkspaceRoundness,
   WorkspaceShadow,
+  WorkspaceMode,
   WorkspaceStyle,
   WorkspaceThemeSettings,
   WorkspaceThemeId,
@@ -58,6 +69,12 @@ export type WorkspaceTheme = {
 
 export type WorkspaceStyleOption = {
   id: WorkspaceStyle;
+  name: string;
+  description: string;
+};
+
+export type WorkspaceModeOption = {
+  id: WorkspaceMode;
   name: string;
   description: string;
 };
@@ -117,6 +134,63 @@ export const workspaceStyleOptions: WorkspaceStyleOption[] = [
     name: "Full Studio",
     description: "Full modular control with drag, resize, collapse, and advanced layout tools.",
   },
+];
+
+export const workspaceModeOptions: WorkspaceModeOption[] = [
+  {
+    id: "simple",
+    name: "Simple View",
+    description: "Clean fullscreen study view with reading, notes, and helper drawers.",
+  },
+  {
+    id: "modular",
+    name: "Study Panels",
+    description: "Structured preset panels for active study without full canvas editing.",
+  },
+  {
+    id: "canvas",
+    name: "Canvas",
+    description: "Advanced custom workspace with movable and resizable modules.",
+  },
+];
+
+export const simplePresentationThemeOptions: {
+  id: SimplePresentationTheme;
+  name: string;
+  description: string;
+}[] = [
+  { id: "classic-light", name: "Classic Light", description: "Crisp white study surface." },
+  { id: "warm-paper", name: "Warm Paper", description: "Softer reading with paper-like warmth." },
+  { id: "night-study", name: "Night Study", description: "Dark, calm, and lower glare." },
+  { id: "history-gold", name: "History Gold", description: "Warm accent for timelines and sources." },
+  { id: "math-blue", name: "Math Blue", description: "Cool, clear tone for formulas and graph work." },
+  { id: "high-contrast", name: "High Contrast", description: "Maximum readability and stronger edges." },
+];
+
+export const simplePresentationFontSizeOptions: {
+  id: SimplePresentationFontSize;
+  name: string;
+}[] = [
+  { id: "small", name: "Small" },
+  { id: "medium", name: "Medium" },
+  { id: "large", name: "Large" },
+];
+
+export const simplePresentationReadingWidthOptions: {
+  id: SimplePresentationReadingWidth;
+  name: string;
+}[] = [
+  { id: "focused", name: "Focused" },
+  { id: "comfortable", name: "Comfortable" },
+  { id: "wide", name: "Wide" },
+];
+
+export const simplePresentationMotionOptions: {
+  id: SimplePresentationMotion;
+  name: string;
+}[] = [
+  { id: "reduced", name: "Reduced" },
+  { id: "standard", name: "Standard" },
 ];
 
 export const highlightColorOptions: { id: HighlightColor; name: string; description: string }[] = [
@@ -818,6 +892,53 @@ export const defaultThemeSettings: WorkspaceThemeSettings = {
   showUtilityUi: false,
 };
 
+export function createDefaultSimplePresentationSettings(
+  binderId?: string | null,
+  suiteTemplateId?: string | null,
+): SimplePresentationSettings {
+  const isHistory =
+    systemSuiteTemplates.some((suite) => suite.id === suiteTemplateId && suite.history_mode) ||
+    binderId === SYSTEM_BINDER_IDS.frenchRevolution ||
+    binderId === SYSTEM_BINDER_IDS.riseOfRome;
+
+  return {
+    theme: isHistory ? "history-gold" : "math-blue",
+    fontSize: "medium",
+    readingWidth: "comfortable",
+    showSideNotes: true,
+    showProgressBar: true,
+    showStudyDrawer: true,
+    accentColor: isHistory ? "history-gold" : "math-blue",
+    motion: "reduced",
+    focusMode: false,
+    highContrast: false,
+  };
+}
+
+export function createDefaultModularStudySettings(
+  selectedPreset: WorkspacePresetId = defaultPreset.id,
+): ModularStudySettings {
+  return {
+    selectedPreset,
+    panelDensity: "comfortable",
+    moduleVisibility: {},
+    sidePanelPosition: "right",
+    motionLevel: defaultThemeSettings.animationLevel,
+    colorPreset: defaultThemeSettings.id,
+    saveLayoutPerBinder: true,
+  };
+}
+
+export function createDefaultFullCanvasSettings(): FullCanvasSettings {
+  return {
+    gridSize: 24,
+    snapBehavior: "off",
+    panelPositions: {},
+    customModules: [],
+    showDiagnostics: false,
+  };
+}
+
 export function createDefaultWorkspacePreferences(
   userId: string,
   binderId: string,
@@ -834,6 +955,10 @@ export function createDefaultWorkspacePreferences(
     userId,
     binderId,
     suiteTemplateId: suiteTemplateId ?? null,
+    activeMode: "simple",
+    simple: createDefaultSimplePresentationSettings(binderId, suiteTemplateId),
+    modular: createDefaultModularStudySettings(initialPreset),
+    canvas: createDefaultFullCanvasSettings(),
     locked: true,
     workspaceStyle: "guided",
     styleChoiceCompleted: false,
@@ -867,6 +992,10 @@ export function applyPreset(
   return ensureWindowFramesForEnabledModules({
     ...preferences,
     preset: preset.id,
+    modular: {
+      ...preferences.modular,
+      selectedPreset: preset.id,
+    },
     enabledModules: layout.enabledModules,
     zones: layout.zones,
     paneLayout: layout.paneLayout,
@@ -893,6 +1022,60 @@ export function applyWorkspaceStyle(
   };
 
   return applyPreset(nextBase, nextBase.preset ?? defaultPreset.id);
+}
+
+export function applyWorkspaceMode(
+  preferences: WorkspacePreferences,
+  activeMode: WorkspaceMode,
+): WorkspacePreferences {
+  if (activeMode === "simple") {
+    return ensureWindowFramesForEnabledModules({
+      ...preferences,
+      activeMode,
+      workspaceStyle: "guided",
+      styleChoiceCompleted: true,
+      locked: true,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (activeMode === "modular") {
+    const nextBase: WorkspacePreferences = {
+      ...preferences,
+      activeMode,
+      workspaceStyle: "flexible",
+      styleChoiceCompleted: true,
+      locked: true,
+      preset: preferences.modular.selectedPreset,
+      theme: {
+        ...preferences.theme,
+        id: preferences.modular.colorPreset,
+        animationLevel: preferences.modular.motionLevel,
+        snapMode: false,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    return applyPreset(nextBase, nextBase.modular.selectedPreset);
+  }
+
+  const nextBase: WorkspacePreferences = {
+    ...preferences,
+    activeMode,
+    workspaceStyle: "full-studio",
+    styleChoiceCompleted: true,
+    locked: false,
+    theme: {
+      ...preferences.theme,
+      snapMode: preferences.canvas.snapBehavior !== "off",
+    },
+    windowLayout: {
+      ...preferences.windowLayout,
+      ...preferences.canvas.panelPositions,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+
+  return ensureWindowFramesForEnabledModules(nextBase);
 }
 
 export function loadWorkspacePreferences(
@@ -1311,6 +1494,14 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
 
   const normalized: WorkspacePreferences = {
     ...preferences,
+    activeMode: normalizeWorkspaceMode(preferences.activeMode, preferences.workspaceStyle),
+    simple: normalizeSimplePresentationSettings(
+      preferences.simple,
+      preferences.binderId,
+      preferences.suiteTemplateId,
+    ),
+    modular: normalizeModularStudySettings(preferences.modular, preferences.preset),
+    canvas: normalizeFullCanvasSettings(preferences.canvas),
     workspaceStyle: normalizeWorkspaceStyle(preferences.workspaceStyle),
     styleChoiceCompleted: preferences.styleChoiceCompleted ?? false,
     preset: normalizePresetId(preferences.preset),
@@ -1419,6 +1610,139 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
       typeof settings?.showUtilityUi === "boolean"
         ? settings.showUtilityUi
         : defaultThemeSettings.showUtilityUi,
+  };
+}
+
+function normalizeWorkspaceMode(mode?: string, workspaceStyle?: string): WorkspaceMode {
+  if (workspaceModeOptions.some((option) => option.id === mode)) {
+    return mode as WorkspaceMode;
+  }
+
+  if (workspaceStyle === "full-studio") {
+    return "canvas";
+  }
+
+  if (workspaceStyle === "flexible") {
+    return "modular";
+  }
+
+  return "simple";
+}
+
+function normalizeSimplePresentationSettings(
+  settings?: Partial<SimplePresentationSettings>,
+  binderId?: string | null,
+  suiteTemplateId?: string | null,
+): SimplePresentationSettings {
+  const fallback = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
+  const theme = simplePresentationThemeOptions.some((option) => option.id === settings?.theme)
+    ? (settings?.theme as SimplePresentationTheme)
+    : fallback.theme;
+  const fontSize = simplePresentationFontSizeOptions.some((option) => option.id === settings?.fontSize)
+    ? (settings?.fontSize as SimplePresentationFontSize)
+    : fallback.fontSize;
+  const readingWidth = simplePresentationReadingWidthOptions.some((option) => option.id === settings?.readingWidth)
+    ? (settings?.readingWidth as SimplePresentationReadingWidth)
+    : fallback.readingWidth;
+  const motion = simplePresentationMotionOptions.some((option) => option.id === settings?.motion)
+    ? (settings?.motion as SimplePresentationMotion)
+    : fallback.motion;
+  const accentColor =
+    settings?.accentColor &&
+    (["history-gold", "math-blue", "teal", "rose"] as const).includes(settings.accentColor)
+      ? settings.accentColor
+      : fallback.accentColor;
+
+  return {
+    ...fallback,
+    ...settings,
+    theme,
+    fontSize,
+    readingWidth,
+    showSideNotes:
+      typeof settings?.showSideNotes === "boolean" ? settings.showSideNotes : fallback.showSideNotes,
+    showProgressBar:
+      typeof settings?.showProgressBar === "boolean"
+        ? settings.showProgressBar
+        : fallback.showProgressBar,
+    showStudyDrawer:
+      typeof settings?.showStudyDrawer === "boolean"
+        ? settings.showStudyDrawer
+        : fallback.showStudyDrawer,
+    accentColor,
+    motion,
+    focusMode: typeof settings?.focusMode === "boolean" ? settings.focusMode : fallback.focusMode,
+    highContrast:
+      typeof settings?.highContrast === "boolean" ? settings.highContrast : fallback.highContrast,
+  };
+}
+
+function normalizeModularStudySettings(
+  settings?: Partial<ModularStudySettings>,
+  fallbackPresetId?: string,
+): ModularStudySettings {
+  const fallback = createDefaultModularStudySettings(normalizePresetId(fallbackPresetId ?? defaultPreset.id));
+  const selectedPreset = normalizePresetId(settings?.selectedPreset ?? fallback.selectedPreset);
+  const panelDensity =
+    settings?.panelDensity && (["comfortable", "compact"] as ModularPanelDensity[]).includes(settings.panelDensity)
+      ? settings.panelDensity
+      : fallback.panelDensity;
+  const sidePanelPosition =
+    settings?.sidePanelPosition &&
+    (["left", "right"] as ModularSidePanelPosition[]).includes(settings.sidePanelPosition)
+      ? settings.sidePanelPosition
+      : fallback.sidePanelPosition;
+  const motionLevel = animationLevelOptions.includes(settings?.motionLevel as WorkspaceAnimationLevel)
+    ? (settings?.motionLevel as WorkspaceAnimationLevel)
+    : fallback.motionLevel;
+  const colorPreset = workspaceThemes.some((theme) => theme.id === settings?.colorPreset)
+    ? (settings?.colorPreset as WorkspaceThemeId)
+    : fallback.colorPreset;
+  const moduleVisibility = Object.fromEntries(
+    Object.entries(settings?.moduleVisibility ?? {}).flatMap(([moduleId, visible]) => {
+      const nextId = normalizeModuleId(moduleId);
+      return nextId ? [[nextId, Boolean(visible)]] : [];
+    }),
+  ) as ModularStudySettings["moduleVisibility"];
+
+  return {
+    selectedPreset,
+    panelDensity,
+    moduleVisibility,
+    sidePanelPosition,
+    motionLevel,
+    colorPreset,
+    saveLayoutPerBinder:
+      typeof settings?.saveLayoutPerBinder === "boolean"
+        ? settings.saveLayoutPerBinder
+        : fallback.saveLayoutPerBinder,
+  };
+}
+
+function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): FullCanvasSettings {
+  const fallback = createDefaultFullCanvasSettings();
+  const snapBehavior =
+    settings?.snapBehavior &&
+    (["off", "edges", "modules"] as FullCanvasSnapBehavior[]).includes(settings.snapBehavior)
+      ? settings.snapBehavior
+      : fallback.snapBehavior;
+  const gridSize =
+    typeof settings?.gridSize === "number" && Number.isFinite(settings.gridSize)
+      ? clamp(Math.round(settings.gridSize), 8, 96)
+      : fallback.gridSize;
+  const customModules = (settings?.customModules ?? [])
+    .map((moduleId) => normalizeModuleId(moduleId))
+    .filter((moduleId, index, list): moduleId is WorkspaceModuleId => Boolean(moduleId) && list.indexOf(moduleId) === index);
+
+  return {
+    gridSize,
+    snapBehavior,
+    panelPositions: normalizeWindowLayout(settings?.panelPositions),
+    customModules,
+    showDiagnostics:
+      typeof settings?.showDiagnostics === "boolean"
+        ? settings.showDiagnostics
+        : fallback.showDiagnostics,
   };
 }
 

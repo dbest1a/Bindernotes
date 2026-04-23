@@ -328,6 +328,7 @@ export type WorkspacePresetId =
   | "history-full-studio";
 
 export type WorkspaceStyle = "guided" | "flexible" | "full-studio";
+export type WorkspaceMode = "simple" | "modular" | "canvas";
 export type WorkspaceBreakpoint = "desktop" | "tablet" | "mobile";
 export type WorkspacePresetLockMode = "locked" | "flexible";
 
@@ -379,6 +380,53 @@ export type WorkspaceGraphAppearance = "sync" | "light" | "dark";
 export type WorkspaceGraphChrome = "standard" | "focused";
 export type WorkspaceVerticalSpace = "fit" | "balanced" | "extended" | "infinite";
 
+export type SimplePresentationTheme =
+  | "classic-light"
+  | "warm-paper"
+  | "night-study"
+  | "history-gold"
+  | "math-blue"
+  | "high-contrast";
+export type SimplePresentationFontSize = "small" | "medium" | "large";
+export type SimplePresentationReadingWidth = "focused" | "comfortable" | "wide";
+export type SimplePresentationMotion = "reduced" | "standard";
+
+export type SimplePresentationSettings = {
+  theme: SimplePresentationTheme;
+  fontSize: SimplePresentationFontSize;
+  readingWidth: SimplePresentationReadingWidth;
+  showSideNotes: boolean;
+  showProgressBar: boolean;
+  showStudyDrawer: boolean;
+  accentColor: "history-gold" | "math-blue" | "teal" | "rose";
+  motion: SimplePresentationMotion;
+  focusMode: boolean;
+  highContrast: boolean;
+};
+
+export type ModularPanelDensity = "comfortable" | "compact";
+export type ModularSidePanelPosition = "left" | "right";
+
+export type ModularStudySettings = {
+  selectedPreset: WorkspacePresetId;
+  panelDensity: ModularPanelDensity;
+  moduleVisibility: Partial<Record<WorkspaceModuleId, boolean>>;
+  sidePanelPosition: ModularSidePanelPosition;
+  motionLevel: WorkspaceAnimationLevel;
+  colorPreset: WorkspaceThemeId;
+  saveLayoutPerBinder: boolean;
+};
+
+export type FullCanvasSnapBehavior = "off" | "edges" | "modules";
+
+export type FullCanvasSettings = {
+  gridSize: number;
+  snapBehavior: FullCanvasSnapBehavior;
+  panelPositions: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  customModules: WorkspaceModuleId[];
+  showDiagnostics: boolean;
+};
+
 export type WorkspaceThemeSettings = {
   id: WorkspaceThemeId;
   accent: string;
@@ -405,6 +453,10 @@ export type WorkspacePreferences = {
   userId: string;
   binderId: string;
   suiteTemplateId?: string | null;
+  activeMode: WorkspaceMode;
+  simple: SimplePresentationSettings;
+  modular: ModularStudySettings;
+  canvas: FullCanvasSettings;
   locked: boolean;
   workspaceStyle: WorkspaceStyle;
   styleChoiceCompleted: boolean;

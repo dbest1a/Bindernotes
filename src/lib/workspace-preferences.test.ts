@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applyWorkspaceMode,
   applyThemeSettings,
   applyPreset,
   applyWorkspaceStyle,
@@ -28,7 +29,11 @@ describe("workspace preferences", () => {
     expect(preferences.enabledModules).toContain("lesson");
     expect(preferences.enabledModules).toContain("private-notes");
     expect(preferences.workspaceStyle).toBe("guided");
+    expect(preferences.activeMode).toBe("simple");
     expect(preferences.styleChoiceCompleted).toBe(false);
+    expect(preferences.simple.theme).toBe("math-blue");
+    expect(preferences.modular.selectedPreset).toBe(preferences.preset);
+    expect(preferences.canvas.snapBehavior).toBe("off");
     expect(preferences.windowLayout.lesson).toBeDefined();
     expect(preferences.windowLayout["private-notes"]).toBeDefined();
     expect(preferences.theme.backgroundStyle).toBe("subtle-grid");
@@ -57,6 +62,41 @@ describe("workspace preferences", () => {
     expect(fullStudio.styleChoiceCompleted).toBe(true);
     expect(fullStudio.windowLayout.lesson).toBeDefined();
     expect(fullStudio.windowLayout["private-notes"]).toBeDefined();
+  });
+
+  it("switches learner modes while keeping each mode's settings separate", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const mathPreset = applyPreset(preferences, "math-study");
+    const canvasFrame: WorkspaceWindowFrame = { x: 444, y: 88, w: 720, h: 640, z: 22 };
+    const withCanvasMemory = {
+      ...mathPreset,
+      canvas: {
+        ...mathPreset.canvas,
+        panelPositions: {
+          lesson: canvasFrame,
+        },
+      },
+    };
+
+    const simple = applyWorkspaceMode(withCanvasMemory, "simple");
+    const simpleThemeChanged = {
+      ...simple,
+      simple: {
+        ...simple.simple,
+        theme: "night-study" as const,
+      },
+    };
+    const modular = applyWorkspaceMode(simpleThemeChanged, "modular");
+    const canvas = applyWorkspaceMode(simpleThemeChanged, "canvas");
+
+    expect(simple.activeMode).toBe("simple");
+    expect(simple.locked).toBe(true);
+    expect(simpleThemeChanged.canvas.panelPositions.lesson).toEqual(canvasFrame);
+    expect(modular.activeMode).toBe("modular");
+    expect(modular.preset).toBe("math-study");
+    expect(canvas.activeMode).toBe("canvas");
+    expect(canvas.locked).toBe(false);
+    expect(canvas.windowLayout.lesson).toEqual(canvasFrame);
   });
 
   it("applies a preset module arrangement and generates window frames", () => {
