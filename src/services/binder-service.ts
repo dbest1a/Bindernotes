@@ -993,7 +993,15 @@ export async function getProfile(userId: string, email: string): Promise<Profile
   return inserted as Profile;
 }
 
-export async function getDashboard(profile: Profile): Promise<DashboardData> {
+type DashboardOptions = {
+  includeSystemStatus?: boolean;
+};
+
+export async function getDashboard(
+  profile: Profile,
+  options?: DashboardOptions,
+): Promise<DashboardData> {
+  const includeSystemStatus = options?.includeSystemStatus ?? true;
   if (!supabase) {
     const demoState = loadDemoState();
     const lessons = getLocalBundledLessons();
@@ -1013,7 +1021,9 @@ export async function getDashboard(profile: Profile): Promise<DashboardData> {
       recentLessons: visible.lessons
         .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
         .slice(0, 6),
-      seedHealth: systemSuiteTemplates.map((suite) => createHealthySeedHealth(suite)),
+      seedHealth: includeSystemStatus
+        ? systemSuiteTemplates.map((suite) => createHealthySeedHealth(suite))
+        : [],
       diagnostics: [],
     };
   }
@@ -1074,21 +1084,26 @@ export async function getDashboard(profile: Profile): Promise<DashboardData> {
   const candidateBinders = mergePublishedDemoBinders(
     ((bindersResult.data ?? []) as unknown as Binder[]).map(normalizeDashboardBinder),
   ).filter((binder) => (profile.role === "admin" ? binder.status === "published" || binder.owner_id === profile.id : true));
-  let status: { seedHealth: SeedHealth[]; diagnostics: WorkspaceDiagnostic[] };
-  try {
-    status = await getDashboardStatus(candidateBinders);
-  } catch (error) {
-    const diagnostics = dedupeWorkspaceDiagnostics(classifyRuntimeError("workspace", error));
-    return {
-      binders: candidateBinders,
-      folders: [],
-      folderBinders: [],
-      notes: [],
-      lessons: [],
-      recentLessons: [],
-      seedHealth: isMissingSeedError(error) ? [error.seedHealth] : [],
-      diagnostics,
-    };
+  let status: { seedHealth: SeedHealth[]; diagnostics: WorkspaceDiagnostic[] } = {
+    seedHealth: [],
+    diagnostics: [],
+  };
+  if (includeSystemStatus) {
+    try {
+      status = await getDashboardStatus(candidateBinders);
+    } catch (error) {
+      const diagnostics = dedupeWorkspaceDiagnostics(classifyRuntimeError("workspace", error));
+      return {
+        binders: candidateBinders,
+        folders: [],
+        folderBinders: [],
+        notes: [],
+        lessons: [],
+        recentLessons: [],
+        seedHealth: isMissingSeedError(error) ? [error.seedHealth] : [],
+        diagnostics,
+      };
+    }
   }
 
   const lessonsResult =
@@ -1119,7 +1134,9 @@ export async function getDashboard(profile: Profile): Promise<DashboardData> {
     notesResult.error ? classifyQueryError("learner_notes", notesResult.error) : null,
     lessonsResult.error ? classifyQueryError("binder_lessons", lessonsResult.error) : null,
   ].filter(Boolean) as WorkspaceDiagnostic[];
-  const diagnostics = dedupeWorkspaceDiagnostics([...(status.diagnostics ?? []), ...queryDiagnostics]);
+  const diagnostics = includeSystemStatus
+    ? dedupeWorkspaceDiagnostics([...(status.diagnostics ?? []), ...queryDiagnostics])
+    : queryDiagnostics;
 
   const shadowState = loadShadowState();
   const shadowNotes = shadowState.notes.filter((note) => note.owner_id === profile.id);
@@ -1144,7 +1161,7 @@ export async function getDashboard(profile: Profile): Promise<DashboardData> {
     notes,
     lessons: visible.lessons,
     recentLessons,
-    seedHealth: status.seedHealth,
+    seedHealth: includeSystemStatus ? status.seedHealth : [],
     diagnostics,
   };
 }

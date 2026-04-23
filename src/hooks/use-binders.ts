@@ -31,11 +31,18 @@ import type { JSONContent } from "@tiptap/react";
 
 const DEFAULT_QUERY_STALE_TIME = 30_000;
 
-export function useDashboard(profile: Profile | null) {
+type DashboardQueryOptions = {
+  includeSystemStatus?: boolean;
+  enabled?: boolean;
+};
+
+export function useDashboard(profile: Profile | null, options?: DashboardQueryOptions) {
+  const includeSystemStatus = options?.includeSystemStatus ?? true;
+  const enabled = options?.enabled ?? true;
   return useQuery({
-    queryKey: ["dashboard", profile?.id, profile?.role],
-    queryFn: () => getDashboard(profile!),
-    enabled: Boolean(profile),
+    queryKey: ["dashboard", profile?.id, profile?.role, includeSystemStatus],
+    queryFn: () => getDashboard(profile!, { includeSystemStatus }),
+    enabled: Boolean(profile) && enabled,
     staleTime: DEFAULT_QUERY_STALE_TIME,
     refetchOnWindowFocus: false,
   });
