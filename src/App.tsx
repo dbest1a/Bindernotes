@@ -43,6 +43,9 @@ const AdminStudioPage = lazy(() =>
 const PricingPage = lazy(() =>
   import("@/pages/pricing-page").then((module) => ({ default: module.PricingPage })),
 );
+const TutorialPage = lazy(() =>
+  import("@/pages/tutorial-page").then((module) => ({ default: module.TutorialPage })),
+);
 
 export function App() {
   const [queryClient] = useState(
@@ -82,6 +85,7 @@ export function App() {
                     <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
                     <Route path="/admin" element={<AdminStudioPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
+                    <Route path="/tutorial" element={<TutorialPage />} />
                   </Route>
                 </Route>
                 <Route path="*" element={<Navigate replace to="/" />} />

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
@@ -140,6 +141,12 @@ export function DashboardPage() {
                 Real study material stays near the top. Empty drafts and backend diagnostics no longer
                 crowd the main workspace view.
               </p>
+              <Button asChild className="mt-3" size="sm" type="button" variant="outline">
+                <Link to="/tutorial">
+                  Open feature tutorial
+                  <ChevronRight data-icon="inline-start" />
+                </Link>
+              </Button>
             </div>
           </div>
         </aside>

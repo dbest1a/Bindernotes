@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  BookOpenCheck,
   Calculator,
   GraduationCap,
   LayoutDashboard,
@@ -46,6 +47,9 @@ export function AppShell() {
             </NavItem>
             <NavItem to="/math" icon={<Calculator data-icon="inline-start" />}>
               Math lab
+            </NavItem>
+            <NavItem to="/tutorial" icon={<BookOpenCheck data-icon="inline-start" />}>
+              Tutorial
             </NavItem>
             {profile?.role === "admin" ? (
               <NavItem to="/admin" icon={<PenTool data-icon="inline-start" />}>
