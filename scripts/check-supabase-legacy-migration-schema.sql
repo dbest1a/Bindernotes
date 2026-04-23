@@ -91,27 +91,6 @@ with checks(version, check_name, ok) as (
       )
     ),
     (
-      '0002',
-      'folder_binders table',
-      to_regclass('public.folder_binders') is not null
-    ),
-    (
-      '0002',
-      'folder_binders owner folder index',
-      to_regclass('public.folder_binders_owner_folder_idx') is not null
-    ),
-    (
-      '0002',
-      'folder binders own policy',
-      exists (
-        select 1
-        from pg_policies
-        where schemaname = 'public'
-          and tablename = 'folder_binders'
-          and policyname = 'folder binders own'
-      )
-    ),
-    (
       '0003',
       'highlights start_offset column',
       exists (
@@ -205,6 +184,16 @@ with checks(version, check_name, ok) as (
           and column_name = 'lesson_id'
           and data_type = 'text'
       )
+    ),
+    (
+      '0005',
+      'folder_binders table',
+      to_regclass('public.folder_binders') is not null
+    ),
+    (
+      '0005',
+      'folder_binders owner folder index',
+      to_regclass('public.folder_binders_owner_folder_idx') is not null
     ),
     (
       '0005',
