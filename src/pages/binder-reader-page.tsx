@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Maximize2,
@@ -72,6 +73,7 @@ import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-pre
 import type {
   BinderNotebookLessonEntry,
   BinderNotebookSection,
+  BinderBundle,
   Comment,
   Highlight,
   HighlightColor,
@@ -103,6 +105,7 @@ export function BinderReaderPage() {
   const { binderId, lessonId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { profile } = useAuth();
   const binderQuery = useBinderBundle(binderId, profile);
   const noteMutation = useLearnerNoteMutation(profile, binderId);
@@ -173,6 +176,11 @@ export function BinderReaderPage() {
   const isLayoutEditing = layoutMode === "setup";
   const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
+  const lessons = binderQuery.data?.lessons ?? [];
+  const selectedLesson = useMemo(
+    () => lessons.find((lesson) => lesson.id === lessonId) ?? lessons[0],
+    [lessonId, lessons],
+  );
   const historyTimelineStatus = useSaveStatus(
     `history-timeline:${binderId ?? "none"}:${profile?.id ?? "anon"}`,
   );
@@ -185,7 +193,13 @@ export function BinderReaderPage() {
   const historyMythStatus = useSaveStatus(
     `history-myth:${binderId ?? "none"}:${profile?.id ?? "anon"}`,
   );
+  const highlightScopeKey =
+    binderId && selectedLesson && profile
+      ? `highlight:${binderId}:${selectedLesson.id}:${profile.id}`
+      : "highlight:none";
+  const highlightStatus = useSaveStatus(highlightScopeKey);
   const historyData = historyQuery.data;
+  const highlightOperationRef = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     const suiteTemplateId = binderQuery.data?.binder?.suite_template_id;
@@ -253,11 +267,6 @@ export function BinderReaderPage() {
     }
   }, [active?.binderId, active?.locked, active?.updatedAt]);
 
-  const lessons = binderQuery.data?.lessons ?? [];
-  const selectedLesson = useMemo(
-    () => lessons.find((lesson) => lesson.id === lessonId) ?? lessons[0],
-    [lessonId, lessons],
-  );
   const historyEnabled =
     binderQuery.data?.binder.subject === "History" ||
     Boolean(historyData?.suite?.history_mode);
@@ -1292,6 +1301,27 @@ export function BinderReaderPage() {
     },
     [lessonPlainText],
   );
+  const readCurrentHighlights = useCallback(
+    (activeBinderId: string) =>
+      queryClient.getQueryData<BinderBundle>(["binder", activeBinderId, profile?.id])?.highlights ??
+      binderQuery.data?.highlights ??
+      [],
+    [binderQuery.data?.highlights, profile?.id, queryClient],
+  );
+  const runQueuedHighlightOperation = useCallback(
+    <T,>(scopeKey: string, runner: () => Promise<T>): Promise<T> => {
+      const run = () =>
+        saveQueue.run({
+          entityType: "highlight",
+          scopeKey,
+          runner,
+        });
+      const next = highlightOperationRef.current.then(run, run);
+      highlightOperationRef.current = next.catch(() => undefined);
+      return next;
+    },
+    [],
+  );
   const lessonAnchors = useMemo(
     () => (selectedLesson ? collectLessonSectionAnchors(selectedLesson.content, selectedLesson.id) : []),
     [selectedLesson],
@@ -1651,6 +1681,7 @@ export function BinderReaderPage() {
     isSetupMode: !active.locked,
     workspaceStyle: active.workspaceStyle,
     autosaveStatus,
+    highlightStatus,
     noteSaveLabel,
     noteSaveDetail,
     noteSaveError,
@@ -1753,16 +1784,20 @@ export function BinderReaderPage() {
       annotations.updateComment.mutate({ commentId, body });
     },
     onAddHighlight: (selection, color) => {
-      if (!binderId || !selectedLesson || !selection.text.trim()) {
+      if (!binderId || !selectedLesson || !profile || !selection.text.trim()) {
         return;
       }
 
-      void (async () => {
-        const activeBinderId = binderId;
+      const activeBinderId = binderId;
+      const activeLessonId = selectedLesson.id;
+      const activeLessonPlainText = lessonPlainText;
+      const operationScopeKey = `highlight:${activeBinderId}:${activeLessonId}:${profile.id}`;
+
+      void runQueuedHighlightOperation(operationScopeKey, async () => {
         const selectionRange = getSelectionRange(selection);
-        const allMatchingHighlights = (binderQuery.data?.highlights ?? []).filter(
+        const allMatchingHighlights = readCurrentHighlights(activeBinderId).filter(
           (highlight) =>
-            highlight.lesson_id === selectedLesson.id &&
+            highlight.lesson_id === activeLessonId &&
             selectionMatchesHighlight(selection, highlight),
         );
         const exactMatches = allMatchingHighlights.filter((highlight) =>
@@ -1790,7 +1825,7 @@ export function BinderReaderPage() {
               selection,
               color,
               activeBinderId,
-              selectedLesson.id,
+              activeLessonId,
             ),
           });
           return;
@@ -1812,44 +1847,48 @@ export function BinderReaderPage() {
             const left = trimHighlightToRange(
               highlight,
               { start: range.start, end: selectionRange.start },
-              lessonPlainText,
+              activeLessonPlainText,
             );
             const right = trimHighlightToRange(
               highlight,
               { start: selectionRange.end, end: range.end },
-              lessonPlainText,
+              activeLessonPlainText,
             );
 
             await annotations.deleteHighlight.mutateAsync({ highlightId: highlight.id });
 
             if (left) {
               await annotations.highlight.mutateAsync(
-                buildHighlightInputFromStoredHighlight(left, activeBinderId, selectedLesson.id),
+                buildHighlightInputFromStoredHighlight(left, activeBinderId, activeLessonId),
               );
             }
 
             if (right) {
               await annotations.highlight.mutateAsync(
-                buildHighlightInputFromStoredHighlight(right, activeBinderId, selectedLesson.id),
+                buildHighlightInputFromStoredHighlight(right, activeBinderId, activeLessonId),
               );
             }
           }),
         );
 
         await annotations.highlight.mutateAsync(
-          buildHighlightInputFromSelection(selection, color, activeBinderId, selectedLesson.id),
+          buildHighlightInputFromSelection(selection, color, activeBinderId, activeLessonId),
         );
-      })();
+      }).catch(() => undefined);
     },
     onRemoveHighlight: (selection, highlightIds) => {
-      void (async () => {
-        if (!binderId) {
-          return;
-        }
+      if (!binderId || !selectedLesson || !profile) {
+        return;
+      }
 
-        const activeBinderId = binderId;
-        const rawLessonHighlights = (binderQuery.data?.highlights ?? []).filter(
-          (highlight) => highlight.lesson_id === selectedLesson.id,
+      const activeBinderId = binderId;
+      const activeLessonId = selectedLesson.id;
+      const activeLessonPlainText = lessonPlainText;
+      const operationScopeKey = `highlight:${activeBinderId}:${activeLessonId}:${profile.id}`;
+
+      void runQueuedHighlightOperation(operationScopeKey, async () => {
+        const rawLessonHighlights = readCurrentHighlights(activeBinderId).filter(
+          (highlight) => highlight.lesson_id === activeLessonId,
         );
         const matches =
           highlightIds.length > 0
@@ -1868,30 +1907,30 @@ export function BinderReaderPage() {
             const left = trimHighlightToRange(
               highlight,
               { start: range.start, end: selectionRange.start },
-              lessonPlainText,
+              activeLessonPlainText,
             );
             const right = trimHighlightToRange(
               highlight,
               { start: selectionRange.end, end: range.end },
-              lessonPlainText,
+              activeLessonPlainText,
             );
 
             await annotations.deleteHighlight.mutateAsync({ highlightId: highlight.id });
 
             if (left) {
               await annotations.highlight.mutateAsync(
-                buildHighlightInputFromStoredHighlight(left, activeBinderId, selectedLesson.id),
+                buildHighlightInputFromStoredHighlight(left, activeBinderId, activeLessonId),
               );
             }
 
             if (right) {
               await annotations.highlight.mutateAsync(
-                buildHighlightInputFromStoredHighlight(right, activeBinderId, selectedLesson.id),
+                buildHighlightInputFromStoredHighlight(right, activeBinderId, activeLessonId),
               );
             }
           }),
         );
-      })();
+      }).catch(() => undefined);
     },
     onSaveSelectionAsEvidence: (selection) => {
       void saveSelectionAsEvidence(selection);

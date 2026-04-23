@@ -180,7 +180,7 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
     created_at: now,
     updated_at: now,
   }));
-  const folderBinders = binders.map((binder) => {
+  const primaryFolderBinders = binders.map((binder) => {
     const suiteId = binder.suite_template_id;
     if (!suiteId) {
       throw new Error(`System binder ${binder.id} is missing suite_template_id.`);
@@ -199,6 +199,22 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
       updated_at: now,
     };
   });
+  const historyFolder = folders.find((folder) => folder.suite_template_id === SYSTEM_SUITE_IDS.historyDemo);
+  const riseOfRomeBinder = binders.find((binder) => binder.id === SYSTEM_BINDER_IDS.riseOfRome);
+  const folderBinders =
+    historyFolder && riseOfRomeBinder
+      ? [
+          ...primaryFolderBinders,
+          {
+            id: `folder-link:${historyFolder.id}:${riseOfRomeBinder.id}`,
+            owner_id: profile.id,
+            folder_id: historyFolder.id,
+            binder_id: riseOfRomeBinder.id,
+            created_at: now,
+            updated_at: now,
+          },
+        ]
+      : primaryFolderBinders;
 
   return {
     suites: systemSuiteTemplates.map((suite) => ({ ...suite, updated_at: now })),

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createComment,
@@ -30,6 +31,17 @@ import type {
 import type { JSONContent } from "@tiptap/react";
 
 const DEFAULT_QUERY_STALE_TIME = 30_000;
+const HIGHLIGHT_SYNC_EVENT = "binder-notes:highlight-sync";
+const HIGHLIGHT_SYNC_STORAGE_KEY = "binder-notes:highlight-sync:v1";
+
+type HighlightSyncPayload = {
+  id: string;
+  ownerId: string;
+  binderId: string;
+  lessonId?: string | null;
+  action: "create" | "update" | "delete" | "reset";
+  createdAt: string;
+};
 
 type DashboardQueryOptions = {
   includeSystemStatus?: boolean;
@@ -49,6 +61,42 @@ export function useDashboard(profile: Profile | null, options?: DashboardQueryOp
 }
 
 export function useBinderBundle(binderId: string | undefined, profile: Profile | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!binderId || !profile) {
+      return;
+    }
+
+    const syncIfRelevant = (payload: HighlightSyncPayload | null) => {
+      if (!payload || payload.ownerId !== profile.id || payload.binderId !== binderId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ["binder", binderId, profile.id] });
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== HIGHLIGHT_SYNC_STORAGE_KEY || !event.newValue) {
+        return;
+      }
+
+      syncIfRelevant(parseHighlightSyncPayload(event.newValue));
+    };
+
+    const handleLocalSync = (event: Event) => {
+      syncIfRelevant((event as CustomEvent<HighlightSyncPayload>).detail ?? null);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
+    };
+  }, [binderId, profile, queryClient]);
+
   return useQuery({
     queryKey: ["binder", binderId, profile?.id],
     queryFn: () => getBinderBundle(binderId!, profile!),
@@ -168,7 +216,17 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
           optimisticId,
         };
       },
-      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+      onError: (_error, _input, context) => {
+        if (!context?.optimisticId) {
+          restoreBinderBundle(queryClient, binderId, profile, context);
+          return;
+        }
+
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: current.highlights.filter((highlight) => highlight.id !== context.optimisticId),
+        }));
+      },
       onSuccess: (savedHighlight, _input, context) => {
         updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
           ...current,
@@ -177,6 +235,7 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
             savedHighlight,
           ),
         }));
+        publishHighlightSync(savedHighlight, "create");
       },
     }),
     updateHighlight: useMutation({
@@ -221,6 +280,7 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
           ...current,
           highlights: upsertById(current.highlights, savedHighlight),
         }));
+        publishHighlightSync(savedHighlight, "update");
       },
     }),
     deleteHighlight: useMutation({
@@ -230,12 +290,22 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
           ownerId: profile!.id,
         }),
       onMutate: async (input) => {
-        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+        const previous = snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
           ...current,
           highlights: current.highlights.filter((highlight) => highlight.id !== input.highlightId),
         }));
+
+        return {
+          ...previous,
+          deletedHighlight: previous.previous?.highlights.find((highlight) => highlight.id === input.highlightId),
+        };
       },
       onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+      onSuccess: (_result, _input, context) => {
+        if (context?.deletedHighlight) {
+          publishHighlightSync(context.deletedHighlight, "delete");
+        }
+      },
     }),
     resetHighlights: useMutation({
       mutationFn: (input: { binderId: string; lessonId?: string }) =>
@@ -267,6 +337,15 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
             return input.lessonId ? highlight.lesson_id !== input.lessonId : false;
           }),
         }));
+        publishHighlightSync(
+          {
+            id: `highlight-reset:${input.binderId}:${input.lessonId ?? "all"}`,
+            owner_id: profile!.id,
+            binder_id: input.binderId,
+            lesson_id: input.lessonId ?? "",
+          },
+          "reset",
+        );
       },
     }),
     comment: useMutation({
@@ -329,6 +408,54 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
       onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
     }),
   };
+}
+
+function publishHighlightSync(
+  highlight: Pick<Highlight, "id" | "owner_id" | "binder_id"> & Partial<Pick<Highlight, "lesson_id">>,
+  action: HighlightSyncPayload["action"],
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const payload: HighlightSyncPayload = {
+    id: `${action}:${highlight.id}:${crypto.randomUUID()}`,
+    ownerId: highlight.owner_id,
+    binderId: highlight.binder_id,
+    lessonId: highlight.lesson_id ?? null,
+    action,
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    window.localStorage.setItem(HIGHLIGHT_SYNC_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Local storage sync is a convenience for other tabs; the current tab already has cache updates.
+  }
+
+  window.dispatchEvent(new CustomEvent(HIGHLIGHT_SYNC_EVENT, { detail: payload }));
+}
+
+function parseHighlightSyncPayload(raw: string): HighlightSyncPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<HighlightSyncPayload>;
+    if (
+      typeof parsed.id !== "string" ||
+      typeof parsed.ownerId !== "string" ||
+      typeof parsed.binderId !== "string" ||
+      typeof parsed.createdAt !== "string"
+    ) {
+      return null;
+    }
+
+    if (!["create", "update", "delete", "reset"].includes(String(parsed.action))) {
+      return null;
+    }
+
+    return parsed as HighlightSyncPayload;
+  } catch {
+    return null;
+  }
 }
 
 function updateBinderBundleCache(

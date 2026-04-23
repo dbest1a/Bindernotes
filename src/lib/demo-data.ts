@@ -1812,10 +1812,23 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-origins",
     binder_id: "binder-rise-of-rome",
-    title: "Before Rome: Alba Longa, Numitor, and the Founding Myth",
+    title: "Start Here: Build Rome, Don't Just Memorize It",
     order_index: 1,
     is_preview: true,
     content: lessonDoc(
+      heading("Build history, do not just memorize it"),
+      paragraph(
+        "Follow Rome from legend to republic to empire by building the story out of dates, claims, evidence, and cause-effect chains. The goal is not to recite a list. The goal is to explain how a small city became a Mediterranean power, why its republic broke down, and why Roman civilization continued after the western empire fell.",
+      ),
+      bulletList([
+        "Start with the timeline to see the whole arc from Trojan origin tradition and Romulus to the western collapse.",
+        "Open Myth vs History whenever a famous claim sounds too clean.",
+        "Follow the Republic to Empire argument chain: expansion -> wealth and inequality -> reform crisis -> military politics -> civil war -> Augustus.",
+        "Save evidence from a source when it helps you support or challenge a claim.",
+      ]),
+      blockquote(
+        "Trace the causes, not just the dates. Rome becomes interesting when you can connect the pressure points.",
+      ),
       heading("Start with Alba Longa, not Rome"),
       paragraph(
         "Roman origin stories begin in Alba Longa, a Latin city in the Alban Hills. In the legend, the rightful king Numitor is overthrown by his brother Amulius, who removes rival heirs so the throne stays in his hands.",
@@ -1904,7 +1917,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-foundation-kingdom",
     binder_id: "binder-rise-of-rome",
-    title: "Romulus, the Roman Kingdom, and the Move from Myth to Monarchy",
+    title: "Mythic Origins and the Kings",
     order_index: 2,
     is_preview: false,
     content: lessonDoc(
@@ -1982,7 +1995,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-republic-italy",
     binder_id: "binder-rise-of-rome",
-    title: "The Roman Republic: Shared Office, Military Pressure, and the Conquest of Italy",
+    title: "Republic and Expansion in Italy",
     order_index: 3,
     is_preview: false,
     content: lessonDoc(
@@ -2049,7 +2062,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-punic-wars",
     binder_id: "binder-rise-of-rome",
-    title: "Punic Wars, Carthage, and Rome's Mediterranean Breakthrough",
+    title: "Punic Wars and Mediterranean Power",
     order_index: 4,
     is_preview: false,
     content: lessonDoc(
@@ -2107,7 +2120,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-caesar-augustus",
     binder_id: "binder-rise-of-rome",
-    title: "Julius Caesar, Civil War, and the Birth of the Empire",
+    title: "Crisis of the Republic",
     order_index: 5,
     is_preview: false,
     content: lessonDoc(
@@ -2180,7 +2193,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-golden-age-frontiers",
     binder_id: "binder-rise-of-rome",
-    title: "Augustus, Frontier Policy, and Life Inside the High Empire",
+    title: "Augustus and the Early Empire",
     order_index: 6,
     is_preview: false,
     content: lessonDoc(
@@ -2245,7 +2258,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-crisis-constantine",
     binder_id: "binder-rise-of-rome",
-    title: "The Third-Century Crisis, Tetrarchy, and Constantine's Christian Turn",
+    title: "Crisis, Constantine, and Division",
     order_index: 7,
     is_preview: false,
     content: lessonDoc(
@@ -2315,7 +2328,7 @@ const romanLessons: BinderLesson[] = [
   {
     id: "lesson-rome-fall-west",
     binder_id: "binder-rise-of-rome",
-    title: "The Fall of the Western Empire and the Long Roman Afterlife",
+    title: "Fall of the Western Empire",
     order_index: 8,
     is_preview: false,
     content: lessonDoc(
@@ -3126,6 +3139,69 @@ export const demoConceptNodes: ConceptNode[] = [
     binder_id: "binder-rise-of-rome",
     label: "Christianity and empire",
     description: "The growing role of Christianity in imperial law, legitimacy, and civic life in late antiquity.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-republic-concept",
+    binder_id: "binder-rise-of-rome",
+    label: "Republic",
+    description: "A political order built around shared offices, civic duty, elite competition, and suspicion of kingship.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-patricians",
+    binder_id: "binder-rise-of-rome",
+    label: "Patricians",
+    description: "Elite Roman families whose status and influence shaped early republican politics.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-plebeians",
+    binder_id: "binder-rise-of-rome",
+    label: "Plebeians",
+    description: "Common citizens whose political demands pushed Rome to define rights, offices, and representation.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-empire",
+    binder_id: "binder-rise-of-rome",
+    label: "Empire",
+    description: "A system of rule over provinces, armies, taxes, roads, law, and subject peoples across the Mediterranean.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-punic-wars",
+    binder_id: "binder-rise-of-rome",
+    label: "Punic Wars",
+    description: "Rome's wars with Carthage that transformed the republic into a Mediterranean superpower.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-military-reform",
+    binder_id: "binder-rise-of-rome",
+    label: "Military reform",
+    description: "Changes in recruitment, loyalty, command, and rewards that helped pull soldiers toward generals.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-constantinople",
+    binder_id: "binder-rise-of-rome",
+    label: "Constantinople",
+    description: "Constantine's eastern capital, later the center of the continuing Roman state in the east.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-western-empire",
+    binder_id: "binder-rise-of-rome",
+    label: "Western Roman Empire",
+    description: "The western imperial structure whose office disappears in 476 while Roman traditions continue elsewhere.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-byzantine",
+    binder_id: "binder-rise-of-rome",
+    label: "Byzantine Empire",
+    description: "The later name for the Eastern Roman Empire, which preserved Roman state claims for centuries.",
     created_at: now,
   },
   {

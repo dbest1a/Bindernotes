@@ -75,22 +75,27 @@ export function LessonSelectionToolbar({
 
   useEffect(() => {
     const syncSelection = () => {
-      const next = readLessonSelection(containerSelector);
-      if (next) {
-        selectionRef.current = next;
-        setSelection(next);
-        return;
-      }
+      try {
+        const next = readLessonSelection(containerSelector);
+        if (next) {
+          selectionRef.current = next;
+          setSelection(next);
+          return;
+        }
 
-      const preserved = refreshSelectionState(selectionRef.current, containerSelector);
-      if (preserved) {
-        selectionRef.current = preserved;
-        setSelection(preserved);
-        return;
-      }
+        const preserved = refreshSelectionState(selectionRef.current, containerSelector);
+        if (preserved) {
+          selectionRef.current = preserved;
+          setSelection(preserved);
+          return;
+        }
 
-      selectionRef.current = null;
-      setSelection(null);
+        selectionRef.current = null;
+        setSelection(null);
+      } catch {
+        selectionRef.current = null;
+        setSelection(null);
+      }
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -101,6 +106,7 @@ export function LessonSelectionToolbar({
       }
 
       if (toolbarRef.current?.contains(target)) {
+        event.preventDefault();
         restoreSelection(selectionRef.current);
         return;
       }
@@ -147,7 +153,8 @@ export function LessonSelectionToolbar({
       : "translate(-50%, 12px)";
 
   const runSelectionAction = (action: (currentSelection: LessonTextSelection) => void) => {
-    action(selection.selection);
+    const currentSelection = selectionRef.current?.selection ?? selection.selection;
+    action(currentSelection);
     clearSelection();
   };
 
@@ -168,6 +175,7 @@ export function LessonSelectionToolbar({
             className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-2.5 py-1.5 text-xs font-medium transition hover:border-primary/35 hover:bg-accent/60"
             key={button.color}
             onMouseDown={preserveSelection}
+            onPointerDown={preserveSelection}
             onClick={() => {
               runSelectionAction((currentSelection) => onHighlight(currentSelection, button.color));
             }}
@@ -180,6 +188,7 @@ export function LessonSelectionToolbar({
         {hasSelectionHighlight ? (
           <Button
             onMouseDown={preserveSelection}
+            onPointerDown={preserveSelection}
             onClick={() => {
               runSelectionAction((currentSelection) =>
                 onRemoveHighlight(
@@ -198,6 +207,7 @@ export function LessonSelectionToolbar({
         ) : null}
         <Button
           onMouseDown={preserveSelection}
+          onPointerDown={preserveSelection}
           onClick={() => {
             runSelectionAction((currentSelection) => onStickyNote(currentSelection.text));
           }}
@@ -209,6 +219,7 @@ export function LessonSelectionToolbar({
         </Button>
         <Button
           onMouseDown={preserveSelection}
+          onPointerDown={preserveSelection}
           onClick={() => {
             runSelectionAction((currentSelection) => onSendToNotes(currentSelection.text));
           }}
@@ -221,6 +232,7 @@ export function LessonSelectionToolbar({
         </Button>
         <Button
           onMouseDown={preserveSelection}
+          onPointerDown={preserveSelection}
           onClick={() => {
             runSelectionAction((currentSelection) => onQuoteToNotes(currentSelection.text));
           }}
@@ -234,6 +246,7 @@ export function LessonSelectionToolbar({
         {onSaveAsEvidence ? (
           <Button
             onMouseDown={preserveSelection}
+            onPointerDown={preserveSelection}
             onClick={() => {
               runSelectionAction((currentSelection) => onSaveAsEvidence(currentSelection));
             }}
@@ -310,8 +323,13 @@ function refreshSelectionState(
     return null;
   }
 
-  const anchor = measureSelectionAnchor(selection.range);
-  if (!anchor) {
+  let anchor: SelectionAnchor | null = null;
+  try {
+    anchor = measureSelectionAnchor(selection.range);
+    if (!anchor) {
+      return null;
+    }
+  } catch {
     return null;
   }
 
@@ -524,6 +542,6 @@ const highlightButtons: { color: HighlightColor; label: string; swatch: string }
   { color: "orange", label: "Question", swatch: "bg-orange-500" },
 ];
 
-function preserveSelection(event: Pick<MouseEvent, "preventDefault">) {
+function preserveSelection(event: { preventDefault: () => void }) {
   event.preventDefault();
 }

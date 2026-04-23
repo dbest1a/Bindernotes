@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
@@ -129,6 +130,25 @@ vi.mock("@/hooks/use-math-workspace", () => ({
 
 import { BinderReaderPage } from "@/pages/binder-reader-page";
 
+function renderReaderPage(initialEntry: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe("BinderReaderPage", () => {
   beforeEach(() => {
     vi.stubGlobal("matchMedia", (query: string) => ({
@@ -153,13 +173,7 @@ describe("BinderReaderPage", () => {
     mocks.binderBundle.data = undefined;
     mocks.binderBundle.error = null;
 
-    const { container } = render(
-      <MemoryRouter initialEntries={["/binders/binder-1/documents/lesson-1"]}>
-        <Routes>
-          <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
@@ -207,13 +221,7 @@ describe("BinderReaderPage", () => {
       updated_at: new Date(0).toISOString(),
     });
 
-    render(
-      <MemoryRouter initialEntries={["/binders/binder-1/documents/lesson-1"]}>
-        <Routes>
-          <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(screen.getByText("Document unavailable")).toBeTruthy();
   });

@@ -45,11 +45,30 @@ describe("system seed payload", () => {
     const payload = buildSystemSeedPayload(adminProfile);
     const folderIds = new Set(payload.folders.map((folder) => folder.id));
 
-    expect(payload.folderBinders).toHaveLength(payload.binders.length);
+    expect(payload.folderBinders.length).toBeGreaterThanOrEqual(payload.binders.length);
     payload.folderBinders.forEach((link) => {
       expect(folderIds.has(link.folder_id)).toBe(true);
       expect(payload.binders.some((binder) => binder.id === link.binder_id)).toBe(true);
     });
+  });
+
+  it("places Rise of Rome inside the learner-facing History Suite folder", () => {
+    const payload = buildSystemSeedPayload(adminProfile);
+    const historyFolder = payload.folders.find((folder) => folder.suite_template_id === SYSTEM_SUITE_IDS.historyDemo);
+
+    expect(historyFolder).toBeTruthy();
+    expect(payload.folderBinders).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          folder_id: historyFolder!.id,
+          binder_id: SYSTEM_BINDER_IDS.frenchRevolution,
+        }),
+        expect.objectContaining({
+          folder_id: historyFolder!.id,
+          binder_id: SYSTEM_BINDER_IDS.riseOfRome,
+        }),
+      ]),
+    );
   });
 
   it("includes French Revolution history templates", () => {

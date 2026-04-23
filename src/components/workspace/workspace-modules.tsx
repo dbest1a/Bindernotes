@@ -79,6 +79,7 @@ export type WorkspaceModuleContext = {
   isSetupMode: boolean;
   workspaceStyle: WorkspaceStyle;
   autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error";
+  highlightStatus: SaveStatusSnapshot;
   noteSaveLabel: string;
   noteSaveDetail: string;
   noteSaveError: string | null;
@@ -184,6 +185,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         binder={context.binder}
         defaultHighlightColor={context.defaultHighlightColor}
         highlights={context.highlights}
+        highlightStatus={context.highlightStatus}
         lesson={context.selectedLesson}
         onApplyPreset={context.onApplyPreset}
         onHighlight={context.onAddHighlight}

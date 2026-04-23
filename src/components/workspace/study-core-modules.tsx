@@ -25,6 +25,7 @@ import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SaveStatusPill } from "@/components/ui/save-status-pill";
 import type { MathSuggestion } from "@/lib/math-detection";
 import { extractPlainText } from "@/lib/math-detection";
 import type { NoteInsertRequest } from "@/lib/note-blocks";
@@ -38,12 +39,14 @@ import type {
   HighlightColor,
   LessonTextSelection,
   MathBlock,
+  SaveStatusSnapshot,
 } from "@/types";
 
 export const SourceLessonModule = memo(function SourceLessonModule({
   binder,
   defaultHighlightColor,
   highlights,
+  highlightStatus,
   lesson,
   onApplyPreset,
   onHighlight,
@@ -61,6 +64,7 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   binder: Binder;
   defaultHighlightColor: HighlightColor;
   highlights: Highlight[];
+  highlightStatus: SaveStatusSnapshot;
   lesson: BinderLesson;
   onApplyPreset: (presetId: "focused-reading" | "split-study" | "notes-focus") => void;
   onHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
@@ -117,6 +121,15 @@ export const SourceLessonModule = memo(function SourceLessonModule({
               {lesson.is_preview ? <Badge variant="secondary">Preview lesson</Badge> : null}
             </div>
           </div>
+
+          {highlightStatus.state !== "idle" ? (
+            <div className="mt-4 rounded-lg border border-border/70 bg-background/78 px-3 py-2">
+              <SaveStatusPill snapshot={highlightStatus} />
+              {highlightStatus.error ? (
+                <p className="mt-2 text-xs leading-5 text-destructive">{highlightStatus.error}</p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <StatTile label="Reading time" value={`${readingStats.minutes} min`} />
