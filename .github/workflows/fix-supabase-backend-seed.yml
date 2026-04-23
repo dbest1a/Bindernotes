@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_SYSTEM_OWNER_ID: ${{ secrets.SUPABASE_SYSTEM_OWNER_ID }}
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -33,7 +33,7 @@ jobs:
         run: |
           required=(
             "SUPABASE_DB_URL"
-            "SUPABASE_DB_PASSWORD"
+            "SUPABASE_ACCESS_TOKEN"
             "SUPABASE_URL"
             "SUPABASE_SERVICE_ROLE_KEY"
             "VITE_SUPABASE_ANON_KEY"
@@ -74,35 +74,11 @@ jobs:
         with:
           version: latest
 
-      - name: Normalize database URL
-        shell: bash
-        run: |
-          node - <<'NODE' >> "$GITHUB_ENV"
-          const raw = process.env.SUPABASE_DB_URL || "";
-          let parsed;
-          try {
-            parsed = new URL(raw);
-          } catch {
-            console.error("SUPABASE_DB_URL is not a valid URI.");
-            process.exit(1);
-          }
-
-          if (!parsed.username) {
-            console.error("SUPABASE_DB_URL must include a database username.");
-            process.exit(1);
-          }
-
-          parsed.password = "";
-          process.stdout.write(`SUPABASE_DB_URL_NORMALIZED=${parsed.toString()}\n`);
-          NODE
-
-      - name: Migration dry run
-        shell: bash
-        run: supabase db push --db-url "$SUPABASE_DB_URL_NORMALIZED" --dry-run
-
-      - name: Apply migrations
-        shell: bash
-        run: supabase db push --db-url "$SUPABASE_DB_URL_NORMALIZED" --yes
+      - name: Push Supabase migrations
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Seed backend-native system content
         run: npm run seed:system
