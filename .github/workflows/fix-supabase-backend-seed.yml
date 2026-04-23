@@ -2,6 +2,11 @@ name: Fix Supabase Backend Seed
 
 on:
   workflow_dispatch:
+    inputs:
+      repair_migration_history:
+        description: "Mark already-applied legacy migrations as applied in Supabase migration history"
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -125,14 +130,114 @@ jobs:
         with:
           version: latest
 
+      - name: Install PostgreSQL client
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Diagnose and optionally repair Supabase migration history
+        shell: bash
+        env:
+          REPAIR_MIGRATION_HISTORY: ${{ github.event.inputs.repair_migration_history }}
+        run: bash scripts/reconcile-supabase-migration-history.sh
+
+      - name: Migration list after reconciliation
+        shell: bash
+        run: supabase migration list --db-url "$SUPABASE_DB_URL" | tee .migration-diagnostics/migration-list-after.txt
+
+      - name: Migration dry run
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run | tee .migration-diagnostics/migration-dry-run.txt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
       - name: Push Supabase migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL" --yes | tee .migration-diagnostics/migration-push.txt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Seed backend-native system content
-        run: npm run seed:system
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run seed:system | tee .migration-diagnostics/seed-system.txt
 
       - name: Verify backend-native system seed counts
-        run: npm run verify:system-seed
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run verify:system-seed | tee .migration-diagnostics/verify-system-seed.txt
+
+      - name: Final migration and seed summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Final workflow summary"
+            echo
+            echo "### Migrations listed as local-only"
+            if [ -s .migration-diagnostics/local-only.tsv ]; then
+              while IFS=$'\t' read -r version migration_names; do
+                echo "- \`$version\`: $migration_names"
+              done < .migration-diagnostics/local-only.tsv
+            else
+              echo "- None recorded"
+            fi
+            echo
+            echo "### Migrations marked applied"
+            if [ -s .migration-diagnostics/repaired.tsv ]; then
+              while IFS=$'\t' read -r version migration_names; do
+                echo "- \`$version\`: $migration_names"
+              done < .migration-diagnostics/repaired.tsv
+            else
+              echo "- None"
+            fi
+            echo
+            echo "### Remaining schema mismatch"
+            if [ -s .migration-diagnostics/schema-mismatch.tsv ]; then
+              while IFS=$'\t' read -r version migration_names missing; do
+                echo "- \`$version\`: $migration_names"
+                echo "  Missing checks: $missing"
+              done < .migration-diagnostics/schema-mismatch.tsv
+            else
+              echo "- None recorded"
+            fi
+            echo
+            echo "### Migration dry run"
+            if [ -s .migration-diagnostics/migration-dry-run.txt ]; then
+              echo '```text'
+              tail -n 80 .migration-diagnostics/migration-dry-run.txt
+              echo '```'
+            else
+              echo "- Not reached"
+            fi
+            echo
+            echo "### Migration push"
+            if [ -s .migration-diagnostics/migration-push.txt ]; then
+              echo '```text'
+              tail -n 80 .migration-diagnostics/migration-push.txt
+              echo '```'
+            else
+              echo "- Not reached"
+            fi
+            echo
+            echo "### Seed"
+            if [ -s .migration-diagnostics/seed-system.txt ]; then
+              echo "- Seed step ran"
+            else
+              echo "- Seed step not reached"
+            fi
+            if [ -s .migration-diagnostics/verify-system-seed.txt ]; then
+              echo "- Seed verification ran"
+            else
+              echo "- Seed verification not reached"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
