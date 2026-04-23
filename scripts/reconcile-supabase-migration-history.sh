@@ -19,7 +19,6 @@ repair_candidates_file="$diagnostics_dir/repair-candidates.tsv"
 schema_mismatch_file="$diagnostics_dir/schema-mismatch.tsv"
 repaired_file="$diagnostics_dir/repaired.tsv"
 migration_list_before_file="$diagnostics_dir/migration-list-before.txt"
-psql_env_file="$diagnostics_dir/psql-env.sh"
 
 : > "$local_migrations_file"
 : > "$remote_versions_file"
@@ -31,20 +30,30 @@ psql_env_file="$diagnostics_dir/psql-env.sh"
 echo "Supabase migration history before reconciliation:"
 supabase migration list --db-url "$SUPABASE_DB_URL" | tee "$migration_list_before_file"
 
-python - <<'PY' > "$psql_env_file"
+psql_db_url="$(
+python - <<'PY'
 import os
-import shlex
 import sys
-from urllib.parse import parse_qsl, unquote, urlparse
+from urllib.parse import quote, unquote, urlparse, urlunparse
 
 raw = os.environ["SUPABASE_DB_URL"]
 parsed = urlparse(raw)
 
 host = parsed.hostname or ""
-port = str(parsed.port or 5432)
 user = unquote(parsed.username or "")
 password = unquote(parsed.password or "")
-database = unquote((parsed.path or "/postgres").lstrip("/") or "postgres")
+port = parsed.port
+
+if not host or not user or not password:
+    print(
+        "::error title=Invalid SUPABASE_DB_URL for psql diagnostics::"
+        "Expected a full postgres URL with host, username, and password.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+diagnostic_user = user
+psql_url = raw
 
 if host.endswith(".pooler.supabase.com") and user == "postgres":
     supabase_url = os.environ.get("SUPABASE_URL", "")
@@ -58,29 +67,30 @@ if host.endswith(".pooler.supabase.com") and user == "postgres":
         )
         sys.exit(1)
     user = f"postgres.{project_ref}"
+    diagnostic_user = user
+    netloc = f"{quote(user, safe='')}:{quote(password, safe='')}@{host}"
+    if port:
+        netloc = f"{netloc}:{port}"
+    psql_url = urlunparse(
+        (
+            parsed.scheme,
+            netloc,
+            parsed.path or "/postgres",
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
-params = dict(parse_qsl(parsed.query, keep_blank_values=True))
-sslmode = params.get("sslmode", "require")
-
-values = {
-    "PGHOST": host,
-    "PGPORT": port,
-    "PGUSER": user,
-    "PGPASSWORD": password,
-    "PGDATABASE": database,
-    "PGSSLMODE": sslmode,
-    # Supavisor/pooler connections can be sensitive to SCRAM channel binding
-    # differences across clients. Disabling it here affects only these read-only
-    # schema diagnostics, not the actual Supabase CLI migration push.
-    "PGCHANNELBINDING": "disable",
-}
-
-for key, value in values.items():
-    print(f"export {key}={shlex.quote(value)}")
+database = unquote((parsed.path or "/postgres").lstrip("/") or "postgres")
+print(
+    f"Using psql schema diagnostic connection: host={host} user={diagnostic_user} database={database}",
+    file=sys.stderr,
+)
+print(psql_url)
 PY
-
-source "$psql_env_file"
-echo "Using psql schema diagnostic connection: host=$PGHOST user=$PGUSER database=$PGDATABASE sslmode=$PGSSLMODE"
+)"
+export PGCHANNELBINDING=disable
 
 while IFS= read -r migration_path; do
   migration_name="$(basename "$migration_path" .sql)"
@@ -89,17 +99,17 @@ while IFS= read -r migration_path; do
 done < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)
 
 remote_history_exists="$(
-  psql -v ON_ERROR_STOP=1 -AtX \
+  psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX \
     -c "select to_regclass('supabase_migrations.schema_migrations') is not null;"
 )"
 
 if [ "$remote_history_exists" = "t" ]; then
-  psql -v ON_ERROR_STOP=1 -AtX \
+  psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX \
     -c "select version from supabase_migrations.schema_migrations order by version;" \
     > "$remote_versions_file"
 fi
 
-psql -v ON_ERROR_STOP=1 -AtX -F $'\t' \
+psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX -F $'\t' \
   -f scripts/check-supabase-legacy-migration-schema.sql \
   | tee "$schema_check_file"
 
