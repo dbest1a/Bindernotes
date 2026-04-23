@@ -3,6 +3,9 @@ name: Fix Supabase Backend Seed
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: read
 
@@ -50,6 +53,46 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
+
+          python - <<'PY'
+          import os
+          import re
+          import sys
+          from urllib.parse import urlparse
+
+          raw = os.environ["SUPABASE_DB_URL"]
+
+          if "[YOUR-PASSWORD]" in raw:
+            print("::error title=Invalid SUPABASE_DB_URL::Replace [YOUR-PASSWORD] with the real database password and URL-encode special characters.")
+            sys.exit(1)
+
+          try:
+            parsed = urlparse(raw)
+          except Exception:
+            print("::error title=Invalid SUPABASE_DB_URL::SUPABASE_DB_URL must be a valid postgres URL.")
+            sys.exit(1)
+
+          if parsed.scheme not in {"postgres", "postgresql"}:
+            print("::error title=Invalid SUPABASE_DB_URL::Use a postgres:// or postgresql:// direct database URL.")
+            sys.exit(1)
+
+          if not parsed.username or not parsed.password:
+            print("::error title=Invalid SUPABASE_DB_URL::Use the full direct database URL with username and password included.")
+            sys.exit(1)
+
+          host = parsed.hostname or ""
+          if "pooler.supabase.com" in host:
+            print("::error title=Invalid SUPABASE_DB_URL::Use the direct database host (db.<project-ref>.supabase.co), not the pooler URL, for supabase db push.")
+            sys.exit(1)
+
+          if not re.fullmatch(r"db\.[a-z0-9]+\.supabase\.co", host):
+            print("::error title=Invalid SUPABASE_DB_URL::Expected direct host format db.<project-ref>.supabase.co.")
+            sys.exit(1)
+
+          if parsed.port != 5432:
+            print("::error title=Invalid SUPABASE_DB_URL::Expected direct database port 5432.")
+            sys.exit(1)
+          PY
 
       - name: Install dependencies
         shell: bash
