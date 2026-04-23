@@ -65,6 +65,10 @@ export function AdminStudioPage() {
   const { profile } = useAuth();
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [selectedBinderId, setSelectedBinderId] = useState<string | undefined>();
+  const [createDraftOpen, setCreateDraftOpen] = useState(false);
+  const [newBinderTitle, setNewBinderTitle] = useState("");
+  const [createBinderError, setCreateBinderError] = useState<string | null>(null);
+  const [createBinderNotice, setCreateBinderNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<BinderFilter>("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
@@ -139,25 +143,69 @@ export function AdminStudioPage() {
       ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
       : "All changes saved";
 
+  const openCreateDraft = () => {
+    setCreateDraftOpen(true);
+    setCreateBinderError(null);
+    setCreateBinderNotice(null);
+  };
+
   const createBinder = async () => {
     if (!profile) {
       return;
     }
-    const title = `Binder ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-    const binder = await mutations.binder.mutateAsync({
-      ownerId: profile.id,
-      title,
-      slug: slugify(title),
-      description: "",
-      subject: "General",
-      level: "Foundations",
-      status: "draft",
-      price_cents: 0,
-      cover_url: null,
-      pinned: false,
-    });
-    setSelectedBinderId(binder.id);
-    setLastSavedAt(new Date().toISOString());
+    const trimmedTitle = newBinderTitle.trim();
+    if (!trimmedTitle) {
+      setCreateBinderError("Enter a binder title before creating a draft.");
+      return;
+    }
+
+    setCreateBinderError(null);
+    setCreateBinderNotice(null);
+    const baseSlug = slugify(trimmedTitle) || `binder-${Date.now().toString(36)}`;
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const suffix = attempt === 0 ? "" : `-${Date.now().toString(36)}-${attempt}`;
+      try {
+        const binder = await mutations.binder.mutateAsync({
+          ownerId: profile.id,
+          title: trimmedTitle,
+          slug: `${baseSlug}${suffix}`,
+          description: "",
+          subject: "General",
+          level: "Foundations",
+          status: "draft",
+          price_cents: 0,
+          cover_url: null,
+          pinned: false,
+        });
+        setSelectedBinderId(binder.id);
+        setStatusFilter("all");
+        setSearch("");
+        setCreateDraftOpen(false);
+        setCreateBinderNotice(`Created "${binder.title}".`);
+        setNewBinderTitle("");
+        setLastSavedAt(new Date().toISOString());
+        return;
+      } catch (error) {
+        lastError = error;
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const duplicateSlug =
+          message.includes("duplicate") ||
+          message.includes("unique") ||
+          message.includes("slug");
+        if (!duplicateSlug || attempt === 3) {
+          break;
+        }
+      }
+    }
+
+    setCreateBinderError(
+      lastError instanceof Error
+        ? lastError.message
+        : "Could not create binder right now. Try again in a moment.",
+    );
   };
 
   const diagnostics = filterActionableDiagnostics(diagnosticsQuery.data?.diagnostics ?? []);
@@ -201,10 +249,51 @@ export function AdminStudioPage() {
             </p>
           </div>
 
-          <Button className="mt-3 w-full" onClick={createBinder} type="button">
+          <Button className="mt-3 w-full" onClick={openCreateDraft} type="button">
             <FilePlus2 data-icon="inline-start" />
             New binder
           </Button>
+          {createDraftOpen ? (
+            <div className="mt-3 space-y-3 rounded-lg border border-border/70 bg-background/88 p-3">
+              <label className="flex flex-col gap-2 text-sm font-medium">
+                New binder title
+                <Input
+                  aria-label="New binder title"
+                  onChange={(event) => setNewBinderTitle(event.target.value)}
+                  placeholder="Enter a clear binder title"
+                  value={newBinderTitle}
+                />
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  disabled={mutations.binder.isPending}
+                  onClick={() => void createBinder()}
+                  type="button"
+                >
+                  {mutations.binder.isPending ? "Creating..." : "Create draft"}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setCreateDraftOpen(false);
+                    setCreateBinderError(null);
+                  }}
+                  type="button"
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+              {createBinderError ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {createBinderError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {createBinderNotice ? (
+            <p className="mt-3 text-sm text-muted-foreground">{createBinderNotice}</p>
+          ) : null}
 
           <div className="mt-4 space-y-3 rounded-lg border border-border/70 bg-background/80 p-3">
             <label className="relative block">
@@ -304,7 +393,7 @@ export function AdminStudioPage() {
           />
         ) : (
           <EmptyState
-            action={<Button onClick={createBinder}>Create binder</Button>}
+            action={<Button onClick={openCreateDraft}>Create binder</Button>}
             description="Create your first binder to start sequencing lessons and publishing content."
             title="No binders yet"
           />
@@ -364,6 +453,11 @@ function StudioWorkspace({
   const [lessonTitle, setLessonTitle] = useState(selectedLesson?.title ?? "");
   const [lessonContent, setLessonContent] = useState<JSONContent>(selectedLesson?.content ?? emptyDoc(""));
   const [lessonMathBlocks, setLessonMathBlocks] = useState<MathBlock[]>(selectedLesson?.math_blocks ?? []);
+
+  useEffect(() => {
+    setActiveTab("overview");
+    setPreviewReviewed(false);
+  }, [binder.id]);
 
   useEffect(() => {
     setTitle(binder.title);

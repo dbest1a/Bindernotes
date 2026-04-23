@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -151,6 +151,14 @@ const mocks = vi.hoisted(() => {
 
   return {
     profile,
+    baseBinder: binder,
+    baseLessonA: lessonA,
+    baseLessonB: lessonB,
+    baseFolder: folder,
+    baseDiagnostics: diagnostics,
+    baseSeedHealth: seedHealth,
+    dashboardBaseTemplate: dashboardBase,
+    dashboardDiagnosticsTemplate: dashboardDiagnostics,
     dashboardBaseState: {
       data: dashboardBase,
       isLoading: false,
@@ -228,7 +236,24 @@ import { AdminStudioPage } from "@/pages/admin-studio-page";
 
 describe("AdminStudioPage", () => {
   beforeEach(() => {
+    mocks.dashboardBaseState.data = {
+      ...mocks.dashboardBaseTemplate,
+      binders: [{ ...mocks.baseBinder }],
+      folders: [{ ...mocks.baseFolder }],
+      lessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
+      recentLessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
+    };
+    mocks.dashboardDiagnosticsState.data = {
+      ...mocks.dashboardDiagnosticsTemplate,
+      binders: [{ ...mocks.baseBinder }],
+      folders: [{ ...mocks.baseFolder }],
+      lessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
+      recentLessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
+      diagnostics: [...mocks.baseDiagnostics],
+      seedHealth: [...mocks.baseSeedHealth],
+    };
     mocks.mutations.binder.mutateAsync.mockClear();
+    mocks.mutations.binder.mutateAsync.mockResolvedValue({ ...mocks.baseBinder });
     mocks.mutations.lesson.mutateAsync.mockClear();
     mocks.mutations.deleteLesson.mutateAsync.mockClear();
     mocks.mutations.seedSystemSuites.mutateAsync.mockClear();
@@ -257,7 +282,7 @@ describe("AdminStudioPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByLabelText("Toggle system diagnostics drawer"));
+    fireEvent.click(screen.getAllByLabelText("Toggle system diagnostics drawer")[0]);
     expect(screen.getByText("Workspace diagnostics")).toBeTruthy();
     expect(screen.getByText("Preset warning")).toBeTruthy();
   });
@@ -269,7 +294,7 @@ describe("AdminStudioPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByLabelText("Binder title"), {
+    fireEvent.change(screen.getAllByLabelText("Binder title")[0], {
       target: { value: "Roman Republic Essentials" },
     });
     fireEvent.click(screen.getByText("Save binder"));
@@ -286,13 +311,88 @@ describe("AdminStudioPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByLabelText("Open Content tab"));
+    fireEvent.click(screen.getAllByLabelText("Open Content tab")[0]);
     fireEvent.click(screen.getByText("Move down"));
     expect(mocks.mutations.lesson.mutateAsync).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByLabelText("Open Publish tab"));
+    fireEvent.click(screen.getAllByLabelText("Open Publish tab")[0]);
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByText("Publish binder"));
     expect(mocks.mutations.binder.mutateAsync).toHaveBeenCalled();
+  });
+
+  it("opens visible create UI when New binder is clicked", () => {
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("New binder"));
+    expect(screen.getByLabelText("New binder title")).toBeTruthy();
+    expect(screen.getByText("Create draft")).toBeTruthy();
+  });
+
+  it("creates a binder draft and updates the publishing queue", async () => {
+    mocks.mutations.binder.mutateAsync.mockImplementationOnce(async (input: Partial<Binder>) => {
+      const created: Binder = {
+        ...mocks.baseBinder,
+        id: "binder-new",
+        title: (input.title as string) ?? "Roman Republic Essentials",
+        slug: (input.slug as string) ?? "roman-republic-essentials",
+        subject: (input.subject as string) ?? "General",
+        description: (input.description as string) ?? "",
+        status: "draft",
+        updated_at: new Date().toISOString(),
+      };
+      mocks.dashboardBaseState.data = {
+        ...mocks.dashboardBaseState.data,
+        binders: [created, ...mocks.dashboardBaseState.data.binders],
+      };
+      return created;
+    });
+
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("New binder"));
+    fireEvent.change(screen.getByLabelText("New binder title"), {
+      target: { value: "Roman Republic Essentials" },
+    });
+    fireEvent.click(screen.getByText("Create draft"));
+
+    await waitFor(() => {
+      expect(mocks.mutations.binder.mutateAsync).toHaveBeenCalled();
+    });
+    expect(screen.getByText('Created "Roman Republic Essentials".')).toBeTruthy();
+    expect(screen.getAllByText("Roman Republic Essentials").length).toBeGreaterThan(0);
+  });
+
+  it("shows a visible error when binder creation fails", async () => {
+    mocks.mutations.binder.mutateAsync.mockRejectedValue(
+      new Error("duplicate key value violates unique constraint \"binders_slug_key\""),
+    );
+
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText("New binder"));
+    fireEvent.change(screen.getByLabelText("New binder title"), {
+      target: { value: "Rise of Rome" },
+    });
+    fireEvent.click(screen.getByText("Create draft"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+    });
+    expect(
+      screen.getByText('duplicate key value violates unique constraint "binders_slug_key"'),
+    ).toBeTruthy();
   });
 });

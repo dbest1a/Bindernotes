@@ -450,6 +450,20 @@ export function useAdminMutations(profile: Profile | null) {
       mutationFn: (input: Parameters<typeof upsertBinder>[0]) =>
         upsertBinder({ ...input, ownerId: profile!.id }),
       onSuccess: (binder) => {
+        queryClient.setQueriesData<DashboardData | undefined>(
+          {
+            queryKey: ["dashboard", profile?.id, profile?.role],
+          },
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  binders: upsertById(current.binders, binder).sort(
+                    (left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at),
+                  ),
+                }
+              : current,
+        );
         invalidate();
         queryClient.invalidateQueries({ queryKey: ["binder", binder.id, profile?.id] });
       },
