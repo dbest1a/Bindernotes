@@ -809,7 +809,7 @@ export const defaultThemeSettings: WorkspaceThemeSettings = {
   snapMode: false,
   focusMode: false,
   compactMode: false,
-  animationLevel: "subtle",
+  animationLevel: "none",
   graphAppearance: "sync",
   graphChrome: "standard",
   verticalSpace: "balanced",
@@ -992,6 +992,52 @@ export function ensureWindowFramesForEnabledModules(
     nextZ += 1;
     windowLayout[moduleId] = normalizeWindowFrame({ ...fallback, z: nextZ });
   });
+
+  if (preferences.locked) {
+    const orderedModuleIds = [...preferences.enabledModules].sort((left, right) => {
+      const leftZ = windowLayout[left]?.z ?? 0;
+      const rightZ = windowLayout[right]?.z ?? 0;
+      return leftZ - rightZ;
+    });
+    const settled: Array<{ moduleId: WorkspaceModuleId; frame: WorkspaceWindowFrame }> = [];
+
+    orderedModuleIds.forEach((moduleId) => {
+      const current = windowLayout[moduleId];
+      if (!current) {
+        return;
+      }
+
+      const fallback = normalizedFallback[moduleId] ?? createFloatingFallbackFrame(moduleId, current.z);
+      let next = normalizeWindowFrame(current);
+
+      if (hasImpossibleWindowShape(next)) {
+        next = normalizeWindowFrame({ ...fallback, z: next.z });
+      }
+
+      const overlaps = settled.some((entry) => framesOverlap(entry.frame, next));
+      if (overlaps) {
+        next = normalizeWindowFrame({
+          ...fallback,
+          z: next.z,
+        });
+      }
+
+      const stillOverlapping = settled.some((entry) => framesOverlap(entry.frame, next));
+      if (stillOverlapping) {
+        const top = settled.reduce(
+          (maxBottom, entry) => Math.max(maxBottom, entry.frame.y + entry.frame.h + WINDOW_GAP),
+          next.y,
+        );
+        next = normalizeWindowFrame({
+          ...next,
+          y: top,
+        });
+      }
+
+      windowLayout[moduleId] = next;
+      settled.push({ moduleId, frame: next });
+    });
+  }
 
   return {
     ...preferences,
@@ -1839,4 +1885,24 @@ function appendUnique(current: WorkspaceModuleId[], additions: WorkspaceModuleId
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function hasImpossibleWindowShape(frame: WorkspaceWindowFrame) {
+  return (
+    !Number.isFinite(frame.x) ||
+    !Number.isFinite(frame.y) ||
+    !Number.isFinite(frame.w) ||
+    !Number.isFinite(frame.h) ||
+    frame.w <= 0 ||
+    frame.h <= 0
+  );
+}
+
+function framesOverlap(left: WorkspaceWindowFrame, right: WorkspaceWindowFrame) {
+  return !(
+    left.x + left.w <= right.x ||
+    right.x + right.w <= left.x ||
+    left.y + left.h <= right.y ||
+    right.y + right.h <= left.y
+  );
 }

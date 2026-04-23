@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => {
       createSource: { mutateAsync: vi.fn() },
       upsertEvidence: { mutateAsync: vi.fn() },
       createArgumentChain: { mutateAsync: vi.fn() },
+      updateArgumentChain: { mutateAsync: vi.fn() },
       createArgumentNode: { mutateAsync: vi.fn() },
       createArgumentEdge: { mutateAsync: vi.fn() },
       upsertMythCheck: { mutateAsync: vi.fn() },

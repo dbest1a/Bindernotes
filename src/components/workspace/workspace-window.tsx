@@ -200,18 +200,24 @@ export function WorkspaceWindow({
 
     const onUp = () => {
       source.releasePointerCapture?.(pointerId);
-      const next = snapPreviewRef.current?.frame ?? frameRef.current;
+      const resolvedFrame = resolveCommittedFrame({
+        frame: snapPreviewRef.current?.frame ?? frameRef.current,
+        moduleId,
+        snapEnabled,
+        canvasWidth,
+        canvasHeight,
+      });
       if (rafRef.current !== null) {
         window.cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      applyFrameToElement(windowRef.current, next);
+      frameRef.current = resolvedFrame;
+      applyFrameToElement(windowRef.current, resolvedFrame);
       setActiveMode(null);
       interactionActiveRef.current = false;
       snapPreviewRef.current = null;
       setSnapPreview(null);
-      // TODO: Route committed frames through a snap resolver here once docked workspace snapping lands.
-      onCommit(moduleId, next);
+      onCommit(moduleId, resolvedFrame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       document.body.style.userSelect = "";
@@ -443,4 +449,51 @@ function clampResizedFrame(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function resolveCommittedFrame(input: {
+  frame: WorkspaceWindowFrame;
+  moduleId: WorkspaceModuleId;
+  snapEnabled: boolean;
+  canvasWidth: number;
+  canvasHeight: number;
+}) {
+  const minimums = minSizes[input.moduleId] ?? { width: 280, height: 220 };
+  const effectiveMinimums =
+    input.snapEnabled
+      ? {
+          minWidth: Math.min(minimums.width, 320),
+          minHeight: Math.min(minimums.height, 220),
+        }
+      : {
+          minWidth: minimums.width,
+          minHeight: minimums.height,
+        };
+  const bounded = clampResizedFrame(
+    input.frame,
+    {
+      width: Math.max(minimums.width, input.canvasWidth),
+      height: Math.max(minimums.height, input.canvasHeight),
+    },
+    effectiveMinimums,
+  );
+
+  if (!input.snapEnabled) {
+    return bounded;
+  }
+
+  return clampResizedFrame(
+    {
+      ...bounded,
+      x: snapToFrame(bounded.x, 8),
+      y: snapToFrame(bounded.y, 8),
+      w: snapToFrame(bounded.w, 8),
+      h: snapToFrame(bounded.h, 8),
+    },
+    {
+      width: Math.max(minimums.width, input.canvasWidth),
+      height: Math.max(minimums.height, input.canvasHeight),
+    },
+    effectiveMinimums,
+  );
 }

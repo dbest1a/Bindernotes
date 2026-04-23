@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   BookCopy,
   ChevronRight,
@@ -29,8 +29,12 @@ import { createFolderSummary, getPrimaryFolder } from "@/lib/workspace-structure
 
 export function DashboardPage() {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
   const { data, isLoading, error } = useDashboard(profile);
   const [query, setQuery] = useState("");
+  const showSystemDiagnostics =
+    (profile?.role === "admin" || import.meta.env.DEV) &&
+    searchParams.get("debug") === "system";
 
   const filtered = useMemo(() => {
     if (!data) {
@@ -84,7 +88,7 @@ export function DashboardPage() {
     ? buildLearnerWorkspaceMessage(actionableDiagnostics)
     : null;
   const runtimeDiagnostics =
-    error && (profile?.role === "admin" || import.meta.env.DEV)
+    error && showSystemDiagnostics
       ? classifyRuntimeError("workspace", error)
       : [];
   const resolvedFiltered = filtered ?? {
@@ -157,12 +161,14 @@ export function DashboardPage() {
           {runtimeDiagnostics.length ? (
             <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} />
           ) : null}
-          {isMissingSeedError(error) ? (
+          {showSystemDiagnostics && isMissingSeedError(error) ? (
             <SeedHealthPanel items={[error.seedHealth]} />
           ) : null}
           <EmptyState
             description={
-              error instanceof Error ? error.message : "Check Supabase configuration and policies."
+              showSystemDiagnostics && error instanceof Error
+                ? error.message
+                : "This workspace is temporarily unavailable. Try again in a moment."
             }
             title="Could not load workspace"
           />
@@ -323,8 +329,13 @@ export function DashboardPage() {
               title="Workspace unavailable"
             />
           ) : null}
-          {!hasVisibleContent && data?.seedHealth.some((item) => item.status !== "healthy") ? (
-            <SeedHealthPanel items={data.seedHealth.filter((item) => item.status !== "healthy")} />
+          {!hasVisibleContent &&
+          showSystemDiagnostics &&
+          data?.seedHealth.some((item) => item.status !== "healthy") ? (
+            <SeedHealthPanel
+              items={data.seedHealth.filter((item) => item.status !== "healthy")}
+              showTechnicalDetails
+            />
           ) : null}
         </>
       ) : null}

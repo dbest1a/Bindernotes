@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -14,7 +14,6 @@ import { SaveStatusPill } from "@/components/ui/save-status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { formatHistoricalDateLabel, sortHistoryEvents } from "@/lib/history-dates";
@@ -33,6 +32,147 @@ import type {
   SaveStatusSnapshot,
 } from "@/types";
 
+type TimelineEventRecord = HistoryEvent | HistoryEventTemplate;
+type SourceRecord = HistorySource | HistorySourceTemplate;
+type MythRecord = HistoryMythCheck | HistoryMythCheckTemplate;
+type ChainEditableField = "prompt" | "thesis" | "context" | "counterargument" | "conclusion";
+
+const MYTH_STATUS_ORDER: Record<MythRecord["status"], number> = {
+  myth: 0,
+  oversimplification: 1,
+  contested: 2,
+  evidence_supported: 3,
+};
+
+const MYTH_STATUS_LABEL: Record<MythRecord["status"], string> = {
+  myth: "Myth",
+  oversimplification: "Oversimplification",
+  contested: "Contested",
+  evidence_supported: "Evidence-supported",
+};
+
+export function mergeTimelineEvents(
+  templateEvents: HistoryEventTemplate[],
+  events: HistoryEvent[],
+) {
+  const merged = new Map<string, TimelineEventRecord>();
+  const userEventsByTemplate = new Map<string, HistoryEvent>();
+
+  events.forEach((event) => {
+    if (!event.template_event_id) {
+      return;
+    }
+    const existing = userEventsByTemplate.get(event.template_event_id);
+    if (!existing || event.updated_at > existing.updated_at) {
+      userEventsByTemplate.set(event.template_event_id, event);
+    }
+  });
+
+  templateEvents.forEach((templateEvent) => {
+    const override = userEventsByTemplate.get(templateEvent.id);
+    if (override) {
+      merged.set(`template:${templateEvent.id}`, override);
+      return;
+    }
+    merged.set(`template:${templateEvent.id}`, templateEvent);
+  });
+
+  events.forEach((event) => {
+    if (event.template_event_id) {
+      merged.set(`template:${event.template_event_id}`, event);
+      return;
+    }
+    merged.set(`event:${event.id}`, event);
+  });
+
+  return sortHistoryEvents([...merged.values()]);
+}
+
+export function mergeHistorySources(
+  templateSources: HistorySourceTemplate[],
+  sources: HistorySource[],
+) {
+  const merged = new Map<string, SourceRecord>();
+  const userSourcesByTemplate = new Map<string, HistorySource>();
+
+  sources.forEach((source) => {
+    if (!source.template_source_id) {
+      return;
+    }
+    const existing = userSourcesByTemplate.get(source.template_source_id);
+    if (!existing || source.updated_at > existing.updated_at) {
+      userSourcesByTemplate.set(source.template_source_id, source);
+    }
+  });
+
+  templateSources.forEach((templateSource) => {
+    const override = userSourcesByTemplate.get(templateSource.id);
+    if (override) {
+      merged.set(`template:${templateSource.id}`, override);
+      return;
+    }
+    merged.set(`template:${templateSource.id}`, templateSource);
+  });
+
+  sources.forEach((source) => {
+    if (source.template_source_id) {
+      merged.set(`template:${source.template_source_id}`, source);
+      return;
+    }
+    merged.set(`source:${source.id}`, source);
+  });
+
+  return [...merged.values()].sort((left, right) => {
+    if (left.source_type !== right.source_type) {
+      return left.source_type === "primary" ? -1 : 1;
+    }
+    return left.title.localeCompare(right.title);
+  });
+}
+
+export function mergeMythChecks(
+  templateMyths: HistoryMythCheckTemplate[],
+  myths: HistoryMythCheck[],
+) {
+  const merged = new Map<string, MythRecord>();
+  const userByTemplate = new Map<string, HistoryMythCheck>();
+
+  myths.forEach((myth) => {
+    if (!myth.template_myth_check_id) {
+      return;
+    }
+    const existing = userByTemplate.get(myth.template_myth_check_id);
+    if (!existing || myth.updated_at > existing.updated_at) {
+      userByTemplate.set(myth.template_myth_check_id, myth);
+    }
+  });
+
+  templateMyths.forEach((templateMyth) => {
+    const override = userByTemplate.get(templateMyth.id);
+    if (override) {
+      merged.set(`template:${templateMyth.id}`, override);
+      return;
+    }
+    merged.set(`template:${templateMyth.id}`, templateMyth);
+  });
+
+  myths.forEach((myth) => {
+    if (myth.template_myth_check_id) {
+      merged.set(`template:${myth.template_myth_check_id}`, myth);
+      return;
+    }
+    merged.set(`myth:${myth.id}`, myth);
+  });
+
+  return [...merged.values()].sort((left, right) => {
+    const statusDelta = MYTH_STATUS_ORDER[left.status] - MYTH_STATUS_ORDER[right.status];
+    if (statusDelta !== 0) {
+      return statusDelta;
+    }
+    return left.myth_text.localeCompare(right.myth_text);
+  });
+}
+
 export function HistoryTimelineModule({
   activeEventId,
   evidenceCards,
@@ -40,7 +180,6 @@ export function HistoryTimelineModule({
   onCreateStarterEvent,
   onReplayTimeline,
   onSelectEvent,
-  sources,
   status,
   templateEvents,
 }: {
@@ -50,43 +189,70 @@ export function HistoryTimelineModule({
   onCreateStarterEvent: () => void;
   onReplayTimeline: () => void;
   onSelectEvent: (eventId: string) => void;
-  sources: HistorySource[];
   status: SaveStatusSnapshot;
   templateEvents: HistoryEventTemplate[];
 }) {
   const timelineEvents = useMemo(() => {
-    const base = sortHistoryEvents(templateEvents);
-    const evidenceCountByEvent = new Map<string, number>();
-    evidenceCards.forEach((card) => {
-      const templateEventId =
-        typeof card.source_snapshot_json?.templateEventId === "string"
-          ? card.source_snapshot_json.templateEventId
-          : null;
-      const eventId =
-        typeof card.source_snapshot_json?.eventId === "string"
-          ? card.source_snapshot_json.eventId
-          : templateEventId;
-      if (eventId) {
-        evidenceCountByEvent.set(eventId, (evidenceCountByEvent.get(eventId) ?? 0) + 1);
-      }
-    });
-    const sourceCountByEvent = new Map<string, number>();
-    sources.forEach((source) => {
-      const templateEventId =
-        typeof source.context_note === "string"
-          ? base.find((event) => source.context_note?.toLowerCase().includes(event.title.toLowerCase()))?.id
-          : null;
-      if (templateEventId) {
-        sourceCountByEvent.set(templateEventId, (sourceCountByEvent.get(templateEventId) ?? 0) + 1);
+    const mergedEvents = mergeTimelineEvents(templateEvents, events);
+    const eventIds = new Set(mergedEvents.map((event) => event.id));
+    const templateToEventId = new Map<string, string>();
+    mergedEvents.forEach((event) => {
+      if ("template_event_id" in event && event.template_event_id) {
+        templateToEventId.set(event.template_event_id, event.id);
+      } else {
+        templateToEventId.set(event.id, event.id);
       }
     });
 
-    return base.map((event) => ({
+    const evidenceCountByEventId = new Map<string, number>();
+    const sourceTokensByEventId = new Map<string, Set<string>>();
+
+    evidenceCards.forEach((card) => {
+      const snapshot = card.source_snapshot_json ?? {};
+      const snapshotEventId =
+        typeof snapshot.eventId === "string"
+          ? snapshot.eventId
+          : typeof snapshot.templateEventId === "string"
+            ? snapshot.templateEventId
+            : null;
+      if (!snapshotEventId) {
+        return;
+      }
+
+      const resolvedEventId = eventIds.has(snapshotEventId)
+        ? snapshotEventId
+        : templateToEventId.get(snapshotEventId) ?? null;
+      if (!resolvedEventId) {
+        return;
+      }
+
+      evidenceCountByEventId.set(
+        resolvedEventId,
+        (evidenceCountByEventId.get(resolvedEventId) ?? 0) + 1,
+      );
+
+      const snapshotSourceToken =
+        typeof snapshot.sourceId === "string"
+          ? snapshot.sourceId
+          : typeof snapshot.templateSourceId === "string"
+            ? snapshot.templateSourceId
+            : null;
+      const sourceToken = card.source_id ?? snapshotSourceToken;
+      if (!sourceToken) {
+        return;
+      }
+
+      const sourceSet = sourceTokensByEventId.get(resolvedEventId) ?? new Set<string>();
+      sourceSet.add(sourceToken);
+      sourceTokensByEventId.set(resolvedEventId, sourceSet);
+    });
+
+    return mergedEvents.map((event) => ({
       ...event,
-      evidenceCount: evidenceCountByEvent.get(event.id) ?? 0,
-      sourceCount: sourceCountByEvent.get(event.id) ?? 0,
+      evidenceCount: evidenceCountByEventId.get(event.id) ?? 0,
+      sourceCount: sourceTokensByEventId.get(event.id)?.size ?? 0,
     }));
-  }, [evidenceCards, sources, templateEvents]);
+  }, [evidenceCards, events, templateEvents]);
 
   const activeEvent =
     timelineEvents.find((event) => event.id === activeEventId) ?? timelineEvents[0] ?? null;
@@ -115,7 +281,7 @@ export function HistoryTimelineModule({
             <button
               className={cn(
                 "rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft",
-                event.id === activeEventId
+                event.id === activeEvent?.id
                   ? "border-primary/40 bg-accent/55"
                   : "border-border/70 bg-background/72",
               )}
@@ -129,7 +295,9 @@ export function HistoryTimelineModule({
                     {String(index + 1).padStart(2, "0")} · {formatHistoricalDateLabel(event)}
                   </p>
                   <h4 className="mt-2 text-base font-semibold">{event.title}</h4>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{event.summary}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {event.summary || "Summary coming soon."}
+                  </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge variant="outline">{event.location_label ?? "No location"}</Badge>
@@ -149,7 +317,7 @@ export function HistoryTimelineModule({
           ))}
           {timelineEvents.length === 0 ? (
             <EmptyState
-              description="Seeded history events will appear here once this binder has template chronology."
+              description="Seeded chronology appears here when this binder includes timeline events."
               title="No history events yet"
             />
           ) : null}
@@ -168,22 +336,29 @@ export function HistoryTimelineModule({
                 </div>
                 <Badge variant="secondary">{formatHistoricalDateLabel(activeEvent)}</Badge>
               </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{activeEvent.significance}</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {activeEvent.significance || "Add why this turning point matters."}
+              </p>
               <div className="mt-4 rounded-2xl border border-border/70 bg-background/74 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Landmark className="size-4" />
                   Map-style location
                 </div>
                 <div className="mt-3 rounded-2xl border border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.2),transparent_28%),radial-gradient(circle_at_70%_35%,rgba(59,130,246,0.18),transparent_32%),linear-gradient(180deg,rgba(15,23,42,0.04),transparent)] p-4">
-                  <p className="text-sm font-medium">{activeEvent.location_label ?? "Location unavailable"}</p>
+                  <p className="text-sm font-medium">
+                    {activeEvent.location_label ?? "Location unavailable"}
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Use this as a geographic cue rather than a fully interactive map. The panel is meant to keep spatial thinking visible without needing a paid map API.
+                    Use this as a geographic cue to keep spatial context visible while studying.
                   </p>
                 </div>
               </div>
               <div className="mt-4 grid gap-3">
-                <FactRow label="Why it mattered" value={activeEvent.significance} />
-                <FactRow label="Themes" value={activeEvent.themes.join(", ")} />
+                <FactRow
+                  label="Why it mattered"
+                  value={activeEvent.significance || "Explain why this event changes the story."}
+                />
+                <FactRow label="Themes" value={activeEvent.themes.join(", ") || "No themes yet"} />
                 <FactRow
                   label="Evidence"
                   value={`${activeEvent.evidenceCount} linked evidence cards · ${activeEvent.sourceCount} linked sources`}
@@ -217,11 +392,11 @@ export function SourceEvidenceModule({
   templateSources: HistorySourceTemplate[];
 }) {
   const combinedSources = useMemo(
-    () =>
-      [...templateSources, ...sources].sort((left, right) => left.title.localeCompare(right.title)),
+    () => mergeHistorySources(templateSources, sources),
     [sources, templateSources],
   );
-  const activeSource = combinedSources.find((source) => source.id === activeSourceId) ?? combinedSources[0] ?? null;
+  const activeSource =
+    combinedSources.find((source) => source.id === activeSourceId) ?? combinedSources[0] ?? null;
 
   return (
     <WorkspacePanel
@@ -236,7 +411,7 @@ export function SourceEvidenceModule({
             <article
               className={cn(
                 "rounded-2xl border p-4 shadow-sm transition",
-                source.id === activeSourceId
+                source.id === activeSource?.id
                   ? "border-primary/40 bg-accent/55"
                   : "border-border/70 bg-background/72",
               )}
@@ -248,7 +423,7 @@ export function SourceEvidenceModule({
                     <h4 className="text-base font-semibold">{source.title}</h4>
                   </button>
                   <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    {source.source_type} source · {source.date_label}
+                    {source.source_type} source · {source.date_label || "Date not specified"}
                   </p>
                 </div>
                 <Badge variant={source.source_type === "primary" ? "default" : "outline"}>
@@ -266,11 +441,7 @@ export function SourceEvidenceModule({
                   <Link2 data-icon="inline-start" />
                   Use in argument
                 </Button>
-                <Button
-                  onClick={() => onCreateEvidenceFromActiveSource(source)}
-                  size="sm"
-                  type="button"
-                >
+                <Button onClick={() => onCreateEvidenceFromActiveSource(source)} size="sm" type="button">
                   <Quote data-icon="inline-start" />
                   Save evidence
                 </Button>
@@ -306,9 +477,18 @@ export function SourceEvidenceModule({
               ) : null}
               <div className="mt-4 grid gap-3">
                 <FactRow label="Context note" value={activeSource.context_note ?? "No context note yet."} />
-                <FactRow label="Reliability note" value={activeSource.reliability_note ?? "No reliability note yet."} />
-                <FactRow label="Supports" value={activeSource.claim_supports ?? "No explicit supported claim yet."} />
-                <FactRow label="Challenges" value={activeSource.claim_challenges ?? "No explicit challenged claim yet."} />
+                <FactRow
+                  label="Reliability note"
+                  value={activeSource.reliability_note ?? "No reliability note yet."}
+                />
+                <FactRow
+                  label="Supports"
+                  value={activeSource.claim_supports ?? "No explicit supported claim yet."}
+                />
+                <FactRow
+                  label="Challenges"
+                  value={activeSource.claim_challenges ?? "No explicit challenged claim yet."}
+                />
               </div>
             </div>
           ) : null}
@@ -321,14 +501,18 @@ export function SourceEvidenceModule({
             <div className="mt-3 flex flex-col gap-2">
               {evidenceCards.slice(0, 5).map((card) => (
                 <div className="rounded-xl border border-border/60 bg-card/88 p-3" key={card.id}>
-                  <p className="text-sm font-medium">{card.quote_text ?? card.paraphrase ?? "Evidence card"}</p>
+                  <p className="text-sm font-medium">
+                    {card.quote_text ?? card.paraphrase ?? "Evidence card"}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {card.claim_supports ?? card.claim_challenges ?? "Claim link coming next"}
                   </p>
                 </div>
               ))}
               {evidenceCards.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Highlights and source actions can turn into reusable evidence cards.</p>
+                <p className="text-sm text-muted-foreground">
+                  Highlights and source actions can turn into reusable evidence cards.
+                </p>
               ) : null}
             </div>
           </div>
@@ -343,6 +527,7 @@ export function ArgumentBuilderModule({
   edges,
   nodes,
   onCreateStarterChain,
+  onUpdateChain,
   onUseEvidencePrompt,
   status,
 }: {
@@ -350,21 +535,56 @@ export function ArgumentBuilderModule({
   edges: HistoryArgumentEdge[];
   nodes: HistoryArgumentNode[];
   onCreateStarterChain: () => void;
+  onUpdateChain?: (
+    chainId: string,
+    patch: Partial<
+      Pick<HistoryArgumentChain, "prompt" | "thesis" | "context" | "counterargument" | "conclusion">
+    >,
+  ) => void;
   onUseEvidencePrompt: () => void;
   status: SaveStatusSnapshot;
 }) {
-  const [localPrompt, setLocalPrompt] = useState(
-    activeChain?.prompt ?? "What were the most important causes of the French Revolution?",
-  );
-  const [localThesis, setLocalThesis] = useState(
-    activeChain?.thesis ??
-      "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
-  );
+  const [draft, setDraft] = useState(() => buildChainDraft(activeChain));
 
-  const orderedNodes = useMemo(
-    () => [...nodes].sort((left, right) => left.sort_order - right.sort_order),
-    [nodes],
-  );
+  useEffect(() => {
+    setDraft(buildChainDraft(activeChain));
+  }, [activeChain?.id, activeChain?.updated_at]);
+
+  const orderedNodes = useMemo(() => {
+    if (!activeChain) {
+      return [];
+    }
+    return [...nodes]
+      .filter((node) => node.chain_id === activeChain.id)
+      .sort((left, right) => left.sort_order - right.sort_order);
+  }, [activeChain, nodes]);
+
+  const outgoingEdgeByNodeId = useMemo(() => {
+    if (!activeChain) {
+      return new Map<string, HistoryArgumentEdge>();
+    }
+    const map = new Map<string, HistoryArgumentEdge>();
+    edges
+      .filter((edge) => edge.chain_id === activeChain.id)
+      .forEach((edge) => {
+        if (!map.has(edge.from_node_id)) {
+          map.set(edge.from_node_id, edge);
+        }
+      });
+    return map;
+  }, [activeChain, edges]);
+
+  const commitField = (field: ChainEditableField, value: string) => {
+    if (!activeChain || !onUpdateChain) {
+      return;
+    }
+    const previous = (activeChain[field] ?? "").trim();
+    const next = value.trim();
+    if (previous === next) {
+      return;
+    }
+    onUpdateChain(activeChain.id, { [field]: value });
+  };
 
   return (
     <WorkspacePanel
@@ -387,13 +607,23 @@ export function ArgumentBuilderModule({
             <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Prompt
             </label>
-            <Textarea className="mt-2 min-h-[88px]" onChange={(event) => setLocalPrompt(event.target.value)} value={localPrompt} />
+            <Textarea
+              className="mt-2 min-h-[88px]"
+              onBlur={(event) => commitField("prompt", event.target.value)}
+              onChange={(event) => setDraft((current) => ({ ...current, prompt: event.target.value }))}
+              value={draft.prompt}
+            />
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/74 p-4">
             <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Thesis
             </label>
-            <Textarea className="mt-2 min-h-[120px]" onChange={(event) => setLocalThesis(event.target.value)} value={localThesis} />
+            <Textarea
+              className="mt-2 min-h-[120px]"
+              onBlur={(event) => commitField("thesis", event.target.value)}
+              onChange={(event) => setDraft((current) => ({ ...current, thesis: event.target.value }))}
+              value={draft.thesis}
+            />
             <div className="mt-3 flex flex-wrap gap-2">
               <Button onClick={onUseEvidencePrompt} size="sm" type="button" variant="outline">
                 <BookOpen data-icon="inline-start" />
@@ -402,25 +632,44 @@ export function ArgumentBuilderModule({
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            {[
-              "Context",
-              "Evidence",
-              "Cause 1",
-              "Cause 2",
-              "Cause 3",
-              "Counterargument",
-              "Conclusion",
-            ].map((label) => (
-              <div className="rounded-2xl border border-border/70 bg-card/88 p-4" key={label}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {label}
-                </p>
-                <Textarea
-                  className="mt-2 min-h-[120px]"
-                  placeholder={`Write the ${label.toLowerCase()} here`}
-                />
-              </div>
-            ))}
+            <ChainFieldCard
+              label="Context"
+              onBlur={(value) => commitField("context", value)}
+              onChange={(value) => setDraft((current) => ({ ...current, context: value }))}
+              value={draft.context}
+            />
+            <ChainFieldCard
+              label="Counterargument"
+              onBlur={(value) => commitField("counterargument", value)}
+              onChange={(value) => setDraft((current) => ({ ...current, counterargument: value }))}
+              value={draft.counterargument}
+            />
+            <div className="rounded-2xl border border-border/70 bg-card/88 p-4 md:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Evidence notes
+              </p>
+              <Textarea
+                className="mt-2 min-h-[120px]"
+                defaultValue=""
+                placeholder="Capture the strongest evidence links from the source panel."
+              />
+            </div>
+            <ChainFieldCard
+              label="Conclusion"
+              onBlur={(value) => commitField("conclusion", value)}
+              onChange={(value) => setDraft((current) => ({ ...current, conclusion: value }))}
+              value={draft.conclusion}
+            />
+            <div className="rounded-2xl border border-border/70 bg-card/88 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Cause sequence notes
+              </p>
+              <Textarea
+                className="mt-2 min-h-[120px]"
+                defaultValue=""
+                placeholder="Use node cards on the right to structure the chain."
+              />
+            </div>
           </div>
         </div>
 
@@ -433,12 +682,14 @@ export function ArgumentBuilderModule({
             <div className="mt-4 flex flex-col gap-3">
               {orderedNodes.length > 0 ? (
                 orderedNodes.map((node, index) => {
-                  const outgoingEdge = edges.find((edge) => edge.from_node_id === node.id);
+                  const outgoingEdge = outgoingEdgeByNodeId.get(node.id);
                   return (
                     <div key={node.id}>
                       <div className="rounded-xl border border-border/70 bg-background/74 p-3">
                         <p className="text-sm font-semibold">{node.title || node.node_type}</p>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">{node.body || "Explain what happens here and why it matters."}</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {node.body || "Explain what happens here and why it matters."}
+                        </p>
                       </div>
                       {outgoingEdge ? (
                         <div className="my-2 flex items-center gap-2 px-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -468,7 +719,9 @@ export function ArgumentBuilderModule({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 Active chain
               </p>
-              <p className="mt-2 text-sm font-semibold">{activeChain.prompt || "Untitled argument chain"}</p>
+              <p className="mt-2 text-sm font-semibold">
+                {activeChain.prompt || "Untitled argument chain"}
+              </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {activeChain.thesis || "Add a thesis to connect your evidence to a historical claim."}
               </p>
@@ -491,7 +744,10 @@ export function MythHistoryModule({
   status: SaveStatusSnapshot;
   templateMythChecks: HistoryMythCheckTemplate[];
 }) {
-  const cards = [...templateMythChecks, ...mythChecks];
+  const cards = useMemo(
+    () => mergeMythChecks(templateMythChecks, mythChecks),
+    [mythChecks, templateMythChecks],
+  );
 
   return (
     <WorkspacePanel
@@ -519,7 +775,7 @@ export function MythHistoryModule({
                 <h4 className="mt-2 text-base font-semibold">{card.myth_text}</h4>
               </div>
               <Badge className="capitalize" variant={card.status === "evidence_supported" ? "default" : "outline"}>
-                {card.status.replaceAll("_", " ")}
+                {MYTH_STATUS_LABEL[card.status]}
               </Badge>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -528,14 +784,18 @@ export function MythHistoryModule({
                   <Scale className="size-4" />
                   What evidence suggests
                 </div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.corrected_claim}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {card.corrected_claim || "Add an evidence-supported correction."}
+                </p>
               </div>
               <div className="rounded-2xl border border-border/60 bg-card/88 p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                   <Quote className="size-4" />
                   Why this status fits
                 </div>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.explanation}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {card.explanation || "Explain why this status best fits the evidence."}
+                </p>
               </div>
             </div>
           </article>
@@ -548,6 +808,51 @@ export function MythHistoryModule({
         ) : null}
       </div>
     </WorkspacePanel>
+  );
+}
+
+function buildChainDraft(activeChain: HistoryArgumentChain | null) {
+  return {
+    prompt: activeChain?.prompt ?? "What were the most important causes of the French Revolution?",
+    thesis:
+      activeChain?.thesis ??
+      "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
+    context:
+      activeChain?.context ??
+      "Use chronology to show why structural problems became a political revolution in 1789.",
+    counterargument:
+      activeChain?.counterargument ??
+      "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
+    conclusion:
+      activeChain?.conclusion ??
+      "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
+  };
+}
+
+function ChainFieldCard({
+  label,
+  onBlur,
+  onChange,
+  value,
+}: {
+  label: string;
+  onBlur: (value: string) => void;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/88 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <Textarea
+        className="mt-2 min-h-[120px]"
+        onBlur={(event) => onBlur(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={`Write the ${label.toLowerCase()} here`}
+        value={value}
+      />
+    </div>
   );
 }
 

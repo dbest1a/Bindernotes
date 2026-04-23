@@ -808,6 +808,32 @@
     transition-duration: 220ms;
   }
 
+  html[data-workspace-animation="full"][data-workspace-hover-motion="on"] .workspace-panel:hover,
+  html[data-workspace-animation="full"][data-workspace-hover-motion="on"] .ui-click-tile:hover {
+    transform: translateY(-2px);
+  }
+
+  html[data-workspace-animation="full"] .workspace-window--dragging .workspace-window-frame,
+  html[data-workspace-animation="full"] .workspace-window--resizing .workspace-window-frame {
+    animation: workspace-window-pulse 240ms ease-out;
+  }
+
+  @keyframes workspace-window-pulse {
+    0% {
+      transform: scale(0.992);
+      box-shadow:
+        0 10px 20px rgb(15 23 42 / 0.08),
+        0 0 0 1px hsl(var(--primary) / 0.14);
+    }
+
+    100% {
+      transform: scale(1);
+      box-shadow:
+        0 16px 34px rgb(15 23 42 / 0.14),
+        0 0 0 2px hsl(var(--primary) / 0.16);
+    }
+  }
+
   html[data-workspace-compact-mode="on"] .workspace-page {
     @apply gap-2 px-2 py-2;
   }

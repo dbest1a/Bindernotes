@@ -599,6 +599,39 @@ export async function createArgumentChain(
   return data as HistoryArgumentChain;
 }
 
+export async function updateArgumentChain(
+  profile: Profile,
+  chainId: string,
+  patch: Partial<
+    Omit<HistoryArgumentChain, "id" | "owner_id" | "binder_id" | "lesson_id" | "created_at" | "updated_at">
+  >,
+) {
+  if (!supabase) {
+    return upsertLocalHistoryEntity("argumentChains", {
+      ...(findLocalHistoryEntity("argumentChains", chainId, profile.id) as HistoryArgumentChain),
+      ...patch,
+      updated_at: now(),
+    });
+  }
+
+  const { data, error } = await supabase
+    .from("history_argument_chains")
+    .update({
+      ...patch,
+      updated_at: now(),
+    })
+    .eq("id", chainId)
+    .eq("owner_id", profile.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as HistoryArgumentChain;
+}
+
 export async function createArgumentNode(
   profile: Profile,
   input: Omit<HistoryArgumentNode, "id" | "owner_id" | "created_at" | "updated_at">,

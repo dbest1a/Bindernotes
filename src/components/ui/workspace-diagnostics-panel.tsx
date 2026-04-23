@@ -20,8 +20,7 @@ export function WorkspaceDiagnosticsPanel({
             <h2 className="text-lg font-semibold tracking-tight">Workspace diagnostics</h2>
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Binder Notes is using the configured Supabase project and staying strict about backend-native
-            suite data. These checks explain exactly what is missing or blocked.
+            These checks help confirm system content and permissions in the current environment.
           </p>
         </div>
         <Badge variant="outline">{diagnostics.length} issue{diagnostics.length === 1 ? "" : "s"}</Badge>

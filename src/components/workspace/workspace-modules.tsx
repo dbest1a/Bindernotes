@@ -157,6 +157,12 @@ export type WorkspaceModuleContext = {
   onCreateHistoryEvidenceFromSource: (source: HistorySourceTemplate | HistorySource) => void;
   onUseHistorySourceInArgument: (sourceId: string) => void;
   onCreateHistoryStarterChain: () => void;
+  onUpdateHistoryArgumentChain: (
+    chainId: string,
+    patch: Partial<
+      Pick<HistoryArgumentChain, "prompt" | "thesis" | "context" | "counterargument" | "conclusion">
+    >,
+  ) => void;
   onUseHistoryEvidencePrompt: () => void;
   onCreateHistoryMythCheck: () => void;
 };
@@ -271,7 +277,6 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           onCreateStarterEvent={context.onCreateHistoryStarterEvent}
           onReplayTimeline={context.onReplayHistoryTimeline}
           onSelectEvent={context.onSelectHistoryEvent}
-          sources={context.history.sources}
           status={context.history.status.timeline}
           templateEvents={context.history.templateEvents}
         />
@@ -320,6 +325,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           edges={context.history.argumentEdges}
           nodes={context.history.argumentNodes}
           onCreateStarterChain={context.onCreateHistoryStarterChain}
+          onUpdateChain={context.onUpdateHistoryArgumentChain}
           onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
           status={context.history.status.argument}
         />
@@ -592,6 +598,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) => {
       const nodeById = new Map(context.conceptNodes.map((node) => [node.id, node]));
       const linkedLabels = new Map<string, string[]>();
+      const degreeByNodeId = new Map<string, number>();
 
       context.conceptEdges.forEach((edge) => {
         const source = nodeById.get(edge.source_id);
@@ -602,13 +609,36 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
 
         linkedLabels.set(source.id, [...(linkedLabels.get(source.id) ?? []), target.label]);
         linkedLabels.set(target.id, [...(linkedLabels.get(target.id) ?? []), source.label]);
+        degreeByNodeId.set(source.id, (degreeByNodeId.get(source.id) ?? 0) + 1);
+        degreeByNodeId.set(target.id, (degreeByNodeId.get(target.id) ?? 0) + 1);
       });
+
+      const prioritizedNodes = [...context.conceptNodes]
+        .filter((node) => {
+          const label = node.label.trim().toLowerCase();
+          if (!label || label === "concept" || label === "untitled") {
+            return false;
+          }
+
+          const linked = linkedLabels.get(node.id)?.length ?? 0;
+          const hasDescription = Boolean(node.description?.trim());
+          return linked > 0 || hasDescription;
+        })
+        .sort((left, right) => {
+          const degreeDelta =
+            (degreeByNodeId.get(right.id) ?? 0) - (degreeByNodeId.get(left.id) ?? 0);
+          if (degreeDelta !== 0) {
+            return degreeDelta;
+          }
+          return left.label.localeCompare(right.label);
+        })
+        .slice(0, 8);
 
       return (
         <WorkspacePanel description="Key people, institutions, and turning points" title="Related concepts">
-          {context.conceptNodes.length > 0 ? (
+          {prioritizedNodes.length > 0 ? (
             <div className="grid gap-3">
-              {context.conceptNodes.map((node) => {
+              {prioritizedNodes.map((node) => {
                 const related = Array.from(new Set(linkedLabels.get(node.id) ?? [])).slice(0, 4);
                 return (
                   <article
@@ -637,8 +667,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
             </div>
           ) : (
             <EmptyState
-              description="Concept nodes are ready in the data model. Add nodes as the binder grows."
-              title="No related concepts yet"
+              description="Related terms appear here once events, sources, or notes create useful links."
+              title="No connected concepts yet"
             />
           )}
         </WorkspacePanel>

@@ -52,6 +52,7 @@ export function BinderPage() {
             <SeedHealthPanel
               description="This system binder depends on backend-seeded suite rows in Supabase."
               items={[error.seedHealth]}
+              showTechnicalDetails
               title="Seed status"
             />
           </div>
@@ -103,6 +104,7 @@ export function BinderPage() {
                 compact
                 description="This binder is attached to a seeded system suite."
                 items={[data.seedHealth]}
+                showTechnicalDetails
                 title="Seed status"
               />
             </div>

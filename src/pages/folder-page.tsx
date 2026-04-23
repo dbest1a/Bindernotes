@@ -1,4 +1,4 @@
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, ChevronRight, FolderOpen, LibraryBig } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,14 @@ import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
 
 export function FolderPage() {
   const { folderId } = useParams();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useFolderWorkspace(folderId, profile);
+  const showSystemDiagnostics =
+    (profile?.role === "admin" || import.meta.env.DEV) &&
+    searchParams.get("debug") === "system";
   const runtimeDiagnostics =
-    error && (profile?.role === "admin" || import.meta.env.DEV)
+    error && showSystemDiagnostics
       ? classifyRuntimeError("folders", error)
       : [];
 
@@ -43,11 +47,12 @@ export function FolderPage() {
             <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} />
           </div>
         ) : null}
-        {isMissingSeedError(error) ? (
+        {showSystemDiagnostics && isMissingSeedError(error) ? (
           <div className="mb-4">
             <SeedHealthPanel
               description="This system folder depends on backend-seeded suite rows in Supabase."
               items={[error.seedHealth]}
+              showTechnicalDetails
               title="Seed status"
             />
           </div>
@@ -78,12 +83,13 @@ export function FolderPage() {
             <Stat label="Documents" value={String(data.lessons.length)} icon={<BookCopy className="size-4" />} />
             <Stat label="Private notes" value={String(data.notes.length)} icon={<FolderOpen className="size-4" />} />
           </div>
-          {data.seedHealth ? (
+          {showSystemDiagnostics && data.seedHealth ? (
             <div className="mt-4">
               <SeedHealthPanel
                 compact
                 description="System folders now depend on backend-seeded suite content."
                 items={[data.seedHealth]}
+                showTechnicalDetails
                 title="Seed status"
               />
             </div>

@@ -6,6 +6,7 @@ import {
   createHistoryEvent,
   createHistorySource,
   getHistorySuiteData,
+  updateArgumentChain,
   upsertEvidenceCard,
   upsertMythCheck,
 } from "@/services/history-service";
@@ -75,6 +76,15 @@ export function useHistoryMutations(
     createArgumentChain: useMutation({
       mutationFn: (input: Omit<HistoryArgumentChain, "id" | "owner_id" | "created_at" | "updated_at">) =>
         createArgumentChain(profile!, input),
+      onSuccess: invalidate,
+    }),
+    updateArgumentChain: useMutation({
+      mutationFn: (input: {
+        chainId: string;
+        patch: Partial<
+          Omit<HistoryArgumentChain, "id" | "owner_id" | "binder_id" | "lesson_id" | "created_at" | "updated_at">
+        >;
+      }) => updateArgumentChain(profile!, input.chainId, input.patch),
       onSuccess: invalidate,
     }),
     createArgumentNode: useMutation({

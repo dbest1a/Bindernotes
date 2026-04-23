@@ -5,14 +5,16 @@ import type { SeedHealth } from "@/types";
 
 export function SeedHealthPanel({
   items,
-  title = "System seed health",
-  description = "Backend-native demo suites should load from seeded Supabase rows, not local fallback data.",
+  title = "Suite availability",
+  description = "System suites are shown when backend content is ready for this environment.",
   compact = false,
+  showTechnicalDetails = false,
 }: {
   items: SeedHealth[];
   title?: string;
   description?: string;
   compact?: boolean;
+  showTechnicalDetails?: boolean;
 }) {
   if (items.length === 0) {
     return null;
@@ -62,18 +64,29 @@ export function SeedHealthPanel({
             </div>
 
             <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-              <FactRow label="Expected version" value={item.expectedVersion} />
-              <FactRow label="Actual version" value={item.actualVersion ?? "Missing"} />
               <FactRow label="Status note" value={item.message} />
-              {item.missingBinders?.length ? (
-                <FactRow label="Missing binders" value={item.missingBinders.join(", ")} />
-              ) : null}
+              {showTechnicalDetails ? (
+                <>
+                  <FactRow label="Expected version" value={item.expectedVersion} />
+                  <FactRow label="Actual version" value={item.actualVersion ?? "Missing"} />
+                  {item.missingBinders?.length ? (
+                    <FactRow label="Missing binders" value={item.missingBinders.join(", ")} />
+                  ) : null}
+                </>
+              ) : (
+                <FactRow
+                  label="Availability"
+                  value={item.status === "healthy" ? "Ready to use" : "Limited right now"}
+                />
+              )}
             </div>
 
             {item.status !== "healthy" ? (
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-100/70 p-3 text-sm text-amber-950 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" />
-                <p>Seed this suite in Supabase before relying on highlights, layouts, or history data here.</p>
+                <p>
+                  Some suite content is still loading in this environment. You can keep studying while setup finishes.
+                </p>
               </div>
             ) : null}
           </article>

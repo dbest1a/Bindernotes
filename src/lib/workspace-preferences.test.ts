@@ -6,6 +6,7 @@ import {
   createDefaultWorkspacePreferences,
   defaultThemeSettings,
   ensureMathWorkspaceModules,
+  ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
   loadWorkspacePreferences,
   resolveWorkspacePresetLayout,
@@ -36,6 +37,7 @@ describe("workspace preferences", () => {
     expect(preferences.theme.hoverMotion).toBe(false);
     expect(preferences.theme.snapMode).toBe(false);
     expect(preferences.theme.focusMode).toBe(false);
+    expect(preferences.theme.animationLevel).toBe("none");
     expect(preferences.theme.reducedChrome).toBe(true);
   });
 
@@ -241,6 +243,27 @@ describe("workspace preferences", () => {
     expect(next.enabledModules).not.toContain("saved-graphs");
     expect(next.windowLayout["scientific-calculator"]).toBeDefined();
     expect(next.windowLayout["desmos-graph"]).toBeDefined();
+  });
+
+  it("reconciles overlapping locked windows to a stable non-overlapping layout", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const overlapping = {
+      ...preferences,
+      locked: true as const,
+      windowLayout: {
+        ...preferences.windowLayout,
+        lesson: { x: 40, y: 40, w: 900, h: 700, z: 1 },
+        "private-notes": { x: 60, y: 60, w: 900, h: 700, z: 2 },
+      },
+    };
+
+    const next = ensureWindowFramesForEnabledModules(overlapping);
+
+    expect(next.windowLayout.lesson).toBeDefined();
+    expect(next.windowLayout["private-notes"]).toBeDefined();
+    expect(
+      framesOverlap(next.windowLayout.lesson!, next.windowLayout["private-notes"]!),
+    ).toBe(false);
   });
 
   it("migrates legacy graph-panel layouts to the Desmos graph module", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Maximize2,
   Minimize2,
@@ -101,6 +101,7 @@ type PendingNoteSave = {
 
 export function BinderReaderPage() {
   const { binderId, lessonId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const binderQuery = useBinderBundle(binderId, profile);
@@ -260,12 +261,26 @@ export function BinderReaderPage() {
   const historyEnabled =
     binderQuery.data?.binder.subject === "History" ||
     Boolean(historyData?.suite?.history_mode);
-  const historySeedHealthMessage =
-    historyQuery.error instanceof Error
-      ? historyQuery.error.message
-      : historyData?.seedHealth?.status === "missing"
-        ? historyData.seedHealth.message
-        : null;
+  const showSystemDiagnostics =
+    (profile?.role === "admin" || import.meta.env.DEV) &&
+    searchParams.get("debug") === "system";
+  const historySeedHealthMessage = (() => {
+    if (!historyQuery.error && historyData?.seedHealth?.status !== "missing") {
+      return null;
+    }
+
+    if (showSystemDiagnostics) {
+      if (historyQuery.error instanceof Error) {
+        return historyQuery.error.message;
+      }
+      if (historyData?.seedHealth?.status === "missing") {
+        return historyData.seedHealth.message;
+      }
+      return "History suite content is unavailable for this binder.";
+    }
+
+    return "History suite content is still being prepared for this binder.";
+  })();
   const ownerId = profile?.id ?? null;
   const currentNoteScopeKey = binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "";
   const activeFolderId = binderQuery.data?.folderLinks[0]?.folder_id ?? null;
@@ -483,6 +498,10 @@ export function BinderReaderPage() {
         return;
       }
 
+      const isUserSource = "template_source_id" in source;
+      const sourceId = isUserSource ? source.id : null;
+      const templateSourceId = isUserSource ? source.template_source_id : source.id;
+
       await saveQueue.run({
         entityType: "history_evidence",
         scopeKey: `history-evidence:${binderId}:${profile.id}`,
@@ -490,7 +509,7 @@ export function BinderReaderPage() {
           historyMutations.upsertEvidence.mutateAsync({
             binder_id: binderId,
             lesson_id: selectedLesson?.id ?? null,
-            source_id: "template_source_id" in source ? null : source.id,
+            source_id: sourceId,
             highlight_id: null,
             quote_text: source.quote_text ?? null,
             paraphrase: source.context_note ?? source.reliability_note ?? null,
@@ -498,8 +517,8 @@ export function BinderReaderPage() {
             claim_challenges: source.claim_challenges ?? null,
             evidence_strength: "supported",
             source_snapshot_json: {
-              sourceId: source.id,
-              templateSourceId: "template_source_id" in source ? null : undefined,
+              sourceId,
+              templateSourceId,
               templateEventId: activeHistoryEventId,
               title: source.title,
               lessonId: selectedLesson?.id ?? null,
@@ -645,6 +664,30 @@ export function BinderReaderPage() {
     selectedLesson,
     updateWorkspace,
   ]);
+
+  const updateHistoryArgumentChain = useCallback(
+    async (
+      chainId: string,
+      patch: Partial<{
+        prompt: string;
+        thesis: string;
+        context: string;
+        counterargument: string;
+        conclusion: string;
+      }>,
+    ) => {
+      if (!profile || !binderId) {
+        return;
+      }
+
+      await saveQueue.run({
+        entityType: "history_argument",
+        scopeKey: `history-argument:${binderId}:${profile.id}`,
+        runner: () => historyMutations.updateArgumentChain.mutateAsync({ chainId, patch }),
+      });
+    },
+    [binderId, historyMutations.updateArgumentChain, profile],
+  );
 
   const useHistoryEvidencePrompt = useCallback(() => {
     updateWorkspace((current) => applyPreset(current, "history-source-evidence"));
@@ -1966,6 +2009,9 @@ export function BinderReaderPage() {
     onUseHistorySourceInArgument: useHistorySourceInArgument,
     onCreateHistoryStarterChain: () => {
       void createHistoryStarterChain();
+    },
+    onUpdateHistoryArgumentChain: (chainId, patch) => {
+      void updateHistoryArgumentChain(chainId, patch);
     },
     onUseHistoryEvidencePrompt: useHistoryEvidencePrompt,
     onCreateHistoryMythCheck: () => {

@@ -1146,6 +1146,7 @@ function StudioWorkspace({
               <SeedHealthPanel
                 description="Backend-native system content status for this environment."
                 items={seedHealth}
+                showTechnicalDetails
                 title="Seed status"
               />
             ) : null}
