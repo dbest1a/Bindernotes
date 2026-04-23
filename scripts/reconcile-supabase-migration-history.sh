@@ -19,6 +19,8 @@ repair_candidates_file="$diagnostics_dir/repair-candidates.tsv"
 schema_mismatch_file="$diagnostics_dir/schema-mismatch.tsv"
 repaired_file="$diagnostics_dir/repaired.tsv"
 migration_list_before_file="$diagnostics_dir/migration-list-before.txt"
+psql_candidates_file="$diagnostics_dir/psql-candidates.txt"
+psql_error_file="$diagnostics_dir/psql-error.txt"
 
 : > "$local_migrations_file"
 : > "$remote_versions_file"
@@ -26,12 +28,12 @@ migration_list_before_file="$diagnostics_dir/migration-list-before.txt"
 : > "$repair_candidates_file"
 : > "$schema_mismatch_file"
 : > "$repaired_file"
+: > "$psql_candidates_file"
 
 echo "Supabase migration history before reconciliation:"
 supabase migration list --db-url "$SUPABASE_DB_URL" | tee "$migration_list_before_file"
 
-psql_db_url="$(
-python - <<'PY'
+python - <<'PY' > "$psql_candidates_file"
 import os
 import sys
 from urllib.parse import quote, unquote, urlparse, urlunparse
@@ -52,26 +54,18 @@ if not host or not user or not password:
     )
     sys.exit(1)
 
-diagnostic_user = user
-psql_url = raw
+def emit(label: str, url: str, diagnostic_user: str) -> None:
+    database = unquote((urlparse(url).path or "/postgres").lstrip("/") or "postgres")
+    print(f"{label}\t{diagnostic_user}\t{database}\t{url}")
 
-if host.endswith(".pooler.supabase.com") and user == "postgres":
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    project_host = urlparse(supabase_url).hostname or ""
-    project_ref = project_host.split(".")[0] if project_host.endswith(".supabase.co") else ""
-    if not project_ref:
-        print(
-            "::error title=Cannot derive Supabase pooler user::"
-            "SUPABASE_DB_URL uses the pooler with user postgres, but SUPABASE_URL is missing or invalid.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    user = f"postgres.{project_ref}"
-    diagnostic_user = user
-    netloc = f"{quote(user, safe='')}:{quote(password, safe='')}@{host}"
-    if port:
+def replace_user(url_user: str, url_host: str | None = None) -> str:
+    safe_user = quote(url_user, safe="")
+    safe_password = quote(password, safe="")
+    next_host = url_host or host
+    netloc = f"{safe_user}:{safe_password}@{next_host}"
+    if port and next_host == host:
         netloc = f"{netloc}:{port}"
-    psql_url = urlunparse(
+    return urlunparse(
         (
             parsed.scheme,
             netloc,
@@ -82,14 +76,91 @@ if host.endswith(".pooler.supabase.com") and user == "postgres":
         )
     )
 
-database = unquote((parsed.path or "/postgres").lstrip("/") or "postgres")
-print(
-    f"Using psql schema diagnostic connection: host={host} user={diagnostic_user} database={database}",
-    file=sys.stderr,
-)
-print(psql_url)
+emit("secret-url", raw, user)
+canonical_url = replace_user(user)
+if canonical_url != raw:
+    emit("canonical-secret-url", canonical_url, user)
+
+supabase_url = os.environ.get("SUPABASE_URL", "")
+project_host = urlparse(supabase_url).hostname or ""
+project_ref = project_host.split(".")[0] if project_host.endswith(".supabase.co") else ""
+
+if host.endswith(".pooler.supabase.com"):
+    if not user.startswith("postgres."):
+        if not project_ref:
+            print(
+                "::error title=Cannot derive Supabase pooler user::"
+                "SUPABASE_DB_URL uses the pooler without a project-scoped username, but SUPABASE_URL is missing or invalid.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        scoped_user = f"postgres.{project_ref}"
+        emit("pooler-scoped-url", replace_user(scoped_user), scoped_user)
+    elif user == f"postgres.{project_ref}" or not project_ref:
+        # The secret already has the scoped pooler user. Keep it as the primary
+        # candidate and do not risk mutating it.
+        pass
+    else:
+        emit("pooler-secret-user-url", replace_user(user), user)
+
+if project_ref:
+    # Last diagnostic-only fallback: the direct database host. Some networks do
+    # not support this route, so it is attempted only after pooler candidates.
+    emit("direct-db-url", replace_user("postgres", f"db.{project_ref}.supabase.co"), "postgres")
 PY
-)"
+
+run_psql() {
+  local output_file="$1"
+  shift
+
+  local label diagnostic_user database candidate_url
+  while IFS=$'\t' read -r label diagnostic_user database candidate_url; do
+    [ -n "$candidate_url" ] || continue
+    echo "Trying psql schema diagnostic connection: label=$label user=$diagnostic_user database=$database" >&2
+    if psql "$candidate_url" "$@" > "$output_file" 2> "$psql_error_file"; then
+      if [ -s "$psql_error_file" ]; then
+        cat "$psql_error_file" >&2
+      fi
+      return 0
+    fi
+
+    echo "::warning title=psql diagnostic connection failed::label=$label user=$diagnostic_user database=$database" >&2
+    cat "$psql_error_file" >&2
+  done < "$psql_candidates_file"
+
+  echo "::error title=All psql diagnostic connections failed::Supabase CLI can connect, but schema diagnostics could not connect through psql with any safe candidate."
+  exit 1
+}
+
+run_psql_capture() {
+  local label="$1"
+  shift
+  local output_file="$diagnostics_dir/$label.txt"
+  run_psql "$output_file" "$@"
+  cat "$output_file"
+}
+
+run_psql_file() {
+  local output_file="$1"
+  shift
+  run_psql "$output_file" "$@"
+  cat "$output_file"
+}
+
+if [ ! -s "$psql_candidates_file" ]; then
+  echo "::error title=No psql diagnostic candidates::Could not build a safe psql connection candidate from SUPABASE_DB_URL."
+  exit 1
+fi
+
+while IFS=$'\t' read -r label diagnostic_user database _candidate_url; do
+  echo "Prepared psql diagnostic candidate: label=$label user=$diagnostic_user database=$database"
+done < "$psql_candidates_file"
+
+if ! grep -q $'\tpostgres.ejisbofqfxitckaevmip\t' "$psql_candidates_file"; then
+  if [ -n "${SUPABASE_URL:-}" ]; then
+    echo "::notice title=Pooler username check::No candidate exactly matched postgres.ejisbofqfxitckaevmip. This may be fine if the project ref differs, but the workflow log will show the actual candidate user."
+  fi
+fi
 export PGCHANNELBINDING=disable
 
 while IFS= read -r migration_path; do
@@ -99,19 +170,19 @@ while IFS= read -r migration_path; do
 done < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)
 
 remote_history_exists="$(
-  psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX \
+  run_psql_capture remote-history-exists -v ON_ERROR_STOP=1 -AtX \
     -c "select to_regclass('supabase_migrations.schema_migrations') is not null;"
 )"
 
 if [ "$remote_history_exists" = "t" ]; then
-  psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX \
+  run_psql_file "$remote_versions_file" -v ON_ERROR_STOP=1 -AtX \
     -c "select version from supabase_migrations.schema_migrations order by version;" \
-    > "$remote_versions_file"
+    > /dev/null
 fi
 
-psql "$psql_db_url" -v ON_ERROR_STOP=1 -AtX -F $'\t' \
+run_psql_file "$schema_check_file" -v ON_ERROR_STOP=1 -AtX -F $'\t' \
   -f scripts/check-supabase-legacy-migration-schema.sql \
-  | tee "$schema_check_file"
+  | tee "$schema_check_file.display"
 
 declare -A local_names
 declare -A schema_state
