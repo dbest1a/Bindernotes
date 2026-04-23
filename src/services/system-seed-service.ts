@@ -259,7 +259,7 @@ export async function seedSystemSuitesWithClient(
         message.includes("suite_template_id") ||
         message.includes("could not find the table")
       ) {
-        throw new Error("Run the latest Supabase migrations before seeding system suites.");
+        throw new Error(`Run the latest Supabase migrations before seeding system suites. Supabase said: ${error.message}`);
       }
       throw error;
     }
