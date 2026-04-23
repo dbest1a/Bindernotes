@@ -9,10 +9,11 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Suspense, lazy, useState, type ReactNode } from "react";
+import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSyncRecovery } from "@/lib/sync-recovery";
 
@@ -68,33 +69,43 @@ export function App() {
         <AuthProvider>
           <SyncRecoveryBridge />
           <Router>
-            <Suspense fallback={<RouteSkeleton />}>
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppShell />}>
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/folders/:folderId" element={<FolderPage />} />
-                    <Route path="/binders/:binderId" element={<BinderPage />} />
-                    <Route path="/math" element={<MathLabPage />} />
-                    <Route
-                      path="/binders/:binderId/documents/:lessonId"
-                      element={<BinderReaderPage />}
-                    />
-                    <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
-                    <Route path="/admin" element={<AdminStudioPage />} />
-                    <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/tutorial" element={<TutorialPage />} />
-                  </Route>
-                </Route>
-                <Route path="*" element={<Navigate replace to="/" />} />
-              </Routes>
-            </Suspense>
+            <AppRoutes />
           </Router>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+
+  return (
+    <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
+      <Suspense fallback={<RouteSkeleton />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/folders/:folderId" element={<FolderPage />} />
+              <Route path="/binders/:binderId" element={<BinderPage />} />
+              <Route path="/math" element={<MathLabPage />} />
+              <Route
+                path="/binders/:binderId/documents/:lessonId"
+                element={<BinderReaderPage />}
+              />
+              <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
+              <Route path="/admin" element={<AdminStudioPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/tutorial" element={<TutorialPage />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Navigate replace to="/" />} />
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
   );
 }
 
@@ -110,6 +121,53 @@ function SyncRecoveryBridge() {
   ]);
 
   return null;
+}
+
+type RouteErrorBoundaryProps = {
+  children: ReactNode;
+  resetKey: string;
+};
+
+type RouteErrorBoundaryState = {
+  error: Error | null;
+};
+
+class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
+  state: RouteErrorBoundaryState = {
+    error: null,
+  };
+
+  static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Route render failed", error, info);
+  }
+
+  componentDidUpdate(prevProps: RouteErrorBoundaryProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <main className="app-page">
+          <EmptyState
+            description={
+              this.state.error.message ||
+              "This page hit a render problem. Go back to the dashboard and reopen the binder."
+            }
+            title="This page could not render"
+          />
+        </main>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function RouteSkeleton() {

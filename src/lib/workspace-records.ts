@@ -24,6 +24,41 @@ const PLACEHOLDER_BINDER_DESCRIPTIONS = new Set([
   "write a clear promise for this binder.",
 ]);
 
+const LEGACY_EMPTY_FOLDER_TITLES = new Set(["course notes", "problem sets"]);
+const GENERIC_LOOSE_BINDER_TITLES = new Set(["general", "history", "math", "notes", "course notes", "problem sets"]);
+
+export type WorkspaceContainerId = "folder-math" | "folder-history" | "folder-study-skills" | "folder-other";
+
+type WorkspaceContainerDefinition = {
+  id: WorkspaceContainerId;
+  name: string;
+  color: string;
+  order: number;
+};
+
+const WORKSPACE_CONTAINER_CREATED_AT = new Date(0).toISOString();
+
+export const workspaceContainerDefinitions: WorkspaceContainerDefinition[] = [
+  { id: "folder-math", name: "Math", color: "blue", order: 1 },
+  { id: "folder-history", name: "History", color: "amber", order: 2 },
+  { id: "folder-study-skills", name: "Study Skills", color: "teal", order: 3 },
+  { id: "folder-other", name: "Other", color: "violet", order: 4 },
+];
+
+const workspaceContainerById = new Map(
+  workspaceContainerDefinitions.map((container) => [container.id, container]),
+);
+
+const LEGACY_FOLDER_ID_TO_CONTAINER: Record<string, WorkspaceContainerId> = {
+  "folder-suite-algebra-foundations": "folder-math",
+  "folder-suite-rise-of-rome": "folder-history",
+  "folder-suite-history-demo": "folder-history",
+  "folder-algebra": "folder-math",
+  "folder-calculus": "folder-math",
+  "folder-jacob-math-notes": "folder-math",
+  "folder-history-demo": "folder-history",
+};
+
 function normalizeText(value: string | null | undefined) {
   return value?.trim() ?? "";
 }
@@ -158,6 +193,31 @@ export function isPlaceholderBinder(input: {
   );
 }
 
+function isUnpolishedLoosePublishedBinder(input: {
+  binder: Binder;
+  lessons?: BinderLesson[];
+  notes?: LearnerNote[];
+  highlights?: Highlight[];
+}) {
+  const lessons = input.lessons ?? [];
+  const notes = input.notes ?? [];
+  const highlights = input.highlights ?? [];
+
+  if (input.binder.status !== "published" || input.binder.pinned || input.binder.suite_template_id) {
+    return false;
+  }
+
+  const title = normalizeText(input.binder.title).toLowerCase();
+  const description = normalizeText(input.binder.description);
+  const subject = normalizeText(input.binder.subject).toLowerCase();
+  const hasUserActivity = notes.some((note) => noteHasMeaningfulContent(note)) || highlights.length > 0;
+  const hasMeaningfulLessons = lessons.some((lesson) => !isPlaceholderDocument({ lesson }));
+  const looksLikeUnreviewedGeneralContent =
+    subject === "general" || GENERIC_LOOSE_BINDER_TITLES.has(title) || !/[aeiou].*[aeiou]/i.test(title);
+
+  return looksLikeUnreviewedGeneralContent && !hasUserActivity && (!hasMeaningfulLessons || description.length < 24);
+}
+
 export function isPlaceholderFolder(input: {
   folder: Folder;
   binders?: Binder[];
@@ -170,7 +230,12 @@ export function isPlaceholderFolder(input: {
     return binders.length === 0;
   }
 
-  return isPlaceholderTitle(input.folder.name) && binders.length === 0 && notes.length === 0;
+  const normalizedName = normalizeText(input.folder.name).toLowerCase();
+  return (
+    (isPlaceholderTitle(input.folder.name) || LEGACY_EMPTY_FOLDER_TITLES.has(normalizedName)) &&
+    binders.length === 0 &&
+    notes.length === 0
+  );
 }
 
 export function sortBindersForWorkspace(
@@ -239,32 +304,27 @@ export function filterVisibleWorkspaceData(input: {
   const highlightsByBinderId = groupByBinderId(input.highlights ?? []);
 
   const binders = sortBindersForWorkspace(input.binders, lessonsByBinderId, notesByBinderId).filter(
-    (binder) =>
-      !isPlaceholderBinder({
-        binder,
-        lessons: lessonsByBinderId[binder.id] ?? [],
-        notes: notesByBinderId[binder.id] ?? [],
-        highlights: highlightsByBinderId[binder.id] ?? [],
-      }),
+    (binder) => {
+      return (
+        !isUnpolishedLoosePublishedBinder({
+          binder,
+          lessons: lessonsByBinderId[binder.id] ?? [],
+          notes: notesByBinderId[binder.id] ?? [],
+          highlights: highlightsByBinderId[binder.id] ?? [],
+        }) &&
+        !isPlaceholderBinder({
+          binder,
+          lessons: lessonsByBinderId[binder.id] ?? [],
+          notes: notesByBinderId[binder.id] ?? [],
+          highlights: highlightsByBinderId[binder.id] ?? [],
+        })
+      );
+    },
   );
 
   const visibleBinderIds = new Set(binders.map((binder) => binder.id));
-  const folderBinders = input.folderBinders.filter((link) => visibleBinderIds.has(link.binder_id));
-  const binderIdsByFolderId = folderBinders.reduce<Record<string, string[]>>((entries, link) => {
-    entries[link.folder_id] = [...(entries[link.folder_id] ?? []), link.binder_id];
-    return entries;
-  }, {});
-
-  const folders = input.folders.filter((folder) => {
-    const folderBindersList = binders.filter((binder) =>
-      (binderIdsByFolderId[folder.id] ?? []).includes(binder.id),
-    );
-    const folderNotes = input.notes.filter((note) => note.folder_id === folder.id);
-    return !isPlaceholderFolder({ folder, binders: folderBindersList, notes: folderNotes });
-  });
-
-  const visibleFolderIds = new Set(folders.map((folder) => folder.id));
-  const visibleFolderBinders = folderBinders.filter((link) => visibleFolderIds.has(link.folder_id));
+  const folderBinders = createWorkspaceContainerLinks(binders);
+  const folders = createWorkspaceContainerFolders(binders);
   const lessons = input.lessons.filter(
     (lesson) =>
       visibleBinderIds.has(lesson.binder_id) &&
@@ -278,8 +338,115 @@ export function filterVisibleWorkspaceData(input: {
   return {
     binders,
     folders,
-    folderBinders: visibleFolderBinders,
+    folderBinders,
     lessons,
+  };
+}
+
+export function normalizeWorkspaceFolderId(folderId: string | null | undefined): WorkspaceContainerId | null {
+  if (!folderId) {
+    return null;
+  }
+
+  if (workspaceContainerById.has(folderId as WorkspaceContainerId)) {
+    return folderId as WorkspaceContainerId;
+  }
+
+  return LEGACY_FOLDER_ID_TO_CONTAINER[folderId] ?? null;
+}
+
+export function isWorkspaceContainerId(folderId: string | null | undefined): folderId is WorkspaceContainerId {
+  return Boolean(normalizeWorkspaceFolderId(folderId));
+}
+
+export function getWorkspaceContainerFolder(folderId: WorkspaceContainerId, ownerId = "system"): Folder {
+  const definition = workspaceContainerById.get(folderId) ?? workspaceContainerById.get("folder-other")!;
+  return {
+    id: definition.id,
+    owner_id: ownerId,
+    name: definition.name,
+    color: definition.color,
+    source: "system",
+    suite_template_id: null,
+    created_at: WORKSPACE_CONTAINER_CREATED_AT,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function getWorkspaceFolderIdForBinder(binder: Binder): WorkspaceContainerId {
+  const haystack = [
+    binder.id,
+    binder.suite_template_id ?? "",
+    binder.title,
+    binder.slug,
+    binder.description,
+    binder.subject,
+    binder.level,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    haystack.includes("algebra") ||
+    haystack.includes("calculus") ||
+    haystack.includes("math") ||
+    haystack.includes("mathematics") ||
+    haystack.includes("geometry")
+  ) {
+    return "folder-math";
+  }
+
+  if (
+    haystack.includes("history") ||
+    haystack.includes("rome") ||
+    haystack.includes("roman") ||
+    haystack.includes("french revolution") ||
+    haystack.includes("revolution")
+  ) {
+    return "folder-history";
+  }
+
+  if (
+    haystack.includes("writing") ||
+    haystack.includes("study skills") ||
+    haystack.includes("notes") ||
+    haystack.includes("research")
+  ) {
+    return "folder-study-skills";
+  }
+
+  return "folder-other";
+}
+
+export function createWorkspaceContainerLinks(binders: Binder[]): FolderBinderLink[] {
+  return binders.map((binder) => {
+    const folderId = getWorkspaceFolderIdForBinder(binder);
+    return {
+      id: `workspace-container-link:${folderId}:${binder.id}`,
+      owner_id: binder.owner_id,
+      folder_id: folderId,
+      binder_id: binder.id,
+      created_at: binder.created_at,
+      updated_at: binder.updated_at,
+    };
+  });
+}
+
+export function createWorkspaceContainerFolders(binders: Binder[]): Folder[] {
+  const visibleFolderIds = new Set(binders.map((binder) => getWorkspaceFolderIdForBinder(binder)));
+  return workspaceContainerDefinitions
+    .filter((definition) => visibleFolderIds.has(definition.id))
+    .sort((left, right) => left.order - right.order)
+    .map((definition) => getWorkspaceContainerFolder(definition.id, "system"));
+}
+
+export function getWorkspaceFolderArtifactsForBinder(binder: Binder): {
+  folders: Folder[];
+  folderLinks: FolderBinderLink[];
+} {
+  return {
+    folders: [getWorkspaceContainerFolder(getWorkspaceFolderIdForBinder(binder), binder.owner_id)],
+    folderLinks: createWorkspaceContainerLinks([binder]),
   };
 }
 

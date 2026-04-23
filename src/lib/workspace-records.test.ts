@@ -109,7 +109,7 @@ describe("workspace-records", () => {
     });
 
     expect(visible.binders.map((binder) => binder.id)).toEqual([baseBinder.id]);
-    expect(visible.folders.map((folder) => folder.id)).toEqual(["folder-real"]);
+    expect(visible.folders.map((folder) => folder.id)).toEqual(["folder-history"]);
     expect(visible.lessons.map((lesson) => lesson.id)).toEqual([realLesson.id]);
   });
 
@@ -164,6 +164,84 @@ describe("workspace-records", () => {
 
     expect(visible.binders.map((candidate) => candidate.id)).toContain(binder.id);
     expect(deriveBinderTitle(binder, [lesson])).toContain("This lesson has real study content");
+  });
+
+  it("collapses legacy empty folders into clean learner-facing containers", () => {
+    const mathBinder: Binder = {
+      ...baseBinder,
+      id: "binder-algebra-foundations",
+      title: "Algebra 1 Foundations",
+      slug: "algebra-1-foundations",
+      subject: "Mathematics",
+      suite_template_id: "suite-algebra-foundations",
+    };
+    const historyBinder: Binder = {
+      ...baseBinder,
+      id: "binder-rise-of-rome",
+      title: "Rise of Rome",
+      slug: "rise-of-rome",
+      subject: "History",
+      suite_template_id: "suite-rise-of-rome",
+    };
+    const junkBinder: Binder = {
+      ...baseBinder,
+      id: "binder-empty-junk",
+      title: "hjkhkh",
+      slug: "hjkhkh",
+      description: "",
+      subject: "General",
+      status: "published",
+      pinned: false,
+      suite_template_id: null,
+    };
+    const folders: Folder[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `legacy-folder-${index}`,
+      owner_id: "user-1",
+      name: index % 2 === 0 ? "Course notes" : "Problem sets",
+      color: index % 2 === 0 ? "teal" : "violet",
+      created_at: new Date(index).toISOString(),
+      updated_at: new Date(index).toISOString(),
+    }));
+    const mathLesson: BinderLesson = {
+      id: "lesson-math",
+      binder_id: mathBinder.id,
+      title: "Like terms",
+      order_index: 1,
+      content: emptyDoc("Combine like terms by matching variable parts."),
+      math_blocks: [],
+      is_preview: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    };
+    const historyLesson: BinderLesson = {
+      ...mathLesson,
+      id: "lesson-history",
+      binder_id: historyBinder.id,
+      title: "Mythic Origins",
+      content: emptyDoc("Rome's origin stories combine memory, myth, and politics."),
+    };
+    const junkLesson: BinderLesson = {
+      ...mathLesson,
+      id: "lesson-empty-junk",
+      binder_id: junkBinder.id,
+      title: "Loose document",
+      content: emptyDoc("A loose unreviewed document should not create a public Other container."),
+    };
+
+    const visible = filterVisibleWorkspaceData({
+      binders: [mathBinder, historyBinder, junkBinder],
+      folders,
+      folderBinders: [],
+      lessons: [mathLesson, historyLesson, junkLesson],
+      notes: [],
+    });
+
+    expect(visible.folders.map((folder) => folder.name)).toEqual(["Math", "History"]);
+    expect(visible.folderBinders.map((link) => `${link.folder_id}:${link.binder_id}`)).toEqual([
+      "folder-math:binder-algebra-foundations",
+      "folder-history:binder-rise-of-rome",
+    ]);
+    expect(visible.binders.map((binder) => binder.id)).not.toContain(junkBinder.id);
   });
 
   it("picks one primary diagnostic instead of surfacing a pile of warnings", () => {

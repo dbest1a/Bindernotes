@@ -37,7 +37,7 @@ export function createFolderSummary(
   const links = folderBinders.filter((link) => link.folder_id === folder.id);
   const binderIds = new Set(links.map((link) => link.binder_id));
   const folderBindersList = binders.filter((binder) => binderIds.has(binder.id));
-  const folderNotes = notes.filter((note) => note.folder_id === folder.id);
+  const folderNotes = notes.filter((note) => note.folder_id === folder.id || binderIds.has(note.binder_id));
   const folderLessons = lessons.filter((lesson) => binderIds.has(lesson.binder_id));
 
   return {

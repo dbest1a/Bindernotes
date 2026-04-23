@@ -669,10 +669,40 @@
   }
 
   .simple-presentation-shell[data-simple-theme="classic-light"] {
+    --background: 0 0% 100%;
+    --foreground: 220 26% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 26% 12%;
+    --secondary: 190 24% 94%;
+    --secondary-foreground: 220 26% 12%;
+    --muted: 200 20% 94%;
+    --muted-foreground: 218 12% 38%;
+    --accent: 172 48% 88%;
+    --accent-foreground: 172 84% 17%;
+    --border: 214 22% 84%;
+    --input: 214 22% 84%;
+    --ring: 170 78% 29%;
+    --primary: 170 78% 29%;
+    --primary-foreground: 0 0% 100%;
     --simple-accent: hsl(170 78% 29%);
   }
 
   .simple-presentation-shell[data-simple-theme="warm-paper"] {
+    --background: 42 42% 96%;
+    --foreground: 222 24% 13%;
+    --card: 48 38% 98%;
+    --card-foreground: 222 24% 13%;
+    --secondary: 188 26% 91%;
+    --secondary-foreground: 222 24% 13%;
+    --muted: 42 24% 90%;
+    --muted-foreground: 222 12% 36%;
+    --accent: 165 46% 86%;
+    --accent-foreground: 166 84% 16%;
+    --border: 38 22% 78%;
+    --input: 38 22% 78%;
+    --ring: 165 72% 30%;
+    --primary: 165 72% 30%;
+    --primary-foreground: 0 0% 100%;
     --simple-accent: hsl(165 72% 30%);
     background:
       linear-gradient(135deg, hsl(42 42% 96%), hsl(188 30% 94%)),
@@ -680,6 +710,21 @@
   }
 
   .simple-presentation-shell[data-simple-theme="night-study"] {
+    --background: 220 18% 8%;
+    --foreground: 42 32% 96%;
+    --card: 220 16% 11%;
+    --card-foreground: 42 32% 96%;
+    --secondary: 220 12% 16%;
+    --secondary-foreground: 42 32% 96%;
+    --muted: 220 12% 16%;
+    --muted-foreground: 215 12% 72%;
+    --accent: 175 38% 22%;
+    --accent-foreground: 175 70% 88%;
+    --border: 220 11% 26%;
+    --input: 220 11% 26%;
+    --ring: 175 70% 54%;
+    --primary: 175 70% 54%;
+    --primary-foreground: 220 18% 8%;
     --simple-accent: hsl(175 70% 54%);
     --simple-surface: hsl(220 16% 11% / 0.96);
     --simple-soft: hsl(220 12% 16% / 0.72);
@@ -690,6 +735,21 @@
   }
 
   .simple-presentation-shell[data-simple-theme="history-gold"] {
+    --background: 44 48% 96%;
+    --foreground: 224 24% 12%;
+    --card: 48 42% 98%;
+    --card-foreground: 224 24% 12%;
+    --secondary: 205 30% 92%;
+    --secondary-foreground: 224 24% 12%;
+    --muted: 42 26% 90%;
+    --muted-foreground: 224 12% 36%;
+    --accent: 43 80% 84%;
+    --accent-foreground: 36 90% 18%;
+    --border: 42 24% 76%;
+    --input: 42 24% 76%;
+    --ring: 42 88% 42%;
+    --primary: 170 78% 29%;
+    --primary-foreground: 0 0% 100%;
     --simple-accent: hsl(170 78% 29%);
     background:
       linear-gradient(135deg, hsl(44 48% 96%), hsl(205 36% 94%)),
@@ -697,6 +757,21 @@
   }
 
   .simple-presentation-shell[data-simple-theme="math-blue"] {
+    --background: 210 32% 97%;
+    --foreground: 221 28% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 221 28% 12%;
+    --secondary: 177 28% 91%;
+    --secondary-foreground: 221 28% 12%;
+    --muted: 210 25% 92%;
+    --muted-foreground: 220 12% 37%;
+    --accent: 207 64% 88%;
+    --accent-foreground: 210 84% 20%;
+    --border: 207 22% 78%;
+    --input: 207 22% 78%;
+    --ring: 207 84% 42%;
+    --primary: 207 84% 42%;
+    --primary-foreground: 0 0% 100%;
     --simple-accent: hsl(207 84% 42%);
     background:
       linear-gradient(135deg, hsl(210 32% 97%), hsl(177 30% 94%)),
@@ -705,6 +780,21 @@
 
   .simple-presentation-shell[data-simple-theme="high-contrast"],
   .simple-presentation-shell[data-simple-contrast="high"] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 18%;
+    --accent: 54 100% 80%;
+    --accent-foreground: 0 0% 0%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --ring: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
     --simple-accent: hsl(var(--foreground));
     --simple-line: hsl(var(--foreground) / 0.42);
     background: hsl(var(--background));

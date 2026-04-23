@@ -50,7 +50,13 @@ import {
   saveGlobalThemeSettings,
   saveWorkspacePreferences,
 } from "@/lib/workspace-preferences";
-import { deriveLessonTitle, filterVisibleWorkspaceData } from "@/lib/workspace-records";
+import {
+  deriveLessonTitle,
+  filterVisibleWorkspaceData,
+  getWorkspaceContainerFolder,
+  getWorkspaceFolderArtifactsForBinder,
+  normalizeWorkspaceFolderId,
+} from "@/lib/workspace-records";
 import type {
   Binder,
   BinderOverviewData,
@@ -1178,6 +1184,129 @@ function dedupeWorkspaceDiagnostics(diagnostics: WorkspaceDiagnostic[]) {
   });
 }
 
+function buildLocalCanonicalFolderWorkspace(
+  folderId: string,
+  profile: Profile,
+): FolderWorkspaceData | null {
+  const canonicalFolderId = normalizeWorkspaceFolderId(folderId);
+  if (!canonicalFolderId) {
+    return null;
+  }
+
+  const demoState = loadDemoState();
+  const visible = filterVisibleWorkspaceData({
+    binders: getLocalBundledBinders(),
+    folders: getLocalBundledFolders(),
+    folderBinders: getLocalBundledFolderLinks(),
+    lessons: getLocalBundledLessons(),
+    notes: demoState.notes,
+    highlights: demoState.highlights,
+  });
+  const folder =
+    visible.folders.find((candidate) => candidate.id === canonicalFolderId) ??
+    getWorkspaceContainerFolder(canonicalFolderId, profile.id);
+  const folderBinders = visible.folderBinders.filter((link) => link.folder_id === canonicalFolderId);
+  const binderIds = folderBinders.map((link) => link.binder_id);
+  const binders = visible.binders.filter((binder) => binderIds.includes(binder.id));
+
+  return {
+    folder,
+    binders,
+    folderBinders,
+    notes: demoState.notes.filter((note) => binderIds.includes(note.binder_id)),
+    lessons: visible.lessons.filter((lesson) => binderIds.includes(lesson.binder_id)),
+    seedHealth: binders[0] ? getLocalSeedHealthForBinder(binders[0]) : null,
+  };
+}
+
+async function buildRemoteCanonicalFolderWorkspace(
+  folderId: string,
+  profile: Profile,
+): Promise<FolderWorkspaceData | null> {
+  const canonicalFolderId = normalizeWorkspaceFolderId(folderId);
+  if (!canonicalFolderId || !supabase) {
+    return null;
+  }
+
+  const bindersQuery =
+    profile.role === "admin"
+      ? supabase.from("binders").select(DASHBOARD_BINDER_SELECT).order("updated_at", { ascending: false })
+      : supabase
+          .from("binders")
+          .select(DASHBOARD_BINDER_SELECT)
+          .eq("status", "published")
+          .order("pinned", { ascending: false })
+          .order("updated_at", { ascending: false });
+
+  const [bindersResult, foldersResult, folderBindersResult, notesResult] = await Promise.all([
+    bindersQuery,
+    supabase.from("folders").select("*").order("updated_at", { ascending: false }),
+    supabase.from("folder_binders").select("*"),
+    supabase
+      .from("learner_notes")
+      .select("*")
+      .eq("owner_id", profile.id)
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  const initialError =
+    bindersResult.error ||
+    foldersResult.error ||
+    folderBindersResult.error ||
+    notesResult.error;
+  if (initialError) {
+    throw initialError;
+  }
+
+  const candidateBinders = mergePublishedDemoBinders(
+    ((bindersResult.data ?? []) as unknown as Binder[]).map(normalizeDashboardBinder),
+  ).filter((binder) =>
+    profile.role === "admin" ? binder.status === "published" || binder.owner_id === profile.id : true,
+  );
+  const lessonsResult =
+    candidateBinders.length > 0
+      ? await supabase
+          .from("binder_lessons")
+          .select("*")
+          .in(
+            "binder_id",
+            candidateBinders.map((binder) => binder.id),
+          )
+          .order("order_index", { ascending: true })
+      : { data: [], error: null };
+  if (lessonsResult.error) {
+    throw lessonsResult.error;
+  }
+
+  const shadowState = loadShadowState();
+  const shadowNotes = shadowState.notes.filter((note) => note.owner_id === profile.id);
+  const notes = mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowNotes);
+  const visible = filterVisibleWorkspaceData({
+    binders: candidateBinders,
+    folders: (foldersResult.data ?? []) as Folder[],
+    folderBinders: (folderBindersResult.data ?? []) as FolderBinderLink[],
+    lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[]),
+    notes,
+  });
+  const folder =
+    visible.folders.find((candidate) => candidate.id === canonicalFolderId) ??
+    getWorkspaceContainerFolder(canonicalFolderId, profile.id);
+  const folderBinders = visible.folderBinders.filter((link) => link.folder_id === canonicalFolderId);
+  const binderIds = folderBinders.map((link) => link.binder_id);
+  const binders = visible.binders.filter((binder) => binderIds.includes(binder.id));
+
+  await Promise.all(binders.map((binder) => ensureSeededWorkspacePresetsForBinder(binder)));
+
+  return {
+    folder,
+    binders,
+    folderBinders,
+    notes: notes.filter((note) => binderIds.includes(note.binder_id)),
+    lessons: visible.lessons.filter((lesson) => binderIds.includes(lesson.binder_id)),
+    seedHealth: binders[0] && isSystemBinderId(binders[0].id) ? await getSeedHealthForBinder(binders[0]) : null,
+  };
+}
+
 export async function getBinderBundle(
   binderId: string,
   profile: Profile,
@@ -1185,8 +1314,7 @@ export async function getBinderBundle(
   if (!supabase) {
     const binders = getLocalBundledBinders();
     const binder = binders.find((item) => item.id === binderId) ?? binders[0];
-    const folderLinks = getLocalBundledFolderLinks().filter((link) => link.binder_id === binder.id);
-    const folderIds = folderLinks.map((link) => link.folder_id);
+    const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
     const demoState = loadDemoState();
     return {
       binder,
@@ -1196,8 +1324,8 @@ export async function getBinderBundle(
       highlights: mergeStoredHighlightMetadata(
         demoState.highlights.filter((highlight) => highlight.binder_id === binder.id),
       ),
-      folders: getLocalBundledFolders().filter((folder) => folderIds.includes(folder.id)),
-      folderLinks,
+      folders: folderArtifacts.folders,
+      folderLinks: folderArtifacts.folderLinks,
       conceptNodes: demoConceptNodes.filter((node) => node.binder_id === binder.id),
       conceptEdges: demoConceptEdges.filter((edge) => edge.binder_id === binder.id),
       seedHealth: getLocalSeedHealthForBinder(binder),
@@ -1284,6 +1412,7 @@ export async function getBinderBundle(
   recordBundledContentStorageMode(binderId, storageMode);
 
   const shadowState = profile ? getShadowBinderState(profile.id, binderId) : null;
+  const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
 
   return {
     binder,
@@ -1297,8 +1426,8 @@ export async function getBinderBundle(
       mergeStoredHighlightMetadata((highlightsResult.data ?? []) as Highlight[]),
       shadowState?.highlights ?? [],
     ),
-    folders: (foldersResult.data ?? []) as Folder[],
-    folderLinks: (folderLinksResult.data ?? []) as FolderBinderLink[],
+    folders: folderArtifacts.folders,
+    folderLinks: folderArtifacts.folderLinks,
     conceptNodes: mergeDemoConceptNodes((conceptNodesResult.data ?? []) as ConceptNode[], binderId),
     conceptEdges: mergeDemoConceptEdges((conceptEdgesResult.data ?? []) as ConceptEdge[], binderId),
     seedHealth: null,
@@ -1310,6 +1439,11 @@ export async function getFolderWorkspace(
   profile: Profile,
 ): Promise<FolderWorkspaceData> {
   if (!supabase) {
+    const canonicalWorkspace = buildLocalCanonicalFolderWorkspace(folderId, profile);
+    if (canonicalWorkspace) {
+      return canonicalWorkspace;
+    }
+
     const folders = getLocalBundledFolders();
     const folder = folders.find((item) => item.id === folderId) ?? folders[0];
     const folderBinders = getLocalBundledFolderLinks().filter((link) => link.folder_id === folder.id);
@@ -1324,6 +1458,11 @@ export async function getFolderWorkspace(
       lessons: getLocalBundledLessons().filter((lesson) => binderIds.includes(lesson.binder_id)),
       seedHealth: null,
     };
+  }
+
+  const canonicalWorkspace = await buildRemoteCanonicalFolderWorkspace(folderId, profile);
+  if (canonicalWorkspace) {
+    return canonicalWorkspace;
   }
 
   const systemSuite = getSystemSuiteByFolderId(folderId);
@@ -1417,16 +1556,15 @@ export async function getBinderOverview(
   if (!supabase) {
     const binders = getLocalBundledBinders();
     const binder = binders.find((item) => item.id === binderId) ?? binders[0];
-    const folderLinks = getLocalBundledFolderLinks().filter((link) => link.binder_id === binder.id);
-    const folderIds = folderLinks.map((link) => link.folder_id);
+    const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
     const demoState = loadDemoState();
 
     return {
       binder,
       lessons: getLocalBundledLessons().filter((lesson) => lesson.binder_id === binder.id),
       notes: demoState.notes.filter((note) => note.binder_id === binder.id),
-      folderLinks,
-      folders: getLocalBundledFolders().filter((folder) => folderIds.includes(folder.id)),
+      folderLinks: folderArtifacts.folderLinks,
+      folders: folderArtifacts.folders,
       seedHealth: getLocalSeedHealthForBinder(binder),
     };
   }
@@ -1478,13 +1616,14 @@ export async function getBinderOverview(
 
   const shadowState = profile ? getShadowBinderState(profile.id, binderId) : null;
   const seedHealth = isSystemBinderId(binder.id) ? await getSeedHealthForBinder(binder) : null;
+  const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
 
   return {
     binder,
     lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[], binderId),
     notes: mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowState?.notes ?? []),
-    folderLinks: (folderLinksResult.data ?? []) as FolderBinderLink[],
-    folders: (foldersResult.data ?? []) as Folder[],
+    folderLinks: folderArtifacts.folderLinks,
+    folders: folderArtifacts.folders,
     seedHealth,
   };
 }

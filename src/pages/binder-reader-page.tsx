@@ -178,7 +178,7 @@ export function BinderReaderPage() {
   const active = workspace.active;
   const isSimpleMode = active?.activeMode === "simple";
   const isCanvasMode = active?.activeMode === "canvas";
-  const isLayoutEditing = layoutMode === "setup" && !isSimpleMode;
+  const isLayoutEditing = layoutMode === "setup" && isCanvasMode;
   const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
   const lessons = binderQuery.data?.lessons ?? [];
@@ -266,7 +266,7 @@ export function BinderReaderPage() {
       return;
     }
 
-    if (active.activeMode === "simple") {
+    if (active.activeMode !== "canvas") {
       setLayoutMode("study");
       return;
     }
@@ -347,7 +347,7 @@ export function BinderReaderPage() {
       return;
     }
 
-    if (active.activeMode === "simple") {
+    if (active.activeMode !== "canvas") {
       setPreferencesOpen(true);
       return;
     }
@@ -381,12 +381,12 @@ export function BinderReaderPage() {
 
   const cancelLayoutEditing = useCallback(() => {
     workspace.cancel();
-    setLayoutMode(workspace.saved?.locked === false ? "setup" : "study");
+    setLayoutMode(workspace.saved?.activeMode === "canvas" && workspace.saved?.locked === false ? "setup" : "study");
   }, [workspace]);
 
   const resetWorkspaceLayout = useCallback(() => {
     const next = workspace.reset();
-    setLayoutMode(next?.locked === false ? "setup" : "study");
+    setLayoutMode(next?.activeMode === "canvas" && next?.locked === false ? "setup" : "study");
   }, [workspace]);
 
   const applyWorkspacePreset = useCallback(
@@ -424,13 +424,16 @@ export function BinderReaderPage() {
       }
       next = ensureWindowFramesForEnabledModules(next);
 
-      if (options?.enterLayoutWhenAdded) {
+      if (options?.enterLayoutWhenAdded && next.activeMode === "canvas") {
         workspace.updateDraft(() => ({
           ...next,
           locked: false,
         }));
         setLayoutMode("setup");
         setPreferencesOpen(false);
+      } else if (options?.enterLayoutWhenAdded) {
+        workspace.commit(next);
+        setPreferencesOpen(true);
       } else if (isLayoutEditing) {
         workspace.updateDraft(() => next);
       } else {

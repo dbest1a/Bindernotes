@@ -1404,7 +1404,7 @@ export function loadGlobalThemeSettings(): WorkspaceThemeSettings {
     }
 
     const parsed = JSON.parse(raw) as Partial<WorkspaceThemeSettings>;
-    return normalizeThemeSettings(parsed);
+    return normalizePersistedGlobalThemeSettings(parsed);
   } catch {
     return defaultThemeSettings;
   }
@@ -1415,7 +1415,7 @@ export function saveGlobalThemeSettings(theme: WorkspaceThemeSettings) {
     return;
   }
 
-  window.localStorage.setItem(globalThemeStorageKey, JSON.stringify(theme));
+  window.localStorage.setItem(globalThemeStorageKey, JSON.stringify(normalizePersistedGlobalThemeSettings(theme)));
 }
 
 export function applyThemeSettings(settings: WorkspaceThemeSettings) {
@@ -1512,10 +1512,7 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     windowLayout: normalizeWindowLayout(preferences.windowLayout),
     stickyNotes: normalizeStickyNotes(preferences.stickyNotes),
     viewportFit: normalizeViewportFit(preferences.viewportFit),
-    theme: normalizeThemeSettings({
-      ...loadGlobalThemeSettings(),
-      ...preferences.theme,
-    }),
+    theme: normalizeThemeSettings(preferences.theme),
   };
 
   const shouldAutoAttachMathModules =
@@ -1610,6 +1607,13 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
       typeof settings?.showUtilityUi === "boolean"
         ? settings.showUtilityUi
         : defaultThemeSettings.showUtilityUi,
+  };
+}
+
+function normalizePersistedGlobalThemeSettings(settings?: Partial<WorkspaceThemeSettings>): WorkspaceThemeSettings {
+  return {
+    ...normalizeThemeSettings(settings),
+    focusMode: false,
   };
 }
 

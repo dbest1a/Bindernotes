@@ -10,6 +10,7 @@ import {
   ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
   loadWorkspacePreferences,
+  normalizeWorkspacePreferences,
   resolveWorkspacePresetLayout,
   saveWorkspacePreferences,
 } from "@/lib/workspace-preferences";
@@ -393,6 +394,39 @@ describe("workspace preferences", () => {
     expect(preferences.theme.graphAppearance).toBe(defaultThemeSettings.graphAppearance);
     expect(preferences.theme.verticalSpace).toBe(defaultThemeSettings.verticalSpace);
     expect(preferences.theme.showUtilityUi).toBe(defaultThemeSettings.showUtilityUi);
+  });
+
+  it("does not let the global theme overwrite saved binder workspace theme", () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => storage.set(key, value),
+        removeItem: (key: string) => storage.delete(key),
+      },
+    });
+
+    window.localStorage.setItem(
+      "binder-notes:theme:v1",
+      JSON.stringify({
+        ...defaultThemeSettings,
+        id: "space",
+        focusMode: true,
+      }),
+    );
+    const saved = createDefaultWorkspacePreferences("user-theme", "binder-theme");
+    const normalized = normalizeWorkspacePreferences({
+      ...saved,
+      theme: {
+        ...saved.theme,
+        id: "paper-studio",
+        focusMode: false,
+      },
+    });
+
+    expect(normalized.theme.id).toBe("paper-studio");
+    expect(normalized.theme.focusMode).toBe(false);
+    expect(loadWorkspacePreferences("missing-user", "missing-binder").theme.focusMode).toBe(false);
   });
 
   it("applies theme datasets for workspace behavior controls", () => {
