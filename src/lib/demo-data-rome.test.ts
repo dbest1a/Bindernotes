@@ -5,17 +5,22 @@ import { demoBinders, demoConceptNodes, demoLessons } from "@/lib/demo-data";
 describe("Rise of Rome demo binder", () => {
   it("keeps the existing Rome binder and expands it with history-suite sections", () => {
     const binder = demoBinders.find((candidate) => candidate.id === "binder-rise-of-rome");
-    expect(binder?.title).toBe("Rise of Rome: Kingdom, Republic, and Empire");
+    expect(binder?.title).toBe("Rise of Rome: From Myth to Empire");
+    expect(binder?.slug).toBe("binder-rise-of-rome");
 
     const romeLessons = demoLessons.filter((lesson) => lesson.binder_id === "binder-rise-of-rome");
-    expect(romeLessons).toHaveLength(8);
+    expect(romeLessons).toHaveLength(10);
 
     const firstLessonText = extractRenderablePlainText(romeLessons[0].content);
-    const lastLessonText = extractRenderablePlainText(romeLessons[7].content);
+    const mythLesson = romeLessons.find((lesson) => lesson.id === "lesson-rome-myth-vs-history");
+    expect(mythLesson).toBeTruthy();
+    const mythLessonText = extractRenderablePlainText(mythLesson!.content);
+    const lastLessonText = extractRenderablePlainText(romeLessons[9].content);
 
     expect(firstLessonText).toContain("Rome in one timeline");
     expect(firstLessonText).toContain("Evidence locker: founding story");
-    expect(lastLessonText).toContain("Causation and argument builder");
+    expect(mythLessonText).toContain("Featured myth checks");
+    expect(lastLessonText).toContain("Build history, do not just memorize it");
   });
 
   it("removes video-style transcript remnants from the Rome binder", () => {

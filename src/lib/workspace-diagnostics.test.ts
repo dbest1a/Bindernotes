@@ -99,7 +99,7 @@ describe("workspace diagnostics", () => {
       ],
       folders: [{ id: buildSystemFolderFromSuite(riseOfRomeSuite!).id }],
       lessonsByBinderId: {
-        "binder-rise-of-rome": 8,
+        "binder-rise-of-rome": 10,
       },
     });
 

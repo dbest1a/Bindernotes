@@ -12,6 +12,9 @@ import {
   frenchRevolutionLessons,
   frenchRevolutionMythCheckTemplates,
   frenchRevolutionSourceTemplates,
+  riseOfRomeEventTemplates,
+  riseOfRomeMythCheckTemplates,
+  riseOfRomeSourceTemplates,
   historyPresetDefinitions,
   SYSTEM_BINDER_IDS,
   SYSTEM_SEED_VERSION,
@@ -218,12 +221,20 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
     conceptNodes: getSeededConceptNodes(),
     conceptEdges: getSeededConceptEdges(),
     workspacePresets: buildWorkspacePresetRows(now),
-    historyEventTemplates: frenchRevolutionEventTemplates.map((event) => ({ ...event, updated_at: now })),
-    historySourceTemplates: frenchRevolutionSourceTemplates.map((source) => ({ ...source, updated_at: now })),
-    historyMythCheckTemplates: frenchRevolutionMythCheckTemplates.map((myth) => ({
-      ...myth,
+    historyEventTemplates: [...frenchRevolutionEventTemplates, ...riseOfRomeEventTemplates].map((event) => ({
+      ...event,
       updated_at: now,
     })),
+    historySourceTemplates: [...frenchRevolutionSourceTemplates, ...riseOfRomeSourceTemplates].map((source) => ({
+      ...source,
+      updated_at: now,
+    })),
+    historyMythCheckTemplates: [...frenchRevolutionMythCheckTemplates, ...riseOfRomeMythCheckTemplates].map(
+      (myth) => ({
+        ...myth,
+        updated_at: now,
+      }),
+    ),
   };
 }
 
