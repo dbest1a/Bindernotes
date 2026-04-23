@@ -1,8 +1,8 @@
 create table if not exists public.folder_binders (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
-  folder_id uuid not null references public.folders(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
+  folder_id text not null references public.folders(id) on delete cascade,
+  binder_id text not null references public.binders(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (owner_id, folder_id, binder_id)

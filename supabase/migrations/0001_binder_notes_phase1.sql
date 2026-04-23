@@ -25,7 +25,7 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.binders (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
   title text not null,
   slug text not null unique,
@@ -41,8 +41,8 @@ create table if not exists public.binders (
 );
 
 create table if not exists public.binder_lessons (
-  id uuid primary key default gen_random_uuid(),
-  binder_id uuid not null references public.binders(id) on delete cascade,
+  id text primary key default gen_random_uuid()::text,
+  binder_id text not null references public.binders(id) on delete cascade,
   title text not null,
   order_index integer not null default 1,
   content jsonb not null default '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb,
@@ -53,7 +53,7 @@ create table if not exists public.binder_lessons (
 );
 
 create table if not exists public.folders (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
   name text not null,
   color text not null default 'teal',
@@ -62,19 +62,19 @@ create table if not exists public.folders (
 );
 
 create table if not exists public.enrollments (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   user_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
+  binder_id text not null references public.binders(id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (user_id, binder_id)
 );
 
 create table if not exists public.learner_notes (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
-  lesson_id uuid not null references public.binder_lessons(id) on delete cascade,
-  folder_id uuid references public.folders(id) on delete set null,
+  binder_id text not null references public.binders(id) on delete cascade,
+  lesson_id text not null references public.binder_lessons(id) on delete cascade,
+  folder_id text references public.folders(id) on delete set null,
   title text not null default 'Private lesson notes',
   content jsonb not null default '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb,
   math_blocks jsonb not null default '[]'::jsonb,
@@ -85,33 +85,33 @@ create table if not exists public.learner_notes (
 );
 
 create table if not exists public.comments (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
-  lesson_id uuid not null references public.binder_lessons(id) on delete cascade,
+  binder_id text not null references public.binders(id) on delete cascade,
+  lesson_id text not null references public.binder_lessons(id) on delete cascade,
   anchor_text text,
   body text not null,
-  parent_id uuid references public.comments(id) on delete cascade,
+  parent_id text references public.comments(id) on delete cascade,
   resolved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create table if not exists public.highlights (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   owner_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
-  lesson_id uuid not null references public.binder_lessons(id) on delete cascade,
+  binder_id text not null references public.binders(id) on delete cascade,
+  lesson_id text not null references public.binder_lessons(id) on delete cascade,
   anchor_text text not null,
   color text not null default 'yellow' check (color in ('yellow', 'green', 'pink')),
-  note_id uuid references public.learner_notes(id) on delete set null,
+  note_id text references public.learner_notes(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.purchases (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   user_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid references public.binders(id) on delete set null,
+  binder_id text references public.binders(id) on delete set null,
   stripe_checkout_session_id text,
   stripe_customer_id text,
   amount_cents integer not null default 0 check (amount_cents >= 0),
@@ -120,26 +120,26 @@ create table if not exists public.purchases (
 );
 
 create table if not exists public.concept_nodes (
-  id uuid primary key default gen_random_uuid(),
-  binder_id uuid not null references public.binders(id) on delete cascade,
+  id text primary key default gen_random_uuid()::text,
+  binder_id text not null references public.binders(id) on delete cascade,
   label text not null,
   description text,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.concept_edges (
-  id uuid primary key default gen_random_uuid(),
-  binder_id uuid not null references public.binders(id) on delete cascade,
-  source_id uuid not null references public.concept_nodes(id) on delete cascade,
-  target_id uuid not null references public.concept_nodes(id) on delete cascade,
+  id text primary key default gen_random_uuid()::text,
+  binder_id text not null references public.binders(id) on delete cascade,
+  source_id text not null references public.concept_nodes(id) on delete cascade,
+  target_id text not null references public.concept_nodes(id) on delete cascade,
   label text,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.workspace_preferences (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default gen_random_uuid()::text,
   user_id uuid not null references public.profiles(id) on delete cascade,
-  binder_id uuid not null references public.binders(id) on delete cascade,
+  binder_id text not null references public.binders(id) on delete cascade,
   preferences jsonb not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -168,7 +168,10 @@ as $$
   );
 $$;
 
-create or replace function public.owns_published_or_enrolled(target_binder_id uuid)
+drop function if exists public.owns_published_or_enrolled(uuid);
+drop function if exists public.owns_published_or_enrolled(text);
+
+create or replace function public.owns_published_or_enrolled(target_binder_id text)
 returns boolean
 language sql
 stable
