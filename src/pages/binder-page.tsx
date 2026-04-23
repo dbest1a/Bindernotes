@@ -1,4 +1,4 @@
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, ChevronRight, FileText, FolderTree, NotebookPen } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,14 @@ import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
 
 export function BinderPage() {
   const { binderId } = useParams();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useBinderOverview(binderId, profile);
+  const debugModeEnabled = searchParams.get("debug") === "system";
+  const showSystemDiagnostics =
+    debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
   const runtimeDiagnostics =
-    error && (profile?.role === "admin" || import.meta.env.DEV)
+    error && showSystemDiagnostics
       ? classifyRuntimeError("binders", error)
       : [];
 
@@ -43,7 +47,7 @@ export function BinderPage() {
             <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} />
           </div>
         ) : null}
-        {isMissingSeedError(error) ? (
+        {showSystemDiagnostics && isMissingSeedError(error) ? (
           <div className="mb-4">
             <SeedHealthPanel
               description="This system binder depends on backend-seeded suite rows in Supabase."
@@ -93,7 +97,7 @@ export function BinderPage() {
             <Stat label="Private notes" value={String(data.notes.length)} icon={<NotebookPen className="size-4" />} />
             <Stat label="Location" value={primaryFolder?.name ?? "Workspace"} icon={<FolderTree className="size-4" />} />
           </div>
-          {data.seedHealth ? (
+          {showSystemDiagnostics && data.seedHealth ? (
             <div className="mt-4">
               <SeedHealthPanel
                 compact

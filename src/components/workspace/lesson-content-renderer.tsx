@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
-import { Fragment, type JSX, type ReactNode } from "react";
+import { Fragment, useMemo, type JSX, type ReactNode } from "react";
 import { buildHighlightSegments, extractRenderablePlainText, type HighlightSegment } from "@/lib/highlights";
 import { buildLessonSectionAnchorId, normalizeReferenceText } from "@/lib/study-references";
 import type { Highlight, HighlightColor } from "@/types";
@@ -19,8 +19,8 @@ export function LessonContentRenderer({
   highlights: Highlight[];
   lessonId?: string;
 }) {
-  const plainText = extractRenderablePlainText(content);
-  const segments = buildHighlightSegments(highlights, plainText);
+  const plainText = useMemo(() => extractRenderablePlainText(content), [content]);
+  const segments = useMemo(() => buildHighlightSegments(highlights, plainText), [highlights, plainText]);
   const cursor = { value: 0 };
   const headingOccurrences = new Map<string, number>();
 

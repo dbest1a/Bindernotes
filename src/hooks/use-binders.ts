@@ -21,6 +21,7 @@ import type {
   BinderBundle,
   BinderOverviewData,
   DashboardData,
+  Highlight,
   HighlightColor,
   LearnerNote,
   MathBlock,
@@ -148,10 +149,26 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
           ...input,
           ownerId: profile!.id,
         }),
-      onSuccess: (savedHighlight) => {
+      onMutate: async (input) => {
+        const optimisticId = `highlight-optimistic:${crypto.randomUUID()}`;
+        const previous = snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: upsertById(current.highlights, buildOptimisticHighlight(profile!, optimisticId, input)),
+        }));
+
+        return {
+          ...previous,
+          optimisticId,
+        };
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+      onSuccess: (savedHighlight, _input, context) => {
         updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
           ...current,
-          highlights: upsertById(current.highlights, savedHighlight),
+          highlights: upsertById(
+            current.highlights.filter((highlight) => highlight.id !== context?.optimisticId),
+            savedHighlight,
+          ),
         }));
       },
     }),
@@ -171,6 +188,27 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
           ...input,
           ownerId: profile!.id,
         }),
+      onMutate: async (input) => {
+        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: current.highlights.map((highlight) =>
+            highlight.id === input.highlightId
+              ? {
+                  ...highlight,
+                  anchor_text: input.anchorText,
+                  selected_text: input.selectedText ?? input.anchorText,
+                  prefix_text: input.prefixText ?? highlight.prefix_text ?? null,
+                  suffix_text: input.suffixText ?? highlight.suffix_text ?? null,
+                  color: input.color,
+                  start_offset: input.startOffset ?? highlight.start_offset ?? null,
+                  end_offset: input.endOffset ?? highlight.end_offset ?? null,
+                  updated_at: new Date().toISOString(),
+                }
+              : highlight,
+          ),
+        }));
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
       onSuccess: (savedHighlight) => {
         updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
           ...current,
@@ -332,6 +370,45 @@ function restoreBinderBundle(
   }
 
   queryClient.setQueryData(["binder", binderId, profile.id], context.previous);
+}
+
+function buildOptimisticHighlight(
+  profile: Profile,
+  optimisticId: string,
+  input: {
+    binderId: string;
+    lessonId: string;
+    anchorText: string;
+    color: HighlightColor;
+    startOffset?: number;
+    endOffset?: number;
+    selectedText?: string;
+    prefixText?: string;
+    suffixText?: string;
+  },
+): Highlight {
+  const timestamp = new Date().toISOString();
+  return {
+    id: optimisticId,
+    owner_id: profile.id,
+    binder_id: input.binderId,
+    lesson_id: input.lessonId,
+    document_id: input.lessonId,
+    source_version_id: null,
+    anchor_text: input.anchorText,
+    selected_text: input.selectedText ?? input.anchorText,
+    prefix_text: input.prefixText ?? null,
+    suffix_text: input.suffixText ?? null,
+    selector_json: null,
+    color: input.color,
+    note_id: null,
+    start_offset: input.startOffset ?? null,
+    end_offset: input.endOffset ?? null,
+    status: "active",
+    reanchor_confidence: 1,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
 }
 
 function upsertById<T extends { id: string }>(items: T[], item: T) {

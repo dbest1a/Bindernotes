@@ -67,6 +67,20 @@ export type HighlightStorageScope = {
   lessonId?: string;
 };
 
+type HighlightResolutionCacheEntry = {
+  plainText: string;
+  signature: string;
+  resolution: HighlightResolution;
+};
+
+type HighlightSegmentCacheEntry = {
+  plainText: string;
+  segments: HighlightSegment[];
+};
+
+const highlightResolutionCache = new WeakMap<Highlight, HighlightResolutionCacheEntry>();
+const highlightSegmentCache = new WeakMap<Highlight[], HighlightSegmentCacheEntry>();
+
 export function createLessonSelection(
   text: string,
   startOffset: number,
@@ -182,8 +196,15 @@ export function resolveHighlightRange(
   highlight: Highlight,
   plainText: string,
 ): HighlightResolution {
+  const signature = buildResolutionSignature(highlight);
+  const cached = highlightResolutionCache.get(highlight);
+  if (cached && cached.plainText === plainText && cached.signature === signature) {
+    return cached.resolution;
+  }
+
   const exactText = highlight.selected_text?.trim() || highlight.anchor_text.trim();
   const selectors = normalizeSelectors(highlight.selector_json);
+  let resolution: HighlightResolution | null = null;
 
   const blockRange = selectors.find(
     (selector): selector is HighlightSelectorBlock => selector.type === "BlockSelector",
@@ -196,39 +217,49 @@ export function resolveHighlightRange(
   ) {
     const range = { start: blockRange.start, end: blockRange.end };
     if (rangeMatchesText(range, plainText, exactText)) {
-      return { range, confidence: 0.98, needsReview: false };
+      resolution = { range, confidence: 0.98, needsReview: false };
     }
   }
 
-  const directRange = getHighlightRange(highlight);
-  if (directRange && rangeMatchesText(directRange, plainText, exactText)) {
-    return { range: directRange, confidence: 1, needsReview: false };
-  }
-
-  const positionSelector = selectors.find(
-    (selector): selector is HighlightSelectorTextPosition => selector.type === "TextPositionSelector",
-  );
-  if (positionSelector && positionSelector.end > positionSelector.start) {
-    const range = { start: positionSelector.start, end: positionSelector.end };
-    if (rangeMatchesText(range, plainText, exactText)) {
-      return { range, confidence: 0.96, needsReview: false };
+  if (!resolution) {
+    const directRange = getHighlightRange(highlight);
+    if (directRange && rangeMatchesText(directRange, plainText, exactText)) {
+      resolution = { range: directRange, confidence: 1, needsReview: false };
     }
   }
 
-  const quoteSelector = selectors.find(
-    (selector): selector is HighlightSelectorTextQuote => selector.type === "TextQuoteSelector",
-  );
-  if (quoteSelector) {
-    const quoteMatch = findQuoteRange(plainText, quoteSelector);
-    if (quoteMatch) {
-      return { range: quoteMatch, confidence: quoteSelector.prefix || quoteSelector.suffix ? 0.92 : 0.88, needsReview: false };
+  if (!resolution) {
+    const positionSelector = selectors.find(
+      (selector): selector is HighlightSelectorTextPosition => selector.type === "TextPositionSelector",
+    );
+    if (positionSelector && positionSelector.end > positionSelector.start) {
+      const range = { start: positionSelector.start, end: positionSelector.end };
+      if (rangeMatchesText(range, plainText, exactText)) {
+        resolution = { range, confidence: 0.96, needsReview: false };
+      }
     }
   }
 
-  if (exactText) {
+  if (!resolution) {
+    const quoteSelector = selectors.find(
+      (selector): selector is HighlightSelectorTextQuote => selector.type === "TextQuoteSelector",
+    );
+    if (quoteSelector) {
+      const quoteMatch = findQuoteRange(plainText, quoteSelector);
+      if (quoteMatch) {
+        resolution = {
+          range: quoteMatch,
+          confidence: quoteSelector.prefix || quoteSelector.suffix ? 0.92 : 0.88,
+          needsReview: false,
+        };
+      }
+    }
+  }
+
+  if (!resolution && exactText) {
     const fuzzyStart = plainText.toLowerCase().indexOf(exactText.toLowerCase());
     if (fuzzyStart >= 0) {
-      return {
+      resolution = {
         range: {
           start: fuzzyStart,
           end: fuzzyStart + exactText.length,
@@ -239,7 +270,13 @@ export function resolveHighlightRange(
     }
   }
 
-  return { range: null, confidence: 0, needsReview: true };
+  const finalResolution = resolution ?? { range: null, confidence: 0, needsReview: true };
+  highlightResolutionCache.set(highlight, {
+    plainText,
+    signature,
+    resolution: finalResolution,
+  });
+  return finalResolution;
 }
 
 export function getSelectionRange(selection: LessonTextSelection): HighlightRange {
@@ -301,6 +338,11 @@ export function buildHighlightSegments(
     return [];
   }
 
+  const cached = highlightSegmentCache.get(highlights);
+  if (cached && cached.plainText === plainText) {
+    return cached.segments;
+  }
+
   const lowerText = plainText.toLowerCase();
   const phraseOffsets = new Map<string, number>();
   const candidates = dedupeHighlights(highlights)
@@ -346,7 +388,7 @@ export function buildHighlightSegments(
     return overlaySegment(current, segment);
   }, []);
 
-  return resolved
+  const segments = resolved
     .sort((left, right) => left.start - right.start || left.end - right.end)
     .map(({ id, color, start, end }) => ({
       id,
@@ -354,6 +396,13 @@ export function buildHighlightSegments(
       start,
       end,
     }));
+
+  highlightSegmentCache.set(highlights, {
+    plainText,
+    segments,
+  });
+
+  return segments;
 }
 
 export function extractRenderablePlainText(node: JSONContent): string {
@@ -460,6 +509,10 @@ function matchesHighlightStorageScope(
   highlight: StoredHighlightMetadata,
   scope: HighlightStorageScope,
 ) {
+  if (scope.binderId && highlight.binder_id !== scope.binderId) {
+    return false;
+  }
+
   if (scope.lessonId) {
     return highlight.lesson_id === scope.lessonId;
   }
@@ -469,6 +522,22 @@ function matchesHighlightStorageScope(
   }
 
   return true;
+}
+
+function buildResolutionSignature(highlight: Highlight) {
+  return [
+    highlight.id,
+    highlight.anchor_text,
+    highlight.selected_text ?? "",
+    highlight.prefix_text ?? "",
+    highlight.suffix_text ?? "",
+    highlight.start_offset ?? "",
+    highlight.end_offset ?? "",
+    highlight.color,
+    highlight.status ?? "",
+    highlight.updated_at ?? "",
+    JSON.stringify(highlight.selector_json ?? null),
+  ].join("|");
 }
 
 function buildHighlightIdentity(highlight: Highlight) {

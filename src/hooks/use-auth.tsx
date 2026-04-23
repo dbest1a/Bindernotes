@@ -4,9 +4,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { demoAdmin, demoProfile } from "@/lib/demo-data";
 import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
@@ -34,6 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(() => loadStoredDemoProfile());
   const [isLoading, setIsLoading] = useState(true);
+  const sessionRef = useRef<Session | null>(null);
+  const profileRef = useRef<Profile | null>(profile);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   useEffect(() => {
     if (!supabase) {
@@ -43,18 +54,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
 
-    const hydrateAuthState = async (nextSession: Session | null) => {
+    const hydrateAuthState = async (
+      nextSession: Session | null,
+      options?: {
+        foreground?: boolean;
+        refreshProfile?: boolean;
+      },
+    ) => {
       if (!active) {
         return;
       }
 
-      setIsLoading(true);
+      const currentUserId = sessionRef.current?.user?.id ?? null;
+      const nextUserId = nextSession?.user?.id ?? null;
+      const userChanged = currentUserId !== nextUserId;
+      const shouldBlock = options?.foreground ?? (userChanged || !sessionRef.current);
+
+      if (shouldBlock) {
+        setIsLoading(true);
+      }
+
       setSession(nextSession);
+      sessionRef.current = nextSession;
 
       const user = nextSession?.user;
       if (!user) {
         setProfile(null);
+        profileRef.current = null;
         setIsLoading(false);
+        return;
+      }
+
+      if (!userChanged && profileRef.current && !options?.refreshProfile) {
+        if (shouldBlock) {
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -64,14 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         setProfile(nextProfile);
+        profileRef.current = nextProfile;
       } catch (error) {
         console.error("Failed to hydrate Supabase profile.", error);
         if (!active) {
           return;
         }
-        setProfile(null);
+        if (!profileRef.current || userChanged) {
+          setProfile(null);
+          profileRef.current = null;
+        }
       } finally {
-        if (active) {
+        if (active && shouldBlock) {
           setIsLoading(false);
         }
       }
@@ -83,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           throw error;
         }
-        return hydrateAuthState(data.session);
+        return hydrateAuthState(data.session, {
+          foreground: true,
+          refreshProfile: true,
+        });
       })
       .catch((error) => {
         console.error("Failed to hydrate Supabase session.", error);
@@ -97,8 +138,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void hydrateAuthState(nextSession);
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const nextUserId = nextSession?.user?.id ?? null;
+      const currentUserId = sessionRef.current?.user?.id ?? null;
+
+      if (
+        event === "TOKEN_REFRESHED" &&
+        currentUserId === nextUserId &&
+        profileRef.current
+      ) {
+        setSession(nextSession);
+        sessionRef.current = nextSession;
+        return;
+      }
+
+      void hydrateAuthState(nextSession, {
+        foreground: shouldBlockAuthHydration(event),
+        refreshProfile: shouldRefreshProfile(event),
+      });
     });
 
     return () => {
@@ -264,6 +321,14 @@ function saveStoredDemoProfile(profile: Profile | null) {
     DEMO_PROFILE_STORAGE_KEY,
     JSON.stringify({ id: profile.id, role: profile.role }),
   );
+}
+
+export function shouldBlockAuthHydration(event: AuthChangeEvent) {
+  return event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "PASSWORD_RECOVERY";
+}
+
+export function shouldRefreshProfile(event: AuthChangeEvent) {
+  return event === "SIGNED_IN" || event === "USER_UPDATED" || event === "PASSWORD_RECOVERY";
 }
 
 export function useAuth() {

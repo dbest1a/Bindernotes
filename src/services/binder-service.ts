@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseProjectRef } from "@/lib/supabase";
 import {
   demoBinders,
   demoComments,
@@ -97,6 +97,7 @@ const DEMO_DATA_STORAGE_KEY = "binder-notes:demo-data:v1";
 const DEMO_HIGHLIGHT_RESET_MARKER_KEY = "binder-notes:demo-highlight-reset:v1";
 const SHADOW_DATA_STORAGE_KEY = "binder-notes:shadow-content:v1";
 const BUNDLED_CONTENT_STATUS_STORAGE_KEY = "binder-notes:bundled-content-status:v1";
+const HIGHLIGHT_SCHEMA_MODE_STORAGE_KEY = "binder-notes:highlight-schema-mode:v1";
 const DEMO_RESET_LESSON_IDS = new Set([
   "lesson-algebra-like-terms",
   "lesson-algebra-polynomials",
@@ -124,6 +125,7 @@ type ShadowState = {
 };
 
 type BundledContentStorageMode = "remote" | "shadow";
+type HighlightSchemaMode = "modern" | "legacy-with-offsets" | "legacy-minimal";
 
 type BundledContentStatus = Record<
   string,
@@ -132,6 +134,8 @@ type BundledContentStatus = Record<
     mode: BundledContentStorageMode;
   }
 >;
+
+const highlightSchemaModeCache = new Map<string, HighlightSchemaMode>();
 
 type WorkspacePreferencesRecord = {
   preferences: WorkspacePreferences | null;
@@ -797,6 +801,122 @@ function buildLegacyHighlightUpdatePayloadWithoutOffsets(input: {
   };
 }
 
+function getHighlightSchemaCacheScope() {
+  return supabaseProjectRef ?? "local";
+}
+
+function readHighlightSchemaModes(): Record<string, HighlightSchemaMode> {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(HIGHLIGHT_SCHEMA_MODE_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, HighlightSchemaMode>;
+    return parsed ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function readCachedHighlightSchemaMode(): HighlightSchemaMode | null {
+  const scope = getHighlightSchemaCacheScope();
+  const cached = highlightSchemaModeCache.get(scope);
+  if (cached) {
+    return cached;
+  }
+
+  const stored = readHighlightSchemaModes()[scope] ?? null;
+  if (stored) {
+    highlightSchemaModeCache.set(scope, stored);
+  }
+
+  return stored;
+}
+
+function cacheHighlightSchemaMode(mode: HighlightSchemaMode) {
+  const scope = getHighlightSchemaCacheScope();
+  highlightSchemaModeCache.set(scope, mode);
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const next = readHighlightSchemaModes();
+  next[scope] = mode;
+  window.localStorage.setItem(HIGHLIGHT_SCHEMA_MODE_STORAGE_KEY, JSON.stringify(next));
+}
+
+export function resetHighlightSchemaModeCacheForTests() {
+  const scope = getHighlightSchemaCacheScope();
+  highlightSchemaModeCache.delete(scope);
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const next = readHighlightSchemaModes();
+  delete next[scope];
+  window.localStorage.setItem(HIGHLIGHT_SCHEMA_MODE_STORAGE_KEY, JSON.stringify(next));
+}
+
+async function runHighlightMutationWithFallback(input: {
+  preferredMode: HighlightSchemaMode | null;
+  modern: () => Promise<{ data: unknown; error: unknown }>;
+  legacyWithOffsets: () => Promise<{ data: unknown; error: unknown }>;
+  legacyWithoutOffsets: () => Promise<{ data: unknown; error: unknown }>;
+}) {
+  type MutationResult = { data: unknown; error: unknown };
+  const attemptMode = async (mode: HighlightSchemaMode) => {
+    switch (mode) {
+      case "legacy-with-offsets":
+        return input.legacyWithOffsets();
+      case "legacy-minimal":
+        return input.legacyWithoutOffsets();
+      case "modern":
+      default:
+        return input.modern();
+    }
+  };
+
+  const runCascade = async (mode: HighlightSchemaMode): Promise<MutationResult> => {
+    const result = await attemptMode(mode);
+    if (!result.error) {
+      cacheHighlightSchemaMode(mode);
+      return result;
+    }
+
+    if (!isLegacyHighlightSchemaError(result.error)) {
+      return result;
+    }
+
+    if (mode === "modern") {
+      const legacyWithOffsets = await runCascade("legacy-with-offsets");
+      if (!legacyWithOffsets.error) {
+        return legacyWithOffsets;
+      }
+
+      if (isLegacyHighlightSchemaError(legacyWithOffsets.error)) {
+        return runCascade("legacy-minimal");
+      }
+
+      return legacyWithOffsets;
+    }
+
+    if (mode === "legacy-with-offsets") {
+      return runCascade("legacy-minimal");
+    }
+
+    return result;
+  };
+
+  return runCascade(input.preferredMode ?? "modern");
+}
+
 function mergePublishedDemoBinders(remoteBinders: Binder[]) {
   return [...remoteBinders].sort((left, right) => {
     if (left.pinned !== right.pinned) {
@@ -1147,7 +1267,6 @@ export async function getBinderBundle(
   recordBundledContentStorageMode(binderId, storageMode);
 
   const shadowState = profile ? getShadowBinderState(profile.id, binderId) : null;
-  const seedHealth = await getSeedHealthForBinder(binder);
 
   return {
     binder,
@@ -1165,7 +1284,7 @@ export async function getBinderBundle(
     folderLinks: (folderLinksResult.data ?? []) as FolderBinderLink[],
     conceptNodes: mergeDemoConceptNodes((conceptNodesResult.data ?? []) as ConceptNode[], binderId),
     conceptEdges: mergeDemoConceptEdges((conceptEdgesResult.data ?? []) as ConceptEdge[], binderId),
-    seedHealth,
+    seedHealth: null,
   };
 }
 
@@ -1341,7 +1460,7 @@ export async function getBinderOverview(
   recordBundledContentStorageMode(binderId, storageMode);
 
   const shadowState = profile ? getShadowBinderState(profile.id, binderId) : null;
-  const seedHealth = await getSeedHealthForBinder(binder);
+  const seedHealth = isSystemBinderId(binder.id) ? await getSeedHealthForBinder(binder) : null;
 
   return {
     binder,
@@ -1501,49 +1620,37 @@ export async function createHighlight(input: {
     };
     return upsertShadowHighlight(saved);
   }
+  const client = supabase;
+  if (!client) {
+    throw new Error("Supabase client is unavailable.");
+  }
 
-  let data: unknown = null;
-  let error: unknown = null;
-
-  const attemptWithOffsets = await supabase
-    .from("highlights")
-    .insert(highlightWithOffsets)
-    .select("*")
-    .single();
-
-  if (attemptWithOffsets.error) {
-    if (!isLegacyHighlightSchemaError(attemptWithOffsets.error)) {
-      if (shouldUseShadowFallback(input.binderId, attemptWithOffsets.error)) {
-        const saved: Highlight = {
-          id: crypto.randomUUID(),
-          ...highlight,
-          start_offset: input.startOffset ?? null,
-          end_offset: input.endOffset ?? null,
-          created_at: now(),
-        };
-        return upsertShadowHighlight(saved);
-      }
-      throw attemptWithOffsets.error;
-    }
-
-    const legacyAttemptWithOffsets = await supabase
-      .from("highlights")
-      .insert(
-        buildLegacyHighlightInsertPayload({
-          ownerId: input.ownerId,
-          binderId: input.binderId,
-          lessonId: input.lessonId,
-          anchorText: input.anchorText,
-          color: input.color,
-          startOffset: input.startOffset,
-          endOffset: input.endOffset,
-        }),
-      )
-      .select("*")
-      .single();
-
-    if (legacyAttemptWithOffsets.error && isLegacyHighlightSchemaError(legacyAttemptWithOffsets.error)) {
-      const legacyAttemptWithoutOffsets = await supabase
+  const { data, error } = await runHighlightMutationWithFallback({
+    preferredMode: readCachedHighlightSchemaMode(),
+    modern: async () =>
+      await client
+        .from("highlights")
+        .insert(highlightWithOffsets)
+        .select("*")
+        .single(),
+    legacyWithOffsets: async () =>
+      await client
+        .from("highlights")
+        .insert(
+          buildLegacyHighlightInsertPayload({
+            ownerId: input.ownerId,
+            binderId: input.binderId,
+            lessonId: input.lessonId,
+            anchorText: input.anchorText,
+            color: input.color,
+            startOffset: input.startOffset,
+            endOffset: input.endOffset,
+          }),
+        )
+        .select("*")
+        .single(),
+    legacyWithoutOffsets: async () =>
+      await client
         .from("highlights")
         .insert(
           buildLegacyHighlightInsertPayloadWithoutOffsets({
@@ -1555,18 +1662,8 @@ export async function createHighlight(input: {
           }),
         )
         .select("*")
-        .single();
-
-      data = legacyAttemptWithoutOffsets.data;
-      error = legacyAttemptWithoutOffsets.error;
-    } else {
-      data = legacyAttemptWithOffsets.data;
-      error = legacyAttemptWithOffsets.error;
-    }
-  } else {
-    data = attemptWithOffsets.data;
-    error = attemptWithOffsets.error;
-  }
+        .single(),
+  });
 
   if (error) {
     if (shouldUseShadowFallback(input.binderId, error)) {
@@ -1654,40 +1751,38 @@ export async function updateHighlight(input: {
     };
     return upsertShadowHighlight(saved);
   }
+  const client = supabase;
+  if (!client) {
+    throw new Error("Supabase client is unavailable.");
+  }
 
-  let data: unknown = null;
-  let error: unknown = null;
-
-  const attemptWithOffsets = await supabase
-    .from("highlights")
-    .update(patch)
-    .eq("owner_id", input.ownerId)
-    .eq("id", input.highlightId)
-    .select("*")
-    .single();
-
-  if (attemptWithOffsets.error) {
-    if (!isLegacyHighlightSchemaError(attemptWithOffsets.error)) {
-      throw attemptWithOffsets.error;
-    }
-
-    const legacyAttemptWithOffsets = await supabase
-      .from("highlights")
-      .update(
-        buildLegacyHighlightUpdatePayload({
-          anchorText: input.anchorText,
-          color: input.color,
-          startOffset: input.startOffset,
-          endOffset: input.endOffset,
-        }),
-      )
-      .eq("owner_id", input.ownerId)
-      .eq("id", input.highlightId)
-      .select("*")
-      .single();
-
-    if (legacyAttemptWithOffsets.error && isLegacyHighlightSchemaError(legacyAttemptWithOffsets.error)) {
-      const legacyAttemptWithoutOffsets = await supabase
+  const { data, error } = await runHighlightMutationWithFallback({
+    preferredMode: readCachedHighlightSchemaMode(),
+    modern: async () =>
+      await client
+        .from("highlights")
+        .update(patch)
+        .eq("owner_id", input.ownerId)
+        .eq("id", input.highlightId)
+        .select("*")
+        .single(),
+    legacyWithOffsets: async () =>
+      await client
+        .from("highlights")
+        .update(
+          buildLegacyHighlightUpdatePayload({
+            anchorText: input.anchorText,
+            color: input.color,
+            startOffset: input.startOffset,
+            endOffset: input.endOffset,
+          }),
+        )
+        .eq("owner_id", input.ownerId)
+        .eq("id", input.highlightId)
+        .select("*")
+        .single(),
+    legacyWithoutOffsets: async () =>
+      await client
         .from("highlights")
         .update(
           buildLegacyHighlightUpdatePayloadWithoutOffsets({
@@ -1698,18 +1793,8 @@ export async function updateHighlight(input: {
         .eq("owner_id", input.ownerId)
         .eq("id", input.highlightId)
         .select("*")
-        .single();
-
-      data = legacyAttemptWithoutOffsets.data;
-      error = legacyAttemptWithoutOffsets.error;
-    } else {
-      data = legacyAttemptWithOffsets.data;
-      error = legacyAttemptWithOffsets.error;
-    }
-  } else {
-    data = attemptWithOffsets.data;
-    error = attemptWithOffsets.error;
-  }
+        .single(),
+  });
 
   if (error) {
     throw error;

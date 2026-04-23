@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildHighlightSegments,
   buildHighlightSelector,
@@ -7,6 +7,7 @@ import {
   mergeStoredHighlightMetadata,
   persistHighlightMetadata,
   removeStoredHighlightMetadata,
+  removeStoredHighlightMetadataByScope,
   resolveHighlightRange,
   selectionExactlyMatchesHighlight,
   selectionMatchesHighlight,
@@ -391,6 +392,44 @@ describe("highlight helpers", () => {
     });
   });
 
+  it("clears stored metadata only for the matching binder and lesson scope", () => {
+    withMockWindowStorage(() => {
+      persistHighlightMetadata({
+        id: "hl-same-lesson-other-binder",
+        owner_id: "user-1",
+        binder_id: "binder-other",
+        lesson_id: "lesson-shared",
+        anchor_text: "Republic",
+        color: "yellow",
+        note_id: null,
+        start_offset: 0,
+        end_offset: 8,
+        created_at: "2026-04-22T10:00:00.000Z",
+      });
+      persistHighlightMetadata({
+        id: "hl-target",
+        owner_id: "user-1",
+        binder_id: "binder-target",
+        lesson_id: "lesson-shared",
+        anchor_text: "Republic",
+        color: "blue",
+        note_id: null,
+        start_offset: 10,
+        end_offset: 18,
+        created_at: "2026-04-22T10:00:01.000Z",
+      });
+
+      removeStoredHighlightMetadataByScope({
+        binderId: "binder-target",
+        lessonId: "lesson-shared",
+      });
+
+      const raw = globalThis.window?.localStorage.getItem("binder-notes:highlight-metadata:v1");
+      expect(raw).toContain("hl-same-lesson-other-binder");
+      expect(raw).not.toContain("hl-target");
+    });
+  });
+
   it("renders selector_json-only highlights without legacy offsets", () => {
     const selection = createLessonSelection(
       "Storming of the Bastille",
@@ -423,5 +462,34 @@ describe("highlight helpers", () => {
         "Chronology matters. The Storming of the Bastille became a symbol of revolutionary momentum.",
       ),
     ).toEqual([{ id: "hl-selector", color: "orange", start: 24, end: 48 }]);
+  });
+
+  it("does not fall back to quote scanning when exact offsets already match", () => {
+    const indexOfSpy = vi.spyOn(String.prototype, "indexOf");
+    const highlight: Highlight = {
+      id: "hl-fast-path",
+      owner_id: "user-1",
+      binder_id: "binder-history",
+      lesson_id: "lesson-1",
+      anchor_text: "Storming of the Bastille",
+      color: "orange",
+      note_id: null,
+      start_offset: 24,
+      end_offset: 48,
+      created_at: "2026-04-22T11:00:00.000Z",
+    };
+
+    expect(
+      resolveHighlightRange(
+        highlight,
+        "Chronology matters. The Storming of the Bastille became a symbol of revolutionary momentum.",
+      ),
+    ).toEqual({
+      range: { start: 24, end: 48 },
+      confidence: 1,
+      needsReview: false,
+    });
+    expect(indexOfSpy).not.toHaveBeenCalled();
+    indexOfSpy.mockRestore();
   });
 });

@@ -53,10 +53,15 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import { createHighlight, updateHighlight } from "@/services/binder-service";
+import {
+  createHighlight,
+  resetHighlightSchemaModeCacheForTests,
+  updateHighlight,
+} from "@/services/binder-service";
 
 describe("binder-service legacy highlight compatibility", () => {
   beforeEach(() => {
+    resetHighlightSchemaModeCacheForTests();
     mockFrom.mockClear();
     mockInsert.mockClear();
     mockInsertSelect.mockClear();
@@ -181,5 +186,82 @@ describe("binder-service legacy highlight compatibility", () => {
       end_offset: 15,
     });
     expect(highlight.color).toBe("blue");
+  });
+
+  it("reuses the cached legacy highlight schema mode after the first fallback", async () => {
+    mockInsertSingle
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: "column highlights.selected_text does not exist",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: "hl-1",
+          owner_id: "user-1",
+          binder_id: "binder-1",
+          lesson_id: "lesson-1",
+          anchor_text: "same phrase",
+          color: "yellow",
+          note_id: null,
+          start_offset: 4,
+          end_offset: 15,
+          created_at: "2026-04-22T10:00:00.000Z",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: "hl-2",
+          owner_id: "user-1",
+          binder_id: "binder-1",
+          lesson_id: "lesson-1",
+          anchor_text: "same phrase",
+          color: "blue",
+          note_id: null,
+          start_offset: 16,
+          end_offset: 27,
+          created_at: "2026-04-22T11:00:00.000Z",
+        },
+        error: null,
+      });
+
+    await createHighlight({
+      ownerId: "user-1",
+      binderId: "binder-1",
+      lessonId: "lesson-1",
+      anchorText: "same phrase",
+      selectedText: "same phrase",
+      color: "yellow",
+      startOffset: 4,
+      endOffset: 15,
+    });
+
+    mockInsert.mockClear();
+
+    await createHighlight({
+      ownerId: "user-1",
+      binderId: "binder-1",
+      lessonId: "lesson-1",
+      anchorText: "same phrase",
+      selectedText: "same phrase",
+      color: "blue",
+      startOffset: 16,
+      endOffset: 27,
+    });
+
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    const [insertArgs = []] = mockInsert.mock.calls as unknown[][];
+    expect(insertArgs[0]).toEqual({
+      owner_id: "user-1",
+      binder_id: "binder-1",
+      lesson_id: "lesson-1",
+      anchor_text: "same phrase",
+      color: "blue",
+      note_id: null,
+      start_offset: 16,
+      end_offset: 27,
+    });
   });
 });
