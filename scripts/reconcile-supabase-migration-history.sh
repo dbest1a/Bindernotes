@@ -19,6 +19,7 @@ repair_candidates_file="$diagnostics_dir/repair-candidates.tsv"
 schema_mismatch_file="$diagnostics_dir/schema-mismatch.tsv"
 repaired_file="$diagnostics_dir/repaired.tsv"
 migration_list_before_file="$diagnostics_dir/migration-list-before.txt"
+psql_env_file="$diagnostics_dir/psql-env.sh"
 
 : > "$local_migrations_file"
 : > "$remote_versions_file"
@@ -30,6 +31,57 @@ migration_list_before_file="$diagnostics_dir/migration-list-before.txt"
 echo "Supabase migration history before reconciliation:"
 supabase migration list --db-url "$SUPABASE_DB_URL" | tee "$migration_list_before_file"
 
+python - <<'PY' > "$psql_env_file"
+import os
+import shlex
+import sys
+from urllib.parse import parse_qsl, unquote, urlparse
+
+raw = os.environ["SUPABASE_DB_URL"]
+parsed = urlparse(raw)
+
+host = parsed.hostname or ""
+port = str(parsed.port or 5432)
+user = unquote(parsed.username or "")
+password = unquote(parsed.password or "")
+database = unquote((parsed.path or "/postgres").lstrip("/") or "postgres")
+
+if host.endswith(".pooler.supabase.com") and user == "postgres":
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    project_host = urlparse(supabase_url).hostname or ""
+    project_ref = project_host.split(".")[0] if project_host.endswith(".supabase.co") else ""
+    if not project_ref:
+        print(
+            "::error title=Cannot derive Supabase pooler user::"
+            "SUPABASE_DB_URL uses the pooler with user postgres, but SUPABASE_URL is missing or invalid.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    user = f"postgres.{project_ref}"
+
+params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+sslmode = params.get("sslmode", "require")
+
+values = {
+    "PGHOST": host,
+    "PGPORT": port,
+    "PGUSER": user,
+    "PGPASSWORD": password,
+    "PGDATABASE": database,
+    "PGSSLMODE": sslmode,
+    # Supavisor/pooler connections can be sensitive to SCRAM channel binding
+    # differences across clients. Disabling it here affects only these read-only
+    # schema diagnostics, not the actual Supabase CLI migration push.
+    "PGCHANNELBINDING": "disable",
+}
+
+for key, value in values.items():
+    print(f"export {key}={shlex.quote(value)}")
+PY
+
+source "$psql_env_file"
+echo "Using psql schema diagnostic connection: host=$PGHOST user=$PGUSER database=$PGDATABASE sslmode=$PGSSLMODE"
+
 while IFS= read -r migration_path; do
   migration_name="$(basename "$migration_path" .sql)"
   migration_version="${migration_name%%_*}"
@@ -37,17 +89,17 @@ while IFS= read -r migration_path; do
 done < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)
 
 remote_history_exists="$(
-  psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -AtX \
+  psql -v ON_ERROR_STOP=1 -AtX \
     -c "select to_regclass('supabase_migrations.schema_migrations') is not null;"
 )"
 
 if [ "$remote_history_exists" = "t" ]; then
-  psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -AtX \
+  psql -v ON_ERROR_STOP=1 -AtX \
     -c "select version from supabase_migrations.schema_migrations order by version;" \
     > "$remote_versions_file"
 fi
 
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -AtX -F $'\t' \
+psql -v ON_ERROR_STOP=1 -AtX -F $'\t' \
   -f scripts/check-supabase-legacy-migration-schema.sql \
   | tee "$schema_check_file"
 
