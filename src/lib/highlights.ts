@@ -256,6 +256,22 @@ export function resolveHighlightRange(
     }
   }
 
+  if (!resolution && exactText && (highlight.prefix_text || highlight.suffix_text)) {
+    const quoteMatch = findQuoteRange(plainText, {
+      type: "TextQuoteSelector",
+      exact: exactText,
+      prefix: highlight.prefix_text ?? undefined,
+      suffix: highlight.suffix_text ?? undefined,
+    });
+    if (quoteMatch) {
+      resolution = {
+        range: quoteMatch,
+        confidence: 0.86,
+        needsReview: false,
+      };
+    }
+  }
+
   if (!resolution && exactText) {
     const fuzzyStart = plainText.toLowerCase().indexOf(exactText.toLowerCase());
     if (fuzzyStart >= 0) {
@@ -265,6 +281,22 @@ export function resolveHighlightRange(
           end: fuzzyStart + exactText.length,
         },
         confidence: 0.72,
+        needsReview: false,
+      };
+    }
+  }
+
+  if (!resolution && exactText) {
+    const compactMatch = findCompactQuoteRange(
+      plainText,
+      exactText,
+      highlight.prefix_text ?? undefined,
+      highlight.suffix_text ?? undefined,
+    );
+    if (compactMatch) {
+      resolution = {
+        range: compactMatch,
+        confidence: highlight.prefix_text || highlight.suffix_text ? 0.78 : 0.68,
         needsReview: false,
       };
     }
@@ -505,6 +537,10 @@ function normalizeHighlightText(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function compactHighlightText(value: string) {
+  return value.replace(/\s+/g, "").toLowerCase();
+}
+
 function matchesHighlightStorageScope(
   highlight: StoredHighlightMetadata,
   scope: HighlightStorageScope,
@@ -673,7 +709,12 @@ function rangeMatchesText(
     return true;
   }
 
-  return normalizeHighlightText(plainText.slice(range.start, range.end)) === normalizeHighlightText(exactText);
+  const renderedText = plainText.slice(range.start, range.end);
+  if (normalizeHighlightText(renderedText) === normalizeHighlightText(exactText)) {
+    return true;
+  }
+
+  return compactHighlightText(renderedText) === compactHighlightText(exactText);
 }
 
 function findQuoteRange(
@@ -685,6 +726,20 @@ function findQuoteRange(
     return null;
   }
 
+  const directMatch = findDirectQuoteRange(plainText, exact, selector.prefix, selector.suffix);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  return findCompactQuoteRange(plainText, exact, selector.prefix, selector.suffix);
+}
+
+function findDirectQuoteRange(
+  plainText: string,
+  exact: string,
+  prefix?: string,
+  suffix?: string,
+) {
   let searchStart = 0;
   while (searchStart < plainText.length) {
     const start = plainText.indexOf(exact, searchStart);
@@ -693,11 +748,11 @@ function findQuoteRange(
     }
 
     const end = start + exact.length;
-    const prefixMatches = selector.prefix
-      ? plainText.slice(Math.max(0, start - selector.prefix.length), start).trim().endsWith(selector.prefix.trim())
+    const prefixMatches = prefix
+      ? plainText.slice(Math.max(0, start - prefix.length), start).trim().endsWith(prefix.trim())
       : true;
-    const suffixMatches = selector.suffix
-      ? plainText.slice(end, Math.min(plainText.length, end + selector.suffix.length)).trim().startsWith(selector.suffix.trim())
+    const suffixMatches = suffix
+      ? plainText.slice(end, Math.min(plainText.length, end + suffix.length)).trim().startsWith(suffix.trim())
       : true;
 
     if (prefixMatches && suffixMatches) {
@@ -708,4 +763,89 @@ function findQuoteRange(
   }
 
   return null;
+}
+
+function findCompactQuoteRange(
+  plainText: string,
+  exact: string,
+  prefix?: string,
+  suffix?: string,
+) {
+  const query = compactHighlightText(exact);
+  if (!query || (query.length < 4 && !prefix && !suffix)) {
+    return null;
+  }
+
+  const index = buildCompactTextIndex(plainText);
+  let searchStart = 0;
+
+  while (searchStart < index.text.length) {
+    const compactStart = index.text.indexOf(query, searchStart);
+    if (compactStart < 0) {
+      return null;
+    }
+
+    const compactEnd = compactStart + query.length;
+    const start = index.starts[compactStart];
+    const end = index.ends[compactEnd - 1];
+
+    if (
+      typeof start === "number" &&
+      typeof end === "number" &&
+      compactQuoteContextMatches(plainText, start, end, prefix, suffix)
+    ) {
+      return { start, end };
+    }
+
+    searchStart = compactStart + Math.max(1, query.length);
+  }
+
+  return null;
+}
+
+function buildCompactTextIndex(value: string) {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let text = "";
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index] ?? "";
+    if (/\s/.test(character)) {
+      continue;
+    }
+
+    text += character.toLowerCase();
+    starts.push(index);
+    ends.push(index + 1);
+  }
+
+  return { text, starts, ends };
+}
+
+function compactQuoteContextMatches(
+  plainText: string,
+  start: number,
+  end: number,
+  prefix?: string,
+  suffix?: string,
+) {
+  const compactPrefix = prefix ? compactHighlightText(prefix) : "";
+  if (compactPrefix) {
+    const prefixWindowSize = Math.max(prefix!.length * 3, compactPrefix.length + 80);
+    const prefixWindow = plainText.slice(Math.max(0, start - prefixWindowSize), start);
+    if (!compactHighlightText(prefixWindow).endsWith(compactPrefix)) {
+      return false;
+    }
+  }
+
+  const compactSuffix = suffix ? compactHighlightText(suffix) : "";
+  if (compactSuffix) {
+    const suffixWindowSize = Math.max(suffix!.length * 3, compactSuffix.length + 80);
+    const suffixWindow = plainText.slice(end, Math.min(plainText.length, end + suffixWindowSize));
+    if (!compactHighlightText(suffixWindow).startsWith(compactSuffix)) {
+      return false;
+    }
+  }
+
+  return true;
 }

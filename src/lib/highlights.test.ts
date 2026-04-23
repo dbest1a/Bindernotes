@@ -464,6 +464,65 @@ describe("highlight helpers", () => {
     ).toEqual([{ id: "hl-selector", color: "orange", start: 24, end: 48 }]);
   });
 
+  it("paints offset-backed selections that cross rendered block boundaries", () => {
+    const plainText = "First paragraph.Second paragraph.";
+    const highlight: Highlight = {
+      id: "hl-cross-block",
+      owner_id: "user-1",
+      binder_id: "binder-history",
+      lesson_id: "lesson-1",
+      anchor_text: "paragraph.\n\nSecond",
+      selected_text: "paragraph.\n\nSecond",
+      color: "green",
+      note_id: null,
+      start_offset: 6,
+      end_offset: 22,
+      status: "active",
+      created_at: "2026-04-22T11:30:00.000Z",
+    };
+
+    expect(buildHighlightSegments([highlight], plainText)).toEqual([
+      { id: "hl-cross-block", color: "green", start: 6, end: 22 },
+    ]);
+  });
+
+  it("reanchors selector-only selections whose saved quote includes browser block whitespace", () => {
+    const plainText = "First paragraph.Second paragraph.";
+    const highlight: Highlight = {
+      id: "hl-cross-block-selector",
+      owner_id: "user-1",
+      binder_id: "binder-history",
+      lesson_id: "lesson-1",
+      anchor_text: "paragraph.\n\nSecond",
+      selected_text: "paragraph.\n\nSecond",
+      prefix_text: "First ",
+      suffix_text: " paragraph.",
+      selector_json: {
+        selectors: [
+          {
+            type: "TextQuoteSelector",
+            exact: "paragraph.\n\nSecond",
+            prefix: "First ",
+            suffix: " paragraph.",
+          },
+        ],
+      },
+      color: "orange",
+      note_id: null,
+      start_offset: null,
+      end_offset: null,
+      status: "active",
+      reanchor_confidence: null,
+      created_at: "2026-04-22T11:31:00.000Z",
+    };
+
+    expect(resolveHighlightRange(highlight, plainText)).toEqual({
+      range: { start: 6, end: 22 },
+      confidence: 0.92,
+      needsReview: false,
+    });
+  });
+
   it("does not fall back to quote scanning when exact offsets already match", () => {
     const indexOfSpy = vi.spyOn(String.prototype, "indexOf");
     const highlight: Highlight = {
