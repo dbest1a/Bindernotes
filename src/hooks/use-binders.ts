@@ -1,0 +1,398 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createComment,
+  createHighlight,
+  deleteHighlight,
+  deleteComment,
+  deleteLesson,
+  getBinderOverview,
+  getBinderBundle,
+  getDashboard,
+  getFolderWorkspace,
+  resetHighlights,
+  updateComment,
+  updateHighlight,
+  upsertBinder,
+  upsertLearnerNote,
+  upsertLesson,
+} from "@/services/binder-service";
+import { seedSystemSuites } from "@/services/system-seed-service";
+import type {
+  BinderBundle,
+  BinderOverviewData,
+  DashboardData,
+  HighlightColor,
+  LearnerNote,
+  MathBlock,
+  Profile,
+} from "@/types";
+import type { JSONContent } from "@tiptap/react";
+
+const DEFAULT_QUERY_STALE_TIME = 30_000;
+
+export function useDashboard(profile: Profile | null) {
+  return useQuery({
+    queryKey: ["dashboard", profile?.id, profile?.role],
+    queryFn: () => getDashboard(profile!),
+    enabled: Boolean(profile),
+    staleTime: DEFAULT_QUERY_STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useBinderBundle(binderId: string | undefined, profile: Profile | null) {
+  return useQuery({
+    queryKey: ["binder", binderId, profile?.id],
+    queryFn: () => getBinderBundle(binderId!, profile!),
+    enabled: Boolean(binderId && profile),
+    staleTime: DEFAULT_QUERY_STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useFolderWorkspace(folderId: string | undefined, profile: Profile | null) {
+  return useQuery({
+    queryKey: ["folder", folderId, profile?.id],
+    queryFn: () => getFolderWorkspace(folderId!, profile!),
+    enabled: Boolean(folderId && profile),
+    staleTime: DEFAULT_QUERY_STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useBinderOverview(binderId: string | undefined, profile: Profile | null) {
+  return useQuery({
+    queryKey: ["binder-overview", binderId, profile?.id],
+    queryFn: () => getBinderOverview(binderId!, profile!),
+    enabled: Boolean(binderId && profile),
+    staleTime: DEFAULT_QUERY_STALE_TIME,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useLearnerNoteMutation(profile: Profile | null, binderId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      id?: string;
+      binderId: string;
+      lessonId: string;
+      folderId?: string | null;
+      title: string;
+      content: JSONContent;
+      mathBlocks: MathBlock[];
+    }) =>
+      upsertLearnerNote({
+        ...input,
+        ownerId: profile!.id,
+      }),
+    onSuccess: (savedNote) => {
+      updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+        ...current,
+        notes: upsertNoteByScope(current.notes, savedNote),
+      }));
+
+      if (profile) {
+        queryClient.setQueryData<DashboardData | undefined>(
+          ["dashboard", profile.id, profile.role],
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  notes: upsertNoteByScope(current.notes, savedNote),
+                }
+              : current,
+        );
+
+        queryClient.setQueryData<BinderOverviewData | undefined>(
+          ["binder-overview", savedNote.binder_id, profile.id],
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  notes: upsertNoteByScope(current.notes, savedNote),
+                }
+              : current,
+        );
+
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] === "folder" &&
+            query.queryKey[2] === profile.id,
+        });
+      }
+    },
+  });
+}
+
+export function useAnnotationMutations(profile: Profile | null, binderId?: string) {
+  const queryClient = useQueryClient();
+
+  return {
+    highlight: useMutation({
+      mutationFn: (input: {
+        binderId: string;
+        lessonId: string;
+        anchorText: string;
+        color: HighlightColor;
+        startOffset?: number;
+        endOffset?: number;
+        selectedText?: string;
+        prefixText?: string;
+        suffixText?: string;
+        blockId?: string | null;
+      }) =>
+        createHighlight({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onSuccess: (savedHighlight) => {
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: upsertById(current.highlights, savedHighlight),
+        }));
+      },
+    }),
+    updateHighlight: useMutation({
+      mutationFn: (input: {
+        highlightId: string;
+        anchorText: string;
+        color: HighlightColor;
+        startOffset?: number;
+        endOffset?: number;
+        selectedText?: string;
+        prefixText?: string;
+        suffixText?: string;
+        blockId?: string | null;
+      }) =>
+        updateHighlight({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onSuccess: (savedHighlight) => {
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: upsertById(current.highlights, savedHighlight),
+        }));
+      },
+    }),
+    deleteHighlight: useMutation({
+      mutationFn: (input: { highlightId: string }) =>
+        deleteHighlight({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onMutate: async (input) => {
+        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: current.highlights.filter((highlight) => highlight.id !== input.highlightId),
+        }));
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+    }),
+    resetHighlights: useMutation({
+      mutationFn: (input: { binderId: string; lessonId?: string }) =>
+        resetHighlights({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onMutate: async (input) => {
+        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: current.highlights.filter((highlight) => {
+            if (highlight.binder_id !== input.binderId) {
+              return true;
+            }
+
+            return input.lessonId ? highlight.lesson_id !== input.lessonId : false;
+          }),
+        }));
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+      onSuccess: (_result, input) => {
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          highlights: current.highlights.filter((highlight) => {
+            if (highlight.binder_id !== input.binderId) {
+              return true;
+            }
+
+            return input.lessonId ? highlight.lesson_id !== input.lessonId : false;
+          }),
+        }));
+      },
+    }),
+    comment: useMutation({
+      mutationFn: (input: {
+        binderId: string;
+        lessonId: string;
+        body: string;
+        anchorText?: string | null;
+      }) =>
+        createComment({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onSuccess: (savedComment) => {
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          comments: upsertById(current.comments, savedComment),
+        }));
+      },
+    }),
+    updateComment: useMutation({
+      mutationFn: (input: { commentId: string; body: string }) =>
+        updateComment({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onMutate: async (input) => {
+        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          comments: current.comments.map((comment) =>
+            comment.id === input.commentId
+              ? {
+                  ...comment,
+                  body: input.body,
+                }
+              : comment,
+          ),
+        }));
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+      onSuccess: (savedComment) => {
+        updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+          ...current,
+          comments: upsertById(current.comments, savedComment),
+        }));
+      },
+    }),
+    deleteComment: useMutation({
+      mutationFn: (input: { commentId: string }) =>
+        deleteComment({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onMutate: async (input) => {
+        return snapshotBinderBundle(queryClient, binderId, profile, (current) => ({
+          ...current,
+          comments: current.comments.filter((comment) => comment.id !== input.commentId),
+        }));
+      },
+      onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
+    }),
+  };
+}
+
+function updateBinderBundleCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  binderId: string | undefined,
+  profile: Profile | null,
+  updater: (current: BinderBundle) => BinderBundle,
+) {
+  if (!binderId || !profile) {
+    return;
+  }
+
+  queryClient.setQueryData<BinderBundle | undefined>(
+    ["binder", binderId, profile.id],
+    (current) => (current ? updater(current) : current),
+  );
+}
+
+function snapshotBinderBundle(
+  queryClient: ReturnType<typeof useQueryClient>,
+  binderId: string | undefined,
+  profile: Profile | null,
+  updater: (current: BinderBundle) => BinderBundle,
+) {
+  if (!binderId || !profile) {
+    return { previous: undefined as BinderBundle | undefined };
+  }
+
+  const key = ["binder", binderId, profile.id] as const;
+  const previous = queryClient.getQueryData<BinderBundle>(key);
+  if (previous) {
+    queryClient.setQueryData<BinderBundle>(key, updater(previous));
+  }
+
+  return { previous };
+}
+
+function restoreBinderBundle(
+  queryClient: ReturnType<typeof useQueryClient>,
+  binderId: string | undefined,
+  profile: Profile | null,
+  context: { previous?: BinderBundle } | undefined,
+) {
+  if (!binderId || !profile || !context?.previous) {
+    return;
+  }
+
+  queryClient.setQueryData(["binder", binderId, profile.id], context.previous);
+}
+
+function upsertById<T extends { id: string }>(items: T[], item: T) {
+  const index = items.findIndex((candidate) => candidate.id === item.id);
+  if (index < 0) {
+    return [item, ...items];
+  }
+
+  const next = [...items];
+  next[index] = item;
+  return next;
+}
+
+function upsertNoteByScope(items: LearnerNote[], item: LearnerNote) {
+  const next = items.filter(
+    (candidate) =>
+      candidate.id !== item.id &&
+      !(candidate.owner_id === item.owner_id && candidate.lesson_id === item.lesson_id),
+  );
+  next.unshift(item);
+  return next.sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
+}
+
+export function useAdminMutations(profile: Profile | null) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard", profile?.id, profile?.role] });
+  };
+
+  return {
+    binder: useMutation({
+      mutationFn: (input: Parameters<typeof upsertBinder>[0]) =>
+        upsertBinder({ ...input, ownerId: profile!.id }),
+      onSuccess: (binder) => {
+        invalidate();
+        queryClient.invalidateQueries({ queryKey: ["binder", binder.id, profile?.id] });
+      },
+    }),
+    lesson: useMutation({
+      mutationFn: upsertLesson,
+      onSuccess: (lesson) => {
+        invalidate();
+        queryClient.invalidateQueries({ queryKey: ["binder", lesson.binder_id, profile?.id] });
+      },
+    }),
+    deleteLesson: useMutation({
+      mutationFn: deleteLesson,
+      onSuccess: invalidate,
+    }),
+    seedSystemSuites: useMutation({
+      mutationFn: () => seedSystemSuites(profile!),
+      onSuccess: () => {
+        invalidate();
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            ["binder", "binder-overview", "folder", "history-suite"].includes(
+              String(query.queryKey[0] ?? ""),
+            ),
+        });
+      },
+    }),
+  };
+}

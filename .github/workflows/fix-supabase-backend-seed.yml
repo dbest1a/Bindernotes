@@ -1,0 +1,87 @@
+name: Fix Supabase Backend Seed
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-migrate-seed:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SYSTEM_OWNER_ID: ${{ secrets.SUPABASE_SYSTEM_OWNER_ID }}
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          required=(
+            "SUPABASE_DB_URL"
+            "SUPABASE_URL"
+            "SUPABASE_SERVICE_ROLE_KEY"
+            "VITE_SUPABASE_ANON_KEY"
+          )
+
+          missing=0
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing secret::$name is required for this workflow."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Migration dry run
+        shell: bash
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+      - name: Apply migrations
+        shell: bash
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
+
+      - name: Seed backend-native system content
+        run: npm run seed:system
+
+      - name: Verify backend-native system seed counts
+        run: npm run verify:system-seed

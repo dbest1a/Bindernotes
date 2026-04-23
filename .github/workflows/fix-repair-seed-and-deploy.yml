@@ -1,0 +1,217 @@
+name: Fix Repair Seed and Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_repair:
+        description: Apply safe system placeholder cleanup?
+        type: boolean
+        default: false
+      deploy_target:
+        description: Deployment target
+        type: choice
+        options:
+          - none
+          - preview
+          - production
+        default: preview
+      confirm_production:
+        description: Type DEPLOY PRODUCTION to allow production deploy
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fix-repair-seed-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SYSTEM_OWNER_ID: ${{ secrets.SUPABASE_SYSTEM_OWNER_ID }}
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Detect deployment platform
+        id: detect_platform
+        shell: bash
+        run: |
+          if [ -f vercel.json ] || [ -f .vercel/project.json ]; then
+            echo "platform=vercel" >> "$GITHUB_OUTPUT"
+          elif [ -f netlify.toml ]; then
+            echo "platform=netlify" >> "$GITHUB_OUTPUT"
+          elif [ -f wrangler.toml ]; then
+            echo "platform=wrangler" >> "$GITHUB_OUTPUT"
+          elif [ -f firebase.json ]; then
+            echo "platform=firebase" >> "$GITHUB_OUTPUT"
+          else
+            echo "platform=vercel" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          required=(
+            "SUPABASE_DB_URL"
+            "SUPABASE_URL"
+            "SUPABASE_SERVICE_ROLE_KEY"
+            "VITE_SUPABASE_ANON_KEY"
+          )
+
+          if [ "${{ github.event.inputs.deploy_target }}" != "none" ]; then
+            if [ "${{ steps.detect_platform.outputs.platform }}" = "vercel" ]; then
+              required+=("VERCEL_TOKEN" "VERCEL_ORG_ID" "VERCEL_PROJECT_ID")
+            elif [ "${{ steps.detect_platform.outputs.platform }}" = "netlify" ]; then
+              required+=("NETLIFY_AUTH_TOKEN" "NETLIFY_SITE_ID")
+            fi
+          fi
+
+          missing=0
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing secret::$name is required for this workflow."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Block unsafe production deploy confirmation
+        if: ${{ github.event.inputs.deploy_target == 'production' && github.event.inputs.confirm_production != 'DEPLOY PRODUCTION' }}
+        shell: bash
+        run: |
+          echo "::error title=Production deploy blocked::Set confirm_production to exactly DEPLOY PRODUCTION."
+          exit 1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Typecheck before migration
+        run: npm run typecheck
+
+      - name: Test before migration
+        run: npm run test
+
+      - name: Build before migration
+        run: npm run build
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Migration dry run
+        shell: bash
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+      - name: Apply migrations
+        shell: bash
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
+
+      - name: Seed backend-native system content
+        run: npm run seed:system
+
+      - name: Dry-run system placeholder repair
+        run: npm run repair:system
+
+      - name: Apply system placeholder repair
+        if: ${{ github.event.inputs.apply_repair == 'true' }}
+        run: npm run repair:system:apply
+
+      - name: Verify backend-native system content
+        run: npm run verify:system
+
+      - name: Typecheck after seed and repair
+        run: npm run typecheck
+
+      - name: Test after seed and repair
+        run: npm run test
+
+      - name: Build after seed and repair
+        run: npm run build
+
+      - name: Install Vercel CLI
+        if: ${{ github.event.inputs.deploy_target != 'none' && steps.detect_platform.outputs.platform == 'vercel' }}
+        run: npm install --global vercel@latest
+
+      - name: Deploy preview to Vercel
+        if: ${{ github.event.inputs.deploy_target == 'preview' && steps.detect_platform.outputs.platform == 'vercel' }}
+        id: deploy_vercel_preview
+        shell: bash
+        run: |
+          export VERCEL_ORG_ID="$VERCEL_ORG_ID"
+          export VERCEL_PROJECT_ID="$VERCEL_PROJECT_ID"
+          export VITE_SUPABASE_URL="$SUPABASE_URL"
+          export VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+          vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          vercel build --token="$VERCEL_TOKEN"
+          DEPLOY_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Preview deployment: $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy production to Vercel
+        if: ${{ github.event.inputs.deploy_target == 'production' && steps.detect_platform.outputs.platform == 'vercel' && github.event.inputs.confirm_production == 'DEPLOY PRODUCTION' }}
+        id: deploy_vercel_production
+        shell: bash
+        run: |
+          export VERCEL_ORG_ID="$VERCEL_ORG_ID"
+          export VERCEL_PROJECT_ID="$VERCEL_PROJECT_ID"
+          export VITE_SUPABASE_URL="$SUPABASE_URL"
+          export VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Production deployment: $DEPLOY_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy preview to Netlify
+        if: ${{ github.event.inputs.deploy_target == 'preview' && steps.detect_platform.outputs.platform == 'netlify' }}
+        shell: bash
+        run: |
+          npm install --global netlify-cli
+          export VITE_SUPABASE_URL="$SUPABASE_URL"
+          export VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+          netlify deploy --build --json --auth "$NETLIFY_AUTH_TOKEN" --site "$NETLIFY_SITE_ID" | tee deploy-output.json
+          node -e "const fs=require('fs'); const out=JSON.parse(fs.readFileSync('deploy-output.json','utf8')); console.log('Preview deployment: ' + (out.deploy_url || out.url || 'unknown'));"
+
+      - name: Deploy production to Netlify
+        if: ${{ github.event.inputs.deploy_target == 'production' && steps.detect_platform.outputs.platform == 'netlify' && github.event.inputs.confirm_production == 'DEPLOY PRODUCTION' }}
+        shell: bash
+        run: |
+          npm install --global netlify-cli
+          export VITE_SUPABASE_URL="$SUPABASE_URL"
+          export VITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY"
+          netlify deploy --build --prod --json --auth "$NETLIFY_AUTH_TOKEN" --site "$NETLIFY_SITE_ID" | tee deploy-output.json
+          node -e "const fs=require('fs'); const out=JSON.parse(fs.readFileSync('deploy-output.json','utf8')); console.log('Production deployment: ' + (out.deploy_url || out.url || 'unknown'));"
+
+      - name: Fail on unsupported detected platform
+        if: ${{ github.event.inputs.deploy_target != 'none' && steps.detect_platform.outputs.platform != 'vercel' && steps.detect_platform.outputs.platform != 'netlify' }}
+        shell: bash
+        run: |
+          echo "::error title=Unsupported deployment platform::Detected ${{ steps.detect_platform.outputs.platform }}. This workflow currently supports Vercel and Netlify."
+          exit 1

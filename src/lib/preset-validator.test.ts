@@ -1,0 +1,117 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { historyPresetDefinitions } from "@/lib/history-suite-seeds";
+import {
+  getPresetDefinition,
+  gridLayoutToWindowFrames,
+  registerPresetDefinitions,
+  resetPresetRegistryForTests,
+  validateGridLayout,
+  validatePresetDefinition,
+} from "@/lib/preset-validator";
+import type { WorkspacePresetDefinition } from "@/types";
+import { workspaceModules } from "@/lib/workspace-preferences";
+
+afterEach(() => {
+  resetPresetRegistryForTests();
+});
+
+describe("preset-validator", () => {
+  const allowedPanelTypes = workspaceModules.map((module) => module.id);
+
+  it("validates all seeded history presets", () => {
+    for (const preset of historyPresetDefinitions) {
+      expect(validatePresetDefinition(preset, allowedPanelTypes)).toEqual({
+        valid: true,
+        errors: [],
+      });
+    }
+  });
+
+  it("detects overlapping panels", () => {
+    const preset = getPresetDefinition("history-guided");
+    expect(preset).toBeTruthy();
+    const desktop = preset?.breakpoints.desktop;
+    expect(desktop).toBeTruthy();
+    if (!desktop || !preset) {
+      return;
+    }
+
+    const overlapping = {
+      ...desktop,
+      items: [
+        ...desktop.items,
+        {
+          panelId: "history-evidence",
+          panelType: "history-evidence",
+          x: desktop.items[0].x,
+          y: desktop.items[0].y,
+          w: 1,
+          h: 1,
+          minW: 1,
+          minH: 1,
+        } as const,
+      ],
+    };
+
+    const result = validateGridLayout(
+      overlapping,
+      preset.requiredPanels,
+      new Set(allowedPanelTypes),
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes("overlaps another panel"))).toBe(true);
+  });
+
+  it("derives positive window frames from grid layouts", () => {
+    const preset = getPresetDefinition("history-full-studio");
+    expect(preset?.breakpoints.desktop).toBeTruthy();
+    if (!preset?.breakpoints.desktop) {
+      return;
+    }
+
+    const frames = gridLayoutToWindowFrames(preset.breakpoints.desktop);
+    const timelineFrame = frames["history-timeline"];
+    expect(timelineFrame).toBeTruthy();
+    expect(timelineFrame?.w ?? 0).toBeGreaterThan(0);
+    expect(timelineFrame?.h ?? 0).toBeGreaterThan(0);
+    expect(timelineFrame?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect(timelineFrame?.y ?? -1).toBeGreaterThanOrEqual(0);
+  });
+
+  it("prefers suite-specific preset definitions when they are registered", () => {
+    const localOverride: WorkspacePresetDefinition = {
+      ...historyPresetDefinitions[0],
+      suiteTemplateId: "suite-rise-of-rome",
+      breakpoints: {
+        desktop: {
+          columns: 12,
+          rowHeight: 90,
+          gap: 12,
+          items: [
+            {
+              panelId: "history-timeline",
+              panelType: "history-timeline",
+              x: 0,
+              y: 0,
+              w: 12,
+              h: 6,
+              minW: 6,
+              minH: 4,
+            },
+          ],
+        },
+      },
+      requiredPanels: ["history-timeline"],
+    };
+
+    registerPresetDefinitions([localOverride]);
+
+    const suitePreset = getPresetDefinition("history-guided", "suite-rise-of-rome");
+    const globalPreset = getPresetDefinition("history-guided");
+
+    expect(suitePreset?.suiteTemplateId).toBe("suite-rise-of-rome");
+    expect(suitePreset?.breakpoints.desktop?.items).toHaveLength(1);
+    expect(globalPreset?.suiteTemplateId).not.toBe("suite-rise-of-rome");
+  });
+});

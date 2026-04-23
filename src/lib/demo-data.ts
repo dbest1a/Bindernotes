@@ -1,0 +1,3253 @@
+import type {
+  Binder,
+  BinderLesson,
+  Comment,
+  ConceptEdge,
+  ConceptNode,
+  DashboardData,
+  Folder,
+  FolderBinderLink,
+  Highlight,
+  LearnerNote,
+  MathBlock,
+  MathBlockMetadata,
+  Profile,
+} from "@/types";
+import type { JSONContent } from "@tiptap/react";
+import { emptyDoc } from "@/lib/utils";
+
+const now = new Date().toISOString();
+
+function textNode(text: string): JSONContent {
+  return { type: "text", text };
+}
+
+function paragraph(text: string): JSONContent {
+  return {
+    type: "paragraph",
+    content: [textNode(text)],
+  };
+}
+
+function heading(text: string, level = 2): JSONContent {
+  return {
+    type: "heading",
+    attrs: { level },
+    content: [textNode(text)],
+  };
+}
+
+function subheading(text: string): JSONContent {
+  return heading(text, 3);
+}
+
+function bulletList(items: string[]): JSONContent {
+  return {
+    type: "bulletList",
+    content: items.map((item) => ({
+      type: "listItem",
+      content: [paragraph(item)],
+    })),
+  };
+}
+
+function orderedList(items: string[]): JSONContent {
+  return {
+    type: "orderedList",
+    attrs: { start: 1 },
+    content: items.map((item) => ({
+      type: "listItem",
+      content: [paragraph(item)],
+    })),
+  };
+}
+
+function blockquote(text: string): JSONContent {
+  return {
+    type: "blockquote",
+    content: [paragraph(text)],
+  };
+}
+
+function lessonDoc(...content: JSONContent[]): JSONContent {
+  return {
+    type: "doc",
+    content,
+  };
+}
+
+type EvidenceCard = {
+  title: string;
+  sourceType: string;
+  date: string;
+  context: string;
+  keyIdea: string;
+  supports: string;
+  reliability: string;
+};
+
+function evidenceLockerSection(title: string, intro: string, cards: EvidenceCard[]): JSONContent[] {
+  return [
+    heading(title),
+    paragraph(intro),
+    ...cards.flatMap((card) => [
+      subheading(card.title),
+      bulletList([
+        `Type: ${card.sourceType}`,
+        `Date: ${card.date}`,
+        `Author or context: ${card.context}`,
+        `Key idea: ${card.keyIdea}`,
+        `Supports this claim: ${card.supports}`,
+        `Reliability note: ${card.reliability}`,
+      ]),
+    ]),
+  ];
+}
+
+function argumentBuilderSection(
+  title: string,
+  prompt: string,
+  thesisStarters: string[],
+  evidenceSlots: string[],
+): JSONContent[] {
+  return [
+    heading(title),
+    paragraph(prompt),
+    subheading("Thesis starters"),
+    bulletList(thesisStarters),
+    subheading("Evidence slots"),
+    orderedList(evidenceSlots),
+  ];
+}
+
+const DEMO_MATH_BLOCK_METADATA: Record<string, MathBlockMetadata> = {
+  "alg1-like-latex-distribute": { label: "Distributing a negative", sourceHeading: "Working with parentheses" },
+  "alg1-like-latex-terms": { label: "Combining like terms", sourceHeading: "What counts as a like term?" },
+  "alg1-poly-graph-1": { label: "Equivalent quadratic forms", sourceHeading: "Why graphing helps", description: "Expanded and factored quadratics plotted together to show the same parabola." },
+  "alg1-poly-latex-foil": { label: "FOIL example", sourceHeading: "Multiplying" },
+  "alg1-factor-latex-gcf": { label: "GCF factoring", sourceHeading: "Start with the greatest common factor" },
+  "alg1-factor-latex-diff": { label: "Difference of squares", sourceHeading: "Difference of squares" },
+  "alg1-factor-graph-1": { label: "Factored roots by graph", sourceHeading: "Difference of squares" },
+  "alg1-quad-latex-square": { label: "Completed-square form", sourceHeading: "Completing the square" },
+  "alg1-quad-latex-formula": { label: "Quadratic formula", sourceHeading: "Quadratic formula" },
+  "alg1-quad-graph-1": { label: "Quadratic forms comparison", sourceHeading: "Connecting forms by graph" },
+  "alg1-functions-graph-1": { label: "Domain and range examples", sourceHeading: "Domain and range" },
+  "alg1-functions-latex": { label: "Function notation example", sourceHeading: "What a function does" },
+  "alg1-lines-graph-1": { label: "Comparing line graphs", sourceHeading: "Slope-intercept form" },
+  "alg1-lines-latex": { label: "Slope formula", sourceHeading: "Slope means rise over run" },
+  "alg1-ineq-graph-1": { label: "Linear inequality shading", sourceHeading: "Graphing in the plane" },
+  "alg1-ineq-latex": { label: "Inequality sign reversal", sourceHeading: "Solving inequalities" },
+  "alg1-systems-graph-1": { label: "System intersection check", sourceHeading: "Graphing as a check" },
+  "alg1-systems-latex-sub": { label: "Substitution setup", sourceHeading: "Substitution" },
+  "alg1-vocab-latex-slope": { label: "Slope formula", sourceHeading: "Formula families" },
+  "alg1-vocab-latex-line": { label: "Slope-intercept form", sourceHeading: "Formula families" },
+  "alg1-vocab-latex-quad": { label: "Quadratic formula", sourceHeading: "Formula families" },
+  "jacob-geom-dilation-graph": { label: "Dilation coordinates", sourceHeading: "Transformations" },
+  "jacob-angle-bisector": { label: "Angle bisector theorem", sourceHeading: "Angle bisector theorem" },
+  "jacob-similarity-ratio": { label: "Triangle similarity ratios", sourceHeading: "Similarity tests" },
+  "jacob-sohcahtoa": { label: "Sine, cosine, tangent ratios", sourceHeading: "Trig ratios" },
+  "jacob-identity": { label: "Pythagorean identity", sourceHeading: "One identity worth keeping close" },
+  "jacob-circle-standard": { label: "Circle standard form", sourceHeading: "Conic overview" },
+  "jacob-point-division": { label: "Segment division formula", sourceHeading: "Dividing line segments" },
+  "jacob-conic-graph": { label: "Conic reference set", sourceHeading: "Conic overview" },
+  "jacob-geometric-series": { label: "Geometric series sum", sourceHeading: "Geometric series" },
+  "jacob-sum-diff-cubes": { label: "Difference of cubes", sourceHeading: "Polynomial structure" },
+  "jacob-log-rule": { label: "Log product rule", sourceHeading: "Logarithms" },
+  "jacob-parent-functions-graph": { label: "Parent function transformations", sourceHeading: "Parent functions and transformations" },
+  "jacob-binomial": { label: "Binomial theorem", sourceHeading: "Binomial theorem" },
+  "jacob-matrix-product": { label: "Matrix transformation rule", sourceHeading: "Matrices" },
+  "jacob-angle-addition": { label: "Angle addition identity", sourceHeading: "Trig identity families" },
+  "jacob-pythagorean-trig": { label: "Tangent Pythagorean identity", sourceHeading: "Trig identity families" },
+  "jacob-polar-form": { label: "Polar form of a complex number", sourceHeading: "Complex numbers" },
+  "jacob-vector-magnitude": { label: "Vector magnitude", sourceHeading: "Vectors" },
+  "jacob-growth-model": { label: "Exponential growth model", sourceHeading: "Growth and decay" },
+  "jacob-limit": { label: "Limit notation", sourceHeading: "Series and limits" },
+  "latex-limit": { label: "Evaluating a simple limit", sourceHeading: "Limits are local predictions" },
+  "graph-limit": { label: "Limit comparison graph", sourceHeading: "Limits are local predictions" },
+  "latex-derivative": { label: "Derivative rule", sourceHeading: "Derivatives measure change" },
+  "graph-derivative": { label: "Derivative graph comparison", sourceHeading: "Derivatives measure change" },
+  "note-latex": { label: "Personal formula" },
+  "note-graph": { label: "Personal graph reference" },
+};
+
+function enrichMathBlocks(blocks: MathBlock[]): MathBlock[] {
+  return blocks.map((block) => {
+    const metadata: MathBlockMetadata = DEMO_MATH_BLOCK_METADATA[block.id] ?? {};
+    if (block.type === "latex") {
+      const nextBlock: Extract<MathBlock, { type: "latex" }> = {
+        ...block,
+        ...metadata,
+      };
+      return nextBlock;
+    }
+
+    const nextBlock: Extract<MathBlock, { type: "graph" }> = {
+      ...block,
+      ...metadata,
+    };
+    return nextBlock;
+  });
+}
+
+export const demoProfile: Profile = {
+  id: "demo-user",
+  email: "learner@binder.test",
+  full_name: "Demo Learner",
+  role: "learner",
+  created_at: now,
+  updated_at: now,
+};
+
+export const demoAdmin: Profile = {
+  id: "demo-admin",
+  email: "admin@binder.test",
+  full_name: "Admin Studio",
+  role: "admin",
+  created_at: now,
+  updated_at: now,
+};
+
+export const demoFolders: Folder[] = [
+  {
+    id: "folder-calculus",
+    owner_id: demoProfile.id,
+    name: "Calculus",
+    color: "teal",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-proofs",
+    owner_id: demoProfile.id,
+    name: "Proofs",
+    color: "violet",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-algebra",
+    owner_id: demoProfile.id,
+    name: "Algebra 1",
+    color: "rose",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-jacob-math",
+    owner_id: demoProfile.id,
+    name: "Jacob's Notes",
+    color: "sky",
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+export const demoBinders: Binder[] = [
+  {
+    id: "binder-calculus",
+    owner_id: demoAdmin.id,
+    title: "Calculus I: Patterns Before Procedures",
+    slug: "calculus-patterns",
+    description:
+      "A math-first binder for limits, derivatives, graphs, and the habits that make problem sets easier to start.",
+    subject: "Mathematics",
+    level: "College foundations",
+    status: "published",
+    price_cents: 3900,
+    cover_url:
+      "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1400&q=82",
+    pinned: true,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "binder-writing",
+    owner_id: demoAdmin.id,
+    title: "Writing Notes That Teach Back",
+    slug: "writing-notes-teach-back",
+    description:
+      "A study system for turning source material into private explanations, comments, and reusable concept maps.",
+    subject: "Study Skills",
+    level: "All students",
+    status: "published",
+    price_cents: 1900,
+    cover_url:
+      "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1400&q=82",
+    pinned: false,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "binder-algebra-foundations",
+    owner_id: demoAdmin.id,
+    title: "Algebra 1 Foundations",
+    slug: "algebra-1-foundations",
+    description:
+      "A polished Algebra 1 study binder covering expressions, quadratics, functions, graphing, systems, and a ready-to-use vocab and formula sheet.",
+    subject: "Mathematics",
+    level: "Algebra 1",
+    status: "published",
+    price_cents: 2900,
+    cover_url:
+      "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=1400&q=82",
+    pinned: true,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "binder-jacob-math-notes",
+    owner_id: demoAdmin.id,
+    title: "Jacob Math Notes",
+    slug: "jacob-math-notes",
+    description:
+      "A full polished study binder spanning geometry through real analysis.",
+    subject: "Mathematics",
+    level: "Geometry to Real Analysis",
+    status: "published",
+    price_cents: 2400,
+    cover_url:
+      "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=1400&q=82",
+    pinned: true,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "binder-rise-of-rome",
+    owner_id: demoAdmin.id,
+    title: "Rise of Rome: Kingdom, Republic, and Empire",
+    slug: "rise-of-rome-kingdom-republic-empire",
+    description:
+      "A teaching-first history binder on Rome's legendary origins, republican expansion, imperial system, and the western collapse.",
+    subject: "History",
+    level: "Ancient Mediterranean",
+    status: "published",
+    price_cents: 0,
+    cover_url:
+      "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1400&q=82",
+    pinned: true,
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+export const demoFolderBinders: FolderBinderLink[] = [
+  {
+    id: "folder-binder-calculus",
+    owner_id: demoProfile.id,
+    folder_id: "folder-calculus",
+    binder_id: "binder-calculus",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-binder-algebra",
+    owner_id: demoProfile.id,
+    folder_id: "folder-algebra",
+    binder_id: "binder-algebra-foundations",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-binder-jacob-math",
+    owner_id: demoProfile.id,
+    folder_id: "folder-jacob-math",
+    binder_id: "binder-jacob-math-notes",
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+const jacobLessons: BinderLesson[] = [
+  {
+    id: "lesson-jacob-geometry-foundations",
+    binder_id: "binder-jacob-math-notes",
+    title: "Geometry Language, Rigid Motions, and Dilation",
+    order_index: 1,
+    is_preview: true,
+    content: lessonDoc(
+      heading("Terms and labels"),
+      paragraph(
+        "Start with the geometry vocabulary that makes later proofs readable: points, segments, rays, lines, planar figures, perpendicular and parallel lines, congruent figures, similar figures, vertical angles, adjacent angles, linear pairs, and common polygon names like parallelogram, rectangle, and rhombus.",
+      ),
+      bulletList([
+        "A point is zero-dimensional and marks a location in space.",
+        "A segment has two endpoints, a ray has one endpoint, and a line extends in both directions.",
+        "Parallel lines never intersect, while perpendicular lines meet at 90 degrees.",
+        "Congruent means same size and same shape; similar means same shape with proportional size.",
+      ]),
+      heading("Rigid transformations"),
+      paragraph(
+        "Use translations, rotations, and reflections to move a figure without changing any lengths or angles. That idea powers triangle-congruence reasoning later.",
+      ),
+      orderedList([
+        "Translation: move every point the same amount in the same direction.",
+        "Rotation: turn a figure around a fixed center point by a chosen angle.",
+        "Reflection: flip a figure across a line so the image and preimage stay the same distance from the mirror line.",
+      ]),
+      heading("Coordinate rules and dilation"),
+      bulletList([
+        "90 degree counterclockwise rotation about the origin: (x, y) -> (-y, x)",
+        "180 degree rotation: (x, y) -> (-x, -y)",
+        "270 degree counterclockwise rotation: (x, y) -> (y, -x)",
+        "Reflect across the x-axis: (x, y) -> (x, -y)",
+        "A dilation rescales a figure from a center point by a factor k while preserving shape.",
+      ]),
+      blockquote(
+        "Connect the points into a figure first. Transforming a whole shape is easier than chasing scattered coordinates one at a time.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-geom-rotation-rule",
+        type: "latex",
+        latex: "(x,y)\\rightarrow(-y,x)",
+        label: "90 degree rotation rule",
+        sourceHeading: "Coordinate rules and dilation",
+      },
+      {
+        id: "jacob-geom-dilation-rule",
+        type: "latex",
+        latex: "(x,y)\\rightarrow(kx,ky)",
+        label: "Dilation from the origin",
+        sourceHeading: "Coordinate rules and dilation",
+      },
+      {
+        id: "jacob-geom-dilation-graph",
+        type: "graph",
+        expressions: ["A=(1,1)", "B=(3,1)", "C=(2,3)", "A'=(2,2)", "B'=(6,2)", "C'=(4,6)"],
+        xMin: -1,
+        xMax: 8,
+        yMin: -1,
+        yMax: 8,
+        label: "Dilation coordinates",
+        sourceHeading: "Coordinate rules and dilation",
+        description: "A triangle and its image after a scale factor of 2 from the origin.",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-triangles-similarity",
+    binder_id: "binder-jacob-math-notes",
+    title: "Triangle Congruence, Similarity, and Angle Bisectors",
+    order_index: 2,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Congruence tests"),
+      paragraph(
+        "Congruence is a mapping problem: can one triangle be moved onto another with rigid transformations? The familiar tests tell you when the answer is yes.",
+      ),
+      bulletList([
+        "Guaranteed congruence tests: SSS, SAS, ASA, AAS, and HL for right triangles.",
+        "AAA does not prove congruence because the size can still change.",
+        "SSA is ambiguous in general because the third vertex can land in more than one place.",
+      ]),
+      heading("Similarity postulates"),
+      bulletList([
+        "AA similarity works because the third angle is forced and the shape is fixed.",
+        "SSS similarity works when all corresponding side ratios match.",
+        "SAS similarity works when two side ratios match and the included angle matches.",
+      ]),
+      heading("Angle bisector theorem"),
+      paragraph(
+        "If an angle bisector splits the opposite side of a triangle, it creates proportional segments. Use that fact to move from angle information to side-length ratios.",
+      ),
+      blockquote(
+        "A strong proof move is to line up corresponding angles first, then look for side ratios before trying harder algebra.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-angle-bisector",
+        type: "latex",
+        latex: "\\frac{BD}{DC}=\\frac{AB}{AC}",
+        label: "Angle bisector theorem",
+        sourceHeading: "Angle bisector theorem",
+      },
+      {
+        id: "jacob-similarity-ratio",
+        type: "latex",
+        latex: "\\frac{AB}{DE}=\\frac{BC}{EF}=\\frac{AC}{DF}",
+        label: "Similarity ratio setup",
+        sourceHeading: "Similarity postulates",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-right-triangle-trig",
+    binder_id: "binder-jacob-math-notes",
+    title: "Right-Triangle Trig, Inverse Trig, and Special Triangles",
+    order_index: 3,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Core trig ratios"),
+      paragraph(
+        "Treat sine, cosine, and tangent as fixed side ratios for a given acute angle in a right triangle. Once the angle is fixed, the side ratios stay fixed even if the whole triangle scales.",
+      ),
+      bulletList([
+        "sin(theta) = opposite / hypotenuse",
+        "cos(theta) = adjacent / hypotenuse",
+        "tan(theta) = opposite / adjacent",
+        "Inverse trig goes the other way: ratio in, angle out.",
+      ]),
+      heading("Special right triangles"),
+      bulletList([
+        "30-60-90 triangles use the exact ratio 1 : sqrt(3) : 2.",
+        "45-45-90 triangles use the exact ratio 1 : 1 : sqrt(2).",
+        "These patterns let you stay exact instead of defaulting to a calculator.",
+      ]),
+      heading("Useful geometric tricks"),
+      bulletList([
+        "The geometric mean can recover the altitude in a right-triangle altitude setup.",
+        "Angles of elevation and depression are measured from a horizontal reference line.",
+        "Perpendicular lines have slopes that are negative reciprocals of each other.",
+      ]),
+      heading("Pythagorean identity"),
+      paragraph(
+        "From the Pythagorean theorem, divide both sides by the hypotenuse squared to get the Pythagorean identity.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-sohcahtoa",
+        type: "latex",
+        latex: "\\sin\\theta=\\frac{opp}{hyp},\\ \\cos\\theta=\\frac{adj}{hyp},\\ \\tan\\theta=\\frac{opp}{adj}",
+        label: "SOHCAHTOA ratios",
+        sourceHeading: "Core trig ratios",
+      },
+      {
+        id: "jacob-special-306090",
+        type: "latex",
+        latex: "30\\text{-}60\\text{-}90:\\ 1:\\sqrt{3}:2",
+        label: "30-60-90 ratio",
+        sourceHeading: "Special right triangles",
+      },
+      {
+        id: "jacob-identity",
+        type: "latex",
+        latex: "\\sin^2\\theta+\\cos^2\\theta=1",
+        label: "Pythagorean identity",
+        sourceHeading: "Pythagorean identity",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-circles-conics",
+    binder_id: "binder-jacob-math-notes",
+    title: "Coordinate Geometry, Segment Division, and Conic Basics",
+    order_index: 4,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Dividing line segments"),
+      paragraph(
+        "Split a segment in a known ratio by starting with the endpoints and placing the point using the correct fraction of the total displacement.",
+      ),
+      heading("Conic sections"),
+      bulletList([
+        "A circle comes from a plane cutting a cone perpendicularly.",
+        "An ellipse comes from an angled slice through one cone.",
+        "A parabola comes from a slice parallel to the side of the cone.",
+        "A hyperbola comes from a plane cutting both nappes.",
+      ]),
+      heading("Parabola focus and directrix"),
+      paragraph(
+        "Emphasize the distance definition: every point on a parabola is the same distance from the focus as it is from the directrix. That geometric fact generates the standard forms.",
+      ),
+      blockquote(
+        "Turn geometry facts into coordinate formulas, then use the formulas to recover the geometry features.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-point-division",
+        type: "latex",
+        latex: "B=A+\\frac{AB}{AC}(C-A)",
+        label: "Segment-division formula",
+        sourceHeading: "Dividing line segments",
+      },
+      {
+        id: "jacob-circle-standard",
+        type: "latex",
+        latex: "(x-h)^2+(y-k)^2=r^2",
+        label: "Circle standard form",
+        sourceHeading: "Conic sections",
+      },
+      {
+        id: "jacob-parabola-focus",
+        type: "latex",
+        latex: "(x-h)^2=4p(y-k)",
+        label: "Vertical parabola form",
+        sourceHeading: "Parabola focus and directrix",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-circles-laws",
+    binder_id: "binder-jacob-math-notes",
+    title: "Circles, Radians, and Laws of Sines and Cosines",
+    order_index: 5,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Circle vocabulary and angle theorems"),
+      bulletList([
+        "Tangent: intersects the circle once.",
+        "Secant: intersects the circle twice.",
+        "Chord: segment joining two points on the circle.",
+        "An inscribed angle is half the corresponding central angle over the same arc.",
+        "Opposite angles in an inscribed quadrilateral are supplementary.",
+      ]),
+      heading("Radians"),
+      paragraph(
+        "Read radians as a geometric angle measure: one radian is the angle that subtends an arc with length equal to the radius. That is why arc length divided by radius gives the angle in radians.",
+      ),
+      heading("Triangle laws and reciprocal trig"),
+      bulletList([
+        "Law of sines connects each side to the sine of its opposite angle.",
+        "Law of cosines generalizes the Pythagorean theorem to non-right triangles.",
+        "Reciprocal trig ratios pair sin with csc, cos with sec, and tan with cot.",
+      ]),
+      heading("Ellipses"),
+      paragraph(
+        "Track the center, vertices, covertices, and foci. The denominator sizes match the major and minor axis directions.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-radian-arc",
+        type: "latex",
+        latex: "s=r\\theta",
+        label: "Arc-length formula",
+        sourceHeading: "Radians",
+      },
+      {
+        id: "jacob-law-sines",
+        type: "latex",
+        latex: "\\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}",
+        label: "Law of sines",
+        sourceHeading: "Triangle laws and reciprocal trig",
+      },
+      {
+        id: "jacob-law-cosines",
+        type: "latex",
+        latex: "c^2=a^2+b^2-2ab\\cos C",
+        label: "Law of cosines",
+        sourceHeading: "Triangle laws and reciprocal trig",
+      },
+      {
+        id: "jacob-ellipse-standard",
+        type: "latex",
+        latex: "\\frac{(x-h)^2}{a^2}+\\frac{(y-k)^2}{b^2}=1",
+        label: "Ellipse standard form",
+        sourceHeading: "Ellipses",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-polynomials-series",
+    binder_id: "binder-jacob-math-notes",
+    title: "Polynomial Operations, Cubes, and Finite Series",
+    order_index: 6,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Polynomial structure"),
+      bulletList([
+        "Monomials, binomials, and trinomials are all polynomials.",
+        "The degree is the highest exponent.",
+        "Standard form writes terms from highest degree down to the constant.",
+      ]),
+      heading("Special factoring patterns"),
+      paragraph(
+        "Use sum and difference of cubes as patterns that show up fast and unlock graphing or solving problems without a full expansion.",
+      ),
+      heading("Finite geometric series"),
+      paragraph(
+        "For a geometric series, the first term, common ratio, and number of terms are the controlling pieces. Derive the sum by multiplying the series by the ratio and subtracting.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-sum-diff-cubes",
+        type: "latex",
+        latex: "a^3-b^3=(a-b)(a^2+ab+b^2)",
+        label: "Difference of cubes",
+        sourceHeading: "Special factoring patterns",
+      },
+      {
+        id: "jacob-sum-cubes",
+        type: "latex",
+        latex: "a^3+b^3=(a+b)(a^2-ab+b^2)",
+        label: "Sum of cubes",
+        sourceHeading: "Special factoring patterns",
+      },
+      {
+        id: "jacob-geometric-series",
+        type: "latex",
+        latex: "S_n=a\\frac{1-r^n}{1-r}",
+        label: "Finite geometric series sum",
+        sourceHeading: "Finite geometric series",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-logs-transformations",
+    binder_id: "binder-jacob-math-notes",
+    title: "Graphing Polynomials, Rational Exponents, and Logarithms",
+    order_index: 7,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Graphing polynomials"),
+      bulletList([
+        "Zeros mark the x-values where the graph crosses or touches the axis.",
+        "Multiplicity changes how the graph behaves at a zero.",
+        "Holes in rational-style expressions are not asymptotes because the function can continue past them.",
+      ]),
+      heading("Rational exponents"),
+      paragraph(
+        "Use rational exponents as a second language for radicals. That keeps the exponent laws consistent even when roots appear.",
+      ),
+      heading("Logarithm basics"),
+      bulletList([
+        "A logarithm asks which exponent creates a given value.",
+        "The base and the argument must both stay in valid ranges.",
+        "Common log uses base 10; natural log uses base e.",
+        "Logarithms are exponent statements written in a different form.",
+      ]),
+      heading("Log properties"),
+      paragraph(
+        "Treat product, quotient, and power rules as exponent rules rewritten in logarithmic form.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-rational-exponent",
+        type: "latex",
+        latex: "a^{m/n}=\\sqrt[n]{a^m}",
+        label: "Rational exponent rule",
+        sourceHeading: "Rational exponents",
+      },
+      {
+        id: "jacob-log-rule",
+        type: "latex",
+        latex: "\\log_b(ac)=\\log_b(a)+\\log_b(c)",
+        label: "Log product rule",
+        sourceHeading: "Log properties",
+      },
+      {
+        id: "jacob-log-power",
+        type: "latex",
+        latex: "\\log_b(c^a)=a\\log_b(c)",
+        label: "Log power rule",
+        sourceHeading: "Log properties",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-rational-matrices",
+    binder_id: "binder-jacob-math-notes",
+    title: "Parent Functions, Unit Circle, Rational Functions, and Matrices",
+    order_index: 8,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Parent functions and transformations"),
+      paragraph(
+        "Use transformations to track horizontal and vertical shifts, stretches, compressions, and reflections. Start from the parent graph and apply one change at a time.",
+      ),
+      heading("Unit circle and trig graphs"),
+      paragraph(
+        "The unit-circle section supports both exact trig values and graph interpretation. Keep returning to angle location, sign, and periodic behavior.",
+      ),
+      heading("Rational functions"),
+      orderedList([
+        "Factor the numerator and denominator.",
+        "Record excluded values before canceling anything.",
+        "Cancel common factors and simplify.",
+        "Track holes and asymptotes separately.",
+      ]),
+      heading("Binomial theorem and matrices"),
+      paragraph(
+        "The end of the Algebra 2 unit combines faster expansion methods with matrix operations, dimensions, and matrix multiplication structure.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-transform-rule",
+        type: "latex",
+        latex: "y=a\\,f(b(x-h))+k",
+        label: "General transformation form",
+        sourceHeading: "Parent functions and transformations",
+      },
+      {
+        id: "jacob-binomial",
+        type: "latex",
+        latex: "(a+b)^n=\\sum_{k=0}^{n}\\binom{n}{k}a^{n-k}b^k",
+        label: "Binomial theorem",
+        sourceHeading: "Binomial theorem and matrices",
+      },
+      {
+        id: "jacob-matrix-product",
+        type: "latex",
+        latex: "\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\\begin{bmatrix}x\\\\y\\end{bmatrix}=\\begin{bmatrix}ax+by\\\\cx+dy\\end{bmatrix}",
+        label: "Matrix-vector multiplication",
+        sourceHeading: "Binomial theorem and matrices",
+      },
+      {
+        id: "jacob-parent-functions-graph",
+        type: "graph",
+        expressions: ["y=x^2", "y=(x-2)^2+3", "y=|x|", "y=\\sqrt{x}"],
+        xMin: -6,
+        xMax: 8,
+        yMin: -4,
+        yMax: 12,
+        label: "Parent function transformations",
+        sourceHeading: "Parent functions and transformations",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-functions-trig-identities",
+    binder_id: "binder-jacob-math-notes",
+    title: "Composite Functions, Trig Identities, and Complex Numbers",
+    order_index: 9,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Composite and inverse functions"),
+      paragraph(
+        "Composition feeds one function's output into the next, and inverses undo the original rule when the function is one-to-one.",
+      ),
+      heading("Trig identity families"),
+      bulletList([
+        "Reciprocal identities pair sin with csc, cos with sec, and tan with cot.",
+        "Pythagorean identities come from the geometry of the unit circle or right triangles.",
+        "Angle-addition identities let you break a hard angle into easier pieces.",
+        "Sum-to-product and product-to-sum identities reorganize expressions for solving and simplifying.",
+      ]),
+      heading("Complex numbers"),
+      paragraph(
+        "Move complex numbers into the plane, then use magnitude and angle to explain polar form and equation solving. Treat the complex plane like a number line with geometric structure attached.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-composite-notation",
+        type: "latex",
+        latex: "(f\\circ g)(x)=f(g(x))",
+        label: "Composition notation",
+        sourceHeading: "Composite and inverse functions",
+      },
+      {
+        id: "jacob-angle-addition",
+        type: "latex",
+        latex: "\\sin(\\alpha+\\beta)=\\sin\\alpha\\cos\\beta+\\cos\\alpha\\sin\\beta",
+        label: "Angle-addition identity",
+        sourceHeading: "Trig identity families",
+      },
+      {
+        id: "jacob-pythagorean-trig",
+        type: "latex",
+        latex: "1+\\tan^2\\theta=\\sec^2\\theta",
+        label: "Tangent Pythagorean identity",
+        sourceHeading: "Trig identity families",
+      },
+      {
+        id: "jacob-polar-form",
+        type: "latex",
+        latex: "z=r(\\cos\\theta+i\\sin\\theta)",
+        label: "Polar form",
+        sourceHeading: "Complex numbers",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-complex-vectors",
+    binder_id: "binder-jacob-math-notes",
+    title: "Vectors, Matrices Continued, Probability, Growth, Series, and Precalculus Limits",
+    order_index: 10,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Vectors and matrix transformations"),
+      paragraph(
+        "Treat vectors as directed quantities and matrices as machines that transform them. Move comfortably between component form, geometric interpretation, and matrix language.",
+      ),
+      heading("Probability"),
+      bulletList([
+        "Multiply when two events both happen along a path.",
+        "Add when you want either event.",
+        "Permutations count arrangements; combinations count selections without order.",
+      ]),
+      heading("Growth, decay, and series"),
+      paragraph(
+        "The precalculus finish is about long-run behavior: compound growth, arithmetic and geometric series, sigma notation, and the first serious limit ideas.",
+      ),
+      heading("Limits preview"),
+      paragraph(
+        "Use the language of approach, limit laws, the intermediate value theorem, and the epsilon-delta picture before the calculus section starts in full.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-vector-magnitude",
+        type: "latex",
+        latex: "\\|\\vec{v}\\|=\\sqrt{x^2+y^2}",
+        label: "Vector magnitude",
+        sourceHeading: "Vectors and matrix transformations",
+      },
+      {
+        id: "jacob-combination",
+        type: "latex",
+        latex: "\\binom{n}{r}=\\frac{n!}{r!(n-r)!}",
+        label: "Combination formula",
+        sourceHeading: "Probability",
+      },
+      {
+        id: "jacob-growth-model",
+        type: "latex",
+        latex: "A(t)=A_0(1+r)^t",
+        label: "Compound growth model",
+        sourceHeading: "Growth, decay, and series",
+      },
+      {
+        id: "jacob-limit",
+        type: "latex",
+        latex: "\\lim_{x\\to a} f(x)=L",
+        label: "Limit notation",
+        sourceHeading: "Limits preview",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-calculus-limits",
+    binder_id: "binder-jacob-math-notes",
+    title: "Calculus Limits and the Derivative Definition",
+    order_index: 11,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Calculus limit toolkit"),
+      paragraph(
+        "The calculus section reopens limits with more precision: important limits, epsilon-delta language, and L'Hopital's Rule for indeterminate forms. Tie the formal view back to the geometric idea of local behavior.",
+      ),
+      heading("Important limits"),
+      bulletList([
+        "Classic trig and exponential limits matter because many derivative rules depend on them.",
+        "Not every important limit should be attacked with L'Hopital immediately.",
+        "Several benchmark limits are better treated as foundational facts.",
+      ]),
+      heading("Derivative from first principles"),
+      paragraph(
+        "Keep the derivative grounded in the limit of average rate of change. Work through the definition before introducing the faster shortcut rules.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-derivative-definition",
+        type: "latex",
+        latex: "f'(x)=\\lim_{h\\to 0}\\frac{f(x+h)-f(x)}{h}",
+        label: "Derivative definition",
+        sourceHeading: "Derivative from first principles",
+      },
+      {
+        id: "jacob-important-limit-sin",
+        type: "latex",
+        latex: "\\lim_{x\\to 0}\\frac{\\sin x}{x}=1",
+        label: "Key trig limit",
+        sourceHeading: "Important limits",
+      },
+      {
+        id: "jacob-lhopital",
+        type: "latex",
+        latex: "\\lim\\frac{f(x)}{g(x)}=\\lim\\frac{f'(x)}{g'(x)}",
+        label: "L'Hopital's Rule setup",
+        sourceHeading: "Calculus limit toolkit",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-calculus-derivatives",
+    binder_id: "binder-jacob-math-notes",
+    title: "Derivative Rules and Core Techniques",
+    order_index: 12,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Core rules"),
+      bulletList([
+        "Power rule",
+        "Constant multiple rule",
+        "Sum and difference rules",
+        "Product rule",
+        "Chain rule",
+      ]),
+      heading("Why the rules work"),
+      paragraph(
+        "Do not just list rules; point back to the limit definition and binomial expansion as the source of the power rule and the algebra behind product and chain ideas.",
+      ),
+      heading("Derivative families"),
+      paragraph(
+        "Group trig derivatives, exponential derivatives, and other common derivatives into reusable families so the chapter becomes a toolbox instead of one long list.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-power-rule",
+        type: "latex",
+        latex: "\\frac{d}{dx}x^n=nx^{n-1}",
+        label: "Power rule",
+        sourceHeading: "Core rules",
+      },
+      {
+        id: "jacob-product-rule",
+        type: "latex",
+        latex: "(fg)'=f'g+fg'",
+        label: "Product rule",
+        sourceHeading: "Core rules",
+      },
+      {
+        id: "jacob-chain-rule",
+        type: "latex",
+        latex: "\\frac{d}{dx}f(g(x))=f'(g(x))g'(x)",
+        label: "Chain rule",
+        sourceHeading: "Core rules",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-diff-calc-applications",
+    binder_id: "binder-jacob-math-notes",
+    title: "Applications of Differential Calculus",
+    order_index: 13,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Core applications"),
+      bulletList([
+        "Implicit differentiation",
+        "Second derivatives",
+        "Local linear approximation",
+        "Mean value theorem and extreme value theorem",
+        "Critical points, local maxima/minima, concavity, and inflection points",
+        "Optimization",
+      ]),
+      heading("Chapter map"),
+      paragraph(
+        "Move from computation to interpretation: find the derivative, then use it to explain behavior. The first derivative tracks direction of change and the second derivative tracks bending or concavity.",
+      ),
+      heading("High-value habits"),
+      bulletList([
+        "For optimization, reduce the model to one main variable whenever possible.",
+        "Read critical points through both the function and its derivative graph.",
+        "Use local linearization to turn a hard value into a nearby easy estimate.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-implicit-example",
+        type: "latex",
+        latex: "\\frac{dy}{dx}=-\\frac{x}{y}",
+        label: "Implicit differentiation example",
+        sourceHeading: "Core applications",
+      },
+      {
+        id: "jacob-linearization",
+        type: "latex",
+        latex: "L(x)=f(a)+f'(a)(x-a)",
+        label: "Local linearization",
+        sourceHeading: "Core applications",
+      },
+      {
+        id: "jacob-mvt",
+        type: "latex",
+        latex: "f'(c)=\\frac{f(b)-f(a)}{b-a}",
+        label: "Mean value theorem",
+        sourceHeading: "Core applications",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-integrals-ftc",
+    binder_id: "binder-jacob-math-notes",
+    title: "Integrals, Antiderivatives, and the Fundamental Theorem of Calculus",
+    order_index: 14,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Integral intuition"),
+      paragraph(
+        "Integrals connect accumulated change, total distance, and area. Move from Riemann-sum intuition to notation, properties, and antiderivatives.",
+      ),
+      heading("The definite and indefinite integral"),
+      bulletList([
+        "A definite integral accumulates a net total over an interval.",
+        "An antiderivative reverses differentiation.",
+        "Indefinite integrals represent families of antiderivatives.",
+      ]),
+      heading("The Fundamental Theorem of Calculus"),
+      paragraph(
+        "Use the FTC in both directions: derivatives of accumulation functions recover the original integrand, and evaluating an antiderivative at the bounds gives the definite integral.",
+      ),
+      heading("Core techniques"),
+      bulletList([
+        "Substitution rewrites the variable so a pattern becomes simpler.",
+        "Integration by parts is reverse product rule.",
+        "Partial fractions breaks a rational integrand into easier pieces.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-definite-integral",
+        type: "latex",
+        latex: "\\int_a^b f(x)\\,dx",
+        label: "Definite integral notation",
+        sourceHeading: "The definite and indefinite integral",
+      },
+      {
+        id: "jacob-ftc",
+        type: "latex",
+        latex: "\\int_a^b f(x)\\,dx=F(b)-F(a)",
+        label: "FTC evaluation form",
+        sourceHeading: "The Fundamental Theorem of Calculus",
+      },
+      {
+        id: "jacob-substitution",
+        type: "latex",
+        latex: "\\int f(g(x))g'(x)\\,dx=\\int f(u)\\,du",
+        label: "Substitution rule",
+        sourceHeading: "Core techniques",
+      },
+      {
+        id: "jacob-integration-parts",
+        type: "latex",
+        latex: "\\int u\\,dv=uv-\\int v\\,du",
+        label: "Integration by parts",
+        sourceHeading: "Core techniques",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-diffeq-integral-apps",
+    binder_id: "binder-jacob-math-notes",
+    title: "Differential Equations and Applications of Integral Calculus",
+    order_index: 15,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Differential equations"),
+      bulletList([
+        "Leibniz notation and differentials are used informally as algebraic guides.",
+        "Separable equations are solved by isolating variables and integrating.",
+        "The logistic differential equation models population growth with a carrying capacity.",
+      ]),
+      heading("Applications of integrals"),
+      bulletList([
+        "Average value of a function comes from total accumulation divided by interval length.",
+        "Volumes come from slicing and accumulating cross-sections.",
+        "Arc length is built from tiny Pythagorean pieces along a curve.",
+      ]),
+      heading("Why this chapter matters"),
+      paragraph(
+        "Use this unit to connect symbol work back to modeling: if a rate tells you how something changes, integration reconstructs the thing itself.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-separable",
+        type: "latex",
+        latex: "\\frac{dy}{dx}=g(x)h(y)",
+        label: "Separable equation form",
+        sourceHeading: "Differential equations",
+      },
+      {
+        id: "jacob-logistic",
+        type: "latex",
+        latex: "\\frac{dP}{dt}=kP\\left(1-\\frac{P}{M}\\right)",
+        label: "Logistic differential equation",
+        sourceHeading: "Differential equations",
+      },
+      {
+        id: "jacob-average-value",
+        type: "latex",
+        latex: "f_{avg}=\\frac{1}{b-a}\\int_a^b f(x)\\,dx",
+        label: "Average value of a function",
+        sourceHeading: "Applications of integrals",
+      },
+      {
+        id: "jacob-arc-length",
+        type: "latex",
+        latex: "L=\\int_a^b \\sqrt{1+(f'(x))^2}\\,dx",
+        label: "Arc-length formula",
+        sourceHeading: "Applications of integrals",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-parametric-polar-series",
+    binder_id: "binder-jacob-math-notes",
+    title: "Parametric Equations, Polar Coordinates, Infinite Series, and Taylor Series",
+    order_index: 16,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Parametric and polar viewpoints"),
+      paragraph(
+        "Rewrite motion and curves using parameterized x(t), y(t) descriptions, then transition into polar coordinates where radius and angle replace rectangular coordinates.",
+      ),
+      heading("Infinite sequences and series"),
+      bulletList([
+        "A series converges only if the terms head toward zero.",
+        "The harmonic series diverges.",
+        "Comparison, limit comparison, alternating-series, ratio, and root tests all belong in the basic test toolkit.",
+      ]),
+      heading("Taylor and Maclaurin series"),
+      paragraph(
+        "Treat Taylor series as polynomial approximations that get more accurate as you add higher derivatives. Maclaurin series are Taylor series centered at 0.",
+      ),
+      heading("Practical study use"),
+      paragraph(
+        "Switch between exact formulas, convergence logic, and approximation language instead of staying in just one style of problem.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-parametric-derivative",
+        type: "latex",
+        latex: "\\frac{dy}{dx}=\\frac{dy/dt}{dx/dt}",
+        label: "Derivative of a parametric curve",
+        sourceHeading: "Parametric and polar viewpoints",
+      },
+      {
+        id: "jacob-polar-area",
+        type: "latex",
+        latex: "A=\\frac{1}{2}\\int_\\alpha^\\beta r^2\\,d\\theta",
+        label: "Polar-area formula",
+        sourceHeading: "Parametric and polar viewpoints",
+      },
+      {
+        id: "jacob-taylor-series",
+        type: "latex",
+        latex: "f(x)=\\sum_{n=0}^{\\infty}\\frac{f^{(n)}(a)}{n!}(x-a)^n",
+        label: "Taylor series",
+        sourceHeading: "Taylor and Maclaurin series",
+      },
+      {
+        id: "jacob-maclaurin",
+        type: "latex",
+        latex: "f(x)=\\sum_{n=0}^{\\infty}\\frac{f^{(n)}(0)}{n!}x^n",
+        label: "Maclaurin series",
+        sourceHeading: "Taylor and Maclaurin series",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-multivar-foundations",
+    binder_id: "binder-jacob-math-notes",
+    title: "Multivariable Foundations and Vector Algebra",
+    order_index: 17,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Why linear algebra shows up first"),
+      paragraph(
+        "Start multivariable calculus with vectors, dot products, cross products, matrices, and coordinate habits because the later derivative and integral operators are built on top of that language.",
+      ),
+      heading("Vector algebra"),
+      bulletList([
+        "The dot product measures directional alignment.",
+        "The cross product produces a perpendicular vector in 3D.",
+        "A matrix transpose swaps rows and columns.",
+        "Scalar fields and vector fields live in different output spaces and should be visualized differently.",
+      ]),
+      heading("From single-variable to multivariable"),
+      paragraph(
+        "This section is the conceptual bridge: you stop thinking about a graph as a single curve and start thinking about surfaces, fields, and many-input behavior.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-dot-product",
+        type: "latex",
+        latex: "\\mathbf{u}\\cdot\\mathbf{v}=u_1v_1+u_2v_2+u_3v_3",
+        label: "Dot product",
+        sourceHeading: "Vector algebra",
+      },
+      {
+        id: "jacob-cross-product",
+        type: "latex",
+        latex: "\\mathbf{u}\\times\\mathbf{v}=\\begin{vmatrix}\\mathbf{i}&\\mathbf{j}&\\mathbf{k}\\\\u_1&u_2&u_3\\\\v_1&v_2&v_3\\end{vmatrix}",
+        label: "Cross product",
+        sourceHeading: "Vector algebra",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-multivar-operators",
+    binder_id: "binder-jacob-math-notes",
+    title: "Partial Derivatives, Gradient, Divergence, Curl, and Jacobian",
+    order_index: 18,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Partial derivatives and chain rule"),
+      paragraph(
+        "Treat partial derivatives by holding the other variables fixed, differentiating with respect to the chosen one, and repeating for each direction you care about.",
+      ),
+      heading("Operator toolbox"),
+      bulletList([
+        "Gradient points in the direction of steepest ascent.",
+        "Divergence tracks net outward flow in a vector field.",
+        "Curl tracks local rotation.",
+        "The Laplacian packages second-derivative information.",
+        "The Jacobian records first-order change for multivariable maps.",
+      ]),
+      heading("Mental pictures"),
+      paragraph(
+        "Imagine fluids for vector fields, tangent directions along surfaces, and the gradient as the fastest uphill direction.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-gradient",
+        type: "latex",
+        latex: "\\nabla f=\\left\\langle \\frac{\\partial f}{\\partial x},\\frac{\\partial f}{\\partial y},\\frac{\\partial f}{\\partial z}\\right\\rangle",
+        label: "Gradient",
+        sourceHeading: "Operator toolbox",
+      },
+      {
+        id: "jacob-divergence",
+        type: "latex",
+        latex: "\\nabla\\cdot\\mathbf{F}=\\frac{\\partial P}{\\partial x}+\\frac{\\partial Q}{\\partial y}+\\frac{\\partial R}{\\partial z}",
+        label: "Divergence",
+        sourceHeading: "Operator toolbox",
+      },
+      {
+        id: "jacob-curl",
+        type: "latex",
+        latex: "\\nabla\\times\\mathbf{F}",
+        label: "Curl notation",
+        sourceHeading: "Operator toolbox",
+      },
+      {
+        id: "jacob-jacobian",
+        type: "latex",
+        latex: "J=\\frac{\\partial(x,y)}{\\partial(u,v)}",
+        label: "Jacobian",
+        sourceHeading: "Operator toolbox",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-multivar-apps-integration",
+    binder_id: "binder-jacob-math-notes",
+    title: "Multivariable Applications, Optimization, Integration, Green, and Stokes",
+    order_index: 19,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Applications of multivariable derivatives"),
+      bulletList([
+        "Tangent planes and local linearization extend the single-variable tangent-line idea.",
+        "Quadratic approximation introduces the Hessian matrix.",
+        "Constrained optimization leads to Lagrange multipliers.",
+      ]),
+      heading("Integration in higher dimensions"),
+      bulletList([
+        "Double integrals accumulate over regions instead of intervals.",
+        "Line integrals follow a path through a field.",
+        "Surface integrals accumulate over a surface, including flux through a surface.",
+        "Change of variables reorganizes a hard region into an easier one.",
+      ]),
+      heading("Green and Stokes"),
+      paragraph(
+        "Use Green's Theorem and Stokes' Theorem as boundary-to-interior bridges: a circulation-style integral around the boundary equals a curl-style integral across the region or surface.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-lagrange",
+        type: "latex",
+        latex: "\\nabla f=\\lambda\\nabla g",
+        label: "Lagrange multiplier condition",
+        sourceHeading: "Applications of multivariable derivatives",
+      },
+      {
+        id: "jacob-line-integral",
+        type: "latex",
+        latex: "\\int_C \\mathbf{F}\\cdot d\\mathbf{r}",
+        label: "Line integral",
+        sourceHeading: "Integration in higher dimensions",
+      },
+      {
+        id: "jacob-greens",
+        type: "latex",
+        latex: "\\oint_C P\\,dx+Q\\,dy=\\iint_R \\left(\\frac{\\partial Q}{\\partial x}-\\frac{\\partial P}{\\partial y}\\right)dA",
+        label: "Green's Theorem",
+        sourceHeading: "Green and Stokes",
+      },
+      {
+        id: "jacob-stokes",
+        type: "latex",
+        latex: "\\oint_{\\partial S}\\mathbf{F}\\cdot d\\mathbf{r}=\\iint_S (\\nabla\\times\\mathbf{F})\\cdot d\\mathbf{S}",
+        label: "Stokes' Theorem",
+        sourceHeading: "Green and Stokes",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-linear-systems-determinants",
+    binder_id: "binder-jacob-math-notes",
+    title: "Linear Systems, Matrix Operations, Inverses, and Determinants",
+    order_index: 20,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Solving systems by row reduction"),
+      bulletList([
+        "Elementary row operations preserve the solution set.",
+        "REF and RREF organize a system so pivots and free variables are visible.",
+        "A pivot in the augmented column signals inconsistency.",
+      ]),
+      heading("Linear combinations and matrix structure"),
+      paragraph(
+        "Rewrite systems as linear combinations of columns. That makes matrix-vector multiplication and solution-set language line up cleanly.",
+      ),
+      heading("Inverses and determinants"),
+      paragraph(
+        "The invertible matrix theorem, determinant rules, Cramer's Rule, and the adjugate formula all get tied together as different ways of recognizing when a matrix is reversible.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-det-2x2",
+        type: "latex",
+        latex: "\\det\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}=ad-bc",
+        label: "2x2 determinant",
+        sourceHeading: "Inverses and determinants",
+      },
+      {
+        id: "jacob-cramers",
+        type: "latex",
+        latex: "x_i=\\frac{\\det(A_i(\\mathbf{b}))}{\\det(A)}",
+        label: "Cramer's Rule",
+        sourceHeading: "Inverses and determinants",
+      },
+      {
+        id: "jacob-inverse-adjugate",
+        type: "latex",
+        latex: "A^{-1}=\\frac{1}{\\det(A)}\\operatorname{adj}(A)",
+        label: "Inverse from adjugate",
+        sourceHeading: "Inverses and determinants",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-vector-spaces-eigenvalues",
+    binder_id: "binder-jacob-math-notes",
+    title: "Vector Spaces, Bases, Change of Basis, and Eigenvalues",
+    order_index: 21,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Vector-space language"),
+      paragraph(
+        "Turn row-reduction skills into structural language: subspaces, span, basis, dimension, coordinates, isomorphisms, and rank-nullity.",
+      ),
+      heading("Basis and dimension"),
+      bulletList([
+        "A basis is both spanning and linearly independent.",
+        "Coordinate maps convert between a chosen basis and standard coordinates.",
+        "Rank-nullity explains how input freedom splits into image and kernel structure.",
+      ]),
+      heading("Eigenvalues and diagonalization"),
+      paragraph(
+        "Move to characteristic polynomials, eigenspaces, similarity, and diagonalizability. The goal is to find directions that a transformation only scales, instead of mixing completely.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-rank-nullity",
+        type: "latex",
+        latex: "\\dim(\\operatorname{Col}A)+\\dim(\\operatorname{Nul}A)=n",
+        label: "Rank-nullity theorem",
+        sourceHeading: "Basis and dimension",
+      },
+      {
+        id: "jacob-characteristic",
+        type: "latex",
+        latex: "\\det(A-\\lambda I)=0",
+        label: "Characteristic equation",
+        sourceHeading: "Eigenvalues and diagonalization",
+      },
+      {
+        id: "jacob-diagonalization",
+        type: "latex",
+        latex: "A=PDP^{-1}",
+        label: "Diagonalization",
+        sourceHeading: "Eigenvalues and diagonalization",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-orthogonality-svd",
+    binder_id: "binder-jacob-math-notes",
+    title: "Orthogonality, Least Squares, Spectral Theorem, and SVD",
+    order_index: 22,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Orthogonality and projections"),
+      paragraph(
+        "Use orthogonality to simplify geometry in vector spaces: orthogonal vectors interact cleanly, orthonormal bases are easy to compute with, and projections split a vector into a part inside a space and a part perpendicular to it.",
+      ),
+      heading("QR and least squares"),
+      paragraph(
+        "QR factorization and the normal equations show up as practical tools for fitting inconsistent systems and data sets in the best approximate way.",
+      ),
+      heading("Spectral theorem and SVD"),
+      bulletList([
+        "Symmetric matrices have real eigenvalues.",
+        "Distinct eigenvalues of a symmetric matrix have orthogonal eigenvectors.",
+        "Symmetric matrices are orthogonally diagonalizable.",
+        "SVD factors a matrix into orthogonal pieces and singular values.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-projection",
+        type: "latex",
+        latex: "\\operatorname{proj}_{\\mathbf{u}}\\mathbf{v}=\\frac{\\mathbf{v}\\cdot\\mathbf{u}}{\\mathbf{u}\\cdot\\mathbf{u}}\\mathbf{u}",
+        label: "Projection formula",
+        sourceHeading: "Orthogonality and projections",
+      },
+      {
+        id: "jacob-normal-equation",
+        type: "latex",
+        latex: "A^TA\\hat{x}=A^T\\mathbf{b}",
+        label: "Normal equation",
+        sourceHeading: "QR and least squares",
+      },
+      {
+        id: "jacob-spectral",
+        type: "latex",
+        latex: "A=QDQ^T",
+        label: "Orthogonal diagonalization",
+        sourceHeading: "Spectral theorem and SVD",
+      },
+      {
+        id: "jacob-svd",
+        type: "latex",
+        latex: "A=U\\Sigma V^T",
+        label: "Singular value decomposition",
+        sourceHeading: "Spectral theorem and SVD",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-differential-equations-fourier",
+    binder_id: "binder-jacob-math-notes",
+    title: "Differential Equations, Systems, Fourier Series, and Heat Flow",
+    order_index: 23,
+    is_preview: false,
+    content: lessonDoc(
+      heading("First- and second-order equations"),
+      bulletList([
+        "Integrating factors convert a first-order linear equation into an exact derivative form.",
+        "Characteristic equations organize many second-order linear problems.",
+        "Repeated and complex roots produce different null-solution patterns.",
+      ]),
+      heading("Systems of differential equations"),
+      paragraph(
+        "Write systems in matrix form and then lean on eigenvalues, eigenvectors, and fundamental matrices to understand the solution set.",
+      ),
+      heading("Fourier series and the heat equation"),
+      paragraph(
+        "The Fourier chapter treats orthogonality as the engine behind coefficient formulas, then uses sine and cosine expansions to build heat-equation solutions.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-integrating-factor",
+        type: "latex",
+        latex: "\\mu(x)=e^{\\int p(x)\\,dx}",
+        label: "Integrating factor",
+        sourceHeading: "First- and second-order equations",
+      },
+      {
+        id: "jacob-characteristic-ode",
+        type: "latex",
+        latex: "ar^2+br+c=0",
+        label: "Characteristic equation",
+        sourceHeading: "First- and second-order equations",
+      },
+      {
+        id: "jacob-fourier-coeff",
+        type: "latex",
+        latex: "a_n=\\frac{1}{L}\\int_{-L}^{L}f(x)\\cos\\left(\\frac{n\\pi x}{L}\\right)dx",
+        label: "Fourier cosine coefficient",
+        sourceHeading: "Fourier series and the heat equation",
+      },
+      {
+        id: "jacob-heat-equation",
+        type: "latex",
+        latex: "u_t=ku_{xx}",
+        label: "Heat equation",
+        sourceHeading: "Fourier series and the heat equation",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-analysis-foundations",
+    binder_id: "binder-jacob-math-notes",
+    title: "Real Analysis Foundations: Sets, Fields, Real Numbers, and Completeness",
+    order_index: 24,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Set and number foundations"),
+      paragraph(
+        "Restart from the bottom on purpose: sets, naturals, induction, integers, rationals, algebraic numbers, bounds, supremum, infimum, and the real-number completeness axiom.",
+      ),
+      heading("Why the completeness axiom matters"),
+      paragraph(
+        "Treat completeness as the feature that separates the reals from the rationals. It is the reason least-upper-bound arguments and many convergence results actually work.",
+      ),
+      heading("How to read this section"),
+      bulletList([
+        "Watch the definitions carefully; they are the whole game here.",
+        "Contrast intuitive pictures with precise statements.",
+        "Bounds, maxima, minima, and least upper bounds are early anchors for everything that follows.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-supremum",
+        type: "latex",
+        latex: "\\sup S",
+        label: "Supremum notation",
+        sourceHeading: "Set and number foundations",
+      },
+      {
+        id: "jacob-infimum",
+        type: "latex",
+        latex: "\\inf S",
+        label: "Infimum notation",
+        sourceHeading: "Set and number foundations",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-analysis-sequences-continuity",
+    binder_id: "binder-jacob-math-notes",
+    title: "Real Analysis: Sequences, Metric Spaces, and Continuity",
+    order_index: 25,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Sequences"),
+      bulletList([
+        "Convergence is defined precisely with epsilon language.",
+        "Monotone sequences and boundedness interact through the completeness of R.",
+        "Cauchy sequences, subsequences, lim sup, and lim inf all show up as core tools.",
+      ]),
+      heading("Metric spaces and topology"),
+      paragraph(
+        "Broaden the setting from the real line to metric spaces, then introduce open sets, closed sets, boundaries, compactness, and connectedness as the right language for general continuity arguments.",
+      ),
+      heading("Continuity and uniform continuity"),
+      paragraph(
+        "Continuity gets both sequence-based and epsilon-delta definitions. Uniform continuity is treated as a stronger global version, especially important on closed intervals and compact spaces.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-sequence-limit",
+        type: "latex",
+        latex: "\\lim_{n\\to\\infty} a_n=L",
+        label: "Sequence limit notation",
+        sourceHeading: "Sequences",
+      },
+      {
+        id: "jacob-continuity-eps-delta",
+        type: "latex",
+        latex: "\\forall \\varepsilon>0\\ \\exists \\delta>0\\ \\text{ such that } |x-a|<\\delta \\Rightarrow |f(x)-f(a)|<\\varepsilon",
+        label: "Epsilon-delta continuity",
+        sourceHeading: "Continuity and uniform continuity",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-analysis-series-functions",
+    binder_id: "binder-jacob-math-notes",
+    title: "Real Analysis: Series, Power Series, and Uniform Convergence",
+    order_index: 26,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Series tests"),
+      bulletList([
+        "Comparison, root, ratio, alternating-series, and integral tests reappear in a proof-centered style.",
+        "Absolute convergence is separated clearly from conditional convergence.",
+        "The Cauchy criterion is one of the main ways to organize convergence proofs.",
+      ]),
+      heading("Power series"),
+      paragraph(
+        "Revisit radius of convergence, then prove the continuity, differentiation, and integration behavior of power series on the interior of that radius.",
+      ),
+      heading("Uniform convergence"),
+      paragraph(
+        "Pointwise convergence is not strong enough for many operations, so build toward uniform convergence, uniformly Cauchy families, and the Weierstrass M-test.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-radius-convergence",
+        type: "latex",
+        latex: "\\sum_{n=0}^{\\infty} a_n(x-c)^n",
+        label: "Power-series form",
+        sourceHeading: "Power series",
+      },
+      {
+        id: "jacob-weierstrass-m",
+        type: "latex",
+        latex: "|f_n(x)|\\le M_n\\ \\text{ and }\\ \\sum M_n\\ \\text{ converges}",
+        label: "Weierstrass M-test setup",
+        sourceHeading: "Uniform convergence",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-jacob-analysis-derivatives-integration",
+    binder_id: "binder-jacob-math-notes",
+    title: "Real Analysis: Differentiation, Taylor Theory, Riemann Integration, and Improper Integrals",
+    order_index: 27,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Differentiation theorems"),
+      bulletList([
+        "Differentiability implies continuity.",
+        "The chain rule, Rolle's Theorem, and the Mean Value Theorem are all proved from the formal definitions.",
+        "Include inverse-derivative formulas, generalized MVT, and a careful treatment of L'Hopital's Rule.",
+      ]),
+      heading("Taylor theory"),
+      paragraph(
+        "This section pushes beyond the computational calculus version and includes remainder terms, bounds, integral forms, Cauchy forms, and binomial-series consequences.",
+      ),
+      heading("Riemann and Riemann-Stieltjes integration"),
+      paragraph(
+        "The integration chapter is built from Darboux sums, partitions, mesh, Cauchy criteria, integrability theorems, and the equivalence of Riemann and Darboux viewpoints. It then extends to Riemann-Stieltjes and improper integrals.",
+      ),
+      blockquote(
+        "By this point the binder works like a compact reference manual. The value is in keeping the formal statements, the intuition, and the proof skeletons beside each other.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "jacob-differentiable-def",
+        type: "latex",
+        latex: "f'(a)=\\lim_{x\\to a}\\frac{f(x)-f(a)}{x-a}",
+        label: "Differentiability definition",
+        sourceHeading: "Differentiation theorems",
+      },
+      {
+        id: "jacob-taylor-remainder",
+        type: "latex",
+        latex: "f(x)=\\sum_{k=0}^{n}\\frac{f^{(k)}(a)}{k!}(x-a)^k+R_n(x)",
+        label: "Taylor theorem with remainder",
+        sourceHeading: "Taylor theory",
+      },
+      {
+        id: "jacob-riemann-sum",
+        type: "latex",
+        latex: "\\sum f(c_i)\\Delta x_i",
+        label: "Riemann sum",
+        sourceHeading: "Riemann and Riemann-Stieltjes integration",
+      },
+      {
+        id: "jacob-improper-integral",
+        type: "latex",
+        latex: "\\int_a^{\\infty} f(x)\\,dx=\\lim_{b\\to\\infty}\\int_a^b f(x)\\,dx",
+        label: "Improper integral definition",
+        sourceHeading: "Riemann and Riemann-Stieltjes integration",
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+const romanLessons: BinderLesson[] = [
+  {
+    id: "lesson-rome-origins",
+    binder_id: "binder-rise-of-rome",
+    title: "Before Rome: Alba Longa, Numitor, and the Founding Myth",
+    order_index: 1,
+    is_preview: true,
+    content: lessonDoc(
+      heading("Start with Alba Longa, not Rome"),
+      paragraph(
+        "Roman origin stories begin in Alba Longa, a Latin city in the Alban Hills. In the legend, the rightful king Numitor is overthrown by his brother Amulius, who removes rival heirs so the throne stays in his hands.",
+      ),
+      heading("Rhea Silvia and the twins"),
+      paragraph(
+        "Numitor's daughter Rhea Silvia is forced into the Vestal order so she cannot produce heirs. The myth then says she gives birth to twin boys, Romulus and Remus, and explains the pregnancy by claiming the god Mars fathered them.",
+      ),
+      bulletList([
+        "Amulius sees the twins as a political threat because they carry the bloodline he tried to erase.",
+        "The infants are abandoned near the Tiber, survive, and are later raised outside the royal court.",
+        "A she-wolf becomes the most famous symbol in the story, though the entire episode belongs to legend rather than verifiable history.",
+      ]),
+      heading("Why the myth matters"),
+      paragraph(
+        "The story tells Romans what they wanted to believe about themselves: that their city came from divine favor, exile, danger, and survival. Even when the details are mythical, the narrative shapes Roman identity for centuries.",
+      ),
+      blockquote(
+        "Treat the founding story as political myth with cultural power. It is less useful as strict evidence and very useful as a window into Roman values.",
+      ),
+      heading("Myth, history, and later interpretation"),
+      bulletList([
+        "Legendary layer: divine parentage, the she-wolf, and the brothers' contest explain Rome through sacred story rather than documentary evidence.",
+        "Historically plausible layer: archaeologists do see settlement growth near the future city of Rome in the eighth century BCE.",
+        "Later interpretation: Roman writers in the late republic and early empire shaped the founding story into a lesson about violence, legitimacy, and civic destiny.",
+      ]),
+      heading("Rome in one timeline"),
+      orderedList([
+        "Traditional date 753 BCE: Romulus founds Rome in Roman memory.",
+        "Traditional date 509 BCE: monarchy ends and the republic begins.",
+        "264-146 BCE: the Punic Wars turn Rome into a Mediterranean power.",
+        "49-27 BCE: civil wars destroy the republic from within.",
+        "27 BCE: Augustus creates the imperial settlement later called the principate.",
+        "9 CE: the Teutoburg Forest disaster helps fix a practical northern frontier.",
+        "Third century CE: military, financial, and political crisis shakes the empire.",
+        "330 CE: Constantinople becomes a major imperial center in the east.",
+        "476 CE: the western imperial office ends.",
+        "1453 CE: Constantinople falls, ending the last state that still called itself Roman.",
+      ]),
+      ...evidenceLockerSection(
+        "Evidence locker: founding story",
+        "Use these sources to separate cultural memory from historically testable claims.",
+        [
+          {
+            title: "Livy, Ab Urbe Condita",
+            sourceType: "Secondary literary history with legendary material",
+            date: "Late first century BCE to early first century CE",
+            context: "Written under Augustus, long after the founding era",
+            keyIdea: "Livy preserves the royal family conflict, the twins, and the moral meaning Romans attached to the story.",
+            supports: "Roman elites used the founding myth to explain values such as courage, piety, and public order.",
+            reliability: "Excellent for Roman memory and ideology, but not direct proof of eighth-century events.",
+          },
+          {
+            title: "Plutarch, Life of Romulus",
+            sourceType: "Secondary biographical narrative",
+            date: "Early second century CE",
+            context: "A Greek writer collecting and comparing older Roman traditions",
+            keyIdea: "Plutarch shows that multiple founding versions circulated even in antiquity.",
+            supports: "The founding story was interpreted, retold, and reshaped rather than fixed once and for all.",
+            reliability: "Useful for comparing traditions, but very distant from the events it describes.",
+          },
+          {
+            title: "Archaeology of early Latium",
+            sourceType: "Material evidence",
+            date: "Modern recovery of eighth-century BCE settlement evidence",
+            context: "Burials, settlement traces, and early urban development near the Tiber",
+            keyIdea: "Archaeology supports the existence of growing settlements, not the literal wolf-and-twins narrative.",
+            supports: "Rome likely emerged from real settlement consolidation even though the legend dramatizes the process.",
+            reliability: "Best evidence for what physically existed, but it cannot confirm legendary characters.",
+          },
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Numitor: the displaced king whose restoration gives the twins a political claim.",
+        "Amulius: the usurper whose coup turns a family dispute into the founding crisis.",
+        "Rhea Silvia: the royal daughter whose forced priesthood shows how dynastic control sits at the center of the legend.",
+        "Romulus and Remus: twin founders whose rivalry turns brotherhood into a myth about political violence.",
+        "Vestal Virgins: priestesses tied to civic purity, legitimacy, and the sacred life of the city.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-foundation-kingdom",
+    binder_id: "binder-rise-of-rome",
+    title: "Romulus, the Roman Kingdom, and the Move from Myth to Monarchy",
+    order_index: 2,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Romulus and Remus return to power"),
+      paragraph(
+        "Once the twins learn their identity, they help restore Numitor and then leave to found a new settlement near the Tiber. The legend says their disagreement over the city's location and divine signs ends with Romulus killing Remus and becoming the first king.",
+      ),
+      heading("The early city"),
+      paragraph(
+        "Rome is described as a refuge city at first, drawing in fugitives, exiles, and outsiders. That image matters because it casts Rome as a place that grows by absorbing people rather than staying ethnically or politically pure.",
+      ),
+      heading("The Roman Kingdom"),
+      bulletList([
+        "Roman tradition counts seven kings before the republic begins.",
+        "The kingship period blends religion, warfare, public building, and the first versions of Roman institutions.",
+        "Stories about the kings are partly legendary, but they preserve Roman ideas about civic order, engineering, and the dangers of tyranny.",
+      ]),
+      heading("Why monarchy ends in Roman memory"),
+      paragraph(
+        "Roman tradition makes the fall of the monarchy into a constitutional lesson. The story of the last king teaches that concentrated power becomes dangerous when it stops answering to the wider community.",
+      ),
+      paragraph(
+        "By the end of the monarchy, Roman memory emphasizes one main lesson: kings become dangerous when power stops answering to the community.",
+      ),
+      ...evidenceLockerSection(
+        "Evidence locker: kings and early institutions",
+        "Early Rome is hard to reconstruct, so historians read literary tradition beside archaeology and institutional memory.",
+        [
+          {
+            title: "Livy on the Roman kings",
+            sourceType: "Secondary literary history",
+            date: "Late first century BCE",
+            context: "A Roman historian preserving stories about the seven kings",
+            keyIdea: "Each king is used to explain a part of Roman religion, warfare, or public building.",
+            supports: "Romans treated the monarchy as the training ground for later institutions.",
+            reliability: "Strong for Roman political memory, but shaped by later republican and Augustan concerns.",
+          },
+          {
+            title: "Forum and early urban archaeology",
+            sourceType: "Material evidence",
+            date: "Evidence from early Rome, recovered in modern archaeology",
+            context: "Drainage, public space development, and settlement consolidation",
+            keyIdea: "Archaeology suggests Rome really did become more urban and organized during the regal period.",
+            supports: "The kingdom stories are embellished, but they may preserve memories of real institutional growth.",
+            reliability: "Best for physical change, weaker for the exact identities of individual kings.",
+          },
+        ],
+      ),
+      ...argumentBuilderSection(
+        "Causation builder: why replace a king with shared office?",
+        "Push past the simple answer that Romans disliked one bad ruler. Ask what political problem the republic was designed to solve.",
+        [
+          "Rome moved to shared office because its political memory linked single-person rule with arbitrary violence and unanswerable power.",
+          "The republic did not remove elite rule; it redistributed elite power into offices that could check one another.",
+          "Roman anti-monarchy worked best as a political language that justified a new aristocratic system.",
+        ],
+        [
+          "Use the tradition about the last king to show what Romans thought monarchy had become.",
+          "Point to the dual consulship and annual turnover as institutional answers to concentrated rule.",
+          "Explain how the Senate and magistracies kept elite leadership while changing the form of legitimacy.",
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Romulus: legendary founder and first king, later used as a model for martial leadership.",
+        "Remus: the brother whose death shows how Roman tradition links state formation to violence.",
+        "The Senate: an elite council that becomes central to Roman political continuity.",
+        "The Sabines: neighbors whose incorporation helps Roman tradition explain early expansion through absorption.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-republic-italy",
+    binder_id: "binder-rise-of-rome",
+    title: "The Roman Republic: Shared Office, Military Pressure, and the Conquest of Italy",
+    order_index: 3,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Why the republic replaces kings"),
+      paragraph(
+        "Roman tradition says the final king is expelled for arrogance and abuse, so the city replaces one ruler with annually elected magistrates. Two consuls hold executive authority at the same time and can block one another, which is meant to prevent monarchy from returning.",
+      ),
+      heading("The Gallic shock"),
+      paragraph(
+        "A Gallic sack of Rome becomes a civic trauma. It convinces Romans that survival depends on military readiness, stronger institutions, and relentless strategic expansion.",
+      ),
+      heading("How Rome builds power in Italy"),
+      bulletList([
+        "Rome defeats nearby Latin communities and hill peoples step by step rather than through one single conquest.",
+        "Military success is paired with roads, colonies, alliances, and legal arrangements that tie other communities to Rome.",
+        "Expansion in Italy creates manpower reserves that later make Rome unusually hard to defeat.",
+      ]),
+      blockquote(
+        "The republic is not peaceful government replacing violence. It is a system built to organize violence more effectively and more consistently.",
+      ),
+      ...evidenceLockerSection(
+        "Evidence locker: republican power in Italy",
+        "These sources help explain why Rome's republican institutions and military networks became so resilient.",
+        [
+          {
+            title: "Polybius, Histories",
+            sourceType: "Secondary analytical history",
+            date: "Second century BCE",
+            context: "A Greek observer trying to explain Roman success",
+            keyIdea: "Polybius describes Rome's mixed constitution and the discipline of its political system.",
+            supports: "Roman expansion depended on institutions that coordinated war, office, and social hierarchy.",
+            reliability: "Valuable because Polybius writes relatively close to Roman expansion, though from an elite perspective.",
+          },
+          {
+            title: "Roads, colonies, and alliance networks",
+            sourceType: "Material and institutional evidence",
+            date: "Middle republic",
+            context: "Roman roads, Latin colonies, and treaty arrangements across Italy",
+            keyIdea: "Rome built infrastructure and legal ties alongside military conquest.",
+            supports: "The conquest of Italy worked because Rome created durable systems for moving troops and binding allies.",
+            reliability: "Strong for structural change even when the literary narratives are selective.",
+          },
+        ],
+      ),
+      ...argumentBuilderSection(
+        "Causation builder: how military expansion changes the republic",
+        "Ask how a state built around annual offices and citizen armies changed once expansion became continuous.",
+        [
+          "Military expansion strengthened the republic at first because it expanded Rome's manpower and alliances.",
+          "Military expansion destabilized the republic over time because success concentrated wealth, prestige, and competition among elites.",
+          "Rome's victories abroad made the republic harder to defeat from the outside but more unstable on the inside.",
+        ],
+        [
+          "Show how the Gallic sack made Romans treat military preparedness as a civic necessity.",
+          "Use roads, colonies, and alliances as evidence that Rome turned conquest into durable infrastructure.",
+          "Explain why expanded territory and resources intensified elite rivalry rather than calming politics.",
+        ],
+      ),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-punic-wars",
+    binder_id: "binder-rise-of-rome",
+    title: "Punic Wars, Carthage, and Rome's Mediterranean Breakthrough",
+    order_index: 4,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Why Carthage matters"),
+      paragraph(
+        "Carthage is Rome's great rival in the western Mediterranean: rich, maritime, and deeply experienced at trade and naval war. The Punic Wars decide which state will dominate the central sea routes and the western basin.",
+      ),
+      heading("Three wars, one result"),
+      orderedList([
+        "First Punic War: Rome builds naval capacity and wins control of Sicily.",
+        "Second Punic War: Hannibal invades Italy and humiliates Rome repeatedly, but Rome adapts and eventually defeats Carthage.",
+        "Third Punic War: Rome destroys Carthage completely and removes its most serious rival.",
+      ]),
+      heading("What victory changes"),
+      bulletList([
+        "Rome now controls more territory, wealth, and slaves than the older republican structure was designed to manage.",
+        "Success abroad intensifies competition among elites at home.",
+        "Mediterranean empire does not stabilize the republic; it puts larger pressures on it.",
+      ]),
+      ...evidenceLockerSection(
+        "Evidence locker: Hannibal and the Punic Wars",
+        "The Punic Wars are unusually rich in narrative sources, but each source reflects the politics of victory and defeat.",
+        [
+          {
+            title: "Polybius on Rome and Carthage",
+            sourceType: "Secondary analytical history",
+            date: "Second century BCE",
+            context: "A Greek historian examining how Rome defeated other powers",
+            keyIdea: "Polybius treats Rome's institutions and adaptability as major reasons for victory.",
+            supports: "Rome wins not because it never loses, but because it absorbs defeats and keeps fighting.",
+            reliability: "Strong on military and political analysis, though still shaped by elite perspectives.",
+          },
+          {
+            title: "Later Roman memory of Hannibal",
+            sourceType: "Secondary Roman tradition",
+            date: "Various later writers",
+            context: "Romans remembering near-disaster from a position of later victory",
+            keyIdea: "Hannibal becomes the benchmark for an enemy who almost broke the republic.",
+            supports: "The Second Punic War was remembered as a test that forced Rome to become more adaptive and ruthless.",
+            reliability: "Useful for Roman memory, but later accounts dramatize events through hindsight.",
+          },
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Hannibal: the Carthaginian commander whose victories exposed Roman weakness without ending Roman endurance.",
+        "Carthage: Rome's great western rival in trade, naval power, and imperial reach.",
+        "Sicily: the island that helps trigger the first Punic War and opens the struggle for sea power.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-caesar-augustus",
+    binder_id: "binder-rise-of-rome",
+    title: "Julius Caesar, Civil War, and the Birth of the Empire",
+    order_index: 5,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Why Caesar becomes dangerous to the republic"),
+      paragraph(
+        "Julius Caesar gains immense prestige through conquest in Gaul, where he defeats rival peoples, extends Roman power, and builds personal loyalty among his troops. The Senate fears that his military success has made him larger than the republican system itself.",
+      ),
+      heading("Assassination solves nothing"),
+      paragraph(
+        "Caesar's murder is presented as a defense of liberty, but it destroys political balance instead of restoring it. The result is another round of civil wars, not a healthy republic.",
+      ),
+      heading("Octavian becomes Augustus"),
+      bulletList([
+        "Octavian defeats rivals, absorbs authority carefully, and presents himself as the guardian of order rather than a flashy king.",
+        "He keeps republican language alive while concentrating real power in the office historians call the principate.",
+        "In 27 BCE, Augustus marks the conventional start of the Roman Empire.",
+      ]),
+      blockquote(
+        "Augustus succeeds because he understands that lasting power must look legal, stable, and necessary even when it is highly concentrated.",
+      ),
+      ...evidenceLockerSection(
+        "Evidence locker: Caesar, Augustus, and the end of the republic",
+        "Use these sources to compare raw military charisma with carefully staged legitimacy.",
+        [
+          {
+            title: "Caesar, Commentaries on the Gallic War",
+            sourceType: "Primary political narrative",
+            date: "Mid first century BCE",
+            context: "Caesar writing about his own campaigns",
+            keyIdea: "Caesar presents himself as disciplined, necessary, and consistently successful.",
+            supports: "Military victory made Caesar politically dangerous because it built public glory and troop loyalty.",
+            reliability: "Primary and invaluable, but openly self-serving.",
+          },
+          {
+            title: "Augustus, Res Gestae",
+            sourceType: "Primary imperial self-presentation",
+            date: "Early first century CE",
+            context: "Augustus listing achievements and framing his rule",
+            keyIdea: "Augustus presents concentration of power as public service and restored order.",
+            supports: "Augustus succeeded by making one-man rule look lawful, measured, and beneficial.",
+            reliability: "Essential for imperial propaganda and self-image, not a neutral account.",
+          },
+        ],
+      ),
+      ...argumentBuilderSection(
+        "Causation builder: why Augustus succeeds where Caesar fails",
+        "Students often stop at personality. Go further and compare political theater, institutional design, and public memory.",
+        [
+          "Augustus succeeded where Caesar failed because he disguised concentrated power inside republican language and longer-term stability.",
+          "Caesar frightened the Senate by looking too openly dominant, while Augustus made dominance feel administrative and necessary.",
+          "The difference was not that Augustus was less ambitious; it was that he was more disciplined about how ambition appeared.",
+        ],
+        [
+          "Use Caesar's military prestige and assassination to show why elite fear mattered.",
+          "Use Augustus' careful titles, public works, and image of restoration to explain why his rule endured.",
+          "Show that civil war made many Romans value order more than old republican purity.",
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Julius Caesar: conquering general whose rise exposes how unstable the late republic had become.",
+        "Augustus: ruler who turns victory in civil war into a durable political settlement.",
+        "The Senate: an institution that survives into empire, but with reduced control over final power.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-golden-age-frontiers",
+    binder_id: "binder-rise-of-rome",
+    title: "Augustus, Frontier Policy, and Life Inside the High Empire",
+    order_index: 6,
+    is_preview: false,
+    content: lessonDoc(
+      heading("The professional army"),
+      paragraph(
+        "Augustus weakens the cycle of civil war by turning Roman forces into a standing professional army. Soldiers are paid by the state, serve for long terms, and retire through structured rewards instead of personal promises from rebellious generals.",
+      ),
+      heading("From expansion to defense"),
+      paragraph(
+        "Rome still fights hard, but imperial strategy becomes more defensive and administrative. The Teutoburg Forest disaster in 9 CE shows how expensive overextension can be and helps confirm the Rhine as a practical frontier.",
+      ),
+      heading("What imperial stability looks like"),
+      bulletList([
+        "Major cities gain roads, baths, markets, aqueducts, courts, and durable administrative routines.",
+        "Trade moves across enormous distances, and citizenship becomes more valuable as a legal and social status.",
+        "This stability is uneven and still rests on conquest, taxation, and slavery.",
+      ]),
+      paragraph(
+        "Rome's appeal is not only military fear. Many outsiders want Roman security, pay, law, and access, which helps explain why the empire can absorb new populations for so long.",
+      ),
+      heading("Timeline checkpoint: empire at its height"),
+      orderedList([
+        "27 BCE: Augustus begins the principate and reforms the army.",
+        "9 CE: three Roman legions are destroyed in the Teutoburg Forest.",
+        "Second century CE: the empire reaches a high point of territorial reach and administrative cohesion.",
+      ]),
+      ...evidenceLockerSection(
+        "Evidence locker: frontier management and imperial life",
+        "These sources help you explain why Rome looked both stable and deeply militarized.",
+        [
+          {
+            title: "Tacitus on Germany and the frontier",
+            sourceType: "Secondary elite Roman writing",
+            date: "Late first to early second century CE",
+            context: "A Roman senator reflecting on frontier peoples and imperial politics",
+            keyIdea: "Tacitus shows both Roman fascination with and anxiety about life beyond the frontier.",
+            supports: "Rome defined itself partly against the peoples it could not fully absorb or control.",
+            reliability: "Insightful but shaped by moralizing Roman contrast between empire and outsiders.",
+          },
+          {
+            title: "Roads, forts, and military diplomas",
+            sourceType: "Material and documentary evidence",
+            date: "Early empire",
+            context: "Fortification networks, troop movements, and official documents for service and citizenship",
+            keyIdea: "The empire kept order through permanent military and administrative systems.",
+            supports: "Imperial stability depended on structured logistics rather than charisma alone.",
+            reliability: "Strong evidence for how administration and frontier management actually worked.",
+          },
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Arminius: a Roman-trained ally who turns Roman methods against Varus in Germania.",
+        "The Praetorian Guard: the emperor's elite guard, later a decisive political actor in the capital.",
+        "Professional legions: long-service state armies that reduce personal warlord politics but make military command central to imperial survival.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-crisis-constantine",
+    binder_id: "binder-rise-of-rome",
+    title: "The Third-Century Crisis, Tetrarchy, and Constantine's Christian Turn",
+    order_index: 7,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Why the third century breaks down"),
+      paragraph(
+        "The empire faces military invasions, plague, inflation, succession chaos, and constant civil conflict. Emperors rise and fall so quickly that the political center begins to look structurally unstable.",
+      ),
+      heading("Diocletian's answer"),
+      paragraph(
+        "Diocletian reorganizes rule through the tetrarchy, a system with two senior emperors and two junior emperors. The point is practical: the empire is too large for one court to manage effectively under continuous pressure.",
+      ),
+      heading("Constantine and the east"),
+      bulletList([
+        "Constantine reunifies the empire after more civil conflict, but he does not restore the old Roman center in Italy.",
+        "He builds Constantinople in the east and gives Christianity privileged legal status.",
+        "The old Roman world keeps existing, but its political and cultural center of gravity has shifted.",
+      ]),
+      ...evidenceLockerSection(
+        "Evidence locker: reform, Christianity, and the eastern turn",
+        "This part of Roman history mixes state reform with new religious language and a new imperial geography.",
+        [
+          {
+            title: "Edict of Milan",
+            sourceType: "Imperial policy text",
+            date: "313 CE",
+            context: "Imperial policy associated with Constantine and Licinius",
+            keyIdea: "Christian worship becomes legally tolerated rather than criminalized.",
+            supports: "Constantine's reign changes the legal and public place of Christianity inside the empire.",
+            reliability: "Useful for legal policy, though later Christian memory sometimes overstates its simplicity.",
+          },
+          {
+            title: "Eusebius on Constantine",
+            sourceType: "Near-contemporary Christian narrative",
+            date: "Fourth century CE",
+            context: "A Christian bishop writing about Constantine's reign",
+            keyIdea: "Constantine is framed as a ruler chosen to reshape the empire under Christian favor.",
+            supports: "Later interpretation of Constantine is inseparable from Christian political storytelling.",
+            reliability: "Close to events, but deeply committed to praising Constantine.",
+          },
+        ],
+      ),
+      ...argumentBuilderSection(
+        "Causation builder: why does the imperial center move east?",
+        "Instead of treating Constantinople as a random new capital, ask what strategic and political problems the east solved better.",
+        [
+          "The imperial center shifts east because the richer, more urban eastern provinces were easier to defend and administer at scale.",
+          "Constantine's move east reflects long-term structural pressures more than personal preference alone.",
+          "The eastern turn shows that the empire was changing from a Rome-centered Mediterranean state into a different kind of imperial system.",
+        ],
+        [
+          "Use the third-century crisis to show why old patterns of rule had become unstable.",
+          "Use the tetrarchy to show that multiple centers of power were already becoming normal.",
+          "Use Constantinople's location and Christianity's rising status to explain why the east became more attractive.",
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "Diocletian: reforming emperor who admits the empire is too large for the old style of rule.",
+        "Constantine: ruler who reunifies the empire, privileges Christianity, and builds a new eastern center.",
+        "The tetrarchy: a practical attempt to solve scale, frontier pressure, and succession chaos.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-rome-fall-west",
+    binder_id: "binder-rise-of-rome",
+    title: "The Fall of the Western Empire and the Long Roman Afterlife",
+    order_index: 8,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Migration, pressure, and imperial weakness"),
+      paragraph(
+        "Late Roman politics are shaped by migration and frontier shocks, especially after the Huns push other groups westward. Gothic groups enter Roman territory in large numbers, and poor Roman management turns potential settlement into revolt and war.",
+      ),
+      heading("Why the west collapses"),
+      bulletList([
+        "The western court loses revenue, especially when North Africa is lost.",
+        "Roman armies become increasingly dependent on negotiated arrangements with powerful armed groups inside imperial territory.",
+        "Repeated sacks of Rome expose how much symbolic weight the city still has even when the political center has shifted elsewhere.",
+      ]),
+      heading("476 and after"),
+      paragraph(
+        "In 476 CE, the last western emperor is removed, and the western imperial office disappears. The eastern empire centered on Constantinople continues for nearly a thousand more years, preserving Roman law, imperial tradition, and a different path of survival.",
+      ),
+      blockquote(
+        "Rome does not vanish in a single moment. The western empire falls, but Roman institutions, identities, and claims continue far beyond that date.",
+      ),
+      ...evidenceLockerSection(
+        "Evidence locker: western fall and eastern survival",
+        "The end of the west is best studied as a long process rather than a single dramatic final battle.",
+        [
+          {
+            title: "Ammianus Marcellinus",
+            sourceType: "Near-contemporary narrative history",
+            date: "Late fourth century CE",
+            context: "A soldier-historian writing about frontier war and imperial weakness",
+            keyIdea: "Ammianus records how military strain, court politics, and frontier pressure interact.",
+            supports: "The empire weakens through accumulated structural strain, not just through one invasion.",
+            reliability: "Excellent for the later fourth century, though still shaped by elite Roman concerns.",
+          },
+          {
+            title: "Augustine, City of God",
+            sourceType: "Late antique interpretation",
+            date: "Early fifth century CE",
+            context: "Written after the sack of Rome in 410 CE",
+            keyIdea: "Augustine responds to the claim that Rome fell because it abandoned old gods.",
+            supports: "Later Romans were already debating whether the crisis was moral, political, military, or theological.",
+            reliability: "Useful for how Romans interpreted crisis, not for neutral military reporting.",
+          },
+        ],
+      ),
+      ...argumentBuilderSection(
+        "Causation and argument builder",
+        "Do not stop at a single-cause answer such as invasion. Build a layered explanation that combines finances, military structure, migration pressure, and political fragmentation.",
+        [
+          "The western empire weakens because it loses the revenue and institutional cohesion needed to pay and control effective armies.",
+          "The west falls when migration pressure meets a court that can no longer integrate, supply, and command armed groups reliably.",
+          "The western collapse is best explained as a chain reaction: frontier shock, fiscal loss, military bargaining, and shrinking state capacity.",
+        ],
+        [
+          "Use the entry of Gothic groups and the fallout after Adrianople to show how mismanaged settlement turned into war.",
+          "Use the loss of North Africa to explain why taxation and military pay became harder to sustain.",
+          "Contrast the west with the eastern empire to show that Roman institutions did not disappear everywhere at once.",
+        ],
+      ),
+      heading("Key people and concept cards"),
+      bulletList([
+        "The Huns and Goths: migration-era powers that reshape Roman frontiers and political bargains.",
+        "The Praetorian and military command tradition: reminders that imperial politics had long depended on armed force close to power.",
+        "Byzantium or the Eastern Roman Empire: the state that carries Roman law, administration, and imperial claims long after the west falls.",
+      ]),
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+export const demoLessons: BinderLesson[] = [
+  {
+    id: "lesson-algebra-like-terms",
+    binder_id: "binder-algebra-foundations",
+    title: "Like Terms and Expressions",
+    order_index: 1,
+    is_preview: true,
+    content: lessonDoc(
+      heading("What counts as a like term?"),
+      paragraph(
+        "Like terms have the same variable part. That means the letters and their exponents match, even if the coefficients are different. You can combine 3x and -5x, but you cannot combine 3x and 3x^2 because the exponent changes the term.",
+      ),
+      heading("Working with parentheses"),
+      paragraph(
+        "Parentheses tell you to distribute carefully. A minus sign in front of parentheses changes every sign inside the group, so 6-(x+3) is easier to read as 6-1(x+3) before you distribute.",
+      ),
+      bulletList([
+        "Add coefficients when the variable part matches: x + x = 2x.",
+        "Use the distributive property before combining terms when parentheses are involved.",
+        "Watch for negatives: subtracting a quantity changes every sign inside that quantity.",
+      ]),
+      heading("Turning language into algebra"),
+      paragraph(
+        "Word phrases often point to operations. Sum means add, less than usually reverses subtraction order, every or each often signals multiplication, and per often signals division. Consecutive integers can be modeled as x, x+1, and x+2.",
+      ),
+      blockquote(
+        "A good checkpoint: after simplifying, ask whether every surviving term is unlike the others. If yes, you are probably done.",
+      ),
+      heading("Quick examples"),
+      orderedList([
+        "Simplify 4x + 7 - 2x + 3 by combining the x terms and then the constants.",
+        "Rewrite 6-(x+3) as 6-1(x+3), distribute, then combine.",
+        "Model three consecutive integers that add to 24 with x, x+1, and x+2.",
+      ]),
+    ),
+    math_blocks: [
+      { id: "alg1-like-latex-distribute", type: "latex", latex: "6-(x+3)=6-1(x+3)=6-x-3" },
+      { id: "alg1-like-latex-terms", type: "latex", latex: "3x+5x-2=8x-2" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-polynomials",
+    binder_id: "binder-algebra-foundations",
+    title: "Polynomials and Trinomials",
+    order_index: 2,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Reading polynomial structure"),
+      paragraph(
+        "A polynomial is an expression made from variables raised to whole-number powers, combined with addition, subtraction, and multiplication by constants. A trinomial is just a polynomial with exactly three terms.",
+      ),
+      heading("Adding and subtracting"),
+      paragraph(
+        "When you add or subtract polynomials, line up like terms and simplify from the highest degree down. This keeps the expression organized and makes missing powers easier to spot.",
+      ),
+      heading("Multiplying"),
+      paragraph(
+        "For binomials, FOIL is a useful memory tool: first, outer, inner, last. For larger expressions, the big idea is the same: every term in one factor must multiply every term in the other factor.",
+      ),
+      bulletList([
+        "Keep your terms in descending order when you finish.",
+        "If a power is missing during division or long division, insert a zero term as a placeholder.",
+        "Multivariable polynomials still combine only when the full variable part matches.",
+      ]),
+      heading("Why graphing helps"),
+      paragraph(
+        "Different polynomial forms can describe the same curve. Graphing an expanded form and a factored form together helps you see that structure and behavior match.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "alg1-poly-graph-1",
+        type: "graph",
+        expressions: ["y=x^2+3x+2", "y=(x+1)(x+2)", "y=x^2+6x+5"],
+        xMin: -8,
+        xMax: 5,
+        yMin: -10,
+        yMax: 20,
+      },
+      { id: "alg1-poly-latex-foil", type: "latex", latex: "(x+2)(x+3)=x^2+5x+6" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-factoring",
+    binder_id: "binder-algebra-foundations",
+    title: "Factoring and GCF",
+    order_index: 3,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Start with the greatest common factor"),
+      paragraph(
+        "Before doing any deeper factoring, look for the largest factor that every term shares. Pulling out the GCF makes the remaining expression smaller and often reveals the next factoring step immediately.",
+      ),
+      heading("Factoring trinomials"),
+      paragraph(
+        "For a trinomial like x^2+5x+6, you want two numbers that multiply to the constant term and add to the middle coefficient. If no integer pair works, the trinomial may be prime over the integers.",
+      ),
+      heading("Difference of squares"),
+      paragraph(
+        "A difference of squares has the form a^2-b^2, and it factors as (a-b)(a+b). This pattern matters because some quadratics factor quickly once you recognize it.",
+      ),
+      bulletList([
+        "Always check for a GCF first.",
+        "If the leading coefficient is negative, consider factoring the negative out first.",
+        "Keep factoring until every factor is as simple as possible.",
+      ]),
+      blockquote(
+        "Factoring is not random trial and error. It is pattern recognition plus a consistent order: GCF, special products, then trinomial structure.",
+      ),
+    ),
+    math_blocks: [
+      { id: "alg1-factor-latex-gcf", type: "latex", latex: "6x^2+9x=3x(2x+3)" },
+      { id: "alg1-factor-latex-diff", type: "latex", latex: "x^2-9=(x-3)(x+3)" },
+      {
+        id: "alg1-factor-graph-1",
+        type: "graph",
+        expressions: ["y=x^2-9", "y=(x-3)(x+3)"],
+        xMin: -8,
+        xMax: 8,
+        yMin: -12,
+        yMax: 20,
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-quadratics",
+    binder_id: "binder-algebra-foundations",
+    title: "Completing the Square and Quadratics",
+    order_index: 4,
+    is_preview: false,
+    content: lessonDoc(
+      heading("When factoring is not enough"),
+      paragraph(
+        "Some quadratics do not factor nicely, so we need other tools. Completing the square rewrites a quadratic into vertex form, and the quadratic formula gives a direct method when factoring is not convenient.",
+      ),
+      heading("Completing the square"),
+      paragraph(
+        "Start by making the coefficient of x^2 equal to 1. Then take half of the x coefficient, square it, and add that value to both sides. This creates a perfect square trinomial on the left.",
+      ),
+      orderedList([
+        "Move the constant term to the other side.",
+        "Take half of the x coefficient and square it.",
+        "Add that value to both sides.",
+        "Rewrite the left side as a squared binomial.",
+        "Take square roots and solve for x.",
+      ]),
+      heading("Quadratic formula"),
+      paragraph(
+        "For ax^2+bx+c=0, the roots are x=(-b +/- sqrt(b^2-4ac))/(2a). The discriminant, b^2-4ac, tells you whether the roots are two real numbers, one repeated root, or complex.",
+      ),
+      heading("Connecting forms by graph"),
+      paragraph(
+        "Expanded form, factored form, and vertex form all describe the same parabola in different ways. Graphing them together helps you see roots, axis of symmetry, and the turning point at once.",
+      ),
+    ),
+    math_blocks: [
+      { id: "alg1-quad-latex-square", type: "latex", latex: "x^2+6x+5=(x+3)^2-4" },
+      { id: "alg1-quad-latex-formula", type: "latex", latex: "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}" },
+      {
+        id: "alg1-quad-graph-1",
+        type: "graph",
+        expressions: ["y=x^2+6x+5", "y=(x+3)^2-4", "y=x^2+3x+2"],
+        xMin: -10,
+        xMax: 6,
+        yMin: -10,
+        yMax: 24,
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-functions",
+    binder_id: "binder-algebra-foundations",
+    title: "Functions, Domain, and Range",
+    order_index: 5,
+    is_preview: false,
+    content: lessonDoc(
+      heading("What a function does"),
+      paragraph(
+        "A function pairs each allowed input with exactly one output. Functional notation, such as f(x), labels that rule and lets you plug in specific values like f(2) or f(-4).",
+      ),
+      heading("Domain and range"),
+      paragraph(
+        "The domain is the set of allowed x-values. The range is the set of y-values the function can produce. Domain restrictions often come from square roots, logarithms, and denominators.",
+      ),
+      bulletList([
+        "For sqrt(x), the radicand must be greater than or equal to 0.",
+        "For ln(x), the input must be greater than 0.",
+        "For 1/x, the denominator cannot be 0.",
+      ]),
+      heading("Testing whether a graph is a function"),
+      paragraph(
+        "Use the vertical line test. If any vertical line hits the graph more than once, the graph is not a function because one input would have multiple outputs.",
+      ),
+      heading("Graph reading"),
+      paragraph(
+        "On a graph, domain is read left to right and range is read bottom to top. This is a quick way to connect function rules to visual behavior.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "alg1-functions-graph-1",
+        type: "graph",
+        expressions: ["y=sqrt(x)", "y=1/x", "y=ln(x)"],
+        xMin: -10,
+        xMax: 10,
+        yMin: -10,
+        yMax: 10,
+      },
+      { id: "alg1-functions-latex", type: "latex", latex: "f(x)=2x-3,\\; f(4)=5" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-lines",
+    binder_id: "binder-algebra-foundations",
+    title: "Coordinate Plane, Slope, and Lines",
+    order_index: 6,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Reading the coordinate plane"),
+      paragraph(
+        "The x-axis is horizontal and the y-axis is vertical. Ordered pairs are written as (x, y), and the signs of x and y determine which quadrant a point lands in.",
+      ),
+      heading("Slope means rise over run"),
+      paragraph(
+        "Slope measures how much y changes when x changes. The formula m=(y2-y1)/(x2-x1) compares vertical change to horizontal change.",
+      ),
+      heading("Slope-intercept form"),
+      paragraph(
+        "A line in slope-intercept form is y=mx+b. The slope m tells you how the line tilts, and b tells you where the line crosses the y-axis.",
+      ),
+      bulletList([
+        "Positive slope rises left to right.",
+        "Negative slope falls left to right.",
+        "A horizontal line has slope 0.",
+        "A vertical line has undefined slope.",
+      ]),
+      heading("Using points to build equations"),
+      paragraph(
+        "If you know a point and the slope, you can build the line and then rewrite it in slope-intercept form. If you know two points, find the slope first, then solve for b.",
+      ),
+    ),
+    math_blocks: [
+      {
+        id: "alg1-lines-graph-1",
+        type: "graph",
+        expressions: ["y=2x+1", "y=-x+4"],
+        xMin: -10,
+        xMax: 10,
+        yMin: -10,
+        yMax: 10,
+      },
+      { id: "alg1-lines-latex", type: "latex", latex: "m=\\frac{y_2-y_1}{x_2-x_1}" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-inequalities",
+    binder_id: "binder-algebra-foundations",
+    title: "Linear Inequalities and Graphing",
+    order_index: 7,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Solving inequalities"),
+      paragraph(
+        "You solve linear inequalities much like equations, but there is one major exception: when you multiply or divide by a negative number, you must reverse the inequality sign.",
+      ),
+      heading("Number line graphs"),
+      paragraph(
+        "Use an open circle for values that are not included and a closed circle for values that are included. Then shade in the direction that matches the solution set.",
+      ),
+      heading("Graphing in the plane"),
+      paragraph(
+        "Graph the boundary line first. Use a dashed line for < or > and a solid line for <= or >=. Then shade above the line for greater-than inequalities and below the line for less-than inequalities.",
+      ),
+      bulletList([
+        "y>2x+1 uses a dashed boundary and shades above.",
+        "y<=-x+4 uses a solid boundary and shades below.",
+        "A test point like (0,0) can confirm the correct region.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "alg1-ineq-graph-1",
+        type: "graph",
+        expressions: ["y>2x+1", "y<=-x+4"],
+        xMin: -10,
+        xMax: 10,
+        yMin: -10,
+        yMax: 10,
+      },
+      { id: "alg1-ineq-latex", type: "latex", latex: "-3x>9\\Rightarrow x<-3" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-systems",
+    binder_id: "binder-algebra-foundations",
+    title: "Systems of Equations",
+    order_index: 8,
+    is_preview: false,
+    content: lessonDoc(
+      heading("What a system asks"),
+      paragraph(
+        "A system of equations asks for values that make more than one equation true at the same time. Graphically, the solution is the intersection point.",
+      ),
+      heading("Substitution"),
+      paragraph(
+        "Substitution works well when one equation is already solved for a variable, or can be solved for a variable quickly. Replace that variable in the other equation, solve, and then back-substitute.",
+      ),
+      heading("Elimination"),
+      paragraph(
+        "Elimination works by adding or subtracting equations so one variable cancels out. After solving for one variable, substitute back to find the other.",
+      ),
+      heading("Graphing as a check"),
+      paragraph(
+        "Graphing gives a visual check on your algebra. If the lines intersect once, the system has one solution. Parallel lines have no solution, and the same line written twice has infinitely many solutions.",
+      ),
+      orderedList([
+        "Line up the equations carefully.",
+        "Pick substitution or elimination based on which looks cleaner.",
+        "Solve for one variable, then the other.",
+        "Check the ordered pair in both equations.",
+      ]),
+    ),
+    math_blocks: [
+      {
+        id: "alg1-systems-graph-1",
+        type: "graph",
+        expressions: ["y=2x+1", "y=-x+4"],
+        xMin: -10,
+        xMax: 10,
+        yMin: -10,
+        yMax: 10,
+      },
+      { id: "alg1-systems-latex", type: "latex", latex: "\\begin{aligned}y&=2x+1\\\\y&=-x+4\\end{aligned}" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-algebra-vocab",
+    binder_id: "binder-algebra-foundations",
+    title: "Vocab and Formula Sheet",
+    order_index: 9,
+    is_preview: false,
+    content: lessonDoc(
+      heading("Core vocabulary"),
+      bulletList([
+        "Variable: a symbol that represents an unknown or changeable value.",
+        "Coefficient: the number multiplying a variable term.",
+        "Polynomial: an expression made from whole-number powers of variables.",
+        "Binomial, trinomial, monomial: expressions with 2, 3, or 1 term.",
+        "Domain: all allowed inputs. Range: all resulting outputs.",
+        "Slope: rise over run, or the rate of change of a line.",
+        "Intercept: where a graph crosses an axis.",
+        "System: two or more equations solved together.",
+        "Inequality: a comparison using <, >, <=, or >=.",
+      ]),
+      heading("Formula list"),
+      bulletList([
+        "Slope formula: m=(y2-y1)/(x2-x1)",
+        "Slope-intercept form: y=mx+b",
+        "Point-slope form: y-y1=m(x-x1)",
+        "Difference of squares: a^2-b^2=(a-b)(a+b)",
+        "Quadratic formula: x=(-b +/- sqrt(b^2-4ac))/(2a)",
+      ]),
+      blockquote(
+        "Use this lesson as a formula anchor while you work through the rest of the binder.",
+      ),
+    ),
+    math_blocks: [
+      { id: "alg1-vocab-latex-slope", type: "latex", latex: "m=\\frac{y_2-y_1}{x_2-x_1}" },
+      { id: "alg1-vocab-latex-line", type: "latex", latex: "y=mx+b" },
+      { id: "alg1-vocab-latex-quad", type: "latex", latex: "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}" },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  ...romanLessons,
+  ...jacobLessons,
+  {
+    id: "lesson-limits",
+    binder_id: "binder-calculus",
+    title: "Limits are local predictions",
+    order_index: 1,
+    is_preview: true,
+    content: emptyDoc(
+      "A limit asks what a function is trying to become near a point. Before calculating, sketch the behavior, mark the input being approached, and describe the trend in plain language.",
+    ),
+    math_blocks: [
+      { id: "latex-limit", type: "latex", latex: "\\lim_{x\\to 2}(x^2+1)=5" },
+      {
+        id: "graph-limit",
+        type: "graph",
+        expressions: ["y=x^2", "y=2x+1"],
+        xMin: -5,
+        xMax: 5,
+        yMin: -5,
+        yMax: 10,
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-derivatives",
+    binder_id: "binder-calculus",
+    title: "Derivatives measure change",
+    order_index: 2,
+    is_preview: false,
+    content: emptyDoc(
+      "The derivative is a local rate of change. Read it as a slope, a sensitivity, and a shortcut for predicting nearby values.",
+    ),
+    math_blocks: [
+      { id: "latex-derivative", type: "latex", latex: "\\frac{d}{dx}x^2=2x" },
+      {
+        id: "graph-derivative",
+        type: "graph",
+        expressions: ["y=x^2", "y=2x"],
+        xMin: -4,
+        xMax: 4,
+        yMin: -5,
+        yMax: 16,
+      },
+    ],
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "lesson-notes",
+    binder_id: "binder-writing",
+    title: "Write beside the source",
+    order_index: 1,
+    is_preview: true,
+    content: emptyDoc(
+      "A private note beside a published lesson lets you translate the author's idea into your own words without damaging the original source.",
+    ),
+    math_blocks: [],
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+export const demoNotes: LearnerNote[] = [
+  {
+    id: "note-limits",
+    owner_id: demoProfile.id,
+    binder_id: "binder-calculus",
+    lesson_id: "lesson-limits",
+    folder_id: "folder-calculus",
+    title: "My limit checklist",
+    content: emptyDoc("Graph first. Table second. Algebra only after the behavior is clear."),
+    math_blocks: [
+      { id: "note-latex", type: "latex", latex: "f(x)=x^2+1" },
+      {
+        id: "note-graph",
+        type: "graph",
+        expressions: ["y=x^2+1"],
+        xMin: -5,
+        xMax: 5,
+        yMin: -2,
+        yMax: 12,
+      },
+    ],
+    pinned: true,
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+demoLessons.forEach((lesson) => {
+  lesson.math_blocks = enrichMathBlocks(lesson.math_blocks);
+});
+
+demoNotes.forEach((note) => {
+  note.math_blocks = enrichMathBlocks(note.math_blocks);
+});
+
+export const demoComments: Comment[] = [
+  {
+    id: "comment-limit",
+    owner_id: demoProfile.id,
+    binder_id: "binder-calculus",
+    lesson_id: "lesson-limits",
+    anchor_text: "near a point",
+    body: "This helped me separate the input from the output.",
+    parent_id: null,
+    resolved_at: null,
+    created_at: now,
+    updated_at: now,
+  },
+];
+
+export const demoHighlights: Highlight[] = [];
+
+export const demoConceptNodes: ConceptNode[] = [
+  {
+    id: "node-rome-origins",
+    binder_id: "binder-rise-of-rome",
+    label: "Founding myth",
+    description: "Alba Longa, Rhea Silvia, Romulus, and Remus.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-republic",
+    binder_id: "binder-rise-of-rome",
+    label: "Republican expansion",
+    description: "Shared magistracies, conquest of Italy, and Mediterranean war.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-augustus",
+    binder_id: "binder-rise-of-rome",
+    label: "Imperial settlement",
+    description: "Augustus, frontier management, and the high empire.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-crisis",
+    binder_id: "binder-rise-of-rome",
+    label: "Crisis and division",
+    description: "Third-century instability, tetrarchy, and the eastern turn.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-fall",
+    binder_id: "binder-rise-of-rome",
+    label: "Western collapse",
+    description: "Migration pressures, loss of revenue, and 476 CE.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-romulus",
+    binder_id: "binder-rise-of-rome",
+    label: "Romulus",
+    description: "Legendary founder who turns the city's origin into a story about rule, violence, and legitimacy.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-senate",
+    binder_id: "binder-rise-of-rome",
+    label: "The Senate",
+    description: "Elite political body that survives monarchy, republic, and empire with changing power.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-hannibal",
+    binder_id: "binder-rise-of-rome",
+    label: "Hannibal",
+    description: "Carthaginian commander whose victories force Rome to adapt under extreme pressure.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-caesar",
+    binder_id: "binder-rise-of-rome",
+    label: "Julius Caesar",
+    description: "General and politician whose rise makes the late republican crisis impossible to ignore.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-augustus-person",
+    binder_id: "binder-rise-of-rome",
+    label: "Augustus",
+    description: "Ruler who stabilizes one-man power by presenting it as restored order rather than monarchy.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-arminius",
+    binder_id: "binder-rise-of-rome",
+    label: "Arminius",
+    description: "Roman-trained Germanic leader whose ambush in 9 CE helps freeze Rome's frontier plans.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-praetorians",
+    binder_id: "binder-rise-of-rome",
+    label: "Praetorian Guard",
+    description: "Imperial guard unit that becomes a decisive political force in the capital.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-constantine",
+    binder_id: "binder-rise-of-rome",
+    label: "Constantine",
+    description: "Emperor who reunifies the empire, privileges Christianity, and builds Constantinople.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-migrations",
+    binder_id: "binder-rise-of-rome",
+    label: "Huns and Goths",
+    description: "Migration-era powers that reshape late Roman frontiers, war, and settlement.",
+    created_at: now,
+  },
+  {
+    id: "node-rome-eastern",
+    binder_id: "binder-rise-of-rome",
+    label: "Eastern Roman Empire",
+    description: "The eastern imperial state centered on Constantinople that continues Roman rule after the west falls.",
+    created_at: now,
+  },
+  {
+    id: "node-jacob-geometry",
+    binder_id: "binder-jacob-math-notes",
+    label: "Geometry foundations",
+    description: "Terms, transformations, congruence, and similarity.",
+    created_at: now,
+  },
+  {
+    id: "node-jacob-trig",
+    binder_id: "binder-jacob-math-notes",
+    label: "Trig and triangles",
+    description: "Trig ratios, identities, and triangle reasoning.",
+    created_at: now,
+  },
+  {
+    id: "node-jacob-algebra2",
+    binder_id: "binder-jacob-math-notes",
+    label: "Algebra 2 tools",
+    description: "Polynomials, logs, rational functions, and matrices.",
+    created_at: now,
+  },
+  {
+    id: "node-jacob-precalc",
+    binder_id: "binder-jacob-math-notes",
+    label: "Precalculus extensions",
+    description: "Complex numbers, vectors, series, and limits.",
+    created_at: now,
+  },
+  {
+    id: "node-algebra-expressions",
+    binder_id: "binder-algebra-foundations",
+    label: "Expressions",
+    description: "Simplifying, distributing, and combining like terms.",
+    created_at: now,
+  },
+  {
+    id: "node-algebra-quadratics",
+    binder_id: "binder-algebra-foundations",
+    label: "Quadratics",
+    description: "Factoring, completing the square, and the quadratic formula.",
+    created_at: now,
+  },
+  {
+    id: "node-algebra-functions",
+    binder_id: "binder-algebra-foundations",
+    label: "Functions",
+    description: "Domain, range, notation, and graph behavior.",
+    created_at: now,
+  },
+  {
+    id: "node-algebra-lines",
+    binder_id: "binder-algebra-foundations",
+    label: "Lines and systems",
+    description: "Slope, graphing, inequalities, and intersection points.",
+    created_at: now,
+  },
+  {
+    id: "node-limits",
+    binder_id: "binder-calculus",
+    label: "Limits",
+    description: "Local behavior around an input.",
+    created_at: now,
+  },
+  {
+    id: "node-derivatives",
+    binder_id: "binder-calculus",
+    label: "Derivatives",
+    description: "Instantaneous rate of change.",
+    created_at: now,
+  },
+  {
+    id: "node-graphs",
+    binder_id: "binder-calculus",
+    label: "Graphs",
+    description: "Visual reasoning before computation.",
+    created_at: now,
+  },
+];
+
+export const demoConceptEdges: ConceptEdge[] = [
+  {
+    id: "edge-rome-origins-republic",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-origins",
+    target_id: "node-rome-republic",
+    label: "frames",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-republic-augustus",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-republic",
+    target_id: "node-rome-augustus",
+    label: "transforms into",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-augustus-crisis",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-augustus",
+    target_id: "node-rome-crisis",
+    label: "eventually strains",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-crisis-fall",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-crisis",
+    target_id: "node-rome-fall",
+    label: "leads toward",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-origins-romulus",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-origins",
+    target_id: "node-rome-romulus",
+    label: "centers on",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-republic-senate",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-republic",
+    target_id: "node-rome-senate",
+    label: "is organized through",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-republic-hannibal",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-republic",
+    target_id: "node-rome-hannibal",
+    label: "is tested by",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-republic-caesar",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-republic",
+    target_id: "node-rome-caesar",
+    label: "destabilizes around",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-augustus-person",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-augustus",
+    target_id: "node-rome-augustus-person",
+    label: "is shaped by",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-augustus-arminius",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-augustus",
+    target_id: "node-rome-arminius",
+    label: "meets resistance in",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-augustus-praetorians",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-augustus",
+    target_id: "node-rome-praetorians",
+    label: "creates space for",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-crisis-constantine",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-crisis",
+    target_id: "node-rome-constantine",
+    label: "is answered by",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-fall-migrations",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-fall",
+    target_id: "node-rome-migrations",
+    label: "is pressured by",
+    created_at: now,
+  },
+  {
+    id: "edge-rome-fall-eastern",
+    binder_id: "binder-rise-of-rome",
+    source_id: "node-rome-fall",
+    target_id: "node-rome-eastern",
+    label: "contrasts with",
+    created_at: now,
+  },
+  {
+    id: "edge-jacob-geometry-trig",
+    binder_id: "binder-jacob-math-notes",
+    source_id: "node-jacob-geometry",
+    target_id: "node-jacob-trig",
+    label: "supports",
+    created_at: now,
+  },
+  {
+    id: "edge-jacob-algebra2-precalc",
+    binder_id: "binder-jacob-math-notes",
+    source_id: "node-jacob-algebra2",
+    target_id: "node-jacob-precalc",
+    label: "builds into",
+    created_at: now,
+  },
+  {
+    id: "edge-algebra-expressions-quadratics",
+    binder_id: "binder-algebra-foundations",
+    source_id: "node-algebra-expressions",
+    target_id: "node-algebra-quadratics",
+    label: "build toward",
+    created_at: now,
+  },
+  {
+    id: "edge-algebra-functions-lines",
+    binder_id: "binder-algebra-foundations",
+    source_id: "node-algebra-functions",
+    target_id: "node-algebra-lines",
+    label: "visualized by",
+    created_at: now,
+  },
+  {
+    id: "edge-limit-graph",
+    binder_id: "binder-calculus",
+    source_id: "node-limits",
+    target_id: "node-graphs",
+    label: "read with",
+    created_at: now,
+  },
+  {
+    id: "edge-derivative-graph",
+    binder_id: "binder-calculus",
+    source_id: "node-derivatives",
+    target_id: "node-graphs",
+    label: "visualize",
+    created_at: now,
+  },
+];
+
+export const demoDashboard: DashboardData = {
+  binders: demoBinders,
+  folders: demoFolders,
+  folderBinders: demoFolderBinders,
+  notes: demoNotes,
+  lessons: demoLessons,
+  recentLessons: demoLessons,
+  seedHealth: [],
+};

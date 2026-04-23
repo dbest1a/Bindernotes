@@ -1,0 +1,449 @@
+BinderNotes Tutorial
+
+This guide explains how to use the main BinderNotes features as they exist in the app today.
+It starts with the workspace editor because that is the control center for how the study experience feels.
+
+==================================================
+1. EDIT LAYOUT: HOW THE WORKSPACE WORKS
+==================================================
+
+When you open a document inside a binder, you land in the BinderNotes workspace.
+This is the main study area where you read the source lesson, write private notes, use math tools, and manage study modules.
+
+There are two main workspace modes:
+
+- Study mode
+  This is the normal locked mode.
+  It is meant for reading, writing, annotating, and studying without extra layout controls on screen.
+
+- Setup mode
+  This is the layout editing mode.
+  It lets you move windows, resize them, change presets, and decide which modules are visible.
+
+How to enter layout editing:
+
+1. Open any lesson document.
+2. Click "Edit layout" in the workspace toolbar.
+3. The workspace switches into setup mode.
+4. Window controls and resize behavior become active.
+
+What you can do in setup mode:
+
+- Drag windows to move them around the canvas.
+- Resize windows to give more room to the modules you care about most.
+- Open the workspace settings panel.
+- Switch workspace presets.
+- Show or hide modules.
+- Save the layout without locking it yet.
+- Lock the workspace when you are happy with the result.
+
+What the main layout buttons do:
+
+- Edit layout
+  Turns on setup mode.
+
+- Save
+  Saves your current arrangement while staying in editable mode.
+
+- Lock
+  Locks the current layout and returns you to a cleaner study mode.
+
+- Cancel
+  Leaves edit mode without keeping your current draft changes.
+
+- Reset
+  Restores the workspace layout to the preset/default structure.
+
+How locked study mode works:
+
+- The workspace becomes cleaner and more content-focused.
+- Dragging and resizing stop.
+- The goal is to remove noise and keep attention on reading and note-taking.
+
+==================================================
+2. WORKSPACE PRESETS
+==================================================
+
+Presets are quick ways to rearrange the workspace for a specific kind of study session.
+
+Current preset ideas in the app include:
+
+- Focused Reading
+  Makes the source lesson the main focus.
+
+- Notes Focus
+  Gives the private notes area most of the workspace.
+
+- Split Study
+  Balances source lesson and private notes side by side.
+
+- Math Study
+  Brings math tools like the graph and calculator into the study flow.
+
+- Annotation Mode
+  Supports source reading plus sticky-note style annotation.
+
+Use a preset when:
+
+- you want to switch tasks quickly
+- you do not want to manually rearrange every window
+- you want a clean starting point before customizing
+
+==================================================
+3. WORKSPACE SETTINGS
+==================================================
+
+The Settings button opens workspace preferences.
+These settings affect how the workspace feels without requiring layout editing every time.
+
+Key settings include:
+
+- Theme
+  Changes the overall visual style.
+
+- Accent
+  Adjusts the main accent color.
+
+- Density
+  Controls spacing and compactness.
+
+- Compact mode
+  Tightens the interface.
+
+- Roundness
+  Changes the border radius feel of surfaces.
+
+- Shadow
+  Changes depth and panel emphasis.
+
+- Font
+  Changes the reading/writing type style.
+
+- Animation level
+  Controls how much movement the interface uses.
+
+- Hover motion
+  Enables or disables panel lift/motion.
+
+- Background
+  Lets you choose no background pattern, subtle grid, graph paper, or dot grid.
+
+- Vertical workspace
+  Controls how much vertical canvas the workspace gets.
+  Available modes include fit, balanced, extended, and infinite.
+
+- Graph appearance
+  Controls how graph surfaces should look in normal use.
+
+- Graph chrome
+  Adjusts how strong or minimal the graph UI framing feels.
+
+- Reduced chrome
+  Keeps locked mode cleaner by reducing panel chrome.
+
+- Utility UI
+  Shows or hides some secondary interface elements.
+
+==================================================
+4. DASHBOARD, FOLDERS, AND BINDERS
+==================================================
+
+BinderNotes uses a real hierarchy:
+
+Workspace -> Folder -> Binder -> Document
+
+How to use it:
+
+- Dashboard
+  This is the workspace home.
+  You can search, open folders, open unfiled binders, and jump into recent documents.
+
+- Folder
+  A folder is a container for binders.
+  Open a folder when you want to browse a subject area or course collection.
+
+- Binder
+  A binder holds the actual study documents.
+  Open a binder to see the lessons/documents inside it.
+
+- Document
+  A document is where the real studying happens.
+  This is where the workspace opens.
+
+==================================================
+5. SOURCE LESSON MODULE
+==================================================
+
+The Source Lesson module is the published lesson or pre-made notes.
+Think of it as the official lesson canvas.
+
+What you do here:
+
+- read the lesson
+- use the source as the basis for study
+- select text to work with it
+- highlight important parts
+- create sticky notes from selected text
+- send selected source text into private notes
+- create quote or excerpt blocks from source text
+
+This module is meant to stay distinct from your personal notes.
+That separation is one of the core BinderNotes ideas.
+
+==================================================
+6. PRIVATE NOTES MODULE
+==================================================
+
+The Private Notes module is your own writing space.
+This is where you turn the source material into your own understanding.
+
+What you can do:
+
+- write personal notes
+- create a standalone note for the current document
+- insert structured content blocks
+- keep your own math blocks
+- send graphable expressions to the graph
+- use the notes area as a full writing environment if you want
+
+Common private-note actions:
+
+- create callout blocks
+- create checklist blocks
+- create math blocks
+- create graph blocks
+- insert quotes/excerpts from the source
+
+If you want BinderNotes to behave like a notes app, use Notes Focus or expand the private notes module.
+
+==================================================
+7. HIGHLIGHTS, TEXT SELECTION, AND EXCERPTS
+==================================================
+
+BinderNotes uses text selection instead of a permanent highlight button.
+
+How it works:
+
+1. Select text in the source lesson.
+2. Use the contextual actions that appear.
+3. Choose what you want to do with the selection.
+
+Current uses of selection include:
+
+- highlight it
+- turn it into a sticky note
+- send it to private notes
+- create a quote or excerpt block
+
+This is meant to feel closer to a modern document workflow and less like toggling tools on and off.
+
+==================================================
+8. STICKY NOTES
+==================================================
+
+Sticky notes are floating study notes that sit above the workspace.
+They can be anchored to source text or created as loose notes.
+
+What sticky notes support:
+
+- creating a free-floating note
+- anchoring a note to source text
+- dragging notes around the workspace
+- minimizing or closing a note
+- editing the text inside the note
+- keeping annotations visually separate from private long-form notes
+
+Important behavior:
+
+- Sticky notes are part of the annotation workflow.
+- They are optional.
+- If the comments/sticky module is hidden, the workspace stays cleaner.
+
+Use sticky notes when:
+
+- you want a quick thought without interrupting your main notes
+- you want to pin a reminder next to source material
+- you want a temporary annotation that feels spatial
+
+==================================================
+9. LESSON OUTLINE, SEARCH, AND NAVIGATION
+==================================================
+
+The workspace can include support modules to help you move faster through a binder.
+
+- Lesson Outline
+  Shows the lessons in the binder and lets you jump between them.
+
+- Search
+  Searches lesson content within the current binder.
+
+- Breadcrumbs
+  Show where you are in the hierarchy:
+  Workspace -> Folder -> Binder -> Document
+
+Use these when you are moving around a larger binder instead of staying inside one lesson for a long time.
+
+==================================================
+10. MATH BLOCKS, FORMULA SHEET, AND GRAPH MODULES
+==================================================
+
+BinderNotes has a math-aware layer for graphable and formula-heavy lessons.
+
+- Math Blocks
+  These are lesson or note blocks containing equations or graph-ready content.
+
+- Formula Sheet
+  Pulls reusable math content into one place.
+
+- Graph Blocks
+  Store graphable expressions in the lesson or note flow.
+
+- Desmos Graph
+  Opens a live interactive graphing calculator.
+
+- Saved Graphs
+  Lets you save graph states and load them again later.
+
+Use these when studying algebra, precalculus, calculus, or any topic where graphing and formulas matter.
+
+==================================================
+11. MATH LAB
+==================================================
+
+Math Lab is a dedicated math workspace outside the binder reader.
+It is useful when you want to do graphing and calculator work without the full lesson workspace.
+
+What it includes:
+
+- live Desmos graphing area
+- scientific calculator area
+- saved graph states
+- graph expand/collapse behavior
+- graph show/hide behavior
+
+Typical Math Lab workflow:
+
+1. Open Math Lab from the app.
+2. Use the calculator for quick numeric work.
+3. Send expressions to the live graph.
+4. Save useful graph states.
+5. Reopen them later when needed.
+
+==================================================
+12. SCIENTIFIC CALCULATOR
+==================================================
+
+The calculator supports fast numeric and graph-related input.
+
+What it is good for:
+
+- arithmetic
+- trig
+- powers
+- roots
+- logs
+- reusable function input
+- preparing expressions for graphing
+
+The calculator and graph are meant to work together.
+You can evaluate something numerically or push a graphable expression into Desmos.
+
+==================================================
+13. SAVED GRAPHS
+==================================================
+
+Saved Graphs let you keep reusable graph states.
+
+Use them when:
+
+- you want to revisit a graph later
+- you want lesson-specific examples ready to reopen
+- you want to compare multiple graph setups over time
+
+General flow:
+
+1. Build or edit the graph.
+2. Save the current graph state.
+3. Name the snapshot if the current UI asks for one.
+4. Reopen the saved state later from the saved graph area.
+
+==================================================
+14. RELATED CONCEPTS AND STUDY SUPPORT MODULES
+==================================================
+
+Some binders include concept mapping and study support modules.
+
+These can help you:
+
+- connect ideas across lessons
+- keep track of recurring concepts
+- move between source material and supporting study structures
+
+Use them when the binder has enough conceptual depth that relationships matter, not just procedures.
+
+==================================================
+15. ADMIN STUDIO
+==================================================
+
+Admin Studio is the authoring/publishing side of BinderNotes.
+This is where a binder can be treated more like a product.
+
+Typical admin tasks include:
+
+- creating binders
+- editing binder metadata
+- creating and ordering lessons
+- preparing published educational note sets
+- managing what learners will see
+
+If you are a learner using demo mode, this may be less important day to day.
+If you are building content packs, this is where you work.
+
+==================================================
+16. DEMO MODE
+==================================================
+
+If the app is running without full backend auth, BinderNotes supports demo entry.
+
+The common demo entry points are:
+
+- Learner demo
+- Admin demo
+
+Use Learner demo if you want to experience the app as a student.
+Use Admin demo if you want to inspect the content/publishing side.
+
+==================================================
+17. A SIMPLE FIRST WORKFLOW
+==================================================
+
+If you are brand new, this is the easiest way to learn the app:
+
+1. Enter Learner demo.
+2. Open Dashboard.
+3. Open a folder.
+4. Open a binder.
+5. Open a lesson document.
+6. Click Edit layout.
+7. Try Split Study.
+8. Lock the workspace.
+9. Select text in the source lesson.
+10. Send a quote into private notes.
+11. Make one sticky note.
+12. Open the graph or Math Lab if the lesson is math-heavy.
+
+That sequence teaches most of the app fast.
+
+==================================================
+18. WHAT BINDERNOTES IS REALLY FOR
+==================================================
+
+BinderNotes works best when you use it for this pattern:
+
+- source on one side
+- your own thinking on the other side
+- quick annotations floating above the workspace
+- math tools available when needed
+- structure first, then documents, then personal study
+
+The app is strongest when it helps you move from reading to understanding to your own notes without losing the structure of the course material.
