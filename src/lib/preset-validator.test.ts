@@ -79,6 +79,25 @@ describe("preset-validator", () => {
     expect(timelineFrame?.y ?? -1).toBeGreaterThanOrEqual(0);
   });
 
+  it("keeps history presets centered on source text and learner notes", () => {
+    for (const preset of historyPresetDefinitions) {
+      const desktop = preset.breakpoints.desktop;
+      expect(desktop, `${preset.id} should include a desktop layout`).toBeTruthy();
+      if (!desktop) {
+        continue;
+      }
+
+      const panelIds = desktop.items.map((item) => item.panelId);
+      expect(panelIds, `${preset.id} should include source text`).toContain("lesson");
+      expect(panelIds, `${preset.id} should include learner notes`).toContain("private-notes");
+
+      const lesson = desktop.items.find((item) => item.panelId === "lesson");
+      const notes = desktop.items.find((item) => item.panelId === "private-notes");
+      expect((lesson?.w ?? 0) * (lesson?.h ?? 0), `${preset.id} source should not be tiny`).toBeGreaterThanOrEqual(20);
+      expect((notes?.w ?? 0) * (notes?.h ?? 0), `${preset.id} notes should not be tiny`).toBeGreaterThanOrEqual(15);
+    }
+  });
+
   it("prefers suite-specific preset definitions when they are registered", () => {
     const localOverride: WorkspacePresetDefinition = {
       ...historyPresetDefinitions[0],
