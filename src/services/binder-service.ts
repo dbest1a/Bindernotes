@@ -2221,7 +2221,7 @@ export async function getWorkspacePreferencesRecord(
     binderId,
   });
 
-  const shadowPreferences = getShadowWorkspacePreferences(userId, binderId);
+  const shadowPreferences = getShadowWorkspacePreferences(userId, binderId, suiteTemplateId);
   if ((await resolveBundledContentStorageMode(binderId)) === "shadow") {
     return shadowPreferences ?? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
   }
@@ -2505,13 +2505,25 @@ function deleteShadowComment(commentId: string, ownerId: string) {
 function getShadowWorkspacePreferences(
   userId: string,
   binderId: string,
+  suiteTemplateId?: string | null,
 ): WorkspacePreferences | null {
   const shadowState = loadShadowState();
-  return (
+  const preferences =
     shadowState.workspacePreferences.find(
       (preferences) => preferences.userId === userId && preferences.binderId === binderId,
-    ) ?? null
-  );
+    ) ?? null;
+
+  if (!preferences) {
+    return null;
+  }
+
+  return normalizeWorkspacePreferences({
+    ...createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId),
+    ...preferences,
+    userId,
+    binderId,
+    suiteTemplateId: preferences.suiteTemplateId ?? suiteTemplateId ?? null,
+  });
 }
 
 function upsertShadowWorkspacePreferences(

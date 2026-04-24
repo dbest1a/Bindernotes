@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createDefaultWorkspacePreferences,
+  normalizeWorkspacePreferences,
 } from "@/lib/workspace-preferences";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -8,6 +9,20 @@ import {
   upsertWorkspacePreferencesRecord,
 } from "@/services/binder-service";
 import type { WorkspacePreferences } from "@/types";
+
+function normalizeLoadedWorkspacePreferences(
+  preferences: WorkspacePreferences,
+  userId: string,
+  binderId: string,
+  suiteTemplateId?: string | null,
+) {
+  return normalizeWorkspacePreferences({
+    ...createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId),
+    ...preferences,
+    userId,
+    binderId,
+  });
+}
 
 export function useWorkspacePreferences(
   userId: string | undefined,
@@ -34,8 +49,9 @@ export function useWorkspacePreferences(
         if (cancelled) {
           return;
         }
-        setSaved(loaded);
-        setDraft(loaded);
+        const normalized = normalizeLoadedWorkspacePreferences(loaded, userId, binderId, suiteTemplateId);
+        setSaved(normalized);
+        setDraft(normalized);
       })
       .catch((error) => {
         console.error("Failed to load workspace preferences.", error);
@@ -66,7 +82,9 @@ export function useWorkspacePreferences(
         (userId && binderId
           ? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId)
           : null);
-      return base ? updater(base) : base;
+      return base && userId && binderId
+        ? normalizeLoadedWorkspacePreferences(updater(base), userId, binderId, suiteTemplateId)
+        : base;
     });
   };
 
@@ -85,7 +103,12 @@ export function useWorkspacePreferences(
     if (!draft) {
       return null;
     }
-    const next = { ...draft, locked: true, updatedAt: new Date().toISOString() };
+    const next = normalizeLoadedWorkspacePreferences(
+      { ...draft, locked: true, updatedAt: new Date().toISOString() },
+      draft.userId,
+      draft.binderId,
+      draft.suiteTemplateId,
+    );
     setSaved(next);
     setDraft(next);
     persist(next);
@@ -93,7 +116,12 @@ export function useWorkspacePreferences(
   };
 
   const commit = (next: WorkspacePreferences) => {
-    const savedNext = { ...next, updatedAt: new Date().toISOString() };
+    const savedNext = normalizeLoadedWorkspacePreferences(
+      { ...next, updatedAt: new Date().toISOString() },
+      next.userId,
+      next.binderId,
+      next.suiteTemplateId,
+    );
     setSaved(savedNext);
     setDraft(savedNext);
     persist(savedNext);
@@ -104,7 +132,12 @@ export function useWorkspacePreferences(
     if (!draft) {
       return null;
     }
-    const next = { ...draft, locked: false, updatedAt: new Date().toISOString() };
+    const next = normalizeLoadedWorkspacePreferences(
+      { ...draft, locked: false, updatedAt: new Date().toISOString() },
+      draft.userId,
+      draft.binderId,
+      draft.suiteTemplateId,
+    );
     setSaved(next);
     setDraft(next);
     persist(next);
