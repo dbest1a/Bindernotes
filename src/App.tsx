@@ -10,6 +10,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -74,6 +75,7 @@ export function App() {
           <Router>
             <AppRoutes />
           </Router>
+          <Analytics />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
