@@ -840,6 +840,21 @@
     @apply flex flex-wrap items-center gap-2;
   }
 
+  .simple-theme-select {
+    @apply inline-flex h-8 items-center gap-2 rounded-lg border border-border/80 px-2.5 text-xs font-medium shadow-sm;
+    background-color: hsl(var(--background) / 0.92);
+    color: hsl(var(--foreground));
+  }
+
+  .simple-theme-select span {
+    @apply hidden text-muted-foreground sm:inline;
+  }
+
+  .simple-theme-select select {
+    @apply h-7 min-w-[8.5rem] border-0 bg-transparent text-xs font-medium outline-none;
+    color: hsl(var(--foreground));
+  }
+
   .simple-presentation-kicker {
     @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground;
   }

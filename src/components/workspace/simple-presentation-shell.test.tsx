@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
 import { createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
@@ -81,16 +82,21 @@ describe("SimplePresentationShell", () => {
     };
 
     const { container } = render(
-      <SimplePresentationShell
-        context={createContext()}
-        onChange={vi.fn()}
-        onOpenSettings={vi.fn()}
-        preferences={preferences}
-      />,
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByTestId("simple-presentation-shell")).toBeTruthy();
     expect(screen.getByTestId("simple-primary-module")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe(
+      "/dashboard",
+    );
     expect(container.querySelector(".workspace-canvas")).toBeNull();
     expect(screen.queryByText(/Drag windows/i)).toBeNull();
   });
@@ -109,12 +115,14 @@ describe("SimplePresentationShell", () => {
     };
 
     render(
-      <SimplePresentationShell
-        context={context}
-        onChange={vi.fn()}
-        onOpenSettings={vi.fn()}
-        preferences={preferences}
-      />,
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={context}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByText("Timeline, evidence, interpretation")).toBeTruthy();
@@ -131,16 +139,46 @@ describe("SimplePresentationShell", () => {
     };
 
     render(
-      <SimplePresentationShell
-        context={createContext()}
-        onChange={vi.fn()}
-        onOpenSettings={vi.fn()}
-        preferences={preferences}
-      />,
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+        />
+      </MemoryRouter>,
     );
 
     expect(screen.getByText("Formula, graph, notes")).toBeTruthy();
     expect(screen.getAllByText("Slope formula").length).toBeGreaterThan(0);
+  });
+
+  it("lets simple view change the study color without opening the settings drawer", () => {
+    const onChange = vi.fn();
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+
+    render(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={onChange}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Study color theme" }), {
+      target: { value: "night-study" },
+    });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        simple: expect.objectContaining({
+          theme: "night-study",
+        }),
+      }),
+    );
   });
 });
 

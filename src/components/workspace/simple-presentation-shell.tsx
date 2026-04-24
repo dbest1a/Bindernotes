@@ -1,9 +1,11 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   Calculator,
   ChevronLeft,
   ChevronRight,
   FileText,
+  Home,
   Maximize2,
   Minimize2,
   Route,
@@ -30,8 +32,9 @@ import {
 } from "@/components/history/history-suite-modules";
 import { formatHistoricalDateLabel } from "@/lib/history-dates";
 import { extractPlainText } from "@/lib/math-detection";
+import { simplePresentationThemeOptions } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
-import type { MathBlock, WorkspacePreferences } from "@/types";
+import type { MathBlock, SimplePresentationTheme, WorkspacePreferences } from "@/types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 
 export function SimplePresentationShell({
@@ -94,6 +97,18 @@ export function SimplePresentationShell({
     });
   };
 
+  const setSimpleTheme = (theme: SimplePresentationTheme) => {
+    setSimple({
+      accentColor:
+        theme === "history-gold"
+          ? "history-gold"
+          : theme === "math-blue"
+            ? "math-blue"
+            : settings.accentColor,
+      theme,
+    });
+  };
+
   const showDrawer = settings.showSideNotes || settings.showStudyDrawer;
 
   return (
@@ -123,6 +138,26 @@ export function SimplePresentationShell({
               </p>
             </div>
             <div className="simple-presentation-actions">
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link aria-label="Workspace home" to="/dashboard">
+                  <Home data-icon="inline-start" />
+                  Workspace
+                </Link>
+              </Button>
+              <label className="simple-theme-select">
+                <span>Study color</span>
+                <select
+                  aria-label="Study color theme"
+                  onChange={(event) => setSimpleTheme(event.target.value as SimplePresentationTheme)}
+                  value={settings.theme}
+                >
+                  {simplePresentationThemeOptions.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
                 <Settings2 data-icon="inline-start" />
                 Settings

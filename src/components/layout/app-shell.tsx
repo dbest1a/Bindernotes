@@ -63,18 +63,21 @@ export function AppShell() {
 
           <div className="flex items-center gap-2">
             {!isConfigured ? <Badge variant="outline">Demo mode</Badge> : null}
-            <select
-              aria-label="Theme"
-              className="hidden h-10 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary md:block"
-              onChange={(event) => setThemeId(event.target.value as typeof theme.id)}
-              value={theme.id}
-            >
-              {workspaceThemes.map((workspaceTheme) => (
-                <option key={workspaceTheme.id} value={workspaceTheme.id}>
-                  {workspaceTheme.name}
-                </option>
-              ))}
-            </select>
+            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary md:flex">
+              <span className="text-xs font-medium text-muted-foreground">App color</span>
+              <select
+                aria-label="Theme"
+                className="h-8 border-0 bg-transparent text-sm font-medium outline-none"
+                onChange={(event) => setThemeId(event.target.value as typeof theme.id)}
+                value={theme.id}
+              >
+                {workspaceThemes.map((workspaceTheme) => (
+                  <option key={workspaceTheme.id} value={workspaceTheme.id}>
+                    {workspaceTheme.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Button
               aria-label="Toggle monochrome workspace"
               onClick={toggleMonochrome}

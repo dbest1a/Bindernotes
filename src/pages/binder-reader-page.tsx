@@ -1,8 +1,9 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  Home,
   Maximize2,
   Minimize2,
   LayoutPanelLeft,
@@ -2168,6 +2169,12 @@ export function BinderReaderPage() {
           ))}
         </div>
         <div className="workspace-topbar__actions">
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link aria-label="Workspace home" to="/dashboard">
+              <Home data-icon="inline-start" />
+              Workspace
+            </Link>
+          </Button>
           <Button
             onClick={toggleFocusMode}
             size="sm"
