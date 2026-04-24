@@ -13,6 +13,7 @@ import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } f
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { UserAppearanceSync } from "@/components/theme/user-appearance-sync";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,6 +69,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <UserAppearanceSync />
           <SyncRecoveryBridge />
           <Router>
             <AppRoutes />

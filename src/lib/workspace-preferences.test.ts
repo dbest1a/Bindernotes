@@ -157,26 +157,76 @@ describe("workspace preferences", () => {
     expect(next.appearance.accent).toBe("amber");
     expect(next.theme.id).toBe("custom");
     expect(next.theme.accentColor).toBe("amber");
-    expect(next.theme.accent).toBe("35 92% 48%");
-    expect(next.appearance.customPalette.primary).toBe("#eb8a0f");
+    expect(next.theme.accent).toBe("174 67% 48%");
+    expect(next.appearance.customPalette.primary).toBe("#28ccbc");
+    expect(next.appearance.customPalette.secondary).toBe("#101219");
+    expect(next.appearance.customPalette.accent).toBe("#eb8a0f");
     expect(next.appearance.customPalette.sourceTheme).toBe("space");
   });
 
-  it("updates the current Custom theme when the accent changes again", () => {
+  it("updates only the Custom accent bucket when the accent changes again", () => {
     const customSpace = updateWorkspaceAppearance(
-      updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
-        appTheme: "space",
-      }),
-      { accent: "amber" },
+      updateWorkspaceAppearance(
+        updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+          appTheme: "space",
+        }),
+        { accent: "amber" },
+      ),
+      {
+        appTheme: "custom",
+        customPalette: {
+          primary: "#123456",
+          secondary: "#202020",
+          accent: "#445566",
+          sourceTheme: "space",
+        },
+      },
     );
 
     const next = updateWorkspaceAppearance(customSpace, { accent: "emerald" });
 
     expect(next.appearance.appTheme).toBe("custom");
     expect(next.appearance.accent).toBe("emerald");
-    expect(next.appearance.customPalette.primary).toBe("#0d9668");
+    expect(next.appearance.customPalette.primary).toBe("#123456");
+    expect(next.appearance.customPalette.secondary).toBe("#202020");
+    expect(next.appearance.customPalette.accent).toBe("#0d9668");
     expect(next.appearance.customPalette.sourceTheme).toBe("space");
     expect(next.theme.id).toBe("custom");
+  });
+
+  it("repairs legacy Custom palettes where accent was persisted in the primary bucket", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const corrupted = normalizeWorkspacePreferences({
+      ...preferences,
+      appearance: {
+        ...preferences.appearance,
+        appTheme: "custom",
+        accent: "amber",
+        customPalette: {
+          primary: "#eb8a0f",
+          secondary: "#101219",
+          accent: "#5f3f11",
+          sourceTheme: "space",
+        },
+      },
+      theme: {
+        ...preferences.theme,
+        id: "custom",
+        accent: "35 92% 48%",
+        accentColor: "amber",
+        customPalette: {
+          primary: "#eb8a0f",
+          secondary: "#101219",
+          accent: "#5f3f11",
+          sourceTheme: "space",
+        },
+      },
+    });
+
+    expect(corrupted.appearance.customPalette.primary).toBe("#28ccbc");
+    expect(corrupted.appearance.customPalette.secondary).toBe("#101219");
+    expect(corrupted.appearance.customPalette.accent).toBe("#eb8a0f");
+    expect(corrupted.theme.accent).toBe("174 67% 48%");
   });
 
   it("keeps high contrast as a shared study surface token", () => {

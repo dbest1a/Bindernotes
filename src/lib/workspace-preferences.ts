@@ -1119,6 +1119,51 @@ function accentOptionById(accentColor: AccentColor) {
     : accentOptions.find((option) => option.id === accentColor);
 }
 
+function findBuiltinSourceTheme(themeId?: WorkspaceThemeId) {
+  return (
+    workspaceThemes.find((theme) => theme.id === themeId && theme.id !== "custom") ??
+    defaultTheme
+  );
+}
+
+function buildPaletteFromSourceTheme(
+  theme: WorkspaceTheme,
+  accentHex = hslPartsToHex(theme.vars.accent),
+): AppearanceCustomPalette {
+  return {
+    primary: hslPartsToHex(theme.vars.primary),
+    secondary: hslPartsToHex(theme.vars.background),
+    accent: accentHex,
+    sourceTheme: theme.id,
+  };
+}
+
+function repairLegacyAccentAsPrimaryPalette(
+  themeId: WorkspaceThemeId,
+  accentColor: AccentColor,
+  palette: AppearanceCustomPalette,
+) {
+  if (themeId !== "custom") {
+    return palette;
+  }
+
+  const option = accentOptionById(accentColor);
+  if (!option || palette.primary.toLowerCase() !== option.hex.toLowerCase()) {
+    return palette;
+  }
+
+  const sourceTheme = findBuiltinSourceTheme(
+    normalizeSourceTheme(palette.sourceTheme, defaultTheme.id),
+  );
+
+  return {
+    ...palette,
+    primary: hslPartsToHex(sourceTheme.vars.primary),
+    accent: option.hex,
+    sourceTheme: sourceTheme.id,
+  };
+}
+
 function accentColorForTheme(themeId: WorkspaceThemeId) {
   return defaultAccentByTheme[themeId] ?? "custom";
 }
@@ -1145,26 +1190,22 @@ export function createCustomThemeFromAccent(
     normalized.id === "custom"
       ? normalizeSourceTheme(normalized.customPalette?.sourceTheme, "paper-studio")
       : normalized.id;
-  const sourceTheme =
-    workspaceThemes.find((theme) => theme.id === sourceThemeId && theme.id !== "custom") ??
-    defaultTheme;
-  const accentedVars = applyAccentToThemeVars(sourceTheme.vars, option.value);
+  const sourceTheme = findBuiltinSourceTheme(sourceThemeId);
+  const nextPalette =
+    normalized.id === "custom"
+      ? {
+          ...normalizeCustomPalette(normalized.customPalette),
+          accent: option.hex,
+          sourceTheme: normalized.customPalette?.sourceTheme ?? sourceTheme.id,
+        }
+      : buildPaletteFromSourceTheme(sourceTheme, option.hex);
 
   return normalizeThemeSettings({
     ...normalized,
     id: "custom",
-    accent: option.value,
+    accent: hslParts(hexToHsl(nextPalette.primary)),
     accentColor: option.id,
-    customPalette: {
-      ...(normalized.customPalette ?? defaultCustomPalette),
-      primary: option.hex,
-      secondary:
-        normalized.id === "custom" && normalized.customPalette?.sourceTheme
-          ? normalized.customPalette.secondary
-          : hslPartsToHex(sourceTheme.vars.background),
-      accent: hslPartsToHex(accentedVars.accent),
-      sourceTheme: sourceTheme.id,
-    },
+    customPalette: nextPalette,
   });
 }
 
@@ -2200,7 +2241,7 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
   return ensureWindowFramesForEnabledModules(withMath);
 }
 
-function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): WorkspaceThemeSettings {
+export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): WorkspaceThemeSettings {
   const nextId =
     settings?.id && workspaceThemes.some((theme) => theme.id === settings.id)
       ? (settings.id as WorkspaceThemeId)
@@ -2248,17 +2289,20 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
   )
     ? (settings?.defaultHighlightColor as HighlightColor)
     : defaultThemeSettings.defaultHighlightColor;
-  const customPalette = normalizeCustomPalette(settings?.customPalette);
+  const rawCustomPalette = normalizeCustomPalette(settings?.customPalette);
   const fallbackAccentColor = accentColorForTheme(nextId);
   const accentColor = normalizeAccentColor(
     settings?.accentColor,
     settings?.accent ? accentColorForValue(settings.accent, fallbackAccentColor) : fallbackAccentColor,
   );
+  const customPalette = repairLegacyAccentAsPrimaryPalette(
+    nextId,
+    accentColor,
+    rawCustomPalette,
+  );
   const accent =
     nextId === "custom"
-      ? accentColor !== "custom" && settings?.accent
-        ? settings.accent
-        : hslParts(hexToHsl(customPalette.primary))
+      ? hslParts(hexToHsl(customPalette.primary))
       : settings?.accent || workspaceThemes.find((theme) => theme.id === nextId)?.vars.primary || defaultThemeSettings.accent;
 
   return {
@@ -2386,6 +2430,11 @@ function normalizeAppearanceSettings(
     typeof settings?.saveLocalAppearance === "boolean"
       ? settings.saveLocalAppearance
       : false;
+  const customPalette = repairLegacyAccentAsPrimaryPalette(
+    appTheme,
+    accent,
+    normalizeCustomPalette(settings?.customPalette ?? theme?.customPalette),
+  );
 
   return {
     appTheme,
@@ -2394,7 +2443,7 @@ function normalizeAppearanceSettings(
     density,
     roundness,
     motion,
-    customPalette: normalizeCustomPalette(settings?.customPalette ?? theme?.customPalette),
+    customPalette,
     saveLocalAppearance,
   };
 }
