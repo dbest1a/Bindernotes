@@ -1,4 +1,5 @@
 import type {
+  AccentColor,
   AppearanceCustomPalette,
   AppearanceMotion,
   AppearanceSettings,
@@ -723,21 +724,37 @@ export const workspaceThemes: WorkspaceTheme[] = [
   },
 ];
 
-export const accentOptions = [
-  { name: "Teal", value: "172 82% 27%" },
-  { name: "Blue", value: "212 86% 52%" },
-  { name: "Indigo", value: "233 74% 55%" },
-  { name: "Violet", value: "267 74% 48%" },
-  { name: "Rose", value: "342 76% 48%" },
-  { name: "Amber", value: "35 92% 48%" },
-  { name: "Emerald", value: "160 84% 32%" },
-  { name: "Graphite", value: "0 0% 12%" },
+export const accentOptions: Array<{
+  id: Exclude<AccentColor, "custom">;
+  name: string;
+  value: string;
+  hex: string;
+}> = [
+  { id: "teal", name: "Teal", value: "172 82% 27%", hex: "#0f766e" },
+  { id: "blue", name: "Blue", value: "212 86% 52%", hex: "#2563eb" },
+  { id: "indigo", name: "Indigo", value: "233 74% 55%", hex: "#4f46e5" },
+  { id: "violet", name: "Violet", value: "267 74% 48%", hex: "#7e22ce" },
+  { id: "rose", name: "Rose", value: "342 76% 48%", hex: "#d61f69" },
+  { id: "amber", name: "Amber", value: "35 92% 48%", hex: "#eb8a0f" },
+  { id: "emerald", name: "Emerald", value: "160 84% 32%", hex: "#0d9668" },
+  { id: "graphite", name: "Graphite", value: "0 0% 12%", hex: "#1f1f1f" },
 ];
+
+const defaultAccentByTheme: Record<WorkspaceThemeId, AccentColor> = {
+  space: "teal",
+  "midnight-scholar": "blue",
+  "paper-studio": "teal",
+  ocean: "blue",
+  "monochrome-pro": "graphite",
+  aurora: "violet",
+  custom: "custom",
+};
 
 export const defaultCustomPalette: AppearanceCustomPalette = {
   primary: "#0f766e",
   secondary: "#f8fafc",
   accent: "#d97706",
+  sourceTheme: "paper-studio",
 };
 
 export const densityOptions: WorkspaceDensity[] = ["compact", "cozy"];
@@ -791,6 +808,12 @@ function normalizeHexColor(value: unknown, fallback: string) {
   return typeof value === "string" && hexColorPattern.test(value) ? value.toLowerCase() : fallback;
 }
 
+function normalizeSourceTheme(value: unknown, fallback: WorkspaceThemeId = "paper-studio") {
+  return typeof value === "string" && workspaceThemes.some((theme) => theme.id === value)
+    ? (value as WorkspaceThemeId)
+    : fallback;
+}
+
 function normalizeCustomPalette(
   palette?: Partial<AppearanceCustomPalette> | null,
 ): AppearanceCustomPalette {
@@ -798,6 +821,7 @@ function normalizeCustomPalette(
     primary: normalizeHexColor(palette?.primary, defaultCustomPalette.primary),
     secondary: normalizeHexColor(palette?.secondary, defaultCustomPalette.secondary),
     accent: normalizeHexColor(palette?.accent, defaultCustomPalette.accent),
+    sourceTheme: normalizeSourceTheme(palette?.sourceTheme, defaultCustomPalette.sourceTheme),
   };
 }
 
@@ -836,6 +860,54 @@ function hslParts(color: HslColor) {
   return `${Math.round(color.h)} ${Math.round(color.s)}% ${Math.round(color.l)}%`;
 }
 
+function parseHslParts(parts: string, fallback: HslColor = hexToHsl(defaultCustomPalette.primary)): HslColor {
+  const match = parts.match(/(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%/);
+  if (!match) {
+    return fallback;
+  }
+
+  return {
+    h: clampNumber(Number(match[1]), 0, 360),
+    s: clampNumber(Number(match[2]), 0, 100),
+    l: clampNumber(Number(match[3]), 0, 100),
+  };
+}
+
+function hslToHex(color: HslColor) {
+  const h = color.h / 360;
+  const s = color.s / 100;
+  const l = color.l / 100;
+
+  const hueToRgb = (p: number, q: number, t: number) => {
+    let next = t;
+    if (next < 0) next += 1;
+    if (next > 1) next -= 1;
+    if (next < 1 / 6) return p + (q - p) * 6 * next;
+    if (next < 1 / 2) return q;
+    if (next < 2 / 3) return p + (q - p) * (2 / 3 - next) * 6;
+    return p;
+  };
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channels =
+    s === 0
+      ? [l, l, l]
+      : [
+          hueToRgb(p, q, h + 1 / 3),
+          hueToRgb(p, q, h),
+          hueToRgb(p, q, h - 1 / 3),
+        ];
+
+  return `#${channels
+    .map((channel) => Math.round(channel * 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function hslPartsToHex(parts: string) {
+  return hslToHex(parseHslParts(parts));
+}
+
 function adjustHsl(color: HslColor, lightness: number, saturationLimit = 100) {
   return hslParts({
     h: color.h,
@@ -852,7 +924,33 @@ function themeVarsAreDark(themeVars: WorkspaceTheme["vars"]) {
   return hslLightness(themeVars.background) < 30;
 }
 
+function softAccentForThemeVars(themeVars: WorkspaceTheme["vars"], accent: HslColor) {
+  return adjustHsl(accent, themeVarsAreDark(themeVars) ? 22 : 90, 70);
+}
+
+function applyAccentToThemeVars(
+  themeVars: WorkspaceTheme["vars"],
+  accentValue: string,
+): WorkspaceTheme["vars"] {
+  const accent = parseHslParts(accentValue);
+
+  return {
+    ...themeVars,
+    primary: accentValue,
+    accent: softAccentForThemeVars(themeVars, accent),
+  };
+}
+
 function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme["vars"] {
+  const sourceTheme =
+    palette.sourceTheme && palette.sourceTheme !== "custom"
+      ? workspaceThemes.find((theme) => theme.id === palette.sourceTheme)
+      : null;
+
+  if (sourceTheme) {
+    return applyAccentToThemeVars(sourceTheme.vars, hslParts(hexToHsl(palette.primary)));
+  }
+
   const primary = hexToHsl(palette.primary);
   const secondary = hexToHsl(palette.secondary);
   const accent = hexToHsl(palette.accent);
@@ -1017,6 +1115,92 @@ function accentForStudySurface(
   return fallback;
 }
 
+function normalizeAccentColor(value: unknown, fallback: AccentColor = "custom") {
+  return typeof value === "string" &&
+    (value === "custom" || accentOptions.some((option) => option.id === value))
+    ? (value as AccentColor)
+    : fallback;
+}
+
+function accentOptionById(accentColor: AccentColor) {
+  return accentColor === "custom"
+    ? undefined
+    : accentOptions.find((option) => option.id === accentColor);
+}
+
+function accentColorForTheme(themeId: WorkspaceThemeId) {
+  return defaultAccentByTheme[themeId] ?? "custom";
+}
+
+function accentColorForValue(value?: string, fallback: AccentColor = "custom") {
+  return accentOptions.find((option) => option.value === value)?.id ?? fallback;
+}
+
+export function createCustomThemeFromAccent(
+  current: WorkspaceThemeSettings,
+  accentColor: AccentColor,
+): WorkspaceThemeSettings {
+  const option = accentOptionById(accentColor);
+  if (!option) {
+    return normalizeThemeSettings({
+      ...current,
+      id: "custom",
+      accentColor: "custom",
+    });
+  }
+
+  const normalized = normalizeThemeSettings(current);
+  const sourceThemeId =
+    normalized.id === "custom"
+      ? normalizeSourceTheme(normalized.customPalette?.sourceTheme, "paper-studio")
+      : normalized.id;
+  const sourceTheme =
+    workspaceThemes.find((theme) => theme.id === sourceThemeId && theme.id !== "custom") ??
+    defaultTheme;
+  const accentedVars = applyAccentToThemeVars(sourceTheme.vars, option.value);
+
+  return normalizeThemeSettings({
+    ...normalized,
+    id: "custom",
+    accent: option.value,
+    accentColor: option.id,
+    customPalette: {
+      ...(normalized.customPalette ?? defaultCustomPalette),
+      primary: option.hex,
+      secondary:
+        normalized.id === "custom" && normalized.customPalette?.sourceTheme
+          ? normalized.customPalette.secondary
+          : hslPartsToHex(sourceTheme.vars.background),
+      accent: hslPartsToHex(accentedVars.accent),
+      sourceTheme: sourceTheme.id,
+    },
+  });
+}
+
+export function createThemeFromAppTheme(
+  current: WorkspaceThemeSettings,
+  themeId: WorkspaceThemeId,
+): WorkspaceThemeSettings {
+  const selectedTheme =
+    workspaceThemes.find((theme) => theme.id === themeId) ??
+    workspaceThemes.find((theme) => theme.id === defaultThemeSettings.id) ??
+    defaultTheme;
+
+  return normalizeThemeSettings({
+    ...current,
+    id: selectedTheme.id,
+    accent: selectedTheme.vars.primary,
+    accentColor: accentColorForTheme(selectedTheme.id),
+    customPalette:
+      selectedTheme.id === "custom"
+        ? current.customPalette
+        : {
+            ...(current.customPalette ?? defaultCustomPalette),
+            sourceTheme: selectedTheme.id,
+          },
+  });
+}
+
 export function resolveWorkspacePresetLayout(
   presetId: WorkspacePresetId,
   workspaceStyle: WorkspaceStyle,
@@ -1151,6 +1335,7 @@ export const defaultThemeSettings: WorkspaceThemeSettings = {
   id: defaultTheme.id,
   studySurface: "math-blue",
   accent: defaultTheme.vars.primary,
+  accentColor: accentColorForTheme(defaultTheme.id),
   density: "cozy",
   roundness: "round",
   shadow: "lifted",
@@ -1229,6 +1414,7 @@ export function createDefaultAppearanceSettings(
 
   return {
     appTheme: theme.id,
+    accent: theme.accentColor ?? accentColorForValue(theme.accent, accentColorForTheme(theme.id)),
     studySurface,
     density: theme.density,
     roundness: theme.roundness,
@@ -1335,9 +1521,8 @@ export function updateWorkspaceAppearance(
   preferences: WorkspacePreferences,
   patch: Partial<AppearanceSettings>,
 ): WorkspacePreferences {
-  const themeForAppearance = {
+  let themeForAppearance = normalizeThemeSettings({
     ...preferences.theme,
-    id: patch.appTheme ?? (patch.studySurface === "custom" ? "custom" : preferences.theme.id),
     studySurface: patch.studySurface ?? preferences.theme.studySurface ?? preferences.simple.theme,
     density: patch.density ?? preferences.theme.density,
     roundness: patch.roundness ?? preferences.theme.roundness,
@@ -1345,33 +1530,50 @@ export function updateWorkspaceAppearance(
       ? animationLevelFromAppearanceMotion(patch.motion)
       : preferences.theme.animationLevel,
     customPalette: patch.customPalette ?? preferences.theme.customPalette,
-  };
+  });
+
+  if (patch.appTheme) {
+    themeForAppearance = createThemeFromAppTheme(themeForAppearance, patch.appTheme);
+  }
+
+  if (patch.customPalette && (patch.appTheme === "custom" || themeForAppearance.id === "custom")) {
+    themeForAppearance = normalizeThemeSettings({
+      ...themeForAppearance,
+      id: "custom",
+      accent: hslParts(hexToHsl(patch.customPalette.primary)),
+      accentColor: "custom",
+      customPalette: patch.customPalette,
+    });
+  } else if (patch.customPalette) {
+    themeForAppearance = normalizeThemeSettings({
+      ...themeForAppearance,
+      customPalette: patch.customPalette,
+    });
+  }
+
+  if (patch.accent) {
+    themeForAppearance = createCustomThemeFromAccent(themeForAppearance, patch.accent);
+  }
+
   const nextAppearance = normalizeAppearanceSettings(
     {
       ...(preferences.appearance ?? createDefaultAppearanceSettings(preferences.binderId, preferences.suiteTemplateId)),
       ...patch,
+      appTheme: themeForAppearance.id,
+      accent: themeForAppearance.accentColor,
+      customPalette: themeForAppearance.customPalette,
     },
     themeForAppearance,
     preferences.simple,
     preferences.binderId,
     preferences.suiteTemplateId,
   );
-  const appThemeChanged = Boolean(
-    patch.appTheme && patch.appTheme !== preferences.appearance?.appTheme,
-  );
-  const appThemeVars =
-    workspaceThemes.find((theme) => theme.id === nextAppearance.appTheme)?.vars ?? defaultTheme.vars;
-  const nextAccent =
-    nextAppearance.appTheme === "custom"
-      ? hslParts(hexToHsl(nextAppearance.customPalette.primary))
-      : appThemeChanged
-        ? appThemeVars.primary
-        : preferences.theme.accent;
   const nextTheme = normalizeThemeSettings({
     ...preferences.theme,
     id: nextAppearance.appTheme,
     studySurface: nextAppearance.studySurface,
-    accent: nextAccent,
+    accent: themeForAppearance.accent,
+    accentColor: nextAppearance.accent,
     density: nextAppearance.density,
     roundness: nextAppearance.roundness,
     animationLevel: animationLevelFromAppearanceMotion(nextAppearance.motion),
@@ -1419,6 +1621,7 @@ export function applyGlobalAppearanceToWorkspace(
     },
     {
       appTheme: globalTheme.id,
+      ...(globalTheme.id === "custom" ? { accent: globalTheme.accentColor } : {}),
       studySurface: globalTheme.studySurface,
       density: globalTheme.density,
       roundness: globalTheme.roundness,
@@ -1887,6 +2090,7 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
   root.classList.toggle("dark", isDark);
   root.style.colorScheme = isDark ? "dark" : "light";
   root.dataset.workspaceTheme = normalizedSettings.id;
+  root.dataset.workspaceAccent = normalizedSettings.accentColor;
   root.dataset.studySurface = normalizedSettings.studySurface;
   root.dataset.workspaceCustomPalette =
     normalizedSettings.id === "custom" || normalizedSettings.studySurface === "custom" ? "on" : "off";
@@ -2050,16 +2254,25 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
     ? (settings?.defaultHighlightColor as HighlightColor)
     : defaultThemeSettings.defaultHighlightColor;
   const customPalette = normalizeCustomPalette(settings?.customPalette);
+  const fallbackAccentColor = accentColorForTheme(nextId);
+  const accentColor = normalizeAccentColor(
+    settings?.accentColor,
+    settings?.accent ? accentColorForValue(settings.accent, fallbackAccentColor) : fallbackAccentColor,
+  );
+  const accent =
+    nextId === "custom"
+      ? accentColor !== "custom" && settings?.accent
+        ? settings.accent
+        : hslParts(hexToHsl(customPalette.primary))
+      : settings?.accent || workspaceThemes.find((theme) => theme.id === nextId)?.vars.primary || defaultThemeSettings.accent;
 
   return {
     ...defaultThemeSettings,
     ...settings,
     id: nextId,
     studySurface,
-    accent:
-      nextId === "custom"
-        ? hslParts(hexToHsl(customPalette.primary))
-        : settings?.accent || defaultThemeSettings.accent,
+    accent,
+    accentColor,
     density,
     roundness,
     shadow,
@@ -2147,6 +2360,14 @@ function normalizeAppearanceSettings(
           simplePresentationThemeOptions.some((option) => option.id === simple.theme)
         ? (simple.theme as AppearanceSettings["studySurface"])
         : fallback.studySurface;
+  const accent = normalizeAccentColor(
+    settings?.accent,
+    theme?.accentColor
+      ? normalizeAccentColor(theme.accentColor)
+      : theme?.accent
+        ? accentColorForValue(theme.accent, fallback.accent)
+        : fallback.accent,
+  );
   const density =
     theme?.density && densityOptions.includes(theme.density as WorkspaceDensity)
       ? (theme.density as WorkspaceDensity)
@@ -2173,6 +2394,7 @@ function normalizeAppearanceSettings(
 
   return {
     appTheme,
+    accent,
     studySurface,
     density,
     roundness,

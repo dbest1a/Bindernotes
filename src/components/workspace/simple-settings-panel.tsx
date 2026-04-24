@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  accentOptions,
   applyWorkspaceMode,
   simplePresentationFontSizeOptions,
   simplePresentationMotionOptions,
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
+  AccentColor,
   AppearanceCustomPalette,
   SimplePresentationSettings,
   WorkspaceMode,
@@ -58,13 +60,16 @@ export function SimpleSettingsPanel({
     setNext(
       updateWorkspaceAppearance(preferences, {
         appTheme: "custom",
-        studySurface: "custom",
         customPalette: {
           ...preferences.appearance.customPalette,
           [key]: value,
         },
       }),
     );
+  };
+
+  const updateAccent = (accent: AccentColor) => {
+    setNext(updateWorkspaceAppearance(preferences, { accent }));
   };
 
   return (
@@ -157,6 +162,19 @@ export function SimpleSettingsPanel({
                 </SimpleChoice>
               ))}
             </div>
+          </ControlGroup>
+
+          <ControlGroup title="Accent">
+            {accentOptions.map((accent) => (
+              <Button
+                key={accent.id}
+                onClick={() => updateAccent(accent.id)}
+                type="button"
+                variant={preferences.appearance.accent === accent.id ? "default" : "outline"}
+              >
+                {accent.name}
+              </Button>
+            ))}
           </ControlGroup>
 
           <ControlGroup title="Study Surface">

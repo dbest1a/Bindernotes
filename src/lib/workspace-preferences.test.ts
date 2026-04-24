@@ -145,6 +145,40 @@ describe("workspace preferences", () => {
     expect(next.theme.accent).toBe("193 86% 32%");
   });
 
+  it("clones a built-in app theme into Custom when the accent changes", () => {
+    const preferences = updateWorkspaceAppearance(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      { appTheme: "space" },
+    );
+
+    const next = updateWorkspaceAppearance(preferences, { accent: "amber" });
+
+    expect(next.appearance.appTheme).toBe("custom");
+    expect(next.appearance.accent).toBe("amber");
+    expect(next.theme.id).toBe("custom");
+    expect(next.theme.accentColor).toBe("amber");
+    expect(next.theme.accent).toBe("35 92% 48%");
+    expect(next.appearance.customPalette.primary).toBe("#eb8a0f");
+    expect(next.appearance.customPalette.sourceTheme).toBe("space");
+  });
+
+  it("updates the current Custom theme when the accent changes again", () => {
+    const customSpace = updateWorkspaceAppearance(
+      updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+        appTheme: "space",
+      }),
+      { accent: "amber" },
+    );
+
+    const next = updateWorkspaceAppearance(customSpace, { accent: "emerald" });
+
+    expect(next.appearance.appTheme).toBe("custom");
+    expect(next.appearance.accent).toBe("emerald");
+    expect(next.appearance.customPalette.primary).toBe("#0d9668");
+    expect(next.appearance.customPalette.sourceTheme).toBe("space");
+    expect(next.theme.id).toBe("custom");
+  });
+
   it("keeps high contrast as a shared study surface token", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     const next = updateWorkspaceAppearance(preferences, { studySurface: "high-contrast" });

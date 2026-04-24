@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   applyThemeSettings,
+  createCustomThemeFromAccent,
+  createThemeFromAppTheme,
   defaultCustomPalette,
   defaultThemeSettings,
   loadGlobalThemeSettings,
   saveGlobalThemeSettings,
-  workspaceThemes,
 } from "@/lib/workspace-preferences";
 import { ThemeContext, type ThemeContextValue } from "@/lib/theme-context";
-import type { AppearanceCustomPalette, WorkspaceThemeId, WorkspaceThemeSettings } from "@/types";
+import type {
+  AccentColor,
+  AppearanceCustomPalette,
+  WorkspaceThemeId,
+  WorkspaceThemeSettings,
+} from "@/types";
 
 const appearanceChangeEvent = "binder-notes:appearance-change";
 
@@ -64,32 +70,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setThemeId = useCallback((themeId: WorkspaceThemeId) => {
-    const nextTheme =
-      workspaceThemes.find((candidate) => candidate.id === themeId) ??
-      workspaceThemes.find((candidate) => candidate.id === defaultThemeSettings.id);
-
     setThemeOverride(null);
-    setGlobalThemeState((current) => ({
-      ...current,
-      id: themeId,
-      accent: nextTheme?.vars.primary ?? current.accent,
-    }));
+    setGlobalThemeState((current) => createThemeFromAppTheme(current, themeId));
     notifyAppearanceChange({ id: themeId });
+  }, []);
+
+  const setAccentColor = useCallback((accentColor: AccentColor) => {
+    setThemeOverride(null);
+    setGlobalThemeState((current) => {
+      const nextTheme = createCustomThemeFromAccent(current, accentColor);
+      notifyAppearanceChange({
+        id: nextTheme.id,
+        customPalette: nextTheme.customPalette,
+      });
+      return nextTheme;
+    });
   }, []);
 
   const toggleMonochrome = useCallback(() => {
     const nextId: WorkspaceThemeId =
       globalTheme.id === "monochrome-pro" ? "space" : "monochrome-pro";
     setThemeOverride(null);
-    setGlobalThemeState((current) => ({
-      ...current,
-      id: nextId,
-      accent:
-        nextId === "space"
-          ? workspaceThemes.find((candidate) => candidate.id === "space")?.vars.primary ??
-            current.accent
-          : "0 0% 12%",
-    }));
+    setGlobalThemeState((current) => createThemeFromAppTheme(current, nextId));
     notifyAppearanceChange({ id: nextId });
   }, [globalTheme.id]);
 
@@ -103,6 +105,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setGlobalThemeState((current) => ({
       ...current,
       id: "custom",
+      accentColor: "custom",
       customPalette,
     }));
     notifyAppearanceChange({ id: "custom", customPalette });
@@ -116,6 +119,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setGlobalTheme,
       setTheme,
       setThemeId,
+      setAccentColor,
       setCustomPalette,
       toggleMonochrome,
     }),
@@ -126,6 +130,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setGlobalTheme,
       setTheme,
       setThemeId,
+      setAccentColor,
       theme,
       toggleMonochrome,
     ],

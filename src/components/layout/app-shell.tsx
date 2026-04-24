@@ -14,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { cn, initials } from "@/lib/utils";
-import { defaultCustomPalette, workspaceThemes } from "@/lib/workspace-preferences";
+import { accentOptions, defaultCustomPalette, workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
 import type { AppearanceCustomPalette } from "@/types";
 
 export function AppShell() {
   const { profile, signOut, isConfigured } = useAuth();
-  const { globalTheme, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
+  const { globalTheme, setAccentColor, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
   const navigate = useNavigate();
 
   const logout = async () => {
@@ -84,6 +84,22 @@ export function AppShell() {
                     {workspaceTheme.name}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary 2xl:flex">
+              <span className="text-xs font-medium text-muted-foreground">Accent</span>
+              <select
+                aria-label="Accent"
+                className="appearance-select h-8 border-0 bg-transparent text-sm font-medium outline-none"
+                onChange={(event) => setAccentColor(event.target.value as typeof globalTheme.accentColor)}
+                value={globalTheme.accentColor}
+              >
+                {accentOptions.map((accent) => (
+                  <option key={accent.id} value={accent.id}>
+                    {accent.name}
+                  </option>
+                ))}
+                <option value="custom">Custom</option>
               </select>
             </label>
             {globalTheme.id === "custom" ? (

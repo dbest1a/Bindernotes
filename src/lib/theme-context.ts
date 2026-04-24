@@ -1,6 +1,7 @@
 import { createContext } from "react";
 import type {
   AppearanceCustomPalette,
+  AccentColor,
   WorkspaceThemeId,
   WorkspaceThemeSettings,
 } from "@/types";
@@ -12,6 +13,7 @@ export type ThemeContextValue = {
   setGlobalTheme: (theme: WorkspaceThemeSettings) => void;
   clearThemeOverride: () => void;
   setThemeId: (themeId: WorkspaceThemeId) => void;
+  setAccentColor: (accentColor: AccentColor) => void;
   setCustomPalette: (palette: AppearanceCustomPalette) => void;
   toggleMonochrome: () => void;
 };

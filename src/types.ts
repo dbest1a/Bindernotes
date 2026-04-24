@@ -432,15 +432,27 @@ export type FullCanvasSettings = {
 export type AppTheme = WorkspaceThemeId;
 export type StudySurface = SimplePresentationTheme;
 export type AppearanceMotion = "full" | "reduced" | "minimal";
+export type AccentColor =
+  | "teal"
+  | "blue"
+  | "indigo"
+  | "violet"
+  | "rose"
+  | "amber"
+  | "emerald"
+  | "graphite"
+  | "custom";
 
 export type AppearanceCustomPalette = {
   primary: string;
   secondary: string;
   accent: string;
+  sourceTheme?: AppTheme;
 };
 
 export type AppearanceSettings = {
   appTheme: AppTheme;
+  accent: AccentColor;
   studySurface: StudySurface;
   density: WorkspaceDensity;
   roundness: WorkspaceRoundness;
@@ -453,6 +465,7 @@ export type WorkspaceThemeSettings = {
   id: WorkspaceThemeId;
   studySurface: StudySurface;
   accent: string;
+  accentColor: AccentColor;
   density: WorkspaceDensity;
   roundness: WorkspaceRoundness;
   shadow: WorkspaceShadow;

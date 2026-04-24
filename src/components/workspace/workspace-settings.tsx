@@ -13,7 +13,6 @@ import {
   highlightColorOptions,
   roundnessOptions,
   shadowOptions,
-  simplePresentationThemeOptions,
   updateWorkspaceAppearance,
   verticalSpaceOptions,
   workspaceModules,
@@ -22,6 +21,7 @@ import {
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import type {
+  AccentColor,
   AppearanceCustomPalette,
   WorkspaceMode,
   WorkspaceModuleId,
@@ -128,7 +128,6 @@ export function WorkspaceSettings({
     setNext(
       updateWorkspaceAppearance(preferences, {
         appTheme: "custom",
-        studySurface: preferences.appearance.studySurface === "custom" ? "custom" : preferences.appearance.studySurface,
         customPalette: {
           ...preferences.appearance.customPalette,
           [key]: value,
@@ -137,12 +136,12 @@ export function WorkspaceSettings({
     );
   };
 
-  const updateStudySurface = (studySurface: WorkspacePreferences["appearance"]["studySurface"]) => {
-    setNext(updateWorkspaceAppearance(preferences, { studySurface }));
-  };
-
   const updateAppTheme = (appTheme: WorkspaceThemeId) => {
     setNext(updateWorkspaceAppearance(preferences, { appTheme }));
+  };
+
+  const updateAccent = (accent: AccentColor) => {
+    setNext(updateWorkspaceAppearance(preferences, { accent }));
   };
 
   const changeMode = (workspaceMode: WorkspaceMode) => {
@@ -423,45 +422,16 @@ export function WorkspaceSettings({
             <ControlGroup title="Accent">
               {accentOptions.map((accent) => (
                 <ThemeChoice
-                  active={preferences.theme.accent === accent.value}
-                  key={accent.value}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      accent: accent.value,
-                    }))
-                  }
+                  active={preferences.appearance.accent === accent.id}
+                  key={accent.id}
+                  onClick={() => updateAccent(accent.id)}
                 >
                   {accent.name}
                 </ThemeChoice>
               ))}
             </ControlGroup>
 
-            <ControlGroup title="Study Surface">
-              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
-                {simplePresentationThemeOptions.map((surface) => (
-                  <button
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
-                      preferences.appearance.studySurface === surface.id
-                        ? "border-primary bg-accent/70"
-                        : "border-border/70 bg-background/55",
-                    )}
-                    key={surface.id}
-                    onClick={() => updateStudySurface(surface.id)}
-                    type="button"
-                  >
-                    <span className="block text-sm font-medium">{surface.name}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {surface.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </ControlGroup>
-
-            {(preferences.appearance.appTheme === "custom" ||
-              preferences.appearance.studySurface === "custom") ? (
+            {preferences.appearance.appTheme === "custom" ? (
               <ControlGroup title="Custom colors">
                 <CustomPaletteControls
                   onChange={updateCustomColor}

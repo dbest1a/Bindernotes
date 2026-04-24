@@ -2480,6 +2480,7 @@ function appearanceColorsChanged(
 ) {
   return (
     previous.appearance.appTheme !== next.appearance.appTheme ||
+    previous.appearance.accent !== next.appearance.accent ||
     previous.appearance.studySurface !== next.appearance.studySurface ||
     previous.appearance.density !== next.appearance.density ||
     previous.appearance.roundness !== next.appearance.roundness ||
@@ -2493,7 +2494,8 @@ function appearanceColorsChanged(
     previous.theme.defaultHighlightColor !== next.theme.defaultHighlightColor ||
     previous.appearance.customPalette.primary !== next.appearance.customPalette.primary ||
     previous.appearance.customPalette.secondary !== next.appearance.customPalette.secondary ||
-    previous.appearance.customPalette.accent !== next.appearance.customPalette.accent
+    previous.appearance.customPalette.accent !== next.appearance.customPalette.accent ||
+    previous.appearance.customPalette.sourceTheme !== next.appearance.customPalette.sourceTheme
   );
 }
 
