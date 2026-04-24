@@ -37,8 +37,13 @@ describe("math learning seeds", () => {
         "jacob-geometry-transformations",
         "jacob-multivariable-surfaces",
         "jacob-real-analysis-sequence-limits",
+        "jacob-01-geometry-language-rigid-motions-dilation",
+        "jacob-18-partial-derivatives-gradient-divergence-curl-jacobian",
+        "jacob-27-real-analysis-differentiation-taylor-riemann-improper-integrals",
       ]),
     );
     expect(mathSeedTopics.filter((topic) => topic.course_id === "course-jacob-math-notes")).toHaveLength(8);
+    expect(mathSeedModules.filter((module) => module.course_id === "course-jacob-math-notes")).toHaveLength(35);
+    expect(mathSeedQuestions.filter((question) => question.course_id === "course-jacob-math-notes").length).toBeGreaterThanOrEqual(62);
   });
 });

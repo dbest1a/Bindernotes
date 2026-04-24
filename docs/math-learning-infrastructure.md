@@ -82,18 +82,13 @@ Published modules:
 - Calc 1: Derivative as Slope
 - Calc 2: Taylor Polynomial Explorer
 - Calc 3: Surface and Tangent Plane Explorer
-- Jacob Geometry: Transformations and Conics
-- Jacob Algebra 2: Functions and Structure
-- Jacob Precalculus: Trig, Complex Numbers, and Vectors
-- Jacob Calculus: Tangents, Accumulation, and Series
-- Jacob Multivariable: Surfaces and Vector Operators
-- Jacob Linear Algebra: Transformations and Eigenvectors
-- Jacob Differential Equations: Solution Behavior
-- Jacob Real Analysis: Limits and Proof Habits
+- Jacob Math Notes: 27 source-backed modules from Geometry through Real Analysis
 
 Seeds are deterministic and idempotent.
 
 Jacob Math Notes is seeded as a learner-facing math course with topics for Geometry, Algebra 2, Precalculus, Calculus, Multivariable Calculus, Linear Algebra, Differential Equations, and Real Analysis. The original binder remains available as the readable note set, while the math course modules provide graph-first interactive entry points into the same conceptual arc.
+
+The complete Jacob coverage ledger lives at `docs/jacob-math-notes-coverage.md`. The structured source used by tests and seeds lives at `src/lib/jacob-math-coverage.ts`.
 
 ## Quiz And Question Model
 
@@ -142,7 +137,9 @@ Manual verification:
 - open `/math/modules/derivative-as-slope`
 - open `/math/modules/taylor-polynomial-explorer`
 - open `/math/modules/surface-and-tangent-plane-explorer`
-- open `/math/modules/jacob-multivariable-surfaces`
+- open `/math/modules/jacob-01-geometry-language-rigid-motions-dilation`
+- open `/math/modules/jacob-18-partial-derivatives-gradient-divergence-curl-jacobian`
+- open `/math/modules/jacob-27-real-analysis-differentiation-taylor-riemann-improper-integrals`
 - switch the graph module between 2D Graph and 3D Graph
 - save a graph state
 - create a manual question

@@ -50,6 +50,30 @@ export type MathModuleJson = {
     title: string;
     body: string;
   }>;
+  sourceSubsections?: string[];
+  formulaCards?: Array<{
+    id: string;
+    label: string;
+    latex: string;
+    explanation?: string;
+  }>;
+  graphCards?: Array<{
+    id: string;
+    label: string;
+    mode: Exclude<CalculatorMode, "none">;
+    description: string;
+    expressions: string[];
+    viewport?: {
+      xMin: number;
+      xMax: number;
+      yMin: number;
+      yMax: number;
+    };
+  }>;
+  relatedConcepts?: string[];
+  presetRecommendation?: string;
+  lessonId?: string;
+  coverageStatus?: string;
   expressions?: ModuleExpression[];
   viewport?: {
     xMin: number;

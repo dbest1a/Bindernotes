@@ -6,8 +6,11 @@ import type {
   QuestionBankItem,
   QuestionChoice,
 } from "@/types/math-learning";
+import { buildJacobMathModules, buildJacobPracticeQuestions } from "@/lib/jacob-math-coverage";
 
 const SEED_TIME = "2026-01-01T00:00:00.000Z";
+const jacobSectionModules = buildJacobMathModules(SEED_TIME);
+const jacobSectionQuestions = buildJacobPracticeQuestions(SEED_TIME);
 
 export const mathSeedCourses: MathCourse[] = [
   {
@@ -602,6 +605,7 @@ export const mathSeedModules: MathModule[] = [
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
   },
+  ...jacobSectionModules,
 ];
 
 export const mathSeedQuestions: QuestionBankItem[] = [
@@ -822,6 +826,7 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     answer: { expected: 1, tolerance: 0.001, units: null },
     explanation: "The term 1/n goes to 0, so the sequence approaches 1.",
   }),
+  ...jacobSectionQuestions,
 ];
 
 export const mathSeedChoices: QuestionChoice[] = [

@@ -300,6 +300,12 @@ describe("workspace preferences", () => {
       "notes-focus",
       "split-study",
       "math-study",
+      "math-simple-presentation",
+      "math-guided-study",
+      "math-graph-lab",
+      "math-proof-concept",
+      "math-practice-mode",
+      "full-math-canvas",
       "annotation-mode",
     ];
 
@@ -354,6 +360,16 @@ describe("workspace preferences", () => {
       const mathStudy = resolveWorkspacePresetLayout("math-study", style);
       expect(frameArea(mathStudy.windowLayout!["desmos-graph"]!)).toBeGreaterThan(
         frameArea(mathStudy.windowLayout!["private-notes"]!) * 2.8,
+      );
+
+      const graphLab = resolveWorkspacePresetLayout("math-graph-lab", style);
+      expect(frameArea(graphLab.windowLayout!["desmos-graph"]!)).toBeGreaterThan(
+        frameArea(graphLab.windowLayout!.lesson!) * 3,
+      );
+
+      const proofMode = resolveWorkspacePresetLayout("math-proof-concept", style);
+      expect(frameArea(proofMode.windowLayout!.lesson!)).toBeGreaterThan(
+        frameArea(proofMode.windowLayout!["related-concepts"]!),
       );
 
       const annotation = resolveWorkspacePresetLayout("annotation-mode", style);

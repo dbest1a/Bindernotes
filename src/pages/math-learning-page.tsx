@@ -232,6 +232,7 @@ export function MathModulePage() {
     "2d": null,
     "3d": null,
   });
+  const [selectedGraphCardId, setSelectedGraphCardId] = useState<string | null>(null);
   const [snapshotName, setSnapshotName] = useState("");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const loadedModule = bundleQuery.data?.module;
@@ -243,6 +244,7 @@ export function MathModulePage() {
 
     setActiveGraphMode(defaultGraphMode(loadedModule.calculator_mode));
     setGraphStatesByMode({ "2d": null, "3d": null });
+    setSelectedGraphCardId(null);
     setSnapshotName("");
     setSaveMessage(null);
   }, [loadedModule?.calculator_mode, loadedModule?.id]);
@@ -257,7 +259,11 @@ export function MathModulePage() {
   }
 
   const module = bundle.module;
-  const expressions = module.module_json.expressions ?? [];
+  const graphCards = module.module_json.graphCards ?? [];
+  const selectedGraphCard = graphCards.find((graph) => graph.id === selectedGraphCardId) ?? null;
+  const expressions = selectedGraphCard
+    ? selectedGraphCard.expressions.map((latex, index) => ({ id: `${selectedGraphCard.id}-${index + 1}`, latex }))
+    : module.module_json.expressions ?? [];
   const activeGraphState = graphStatesByMode[activeGraphMode];
   const canSaveGraph = module.calculator_mode !== "none" && Boolean(activeGraphState);
   const setActiveGraphState = (nextState: DesmosState) => {
@@ -291,7 +297,7 @@ export function MathModulePage() {
       userId: profile.id,
       moduleId: module.id,
       calculatorMode: activeGraphMode,
-      title: snapshotName.trim() || `${module.title} graph`,
+      title: snapshotName.trim() || selectedGraphCard?.label || `${module.title} graph`,
       desmosState: activeGraphState,
       expressions,
     });
@@ -358,9 +364,27 @@ export function MathModulePage() {
                   <p className="mt-2 text-sm leading-7 text-muted-foreground">{section.body}</p>
                 </div>
               ))}
+              {module.module_json.presetRecommendation ? (
+                <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 text-sm">
+                  <span className="font-semibold">Recommended workspace: </span>
+                  {module.module_json.presetRecommendation}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
+          <FormulaCardGrid formulas={module.module_json.formulaCards ?? []} />
+          <GraphCardList
+            graphs={graphCards}
+            onOpenGraph={(graph) => {
+              setSelectedGraphCardId(graph.id);
+              setActiveGraphMode(graph.mode);
+              setGraphStatesByMode((current) => ({ ...current, [graph.mode]: null }));
+              setSaveMessage(null);
+            }}
+            selectedGraphId={selectedGraphCard?.id ?? null}
+          />
+          <RelatedConcepts concepts={module.module_json.relatedConcepts ?? []} />
           <PracticeList questions={bundle.questions} />
         </div>
 
@@ -414,7 +438,7 @@ export function MathModulePage() {
               mode={module.calculator_mode === "none" ? "none" : activeGraphMode}
               onStateChange={setActiveGraphState}
               state={activeGraphState}
-              viewport={module.module_json.viewport}
+              viewport={selectedGraphCard?.viewport ?? module.module_json.viewport}
             />
             <div className="flex flex-wrap items-center gap-2">
               <Input
@@ -992,6 +1016,105 @@ function ModuleDesmos({
   }
 
   return <EmptyState description="This module does not need a calculator." title="No graph needed" />;
+}
+
+function FormulaCardGrid({
+  formulas,
+}: {
+  formulas: NonNullable<MathModule["module_json"]["formulaCards"]>;
+}) {
+  if (formulas.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Formula and theorem cards</CardTitle>
+        <CardDescription>Study references connected to this Jacob section.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {formulas.map((formula) => (
+          <div className="rounded-lg border border-border/70 bg-background/80 p-4" key={formula.id}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Formula card</Badge>
+              <h2 className="font-semibold tracking-tight">{formula.label}</h2>
+            </div>
+            <LatexBlock latex={formula.latex} />
+            {formula.explanation ? (
+              <p className="text-sm leading-6 text-muted-foreground">{formula.explanation}</p>
+            ) : null}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GraphCardList({
+  graphs,
+  onOpenGraph,
+  selectedGraphId,
+}: {
+  graphs: NonNullable<MathModule["module_json"]["graphCards"]>;
+  onOpenGraph: (graph: NonNullable<MathModule["module_json"]["graphCards"]>[number]) => void;
+  selectedGraphId: string | null;
+}) {
+  if (graphs.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Graph demos</CardTitle>
+        <CardDescription>Open a 2D or 3D graph built for this lesson.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {graphs.map((graph) => (
+          <div className="rounded-lg border border-border/70 bg-background/80 p-4" key={graph.id}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={graph.mode === "3d" ? "default" : "secondary"}>
+                    {graph.mode === "3d" ? "3D Graph" : "2D Graph"}
+                  </Badge>
+                  {selectedGraphId === graph.id ? <Badge variant="outline">Open</Badge> : null}
+                </div>
+                <h2 className="mt-2 font-semibold tracking-tight">{graph.label}</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{graph.description}</p>
+              </div>
+              <Button onClick={() => onOpenGraph(graph)} size="sm" type="button" variant="outline">
+                {graph.mode === "3d" ? "Switch to 3D" : "Explore in 2D"}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RelatedConcepts({ concepts }: { concepts: string[] }) {
+  if (concepts.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Related concepts</CardTitle>
+        <CardDescription>Use these links as a map through Jacob's course.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        {concepts.map((concept) => (
+          <Badge key={concept} variant="outline">
+            {concept}
+          </Badge>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 function PracticeList({ questions }: { questions: QuestionBankItem[] }) {
