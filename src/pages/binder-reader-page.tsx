@@ -178,6 +178,7 @@ export function BinderReaderPage() {
   const noteHasLocalEditsRef = useRef(false);
   const activeNoteScopeRef = useRef("");
   const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
+  const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
 
   const isCompact = useCompactWorkspace();
   const syncedSnapshotRef = useRef("");
@@ -1030,6 +1031,14 @@ export function BinderReaderPage() {
     noteSaveActiveRef.current = true;
     setIsNoteSaveActive(true);
     setNoteSaveError(null);
+    submittedNoteSnapshotRef.current = {
+      scopeKey: pendingDraft.scopeKey,
+      snapshot: serializeNoteSnapshot(
+        pendingDraft.input.title,
+        pendingDraft.input.content,
+        pendingDraft.input.mathBlocks,
+      ),
+    };
 
     try {
       const savedNote = await noteMutationRef.current(pendingDraft.input);
@@ -1202,6 +1211,9 @@ export function BinderReaderPage() {
           currentDraft.input.mathBlocks,
         )
       : "";
+    const isOwnSubmittedSaveEcho =
+      submittedNoteSnapshotRef.current?.scopeKey === currentNoteScopeKey &&
+      submittedNoteSnapshotRef.current.snapshot === currentSnapshot;
 
     if (
       currentNoteScopeKey === activeNoteScopeRef.current &&
@@ -1209,7 +1221,8 @@ export function BinderReaderPage() {
       noteHasLocalEditsRef.current &&
       currentDraft?.scopeKey === currentNoteScopeKey &&
       currentSnapshot !== syncedSnapshotRef.current &&
-      nextSnapshot !== currentSnapshot
+      nextSnapshot !== currentSnapshot &&
+      !isOwnSubmittedSaveEcho
     ) {
       setNoteSaveError(
         "A newer saved version is available in another tab. Save this note to keep your current draft.",
