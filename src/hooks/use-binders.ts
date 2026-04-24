@@ -33,7 +33,6 @@ import type { JSONContent } from "@tiptap/react";
 const DEFAULT_QUERY_STALE_TIME = 30_000;
 const HIGHLIGHT_SYNC_EVENT = "binder-notes:highlight-sync";
 const HIGHLIGHT_SYNC_STORAGE_KEY = "binder-notes:highlight-sync:v1";
-const NOTE_SYNC_EVENT = "binder-notes:note-sync";
 const NOTE_SYNC_STORAGE_KEY = "binder-notes:note-sync:v1";
 
 type HighlightSyncPayload = {
@@ -108,12 +107,10 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
 
     window.addEventListener("storage", handleStorage);
     window.addEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
-    window.addEventListener(NOTE_SYNC_EVENT, handleLocalSync);
 
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
-      window.removeEventListener(NOTE_SYNC_EVENT, handleLocalSync);
     };
   }, [binderId, profile, queryClient]);
 
@@ -499,8 +496,6 @@ function publishNoteSync(note: Pick<LearnerNote, "id" | "owner_id" | "binder_id"
   } catch {
     // Local storage sync is a convenience for other tabs; the current tab already has cache updates.
   }
-
-  window.dispatchEvent(new CustomEvent(NOTE_SYNC_EVENT, { detail: payload }));
 }
 
 function parseNoteSyncPayload(raw: string): NoteSyncPayload | null {
