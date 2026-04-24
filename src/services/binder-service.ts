@@ -710,6 +710,31 @@ function isSupabaseContentReferenceError(error: unknown) {
   );
 }
 
+function isLearnerNoteFolderReferenceError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+  };
+  const message = (record.message ?? "").toLowerCase();
+  const details = (record.details ?? "").toLowerCase();
+  const hint = (record.hint ?? "").toLowerCase();
+
+  return (
+    record.code === "23503" &&
+    (message.includes("learner_notes_folder_id_fkey") ||
+      details.includes("learner_notes_folder_id_fkey") ||
+      hint.includes("learner_notes_folder_id_fkey") ||
+      (message.includes("folders") && message.includes("learner_notes")) ||
+      (details.includes("folders") && details.includes("learner_notes")))
+  );
+}
+
 function shouldUseShadowFallback(binderId: string, error: unknown) {
   if (!isBundledPublishedBinder(binderId) || !isSupabaseContentReferenceError(error)) {
     return false;
@@ -1675,28 +1700,38 @@ export async function upsertLearnerNote(input: {
     return note;
   }
 
+  const client = supabase;
   if ((await resolveBundledContentStorageMode(input.binderId)) === "shadow") {
     return upsertShadowLearnerNote(note);
   }
 
-  const { data, error } = await supabase
-    .from("learner_notes")
-    .upsert(
-      {
-        owner_id: input.ownerId,
-        binder_id: input.binderId,
-        lesson_id: input.lessonId,
-        folder_id: input.folderId ?? null,
-        title: normalizedTitle,
-        content: input.content,
-        math_blocks: input.mathBlocks,
-        pinned: false,
-        updated_at: now(),
-      },
-      { onConflict: "owner_id,lesson_id" },
-    )
-    .select("*")
-    .single();
+  const persistWithFolderId = (folderId: string | null) =>
+    client
+      .from("learner_notes")
+      .upsert(
+        {
+          owner_id: input.ownerId,
+          binder_id: input.binderId,
+          lesson_id: input.lessonId,
+          folder_id: folderId,
+          title: normalizedTitle,
+          content: input.content,
+          math_blocks: input.mathBlocks,
+          pinned: false,
+          updated_at: now(),
+        },
+        { onConflict: "owner_id,lesson_id" },
+      )
+      .select("*")
+      .single();
+
+  let { data, error } = await persistWithFolderId(input.folderId ?? null);
+
+  if (error && input.folderId && isLearnerNoteFolderReferenceError(error)) {
+    const retry = await persistWithFolderId(null);
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     if (shouldUseShadowFallback(input.binderId, error)) {

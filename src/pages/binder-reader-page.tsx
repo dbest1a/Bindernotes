@@ -49,6 +49,7 @@ import {
 import { buildBinderNotebookStructure } from "@/lib/notebook-structure";
 import { formatNoteSavedAt, NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 import { saveQueue } from "@/lib/save-queue";
+import { isWorkspaceContainerId } from "@/lib/workspace-records";
 import {
   buildSelectionQuoteContext,
   dedupeHighlights,
@@ -307,7 +308,14 @@ export function BinderReaderPage() {
   })();
   const ownerId = profile?.id ?? null;
   const currentNoteScopeKey = binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "";
-  const activeFolderId = binderQuery.data?.folderLinks[0]?.folder_id ?? null;
+  const activeFolderId = useMemo(() => {
+    const folderId = binderQuery.data?.folderLinks[0]?.folder_id ?? null;
+    if (!folderId || isWorkspaceContainerId(folderId)) {
+      return null;
+    }
+
+    return binderQuery.data?.folders.some((folder) => folder.id === folderId) ? folderId : null;
+  }, [binderQuery.data?.folderLinks, binderQuery.data?.folders]);
   const defaultHighlightColor: HighlightColor = active?.theme.defaultHighlightColor ?? "yellow";
   const commitWorkspacePreferences = useCallback(
     (next: WorkspacePreferences) => {
@@ -1197,6 +1205,20 @@ export function BinderReaderPage() {
 
     if (
       currentNoteScopeKey === activeNoteScopeRef.current &&
+      noteScopeHydratedRef.current &&
+      noteHasLocalEditsRef.current &&
+      currentDraft?.scopeKey === currentNoteScopeKey &&
+      currentSnapshot !== syncedSnapshotRef.current &&
+      nextSnapshot !== currentSnapshot
+    ) {
+      setNoteSaveError(
+        "A newer saved version is available in another tab. Save this note to keep your current draft.",
+      );
+      return;
+    }
+
+    if (
+      currentNoteScopeKey === activeNoteScopeRef.current &&
       currentDraft?.scopeKey === currentNoteScopeKey &&
       currentNote?.id === currentDraft?.input.id &&
       nextSnapshot === currentSnapshot
@@ -1436,30 +1458,35 @@ export function BinderReaderPage() {
         : hasUnsavedChanges
           ? "unsaved"
           : "saved";
+  const hasPersistedCurrentNote = Boolean(noteId || noteLastSavedAt);
   const noteSaveLabel =
     autosaveStatus === "saving"
       ? "Saving..."
       : autosaveStatus === "offline"
-        ? "Offline - will sync"
+        ? "Offline - keep this tab open"
         : autosaveStatus === "error"
           ? "Save failed"
           : autosaveStatus === "unsaved"
             ? "Unsaved changes"
-            : noteLastSavedAt
-              ? `Saved ${formatNoteSavedAt(noteLastSavedAt)}`
-              : "Saved";
+          : noteLastSavedAt
+            ? `Saved ${formatNoteSavedAt(noteLastSavedAt)}`
+              : hasPersistedCurrentNote
+                ? "Saved"
+                : "Ready";
   const noteSaveDetail =
     autosaveStatus === "saving"
       ? "Saving this lesson note to your account now."
       : autosaveStatus === "offline"
-        ? "You're offline. Your latest lesson note changes will sync when you're back online."
+        ? "You're offline. Keep this tab open so this note can sync when the connection returns."
         : autosaveStatus === "error"
           ? noteSaveError ?? "Save failed. Retry to keep this lesson note."
           : autosaveStatus === "unsaved"
             ? "You have unsaved changes in this lesson note."
             : noteLastSavedAt
               ? `Saved to your account at ${formatNoteSavedAt(noteLastSavedAt)}.`
-              : "Saved to your account.";
+              : hasPersistedCurrentNote
+                ? "Saved to your account."
+                : "No private note saved for this lesson yet.";
   const canRetryNoteSave = autosaveStatus === "error";
 
   const createSticky = useCallback(

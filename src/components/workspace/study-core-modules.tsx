@@ -389,8 +389,8 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
       className="min-h-[680px]"
       description={
         currentNotebookSection
-          ? `Saved to your account inside ${currentNotebookSection.title}`
-          : "Saved to your account for this lesson"
+          ? `Private lesson notes inside ${currentNotebookSection.title}`
+          : "Private lesson notes for this lesson"
       }
       title="Private notes"
     >

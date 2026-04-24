@@ -258,4 +258,57 @@ describe("BinderReaderPage", () => {
 
     expect(screen.getByText("Document unavailable")).toBeTruthy();
   });
+
+  it("does not claim an empty private note is already saved to the account", () => {
+    mocks.workspacePreferences.active = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      activeMode: "simple",
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-1",
+        owner_id: "admin-1",
+        title: "Calculus",
+        slug: "calculus",
+        subject: "Math",
+        level: "Foundations",
+        description: "A calculus binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-1",
+          binder_id: "binder-1",
+          title: "Limits",
+          order_index: 1,
+          content: emptyDoc("Limits are local predictions."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(screen.getByText("No private note saved for this lesson yet.")).toBeTruthy();
+    expect(screen.queryByText("Saved to your account.")).toBeNull();
+  });
 });

@@ -33,6 +33,8 @@ import type { JSONContent } from "@tiptap/react";
 const DEFAULT_QUERY_STALE_TIME = 30_000;
 const HIGHLIGHT_SYNC_EVENT = "binder-notes:highlight-sync";
 const HIGHLIGHT_SYNC_STORAGE_KEY = "binder-notes:highlight-sync:v1";
+const NOTE_SYNC_EVENT = "binder-notes:note-sync";
+const NOTE_SYNC_STORAGE_KEY = "binder-notes:note-sync:v1";
 
 type HighlightSyncPayload = {
   id: string;
@@ -40,6 +42,15 @@ type HighlightSyncPayload = {
   binderId: string;
   lessonId?: string | null;
   action: "create" | "update" | "delete" | "reset";
+  createdAt: string;
+};
+
+type NoteSyncPayload = {
+  id: string;
+  ownerId: string;
+  binderId: string;
+  lessonId: string;
+  action: "upsert";
   createdAt: string;
 };
 
@@ -68,7 +79,7 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
       return;
     }
 
-    const syncIfRelevant = (payload: HighlightSyncPayload | null) => {
+    const syncIfRelevant = (payload: HighlightSyncPayload | NoteSyncPayload | null) => {
       if (!payload || payload.ownerId !== profile.id || payload.binderId !== binderId) {
         return;
       }
@@ -77,23 +88,32 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
     };
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== HIGHLIGHT_SYNC_STORAGE_KEY || !event.newValue) {
+      if (!event.newValue) {
         return;
       }
 
-      syncIfRelevant(parseHighlightSyncPayload(event.newValue));
+      if (event.key === HIGHLIGHT_SYNC_STORAGE_KEY) {
+        syncIfRelevant(parseHighlightSyncPayload(event.newValue));
+        return;
+      }
+
+      if (event.key === NOTE_SYNC_STORAGE_KEY) {
+        syncIfRelevant(parseNoteSyncPayload(event.newValue));
+      }
     };
 
     const handleLocalSync = (event: Event) => {
-      syncIfRelevant((event as CustomEvent<HighlightSyncPayload>).detail ?? null);
+      syncIfRelevant((event as CustomEvent<HighlightSyncPayload | NoteSyncPayload>).detail ?? null);
     };
 
     window.addEventListener("storage", handleStorage);
     window.addEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
+    window.addEventListener(NOTE_SYNC_EVENT, handleLocalSync);
 
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(HIGHLIGHT_SYNC_EVENT, handleLocalSync);
+      window.removeEventListener(NOTE_SYNC_EVENT, handleLocalSync);
     };
   }, [binderId, profile, queryClient]);
 
@@ -179,6 +199,8 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
             query.queryKey[2] === profile.id,
         });
       }
+
+      publishNoteSync(savedNote);
     },
   });
 }
@@ -453,6 +475,52 @@ function parseHighlightSyncPayload(raw: string): HighlightSyncPayload | null {
     }
 
     return parsed as HighlightSyncPayload;
+  } catch {
+    return null;
+  }
+}
+
+function publishNoteSync(note: Pick<LearnerNote, "id" | "owner_id" | "binder_id" | "lesson_id">) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const payload: NoteSyncPayload = {
+    id: `upsert:${note.id}:${crypto.randomUUID()}`,
+    ownerId: note.owner_id,
+    binderId: note.binder_id,
+    lessonId: note.lesson_id,
+    action: "upsert",
+    createdAt: new Date().toISOString(),
+  };
+
+  try {
+    window.localStorage.setItem(NOTE_SYNC_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Local storage sync is a convenience for other tabs; the current tab already has cache updates.
+  }
+
+  window.dispatchEvent(new CustomEvent(NOTE_SYNC_EVENT, { detail: payload }));
+}
+
+function parseNoteSyncPayload(raw: string): NoteSyncPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<NoteSyncPayload>;
+    if (
+      typeof parsed.id !== "string" ||
+      typeof parsed.ownerId !== "string" ||
+      typeof parsed.binderId !== "string" ||
+      typeof parsed.lessonId !== "string" ||
+      typeof parsed.createdAt !== "string"
+    ) {
+      return null;
+    }
+
+    if (parsed.action !== "upsert") {
+      return null;
+    }
+
+    return parsed as NoteSyncPayload;
   } catch {
     return null;
   }
