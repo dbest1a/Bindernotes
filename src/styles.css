@@ -25,6 +25,20 @@
     --border: 214 18% 88%;
     --input: 214 18% 88%;
     --ring: 170 78% 29%;
+    --bg-app: var(--background);
+    --bg-surface: var(--card);
+    --bg-panel: var(--card);
+    --bg-elevated: var(--secondary);
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --border-default: var(--border);
+    --accent-primary: var(--primary);
+    --accent-secondary: var(--accent);
+    --accent-soft: var(--accent);
+    --button-primary: var(--primary);
+    --button-secondary: var(--secondary);
+    --focus-ring: var(--ring);
+    --shadow-strength: 0.08;
     --lesson-highlight-yellow: 46 96% 59%;
     --lesson-highlight-yellow-alpha: 0.52;
     --lesson-highlight-blue: 209 94% 68%;
@@ -57,6 +71,20 @@
     --border: 220 11% 22%;
     --input: 220 11% 22%;
     --ring: 170 66% 46%;
+    --bg-app: var(--background);
+    --bg-surface: var(--card);
+    --bg-panel: var(--card);
+    --bg-elevated: var(--secondary);
+    --text-primary: var(--foreground);
+    --text-secondary: var(--muted-foreground);
+    --border-default: var(--border);
+    --accent-primary: var(--primary);
+    --accent-secondary: var(--accent);
+    --accent-soft: var(--accent);
+    --button-primary: var(--primary);
+    --button-secondary: var(--secondary);
+    --focus-ring: var(--ring);
+    --shadow-strength: 0.12;
     --lesson-highlight-yellow: 49 96% 57%;
     --lesson-highlight-yellow-alpha: 0.34;
     --lesson-highlight-blue: 214 95% 61%;
@@ -660,7 +688,7 @@
     --simple-soft: hsl(var(--secondary) / 0.62);
     --simple-line: hsl(var(--border) / 0.72);
     --simple-accent: hsl(var(--primary));
-    @apply flex min-h-0 flex-1 flex-col gap-3 overflow-hidden border border-border/70 p-3 shadow-soft;
+    @apply flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden border border-border/70 p-3 shadow-soft;
     border-radius: 8px;
     background:
       linear-gradient(135deg, hsl(var(--background) / 0.98), hsl(var(--secondary) / 0.36)),
@@ -800,6 +828,16 @@
     background: hsl(var(--background));
   }
 
+  .simple-presentation-shell[data-simple-theme="custom"] {
+    --simple-surface: hsl(var(--bg-surface) / 0.96);
+    --simple-soft: hsl(var(--bg-elevated) / 0.72);
+    --simple-line: hsl(var(--border-default) / 0.78);
+    --simple-accent: hsl(var(--accent-primary));
+    background:
+      linear-gradient(135deg, hsl(var(--bg-app) / 0.98), hsl(var(--bg-elevated) / 0.44)),
+      radial-gradient(circle at top right, hsl(var(--accent-primary) / 0.16), transparent 34%);
+  }
+
   .simple-presentation-shell__body {
     @apply grid min-h-0 flex-1 gap-3 overflow-hidden;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 28%);
@@ -814,11 +852,11 @@
   }
 
   .simple-presentation-main {
-    @apply flex flex-col gap-4 p-4;
+    @apply flex min-w-0 flex-col gap-4 p-4;
   }
 
   .simple-study-drawer {
-    @apply flex flex-col gap-3 p-3;
+    @apply flex min-w-0 flex-col gap-3 p-3;
   }
 
   .simple-presentation-hero {
@@ -838,6 +876,10 @@
   .simple-lesson-nav,
   .simple-reading-card__meta {
     @apply flex flex-wrap items-center gap-2;
+  }
+
+  .simple-presentation-actions {
+    @apply min-w-0 justify-start;
   }
 
   .simple-theme-select {
@@ -891,7 +933,8 @@
   }
 
   .simple-reading-surface {
-    @apply relative mx-auto min-h-0 w-full flex-1 overflow-visible px-1 py-2;
+    @apply relative mx-auto min-h-0 w-full flex-1 overflow-auto px-1 py-2;
+    scrollbar-gutter: stable;
   }
 
   .simple-presentation-shell[data-simple-reading-width="focused"] .simple-reading-card {
@@ -955,10 +998,11 @@
   }
 
   .simple-progress-strip {
-    @apply flex min-h-0 gap-2 overflow-x-auto border p-2;
+    @apply flex min-h-0 shrink-0 gap-2 overflow-x-auto border p-2;
     border-color: var(--simple-line);
     border-radius: 8px;
     background-color: hsl(var(--card) / 0.88);
+    scrollbar-gutter: stable;
   }
 
   .simple-progress-strip button {
@@ -975,6 +1019,15 @@
 
   .simple-progress-strip span {
     @apply font-mono text-[10px] text-muted-foreground;
+  }
+
+  .simple-lesson-nav {
+    @apply shrink-0 border-t pt-3;
+    border-color: var(--simple-line);
+  }
+
+  .simple-lesson-nav > button {
+    @apply min-w-0;
   }
 
   .simple-settings-panel {
@@ -1298,7 +1351,7 @@
 
     .simple-presentation-main,
     .simple-study-drawer {
-      overflow: visible;
+      overflow: auto;
     }
 
     .workspace-preferences-popover {
@@ -1316,6 +1369,92 @@
     .workspace-preferences-popover .workspace-settings {
       height: auto;
       max-height: min(72svh, 48rem);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .simple-presentation-shell {
+      padding: 0.625rem;
+    }
+
+    .simple-presentation-main,
+    .simple-study-drawer {
+      padding: 0.75rem;
+    }
+
+    .simple-presentation-hero h2 {
+      font-size: clamp(1.55rem, 7vw, 2rem);
+      line-height: 1.15;
+    }
+
+    .simple-presentation-actions {
+      width: 100%;
+    }
+
+    .simple-presentation-actions > *,
+    .simple-theme-select {
+      flex: 1 1 9rem;
+    }
+
+    .simple-theme-select select {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .simple-lesson-nav {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .simple-lesson-nav > button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .simple-lesson-nav > button:last-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-height: 760px) {
+    .simple-presentation-shell {
+      gap: 0.625rem;
+      padding: 0.625rem;
+    }
+
+    .simple-presentation-main,
+    .simple-study-drawer {
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .simple-presentation-hero {
+      gap: 0.75rem;
+      padding-bottom: 0.75rem;
+    }
+
+    .simple-presentation-hero h2 {
+      font-size: clamp(1.45rem, 3vw, 2rem);
+    }
+
+    .simple-presentation-hero p {
+      margin-top: 0.35rem;
+    }
+
+    .simple-reading-card {
+      min-height: 16rem;
+    }
+
+    .simple-lesson-nav {
+      padding-top: 0.625rem;
+    }
+
+    .simple-progress-strip {
+      padding: 0.45rem;
+    }
+
+    .simple-progress-strip button {
+      padding-block: 0.45rem;
     }
   }
 }

@@ -32,7 +32,10 @@ import {
 } from "@/components/history/history-suite-modules";
 import { formatHistoricalDateLabel } from "@/lib/history-dates";
 import { extractPlainText } from "@/lib/math-detection";
-import { simplePresentationThemeOptions } from "@/lib/workspace-preferences";
+import {
+  simplePresentationThemeOptions,
+  updateWorkspaceAppearance,
+} from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
 import type { MathBlock, SimplePresentationTheme, WorkspacePreferences } from "@/types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
@@ -98,15 +101,7 @@ export function SimplePresentationShell({
   };
 
   const setSimpleTheme = (theme: SimplePresentationTheme) => {
-    setSimple({
-      accentColor:
-        theme === "history-gold"
-          ? "history-gold"
-          : theme === "math-blue"
-            ? "math-blue"
-            : settings.accentColor,
-      theme,
-    });
+    onChange(updateWorkspaceAppearance(preferences, { studySurface: theme }));
   };
 
   const showDrawer = settings.showSideNotes || settings.showStudyDrawer;
@@ -215,7 +210,7 @@ export function SimplePresentationShell({
             </div>
           </section>
 
-          <div className="simple-lesson-nav">
+          <div className="simple-lesson-nav" data-testid="simple-lesson-nav">
             <Button
               disabled={!previousLesson}
               onClick={() => previousLesson && context.onSelectLesson(previousLesson)}

@@ -5,6 +5,7 @@ import {
   applyPreset,
   applyWorkspaceStyle,
   createDefaultWorkspacePreferences,
+  defaultCustomPalette,
   defaultThemeSettings,
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
@@ -13,6 +14,7 @@ import {
   normalizeWorkspacePreferences,
   resolveWorkspacePresetLayout,
   saveWorkspacePreferences,
+  updateWorkspaceAppearance,
 } from "@/lib/workspace-preferences";
 import type { WorkspacePresetId, WorkspaceStyle, WorkspaceWindowFrame } from "@/types";
 
@@ -33,6 +35,8 @@ describe("workspace preferences", () => {
     expect(preferences.activeMode).toBe("simple");
     expect(preferences.styleChoiceCompleted).toBe(false);
     expect(preferences.simple.theme).toBe("math-blue");
+    expect(preferences.appearance.appTheme).toBe(preferences.theme.id);
+    expect(preferences.appearance.studySurface).toBe("math-blue");
     expect(preferences.modular.selectedPreset).toBe(preferences.preset);
     expect(preferences.canvas.snapBehavior).toBe("off");
     expect(preferences.windowLayout.lesson).toBeDefined();
@@ -80,13 +84,7 @@ describe("workspace preferences", () => {
     };
 
     const simple = applyWorkspaceMode(withCanvasMemory, "simple");
-    const simpleThemeChanged = {
-      ...simple,
-      simple: {
-        ...simple.simple,
-        theme: "night-study" as const,
-      },
-    };
+    const simpleThemeChanged = updateWorkspaceAppearance(simple, { studySurface: "night-study" });
     const modular = applyWorkspaceMode(simpleThemeChanged, "modular");
     const canvas = applyWorkspaceMode(simpleThemeChanged, "canvas");
 
@@ -95,9 +93,34 @@ describe("workspace preferences", () => {
     expect(simpleThemeChanged.canvas.panelPositions.lesson).toEqual(canvasFrame);
     expect(modular.activeMode).toBe("modular");
     expect(modular.preset).toBe("math-study");
+    expect(modular.appearance.studySurface).toBe("night-study");
+    expect(modular.theme.id).toBe(simpleThemeChanged.theme.id);
     expect(canvas.activeMode).toBe("canvas");
     expect(canvas.locked).toBe(false);
     expect(canvas.windowLayout.lesson).toEqual(canvasFrame);
+  });
+
+  it("keeps appearance shared across simple, modular, and canvas settings", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const withAppearance = updateWorkspaceAppearance(preferences, {
+      appTheme: "custom",
+      studySurface: "warm-paper",
+      customPalette: {
+        primary: "#2563eb",
+        secondary: "#f8fafc",
+        accent: "#f59e0b",
+      },
+    });
+    const modular = applyWorkspaceMode(withAppearance, "modular");
+    const canvas = applyWorkspaceMode(withAppearance, "canvas");
+
+    expect(withAppearance.theme.id).toBe("custom");
+    expect(withAppearance.simple.theme).toBe("warm-paper");
+    expect(withAppearance.appearance.customPalette.primary).toBe("#2563eb");
+    expect(modular.theme.id).toBe("custom");
+    expect(modular.appearance.studySurface).toBe("warm-paper");
+    expect(canvas.theme.id).toBe("custom");
+    expect(canvas.appearance.customPalette.accent).toBe("#f59e0b");
   });
 
   it("applies a preset module arrangement and generates window frames", () => {
@@ -469,6 +492,38 @@ describe("workspace preferences", () => {
     expect(documentElement.dataset.workspaceHighlightColor).toBe("yellow");
     expect(documentElement.dataset.workspaceReducedChrome).toBe("off");
     expect(documentElement.dataset.workspaceUtilityUi).toBe("on");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-app", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--accent-primary", expect.any(String));
+  });
+
+  it("applies a custom three-color palette through the shared theme tokens", () => {
+    const documentElement = {
+      dataset: {} as Record<string, string>,
+      style: {
+        colorScheme: "",
+        setProperty: vi.fn(),
+      },
+      classList: {
+        toggle: vi.fn(),
+      },
+    };
+    vi.stubGlobal("document", { documentElement });
+
+    applyThemeSettings({
+      ...defaultThemeSettings,
+      id: "custom",
+      customPalette: {
+        ...defaultCustomPalette,
+        primary: "#2563eb",
+        secondary: "#111827",
+        accent: "#f59e0b",
+      },
+    });
+
+    expect(documentElement.dataset.workspaceTheme).toBe("custom");
+    expect(documentElement.dataset.workspaceCustomPalette).toBe("on");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--primary", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-surface", expect.any(String));
   });
 });
 

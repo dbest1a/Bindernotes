@@ -5,12 +5,18 @@ import {
   simplePresentationMotionOptions,
   simplePresentationReadingWidthOptions,
   simplePresentationThemeOptions,
+  updateWorkspaceAppearance,
   workspaceModeOptions,
 } from "@/lib/workspace-preferences";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { SimplePresentationSettings, WorkspaceMode, WorkspacePreferences } from "@/types";
+import type {
+  AppearanceCustomPalette,
+  SimplePresentationSettings,
+  WorkspaceMode,
+  WorkspacePreferences,
+} from "@/types";
 
 export function SimpleSettingsPanel({
   onChange,
@@ -28,6 +34,11 @@ export function SimpleSettingsPanel({
     });
 
   const updateSimple = (patch: Partial<SimplePresentationSettings>) => {
+    if (patch.theme) {
+      setNext(updateWorkspaceAppearance(preferences, { studySurface: patch.theme }));
+      return;
+    }
+
     setNext({
       ...preferences,
       simple: {
@@ -39,6 +50,19 @@ export function SimpleSettingsPanel({
 
   const changeMode = (mode: WorkspaceMode) => {
     setNext(applyWorkspaceMode(preferences, mode));
+  };
+
+  const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
+    setNext(
+      updateWorkspaceAppearance(preferences, {
+        appTheme: "custom",
+        studySurface: "custom",
+        customPalette: {
+          ...preferences.appearance.customPalette,
+          [key]: value,
+        },
+      }),
+    );
   };
 
   return (
@@ -116,6 +140,12 @@ export function SimpleSettingsPanel({
               </SimpleChoice>
             ))}
           </div>
+          {preferences.appearance.appTheme === "custom" || preferences.simple.theme === "custom" ? (
+            <CustomPaletteControls
+              onChange={updateCustomColor}
+              palette={preferences.appearance.customPalette}
+            />
+          ) : null}
         </SimpleSection>
 
         <SimpleSection description="Make the lesson comfortable to read." title="Reading">
@@ -224,6 +254,34 @@ function ControlGroup({ children, title }: { children: ReactNode; title: string 
     <div className="grid gap-2">
       <h4 className="text-sm font-semibold">{title}</h4>
       <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function CustomPaletteControls({
+  onChange,
+  palette,
+}: {
+  palette: AppearanceCustomPalette;
+  onChange: (key: keyof AppearanceCustomPalette, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-2 rounded-xl border border-border/70 bg-background/55 p-3">
+      <h4 className="text-sm font-semibold">Custom colors</h4>
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(7rem,1fr))]">
+        {(["primary", "secondary", "accent"] as const).map((key) => (
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground" key={key}>
+            <span className="capitalize">{key}</span>
+            <input
+              aria-label={`Custom ${key} color`}
+              className="h-10 w-full rounded-lg border border-border/80 bg-card p-1"
+              onChange={(event) => onChange(key, event.target.value)}
+              type="color"
+              value={palette[key]}
+            />
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

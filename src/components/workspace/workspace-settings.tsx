@@ -13,6 +13,8 @@ import {
   highlightColorOptions,
   roundnessOptions,
   shadowOptions,
+  simplePresentationThemeOptions,
+  updateWorkspaceAppearance,
   verticalSpaceOptions,
   workspaceModules,
   workspaceModeOptions,
@@ -20,6 +22,7 @@ import {
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import type {
+  AppearanceCustomPalette,
   WorkspaceMode,
   WorkspaceModuleId,
   WorkspacePreferences,
@@ -98,10 +101,48 @@ export function WorkspaceSettings({
   const updateTheme = (
     updater: (current: WorkspacePreferences["theme"]) => WorkspacePreferences["theme"],
   ) => {
-    setNext({
-      ...preferences,
-      theme: updater(preferences.theme),
-    });
+    const nextTheme = updater(preferences.theme);
+    setNext(
+      updateWorkspaceAppearance(
+        {
+          ...preferences,
+          theme: nextTheme,
+        },
+        {
+          appTheme: nextTheme.id,
+          density: nextTheme.density,
+          roundness: nextTheme.roundness,
+          motion:
+            nextTheme.animationLevel === "full"
+              ? "full"
+              : nextTheme.animationLevel === "subtle"
+                ? "reduced"
+                : "minimal",
+          customPalette: nextTheme.customPalette ?? preferences.appearance.customPalette,
+        },
+      ),
+    );
+  };
+
+  const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
+    setNext(
+      updateWorkspaceAppearance(preferences, {
+        appTheme: "custom",
+        studySurface: preferences.appearance.studySurface === "custom" ? "custom" : preferences.appearance.studySurface,
+        customPalette: {
+          ...preferences.appearance.customPalette,
+          [key]: value,
+        },
+      }),
+    );
+  };
+
+  const updateStudySurface = (studySurface: WorkspacePreferences["appearance"]["studySurface"]) => {
+    setNext(updateWorkspaceAppearance(preferences, { studySurface }));
+  };
+
+  const updateAppTheme = (appTheme: WorkspaceThemeId) => {
+    setNext(updateWorkspaceAppearance(preferences, { appTheme }));
   };
 
   const changeMode = (workspaceMode: WorkspaceMode) => {
@@ -337,19 +378,7 @@ export function WorkspaceSettings({
                         : "border-border/70 bg-background/55",
                     )}
                     key={theme.id}
-                    onClick={() =>
-                      setNext({
-                        ...preferences,
-                        modular: {
-                          ...preferences.modular,
-                          colorPreset: isModular ? (theme.id as WorkspaceThemeId) : preferences.modular.colorPreset,
-                        },
-                        theme: {
-                          ...preferences.theme,
-                          id: theme.id as WorkspaceThemeId,
-                        },
-                      })
-                    }
+                    onClick={() => updateAppTheme(theme.id as WorkspaceThemeId)}
                     type="button"
                   >
                     <span className="mb-3 flex gap-2">
@@ -386,6 +415,39 @@ export function WorkspaceSettings({
                 </ThemeChoice>
               ))}
             </ControlGroup>
+
+            <ControlGroup title="Study surface">
+              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+                {simplePresentationThemeOptions.map((surface) => (
+                  <button
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
+                      preferences.appearance.studySurface === surface.id
+                        ? "border-primary bg-accent/70"
+                        : "border-border/70 bg-background/55",
+                    )}
+                    key={surface.id}
+                    onClick={() => updateStudySurface(surface.id)}
+                    type="button"
+                  >
+                    <span className="block text-sm font-medium">{surface.name}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {surface.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </ControlGroup>
+
+            {(preferences.appearance.appTheme === "custom" ||
+              preferences.appearance.studySurface === "custom") ? (
+              <ControlGroup title="Custom colors">
+                <CustomPaletteControls
+                  onChange={updateCustomColor}
+                  palette={preferences.appearance.customPalette}
+                />
+              </ControlGroup>
+            ) : null}
 
             <div className="grid gap-4">
               <ControlGroup title="Density">
@@ -857,6 +919,33 @@ function ControlGroup({
         )}
       >
         {children}
+      </div>
+    </div>
+  );
+}
+
+function CustomPaletteControls({
+  onChange,
+  palette,
+}: {
+  palette: AppearanceCustomPalette;
+  onChange: (key: keyof AppearanceCustomPalette, value: string) => void;
+}) {
+  return (
+    <div className="grid w-full gap-2 rounded-xl border border-border/70 bg-background/55 p-3">
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(7rem,1fr))]">
+        {(["primary", "secondary", "accent"] as const).map((key) => (
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground" key={key}>
+            <span className="capitalize">{key}</span>
+            <input
+              aria-label={`Custom ${key} color`}
+              className="h-10 w-full rounded-lg border border-border/80 bg-card p-1"
+              onChange={(event) => onChange(key, event.target.value)}
+              type="color"
+              value={palette[key]}
+            />
+          </label>
+        ))}
       </div>
     </div>
   );

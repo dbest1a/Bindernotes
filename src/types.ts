@@ -368,7 +368,8 @@ export type WorkspaceThemeId =
   | "paper-studio"
   | "ocean"
   | "monochrome-pro"
-  | "aurora";
+  | "aurora"
+  | "custom";
 
 export type WorkspaceDensity = "compact" | "cozy";
 export type WorkspaceRoundness = "soft" | "round" | "pill";
@@ -386,7 +387,8 @@ export type SimplePresentationTheme =
   | "night-study"
   | "history-gold"
   | "math-blue"
-  | "high-contrast";
+  | "high-contrast"
+  | "custom";
 export type SimplePresentationFontSize = "small" | "medium" | "large";
 export type SimplePresentationReadingWidth = "focused" | "comfortable" | "wide";
 export type SimplePresentationMotion = "reduced" | "standard";
@@ -427,6 +429,25 @@ export type FullCanvasSettings = {
   showDiagnostics: boolean;
 };
 
+export type AppTheme = WorkspaceThemeId;
+export type StudySurface = SimplePresentationTheme;
+export type AppearanceMotion = "full" | "reduced" | "minimal";
+
+export type AppearanceCustomPalette = {
+  primary: string;
+  secondary: string;
+  accent: string;
+};
+
+export type AppearanceSettings = {
+  appTheme: AppTheme;
+  studySurface: StudySurface;
+  density: WorkspaceDensity;
+  roundness: WorkspaceRoundness;
+  motion: AppearanceMotion;
+  customPalette: AppearanceCustomPalette;
+};
+
 export type WorkspaceThemeSettings = {
   id: WorkspaceThemeId;
   accent: string;
@@ -446,6 +467,7 @@ export type WorkspaceThemeSettings = {
   defaultHighlightColor: HighlightColor;
   reducedChrome: boolean;
   showUtilityUi: boolean;
+  customPalette?: AppearanceCustomPalette;
 };
 
 export type WorkspacePreferences = {
@@ -454,6 +476,7 @@ export type WorkspacePreferences = {
   binderId: string;
   suiteTemplateId?: string | null;
   activeMode: WorkspaceMode;
+  appearance: AppearanceSettings;
   simple: SimplePresentationSettings;
   modular: ModularStudySettings;
   canvas: FullCanvasSettings;

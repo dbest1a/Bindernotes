@@ -94,6 +94,7 @@ describe("SimplePresentationShell", () => {
 
     expect(screen.getByTestId("simple-presentation-shell")).toBeTruthy();
     expect(screen.getByTestId("simple-primary-module")).toBeTruthy();
+    expect(screen.getByTestId("simple-lesson-nav")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe(
       "/dashboard",
     );
@@ -176,6 +177,9 @@ describe("SimplePresentationShell", () => {
       expect.objectContaining({
         simple: expect.objectContaining({
           theme: "night-study",
+        }),
+        appearance: expect.objectContaining({
+          studySurface: "night-study",
         }),
       }),
     );

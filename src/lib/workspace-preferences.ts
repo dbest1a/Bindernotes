@@ -1,4 +1,7 @@
 import type {
+  AppearanceCustomPalette,
+  AppearanceMotion,
+  AppearanceSettings,
   FullCanvasSettings,
   FullCanvasSnapBehavior,
   HighlightColor,
@@ -165,6 +168,7 @@ export const simplePresentationThemeOptions: {
   { id: "history-gold", name: "History Gold", description: "Warm accent for timelines and sources." },
   { id: "math-blue", name: "Math Blue", description: "Cool, clear tone for formulas and graph work." },
   { id: "high-contrast", name: "High Contrast", description: "Maximum readability and stronger edges." },
+  { id: "custom", name: "Custom", description: "Use your custom app palette on the study surface." },
 ];
 
 export const simplePresentationFontSizeOptions: {
@@ -700,6 +704,23 @@ export const workspaceThemes: WorkspaceTheme[] = [
       primary: "267 74% 48%",
     },
   },
+  {
+    id: "custom",
+    name: "Custom",
+    description: "A personal three-color palette used across app, study, and canvas views.",
+    vars: {
+      background: "42 33% 97%",
+      foreground: "220 16% 10%",
+      card: "0 0% 100%",
+      cardForeground: "220 16% 10%",
+      secondary: "40 24% 92%",
+      muted: "40 24% 92%",
+      mutedForeground: "225 7% 43%",
+      border: "38 22% 84%",
+      accent: "176 37% 90%",
+      primary: "172 82% 27%",
+    },
+  },
 ];
 
 export const accentOptions = [
@@ -712,6 +733,12 @@ export const accentOptions = [
   { name: "Emerald", value: "160 84% 32%" },
   { name: "Graphite", value: "0 0% 12%" },
 ];
+
+export const defaultCustomPalette: AppearanceCustomPalette = {
+  primary: "#0f766e",
+  secondary: "#f8fafc",
+  accent: "#d97706",
+};
 
 export const densityOptions: WorkspaceDensity[] = ["compact", "cozy"];
 export const roundnessOptions: WorkspaceRoundness[] = ["soft", "round", "pill"];
@@ -740,6 +767,130 @@ const globalThemeStorageKey = "binder-notes:theme:v1";
 const defaultPreset =
   workspacePresets.find((preset) => preset.id === "split-study") ?? workspacePresets[0];
 const defaultTheme = workspaceThemes.find((theme) => theme.id === "paper-studio") ?? workspaceThemes[0];
+
+type HslColor = { h: number; s: number; l: number };
+
+const hexColorPattern = /^#[0-9a-f]{6}$/i;
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  return typeof value === "string" && hexColorPattern.test(value) ? value.toLowerCase() : fallback;
+}
+
+function normalizeCustomPalette(
+  palette?: Partial<AppearanceCustomPalette> | null,
+): AppearanceCustomPalette {
+  return {
+    primary: normalizeHexColor(palette?.primary, defaultCustomPalette.primary),
+    secondary: normalizeHexColor(palette?.secondary, defaultCustomPalette.secondary),
+    accent: normalizeHexColor(palette?.accent, defaultCustomPalette.accent),
+  };
+}
+
+function hexToHsl(hex: string): HslColor {
+  const normalized = normalizeHexColor(hex, defaultCustomPalette.primary);
+  const red = Number.parseInt(normalized.slice(1, 3), 16) / 255;
+  const green = Number.parseInt(normalized.slice(3, 5), 16) / 255;
+  const blue = Number.parseInt(normalized.slice(5, 7), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const lightness = (max + min) / 2;
+
+  if (max === min) {
+    return { h: 0, s: 0, l: Math.round(lightness * 100) };
+  }
+
+  const delta = max - min;
+  const saturation =
+    lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  let hue =
+    max === red
+      ? (green - blue) / delta + (green < blue ? 6 : 0)
+      : max === green
+        ? (blue - red) / delta + 2
+        : (red - green) / delta + 4;
+  hue /= 6;
+
+  return {
+    h: Math.round(hue * 360),
+    s: Math.round(saturation * 100),
+    l: Math.round(lightness * 100),
+  };
+}
+
+function hslParts(color: HslColor) {
+  return `${Math.round(color.h)} ${Math.round(color.s)}% ${Math.round(color.l)}%`;
+}
+
+function adjustHsl(color: HslColor, lightness: number, saturationLimit = 100) {
+  return hslParts({
+    h: color.h,
+    s: clampNumber(color.s, 0, saturationLimit),
+    l: clampNumber(lightness, 0, 100),
+  });
+}
+
+function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme["vars"] {
+  const primary = hexToHsl(palette.primary);
+  const secondary = hexToHsl(palette.secondary);
+  const accent = hexToHsl(palette.accent);
+  const isDark = secondary.l < 45;
+
+  return {
+    background: adjustHsl(secondary, isDark ? 8 : 97, 48),
+    foreground: isDark ? "42 32% 96%" : "220 18% 10%",
+    card: adjustHsl(secondary, isDark ? 12 : 99, 36),
+    cardForeground: isDark ? "42 32% 96%" : "220 18% 10%",
+    secondary: adjustHsl(secondary, isDark ? 18 : 92, 54),
+    muted: adjustHsl(secondary, isDark ? 18 : 92, 42),
+    mutedForeground: isDark ? "214 13% 72%" : "220 9% 40%",
+    border: adjustHsl(secondary, isDark ? 25 : 84, 42),
+    accent: adjustHsl(accent, isDark ? 24 : 90, 70),
+    primary: hslParts({
+      h: primary.h,
+      s: clampNumber(primary.s, 40, 90),
+      l: isDark ? clampNumber(primary.l, 54, 70) : clampNumber(primary.l, 28, 48),
+    }),
+  };
+}
+
+function appearanceMotionFromAnimationLevel(level: WorkspaceAnimationLevel): AppearanceMotion {
+  if (level === "full") {
+    return "full";
+  }
+
+  return level === "subtle" ? "reduced" : "minimal";
+}
+
+function animationLevelFromAppearanceMotion(motion: AppearanceMotion): WorkspaceAnimationLevel {
+  if (motion === "full") {
+    return "full";
+  }
+
+  return motion === "reduced" ? "subtle" : "none";
+}
+
+function simpleMotionFromAppearanceMotion(motion: AppearanceMotion): SimplePresentationMotion {
+  return motion === "full" ? "standard" : "reduced";
+}
+
+function accentForStudySurface(
+  surface: SimplePresentationTheme,
+  fallback: SimplePresentationSettings["accentColor"],
+) {
+  if (surface === "history-gold") {
+    return "history-gold";
+  }
+
+  if (surface === "math-blue" || surface === "custom") {
+    return "math-blue";
+  }
+
+  return fallback;
+}
 
 export function resolveWorkspacePresetLayout(
   presetId: WorkspacePresetId,
@@ -890,6 +1041,7 @@ export const defaultThemeSettings: WorkspaceThemeSettings = {
   defaultHighlightColor: "yellow",
   reducedChrome: true,
   showUtilityUi: false,
+  customPalette: defaultCustomPalette,
 };
 
 export function createDefaultSimplePresentationSettings(
@@ -939,6 +1091,23 @@ export function createDefaultFullCanvasSettings(): FullCanvasSettings {
   };
 }
 
+export function createDefaultAppearanceSettings(
+  binderId?: string | null,
+  suiteTemplateId?: string | null,
+  theme: WorkspaceThemeSettings = loadGlobalThemeSettings(),
+): AppearanceSettings {
+  const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
+
+  return {
+    appTheme: theme.id,
+    studySurface: simple.theme,
+    density: theme.density,
+    roundness: theme.roundness,
+    motion: appearanceMotionFromAnimationLevel(theme.animationLevel),
+    customPalette: normalizeCustomPalette(theme.customPalette),
+  };
+}
+
 export function createDefaultWorkspacePreferences(
   userId: string,
   binderId: string,
@@ -950,13 +1119,18 @@ export function createDefaultWorkspacePreferences(
       ? "history-guided"
       : defaultPreset.id);
   const defaultLayout = resolveWorkspacePresetLayout(initialPreset, "guided", suiteTemplateId);
+  const theme = loadGlobalThemeSettings();
+  const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
+  const appearance = createDefaultAppearanceSettings(binderId, suiteTemplateId, theme);
+
   return ensureWindowFramesForEnabledModules({
     version: 1,
     userId,
     binderId,
     suiteTemplateId: suiteTemplateId ?? null,
     activeMode: "simple",
-    simple: createDefaultSimplePresentationSettings(binderId, suiteTemplateId),
+    appearance,
+    simple,
     modular: createDefaultModularStudySettings(initialPreset),
     canvas: createDefaultFullCanvasSettings(),
     locked: true,
@@ -973,7 +1147,7 @@ export function createDefaultWorkspacePreferences(
     windowLayout: defaultLayout.windowLayout ?? {},
     stickyNotes: {},
     viewportFit: undefined,
-    theme: loadGlobalThemeSettings(),
+    theme,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -1024,6 +1198,66 @@ export function applyWorkspaceStyle(
   return applyPreset(nextBase, nextBase.preset ?? defaultPreset.id);
 }
 
+export function updateWorkspaceAppearance(
+  preferences: WorkspacePreferences,
+  patch: Partial<AppearanceSettings>,
+): WorkspacePreferences {
+  const themeForAppearance = {
+    ...preferences.theme,
+    id: patch.appTheme ?? (patch.studySurface === "custom" ? "custom" : preferences.theme.id),
+    density: patch.density ?? preferences.theme.density,
+    roundness: patch.roundness ?? preferences.theme.roundness,
+    animationLevel: patch.motion
+      ? animationLevelFromAppearanceMotion(patch.motion)
+      : preferences.theme.animationLevel,
+    customPalette: patch.customPalette ?? preferences.theme.customPalette,
+  };
+  const nextAppearance = normalizeAppearanceSettings(
+    {
+      ...(preferences.appearance ?? createDefaultAppearanceSettings(preferences.binderId, preferences.suiteTemplateId)),
+      ...patch,
+    },
+    themeForAppearance,
+    preferences.simple,
+    preferences.binderId,
+    preferences.suiteTemplateId,
+  );
+  const nextTheme = normalizeThemeSettings({
+    ...preferences.theme,
+    id: nextAppearance.appTheme,
+    density: nextAppearance.density,
+    roundness: nextAppearance.roundness,
+    animationLevel: animationLevelFromAppearanceMotion(nextAppearance.motion),
+    customPalette: nextAppearance.customPalette,
+  });
+  const nextSimple = normalizeSimplePresentationSettings(
+    {
+      ...preferences.simple,
+      theme: nextAppearance.studySurface,
+      accentColor: accentForStudySurface(
+        nextAppearance.studySurface,
+        preferences.simple.accentColor,
+      ),
+      motion: simpleMotionFromAppearanceMotion(nextAppearance.motion),
+    },
+    preferences.binderId,
+    preferences.suiteTemplateId,
+  );
+
+  return normalizeWorkspacePreferences({
+    ...preferences,
+    appearance: nextAppearance,
+    simple: nextSimple,
+    modular: {
+      ...preferences.modular,
+      colorPreset: nextAppearance.appTheme,
+      motionLevel: nextTheme.animationLevel,
+    },
+    theme: nextTheme,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 export function applyWorkspaceMode(
   preferences: WorkspacePreferences,
   activeMode: WorkspaceMode,
@@ -1049,8 +1283,6 @@ export function applyWorkspaceMode(
       preset: preferences.modular.selectedPreset,
       theme: {
         ...preferences.theme,
-        id: preferences.modular.colorPreset,
-        animationLevel: preferences.modular.motionLevel,
         snapMode: false,
       },
       updatedAt: new Date().toISOString(),
@@ -1423,34 +1655,53 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
   const normalizedSettings = normalizeThemeSettings(settings);
   const theme =
     workspaceThemes.find((candidate) => candidate.id === normalizedSettings.id) ?? defaultTheme;
-  const darkSurface = theme.vars.background.match(/(\d+)%$/)?.[1];
+  const themeVars =
+    normalizedSettings.id === "custom"
+      ? buildCustomThemeVars(normalizedSettings.customPalette ?? defaultCustomPalette)
+      : theme.vars;
+  const darkSurface = themeVars.background.match(/(\d+)%$/)?.[1];
   const isDark =
     darkSurface ? Number(darkSurface) < 20 : theme.id === "space" || theme.id === "midnight-scholar";
   const vars = {
-    "--background": theme.vars.background,
-    "--foreground": theme.vars.foreground,
-    "--card": theme.vars.card,
-    "--card-foreground": theme.vars.cardForeground,
-    "--popover": theme.vars.card,
-    "--popover-foreground": theme.vars.cardForeground,
-    "--secondary": theme.vars.secondary,
-    "--secondary-foreground": theme.vars.foreground,
-    "--muted": theme.vars.muted,
-    "--muted-foreground": theme.vars.mutedForeground,
-    "--accent": theme.vars.accent,
-    "--accent-foreground": theme.vars.foreground,
-    "--border": theme.vars.border,
-    "--input": theme.vars.border,
+    "--background": themeVars.background,
+    "--foreground": themeVars.foreground,
+    "--card": themeVars.card,
+    "--card-foreground": themeVars.cardForeground,
+    "--popover": themeVars.card,
+    "--popover-foreground": themeVars.cardForeground,
+    "--secondary": themeVars.secondary,
+    "--secondary-foreground": themeVars.foreground,
+    "--muted": themeVars.muted,
+    "--muted-foreground": themeVars.mutedForeground,
+    "--accent": themeVars.accent,
+    "--accent-foreground": themeVars.foreground,
+    "--border": themeVars.border,
+    "--input": themeVars.border,
     "--ring": normalizedSettings.accent,
-    "--primary": normalizedSettings.accent || theme.vars.primary,
+    "--primary": normalizedSettings.accent || themeVars.primary,
     "--primary-foreground":
-      theme.id.includes("midnight") || theme.id === "space" ? "220 16% 8%" : "0 0% 100%",
+      isDark ? "220 16% 8%" : "0 0% 100%",
+    "--bg-app": themeVars.background,
+    "--bg-surface": themeVars.card,
+    "--bg-panel": themeVars.card,
+    "--bg-elevated": themeVars.secondary,
+    "--text-primary": themeVars.foreground,
+    "--text-secondary": themeVars.mutedForeground,
+    "--border-default": themeVars.border,
+    "--accent-primary": normalizedSettings.accent || themeVars.primary,
+    "--accent-secondary": themeVars.accent,
+    "--accent-soft": themeVars.accent,
+    "--button-primary": normalizedSettings.accent || themeVars.primary,
+    "--button-secondary": themeVars.secondary,
+    "--focus-ring": normalizedSettings.accent,
+    "--shadow-strength": normalizedSettings.shadow === "glow" ? "0.18" : normalizedSettings.shadow === "lifted" ? "0.1" : "0.04",
   };
 
   Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
   root.classList.toggle("dark", isDark);
   root.style.colorScheme = isDark ? "dark" : "light";
-  root.dataset.workspaceTheme = theme.id;
+  root.dataset.workspaceTheme = normalizedSettings.id;
+  root.dataset.workspaceCustomPalette = normalizedSettings.id === "custom" ? "on" : "off";
   root.dataset.workspaceDensity = normalizedSettings.density;
   root.dataset.workspaceRoundness = normalizedSettings.roundness;
   root.dataset.workspaceShadow = normalizedSettings.shadow;
@@ -1492,15 +1743,52 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     .map((id) => normalizeModuleId(id))
     .filter((id, index, list): id is WorkspaceModuleId => Boolean(id) && list.indexOf(id) === index);
 
+  const normalizedSimple = normalizeSimplePresentationSettings(
+    preferences.simple,
+    preferences.binderId,
+    preferences.suiteTemplateId,
+  );
+  const legacyTheme = normalizeThemeSettings(preferences.theme);
+  const normalizedAppearance = normalizeAppearanceSettings(
+    preferences.appearance,
+    legacyTheme,
+    normalizedSimple,
+    preferences.binderId,
+    preferences.suiteTemplateId,
+  );
+  const normalizedTheme = normalizeThemeSettings({
+    ...legacyTheme,
+    id: normalizedAppearance.appTheme,
+    density: normalizedAppearance.density,
+    roundness: normalizedAppearance.roundness,
+    animationLevel: animationLevelFromAppearanceMotion(normalizedAppearance.motion),
+    customPalette: normalizedAppearance.customPalette,
+  });
+  const simple = normalizeSimplePresentationSettings(
+    {
+      ...normalizedSimple,
+      theme: normalizedAppearance.studySurface,
+      accentColor: accentForStudySurface(
+        normalizedAppearance.studySurface,
+        normalizedSimple.accentColor,
+      ),
+      motion: simpleMotionFromAppearanceMotion(normalizedAppearance.motion),
+    },
+    preferences.binderId,
+    preferences.suiteTemplateId,
+  );
+  const modular = normalizeModularStudySettings(preferences.modular, preferences.preset);
+
   const normalized: WorkspacePreferences = {
     ...preferences,
     activeMode: normalizeWorkspaceMode(preferences.activeMode, preferences.workspaceStyle),
-    simple: normalizeSimplePresentationSettings(
-      preferences.simple,
-      preferences.binderId,
-      preferences.suiteTemplateId,
-    ),
-    modular: normalizeModularStudySettings(preferences.modular, preferences.preset),
+    appearance: normalizedAppearance,
+    simple,
+    modular: {
+      ...modular,
+      colorPreset: normalizedAppearance.appTheme,
+      motionLevel: normalizedTheme.animationLevel,
+    },
     canvas: normalizeFullCanvasSettings(preferences.canvas),
     workspaceStyle: normalizeWorkspaceStyle(preferences.workspaceStyle),
     styleChoiceCompleted: preferences.styleChoiceCompleted ?? false,
@@ -1512,7 +1800,7 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     windowLayout: normalizeWindowLayout(preferences.windowLayout),
     stickyNotes: normalizeStickyNotes(preferences.stickyNotes),
     viewportFit: normalizeViewportFit(preferences.viewportFit),
-    theme: normalizeThemeSettings(preferences.theme),
+    theme: normalizedTheme,
   };
 
   const shouldAutoAttachMathModules =
@@ -1567,12 +1855,16 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
   )
     ? (settings?.defaultHighlightColor as HighlightColor)
     : defaultThemeSettings.defaultHighlightColor;
+  const customPalette = normalizeCustomPalette(settings?.customPalette);
 
   return {
     ...defaultThemeSettings,
     ...settings,
     id: nextId,
-    accent: settings?.accent || defaultThemeSettings.accent,
+    accent:
+      nextId === "custom"
+        ? hslParts(hexToHsl(customPalette.primary))
+        : settings?.accent || defaultThemeSettings.accent,
     density,
     roundness,
     shadow,
@@ -1607,6 +1899,7 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
       typeof settings?.showUtilityUi === "boolean"
         ? settings.showUtilityUi
         : defaultThemeSettings.showUtilityUi,
+    customPalette,
   };
 }
 
@@ -1631,6 +1924,62 @@ function normalizeWorkspaceMode(mode?: string, workspaceStyle?: string): Workspa
   }
 
   return "simple";
+}
+
+function normalizeAppearanceSettings(
+  settings?: Partial<AppearanceSettings>,
+  theme?: Partial<WorkspaceThemeSettings>,
+  simple?: Partial<SimplePresentationSettings>,
+  binderId?: string | null,
+  suiteTemplateId?: string | null,
+): AppearanceSettings {
+  const fallback = createDefaultAppearanceSettings(
+    binderId,
+    suiteTemplateId,
+    normalizeThemeSettings(theme),
+  );
+  const appTheme =
+    theme?.id && workspaceThemes.some((option) => option.id === theme.id)
+      ? (theme.id as AppearanceSettings["appTheme"])
+      : settings?.appTheme && workspaceThemes.some((option) => option.id === settings.appTheme)
+        ? settings.appTheme
+        : fallback.appTheme;
+  const studySurface =
+    settings?.studySurface &&
+    simplePresentationThemeOptions.some((option) => option.id === settings.studySurface)
+      ? settings.studySurface
+      : simple?.theme &&
+          simplePresentationThemeOptions.some((option) => option.id === simple.theme)
+        ? (simple.theme as AppearanceSettings["studySurface"])
+        : fallback.studySurface;
+  const density =
+    theme?.density && densityOptions.includes(theme.density as WorkspaceDensity)
+      ? (theme.density as WorkspaceDensity)
+      : densityOptions.includes(settings?.density as WorkspaceDensity)
+        ? (settings?.density as WorkspaceDensity)
+        : fallback.density;
+  const roundness =
+    theme?.roundness && roundnessOptions.includes(theme.roundness as WorkspaceRoundness)
+      ? (theme.roundness as WorkspaceRoundness)
+      : roundnessOptions.includes(settings?.roundness as WorkspaceRoundness)
+        ? (settings?.roundness as WorkspaceRoundness)
+        : fallback.roundness;
+  const motion =
+    theme?.animationLevel &&
+          animationLevelOptions.includes(theme.animationLevel as WorkspaceAnimationLevel)
+        ? appearanceMotionFromAnimationLevel(theme.animationLevel as WorkspaceAnimationLevel)
+        : settings?.motion && (["full", "reduced", "minimal"] as AppearanceMotion[]).includes(settings.motion)
+          ? settings.motion
+          : fallback.motion;
+
+  return {
+    appTheme,
+    studySurface,
+    density,
+    roundness,
+    motion,
+    customPalette: normalizeCustomPalette(settings?.customPalette ?? theme?.customPalette),
+  };
 }
 
 function normalizeSimplePresentationSettings(
