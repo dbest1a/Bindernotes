@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_DESMOS_API_KEY?: string;
+  readonly NEXT_PUBLIC_DESMOS_API_KEY?: string;
 }
 
 interface ImportMeta {

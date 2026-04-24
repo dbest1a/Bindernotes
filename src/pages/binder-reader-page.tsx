@@ -1768,6 +1768,7 @@ export function BinderReaderPage() {
     currentNotebookSection,
     query,
     noteTitle,
+    noteId,
     noteContent,
     noteMath,
     commentDraft,

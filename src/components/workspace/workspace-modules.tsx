@@ -65,6 +65,7 @@ export type WorkspaceModuleContext = {
   currentNotebookSection: BinderNotebookSection | null;
   query: string;
   noteTitle: string;
+  noteId?: string;
   noteContent: JSONContent;
   noteMath: MathBlock[];
   commentDraft: string;

@@ -231,6 +231,12 @@ jobs:
           done
           exit 1
 
+      - name: Seed math learning content
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run seed:math | tee .migration-diagnostics/seed-math.txt
+
       - name: Dry-run system placeholder repair
         shell: bash
         run: |
@@ -249,6 +255,12 @@ jobs:
         run: |
           set -o pipefail
           npm run verify:system | tee .migration-diagnostics/verify-system.txt
+
+      - name: Verify math learning seed content
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run verify:math-seed | tee .migration-diagnostics/verify-math-seed.txt
 
       - name: Typecheck after seed and repair
         run: npm run typecheck
@@ -388,6 +400,16 @@ jobs:
               echo "- Backend-native system content verification ran"
             else
               echo "- Backend-native system content verification not reached"
+            fi
+            if [ -s .migration-diagnostics/seed-math.txt ]; then
+              echo "- Math learning seed ran"
+            else
+              echo "- Math learning seed not reached"
+            fi
+            if [ -s .migration-diagnostics/verify-math-seed.txt ]; then
+              echo "- Math learning seed verification ran"
+            else
+              echo "- Math learning seed verification not reached"
             fi
             echo
             echo "### Deploy"

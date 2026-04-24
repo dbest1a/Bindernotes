@@ -46,6 +46,57 @@ describe("isDesmosFeatureEnabled", () => {
     expect(isDesmosFeatureEnabled(api, "GraphingCalculator")).toBe(true);
   });
 
+  it("requires a callable 3D constructor when Calculator3D is enabled", () => {
+    const api = {
+      enabledFeatures: {
+        Calculator3D: true,
+      },
+      Calculator3D: undefined,
+      GraphingCalculator: () => ({
+        destroy: () => undefined,
+        getState: () => ({}),
+        observeEvent: () => undefined,
+        resize: () => undefined,
+        setBlank: () => undefined,
+        setExpression: () => undefined,
+        setState: () => undefined,
+        unobserveEvent: () => undefined,
+      }),
+    } as unknown as DesmosApi;
+
+    expect(isDesmosFeatureEnabled(api, "Calculator3D")).toBe(false);
+  });
+
+  it("returns true when 3D is enabled and the 3D constructor exists", () => {
+    const api = {
+      enabledFeatures: {
+        Calculator3D: true,
+      },
+      Calculator3D: () => ({
+        destroy: () => undefined,
+        getState: () => ({}),
+        observeEvent: () => undefined,
+        resize: () => undefined,
+        setBlank: () => undefined,
+        setExpression: () => undefined,
+        setState: () => undefined,
+        unobserveEvent: () => undefined,
+      }),
+      GraphingCalculator: () => ({
+        destroy: () => undefined,
+        getState: () => ({}),
+        observeEvent: () => undefined,
+        resize: () => undefined,
+        setBlank: () => undefined,
+        setExpression: () => undefined,
+        setState: () => undefined,
+        unobserveEvent: () => undefined,
+      }),
+    } as unknown as DesmosApi;
+
+    expect(isDesmosFeatureEnabled(api, "Calculator3D")).toBe(true);
+  });
+
   it("accepts the legacy Calculator alias as the graphing constructor", () => {
     const calculator = () => ({
       destroy: () => undefined,

@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DesmosGraph } from "@/components/math/desmos-graph";
+import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import * as desmosLoader from "@/lib/desmos-loader";
 
 vi.mock("@/lib/desmos-loader", () => ({
@@ -191,5 +191,32 @@ describe("DesmosGraph", () => {
     await waitFor(() =>
       expect(screen.queryByText(/this desmos tool is not enabled/i)).toBeNull(),
     );
+  });
+
+  it("shows a safe fallback when Desmos 3D is unavailable", async () => {
+    vi.mocked(desmosLoader.isDesmosFeatureEnabled).mockImplementation(
+      (_api, feature) => feature !== "Calculator3D",
+    );
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({
+      GraphingCalculator: vi.fn(),
+      enabledFeatures: {
+        Calculator3D: false,
+      },
+    } as unknown as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+      bottom: 540,
+      height: 540,
+      left: 0,
+      right: 640,
+      toJSON: () => ({}),
+      top: 0,
+      width: 640,
+      x: 0,
+      y: 0,
+    }));
+
+    render(<Desmos3DGraph onStateChange={vi.fn()} state={null} />);
+
+    expect(await screen.findByText(/desmos 3d is not enabled/i)).toBeTruthy();
   });
 });

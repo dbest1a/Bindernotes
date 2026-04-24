@@ -15,6 +15,10 @@ declare global {
       element: HTMLElement,
       options?: DesmosGraphingCalculatorOptions,
     ) => DesmosGraphingCalculator;
+    Calculator3D?: (
+      element: HTMLElement,
+      options?: DesmosGraphingCalculatorOptions,
+    ) => DesmosGraphingCalculator;
     ScientificCalculator?: (
       element: HTMLElement,
       options?: DesmosScientificCalculatorOptions,
@@ -72,13 +76,17 @@ declare global {
   type DesmosGraphingCalculator = {
     destroy: () => void;
     getState: () => DesmosState;
+    getExpressions?: () => DesmosExpressionState[];
     observeEvent: (
       event: "change",
       callback: (eventName: "change", event: DesmosChangeEvent) => void,
     ) => void;
+    removeExpression?: (expression: { id: string }) => void;
     resize: () => void;
     setBlank: (options?: { allowUndo?: boolean }) => void;
+    setDefaultState?: (state: DesmosState) => void;
     setExpression: (expression: DesmosExpressionState) => void;
+    setExpressions?: (expressions: DesmosExpressionState[]) => void;
     setMathBounds: (bounds: {
       left: number;
       right: number;

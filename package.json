@@ -14,6 +14,8 @@
     "repair:system:apply": "tsx scripts/repair-system-content.ts --apply",
     "verify:system": "tsx scripts/verify-system-content.ts",
     "verify:system-seed": "tsx scripts/verify-system-seed.ts",
+    "seed:math": "tsx scripts/seed-math.ts",
+    "verify:math-seed": "tsx scripts/verify-math-seed.ts",
     "cleanup:placeholders": "tsx scripts/cleanup-workspace-placeholders.ts"
   },
   "dependencies": {

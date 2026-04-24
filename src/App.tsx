@@ -37,6 +37,33 @@ const BinderPage = lazy(() =>
 const MathLabPage = lazy(() =>
   import("@/pages/math-lab-page").then((module) => ({ default: module.MathLabPage })),
 );
+const MathLandingPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathLandingPage })),
+);
+const MathCoursePage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathCoursePage })),
+);
+const MathModulesPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathModulesPage })),
+);
+const MathModulePage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathModulePage })),
+);
+const MathQuestionBankPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathQuestionBankPage })),
+);
+const MathQuestionEditorPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathQuestionEditorPage })),
+);
+const MathQuizPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathQuizPage })),
+);
+const MathQuizAttemptPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathQuizAttemptPage })),
+);
+const MathQuizResultsPage = lazy(() =>
+  import("@/pages/math-learning-page").then((module) => ({ default: module.MathQuizResultsPage })),
+);
 const BinderReaderPage = lazy(() =>
   import("@/pages/binder-reader-page").then((module) => ({ default: module.BinderReaderPage })),
 );
@@ -94,7 +121,17 @@ function AppRoutes() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/folders/:folderId" element={<FolderPage />} />
               <Route path="/binders/:binderId" element={<BinderPage />} />
-              <Route path="/math" element={<MathLabPage />} />
+              <Route path="/math" element={<MathLandingPage />} />
+              <Route path="/math/lab" element={<MathLabPage />} />
+              <Route path="/math/courses/:courseSlug" element={<MathCoursePage />} />
+              <Route path="/math/modules" element={<MathModulesPage />} />
+              <Route path="/math/modules/:moduleSlug" element={<MathModulePage />} />
+              <Route path="/math/questions" element={<MathQuestionBankPage />} />
+              <Route path="/math/questions/new" element={<MathQuestionEditorPage />} />
+              <Route path="/math/questions/:questionId/edit" element={<MathQuestionEditorPage />} />
+              <Route path="/math/quizzes/:quizId" element={<MathQuizPage />} />
+              <Route path="/math/quizzes/:quizId/attempt" element={<MathQuizAttemptPage />} />
+              <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
               <Route
                 path="/binders/:binderId/documents/:lessonId"
                 element={<BinderReaderPage />}

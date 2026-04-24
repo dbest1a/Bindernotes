@@ -187,11 +187,23 @@ jobs:
           done
           exit 1
 
+      - name: Seed math learning content
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run seed:math | tee .migration-diagnostics/seed-math.txt
+
       - name: Verify backend-native system seed counts
         shell: bash
         run: |
           set -o pipefail
           npm run verify:system-seed | tee .migration-diagnostics/verify-system-seed.txt
+
+      - name: Verify math learning seed content
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run verify:math-seed | tee .migration-diagnostics/verify-math-seed.txt
 
       - name: Final migration and seed summary
         if: always()
@@ -256,5 +268,15 @@ jobs:
               echo "- Seed verification ran"
             else
               echo "- Seed verification not reached"
+            fi
+            if [ -s .migration-diagnostics/seed-math.txt ]; then
+              echo "- Math learning seed ran"
+            else
+              echo "- Math learning seed not reached"
+            fi
+            if [ -s .migration-diagnostics/verify-math-seed.txt ]; then
+              echo "- Math learning seed verification ran"
+            else
+              echo "- Math learning seed verification not reached"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

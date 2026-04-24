@@ -38,7 +38,7 @@ type DesmosSurfaceProps = {
   className?: string;
   fallback?: ReactNode;
   height?: string;
-  kind: "graphing" | "scientific";
+  kind: "graphing" | "graphing-3d" | "scientific";
   loadRequest?: GraphLoadRequest | null;
   onLoadApplied?: (id: string) => void;
   onExpressionApplied?: (id: string) => void;
@@ -236,7 +236,7 @@ export const DesmosSurface = memo(function DesmosSurface({
 
     calculatorRef.current.updateSettings({
       invertedColors: darkMode,
-      ...(kind === "graphing"
+      ...(kind === "graphing" || kind === "graphing-3d"
         ? {
             expressionsCollapsed: graphChrome === "focused",
             settingsMenu: graphChrome === "standard",
@@ -356,7 +356,7 @@ export const DesmosSurface = memo(function DesmosSurface({
 });
 
 function createDesmosCalculator(
-  kind: "graphing" | "scientific",
+  kind: "graphing" | "graphing-3d" | "scientific",
   api: DesmosApi,
   container: HTMLElement,
   preferences: {
@@ -374,6 +374,31 @@ function createDesmosCalculator(
     }
 
     return graphingCalculator(container, {
+      autosize: true,
+      border: false,
+      expressions: true,
+      expressionsCollapsed: preferences.graphChrome === "focused",
+      folders: true,
+      invertedColors: preferences.darkMode,
+      keypad: true,
+      notes: true,
+      projectorMode: false,
+      settingsMenu: preferences.graphChrome === "standard",
+      sliders: true,
+      zoomButtons: preferences.graphChrome === "standard",
+    });
+  }
+
+  if (kind === "graphing-3d") {
+    if (
+      !api.Calculator3D ||
+      !isDesmosFeatureEnabled(api, "Calculator3D") ||
+      typeof api.Calculator3D !== "function"
+    ) {
+      throw new Error("unsupported");
+    }
+
+    return api.Calculator3D(container, {
       autosize: true,
       border: false,
       expressions: true,
@@ -428,7 +453,7 @@ function StatusOverlay({
 }: {
   errorMessage: string | null;
   fallback?: ReactNode;
-  kind: "graphing" | "scientific";
+  kind: "graphing" | "graphing-3d" | "scientific";
   status: DesmosEmbedStatus;
 }) {
   if (status === "missing-key") {
@@ -455,7 +480,9 @@ function StatusOverlay({
             <AlertCircle className="mx-auto mb-3 size-8 text-primary" />
             <h3 className="text-lg font-semibold tracking-tight">
               {kind === "scientific"
-                ? "Scientific calculator is not enabled"
+              ? "Scientific calculator is not enabled"
+              : kind === "graphing-3d"
+                ? "Desmos 3D is not enabled"
                 : "This Desmos tool is not enabled"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">

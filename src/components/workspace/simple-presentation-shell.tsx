@@ -449,7 +449,27 @@ function MathStudyDrawer({
           </Button>
         </article>
       )}
+      <LinkedPracticeMini noteId={context.noteId} />
     </>
+  );
+}
+
+function LinkedPracticeMini({ noteId }: { noteId?: string }) {
+  return (
+    <article className="simple-reference-card">
+      <FileText className="size-4 text-primary" />
+      <h4>Linked practice</h4>
+      {noteId ? (
+        <>
+          <p>Create practice that points back to this note when you want a focused review set.</p>
+          <Button asChild size="sm" type="button" variant="outline">
+            <Link to={`/math/questions/new?noteId=${noteId}`}>Create from this note</Link>
+          </Button>
+        </>
+      ) : (
+        <p>Save your private notes once, then BinderNotes can link practice questions to them.</p>
+      )}
+    </article>
   );
 }
 
