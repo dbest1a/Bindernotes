@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  applyGlobalAppearanceToWorkspace,
   createDefaultWorkspacePreferences,
   normalizeWorkspacePreferences,
 } from "@/lib/workspace-preferences";
@@ -15,13 +16,18 @@ function normalizeLoadedWorkspacePreferences(
   userId: string,
   binderId: string,
   suiteTemplateId?: string | null,
+  globalTheme?: WorkspacePreferences["theme"],
 ) {
-  return normalizeWorkspacePreferences({
+  const normalized = normalizeWorkspacePreferences({
     ...createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId),
     ...preferences,
     userId,
     binderId,
   });
+
+  return normalized.appearance.saveLocalAppearance || !globalTheme
+    ? normalized
+    : applyGlobalAppearanceToWorkspace(normalized, globalTheme);
 }
 
 export function useWorkspacePreferences(
@@ -31,7 +37,7 @@ export function useWorkspacePreferences(
 ) {
   const [saved, setSaved] = useState<WorkspacePreferences | null>(null);
   const [draft, setDraft] = useState<WorkspacePreferences | null>(null);
-  const { setTheme } = useTheme();
+  const { clearThemeOverride, globalTheme, setTheme } = useTheme();
 
   useEffect(() => {
     if (!userId || !binderId) {
@@ -49,7 +55,13 @@ export function useWorkspacePreferences(
         if (cancelled) {
           return;
         }
-        const normalized = normalizeLoadedWorkspacePreferences(loaded, userId, binderId, suiteTemplateId);
+        const normalized = normalizeLoadedWorkspacePreferences(
+          loaded,
+          userId,
+          binderId,
+          suiteTemplateId,
+          globalTheme,
+        );
         setSaved(normalized);
         setDraft(normalized);
       })
@@ -70,10 +82,23 @@ export function useWorkspacePreferences(
 
   useEffect(() => {
     const active = draft ?? saved;
-    if (active) {
+    if (active?.appearance.saveLocalAppearance) {
       setTheme(active.theme);
+      return;
     }
-  }, [draft, saved, setTheme]);
+
+    clearThemeOverride();
+  }, [clearThemeOverride, draft, saved, setTheme]);
+
+  useEffect(() => {
+    const syncGlobalAppearance = (current: WorkspacePreferences | null) =>
+      current && !current.appearance.saveLocalAppearance
+        ? applyGlobalAppearanceToWorkspace(current, globalTheme)
+        : current;
+
+    setSaved(syncGlobalAppearance);
+    setDraft(syncGlobalAppearance);
+  }, [globalTheme]);
 
   const updateDraft = (updater: (current: WorkspacePreferences) => WorkspacePreferences) => {
     setDraft((current) => {

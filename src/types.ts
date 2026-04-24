@@ -446,6 +446,7 @@ export type AppearanceSettings = {
   roundness: WorkspaceRoundness;
   motion: AppearanceMotion;
   customPalette: AppearanceCustomPalette;
+  saveLocalAppearance: boolean;
 };
 
 export type WorkspaceThemeSettings = {

@@ -367,6 +367,27 @@ export function WorkspaceSettings({
           title="Appearance"
         >
           <div className="grid gap-4">
+            <ControlGroup title="Workspace colors">
+              <ToggleChoice
+                active={preferences.appearance.saveLocalAppearance}
+                description={
+                  preferences.appearance.saveLocalAppearance
+                    ? "Remember this workspace's color choices."
+                    : "Use the current app theme when this workspace opens."
+                }
+                label="Save color scheme for this workspace"
+                onClick={() =>
+                  setNext({
+                    ...preferences,
+                    appearance: {
+                      ...preferences.appearance,
+                      saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
+                    },
+                  })
+                }
+              />
+            </ControlGroup>
+
             <ControlGroup title="App Theme">
               <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
                 {workspaceThemes.map((theme) => (

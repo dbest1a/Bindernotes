@@ -20,7 +20,7 @@ import type { AppearanceCustomPalette } from "@/types";
 
 export function AppShell() {
   const { profile, signOut, isConfigured } = useAuth();
-  const { theme, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
+  const { globalTheme, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
   const navigate = useNavigate();
 
   const logout = async () => {
@@ -30,7 +30,7 @@ export function AppShell() {
 
   const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
     setCustomPalette({
-      ...(theme.customPalette ?? defaultCustomPalette),
+      ...(globalTheme.customPalette ?? defaultCustomPalette),
       [key]: value,
     });
   };
@@ -76,8 +76,8 @@ export function AppShell() {
               <select
                 aria-label="App theme"
                 className="appearance-select h-8 border-0 bg-transparent text-sm font-medium outline-none"
-                onChange={(event) => setThemeId(event.target.value as typeof theme.id)}
-                value={theme.id}
+                onChange={(event) => setThemeId(event.target.value as typeof globalTheme.id)}
+                value={globalTheme.id}
               >
                 {workspaceThemes.map((workspaceTheme) => (
                   <option key={workspaceTheme.id} value={workspaceTheme.id}>
@@ -86,7 +86,7 @@ export function AppShell() {
                 ))}
               </select>
             </label>
-            {theme.id === "custom" ? (
+            {globalTheme.id === "custom" ? (
               <div className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 px-2 py-1 shadow-sm 2xl:flex">
                 {(["primary", "secondary", "accent"] as const).map((key) => (
                   <label className="grid gap-0.5 text-[10px] font-medium capitalize text-muted-foreground" key={key}>
@@ -96,7 +96,7 @@ export function AppShell() {
                       className="size-6 rounded border border-border/80 bg-transparent p-0.5"
                       onChange={(event) => updateCustomColor(key, event.target.value)}
                       type="color"
-                      value={(theme.customPalette ?? defaultCustomPalette)[key]}
+                      value={(globalTheme.customPalette ?? defaultCustomPalette)[key]}
                     />
                   </label>
                 ))}

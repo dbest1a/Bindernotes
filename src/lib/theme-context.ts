@@ -7,7 +7,10 @@ import type {
 
 export type ThemeContextValue = {
   theme: WorkspaceThemeSettings;
+  globalTheme: WorkspaceThemeSettings;
   setTheme: (theme: WorkspaceThemeSettings) => void;
+  setGlobalTheme: (theme: WorkspaceThemeSettings) => void;
+  clearThemeOverride: () => void;
   setThemeId: (themeId: WorkspaceThemeId) => void;
   setCustomPalette: (palette: AppearanceCustomPalette) => void;
   toggleMonochrome: () => void;

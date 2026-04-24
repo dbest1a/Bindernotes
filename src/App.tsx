@@ -13,6 +13,7 @@ import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } f
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSyncRecovery } from "@/lib/sync-recovery";
@@ -132,6 +133,50 @@ type RouteErrorBoundaryState = {
   error: Error | null;
 };
 
+const chunkRecoveryStorageKey = "binder-notes:chunk-recovery:v1";
+const dynamicImportFailurePatterns = [
+  "failed to fetch dynamically imported module",
+  "importing a module script failed",
+  "loading chunk",
+  "chunkloaderror",
+  "failed to load module script",
+];
+
+function errorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return message;
+}
+
+export function isDynamicImportFailure(error: unknown) {
+  const message = errorMessage(error);
+  const normalized = message.toLowerCase();
+
+  return dynamicImportFailurePatterns.some((pattern) => normalized.includes(pattern));
+}
+
+export function shouldRecoverFromDynamicImportFailure(
+  error: unknown,
+  routeKey: string,
+  storage: Storage | undefined = typeof window === "undefined" ? undefined : window.sessionStorage,
+) {
+  if (!isDynamicImportFailure(error) || !storage) {
+    return false;
+  }
+
+  const signature = errorMessage(error).slice(0, 220);
+  const key = `${chunkRecoveryStorageKey}:${routeKey}:${signature}`;
+  try {
+    if (storage.getItem(key) === "tried") {
+      return false;
+    }
+
+    storage.setItem(key, "tried");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
   state: RouteErrorBoundaryState = {
     error: null,
@@ -143,6 +188,15 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Route render failed", error, info);
+
+    if (
+      shouldRecoverFromDynamicImportFailure(
+        error,
+        this.props.resetKey || window.location.pathname,
+      )
+    ) {
+      window.location.reload();
+    }
   }
 
   componentDidUpdate(prevProps: RouteErrorBoundaryProps) {
@@ -153,14 +207,25 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
 
   render() {
     if (this.state.error) {
+      const isChunkFailure = isDynamicImportFailure(this.state.error);
+
       return (
         <main className="app-page">
           <EmptyState
             description={
-              this.state.error.message ||
-              "This page hit a render problem. Go back to the dashboard and reopen the binder."
+              isChunkFailure
+                ? "BinderNotes tried to load an older page file from before the latest update. Refresh once to get the newest version."
+                : this.state.error.message ||
+                  "This page hit a render problem. Go back to the dashboard and reopen the binder."
             }
-            title="This page could not render"
+            title={isChunkFailure ? "This page needs a refresh" : "This page could not render"}
+            action={
+              isChunkFailure ? (
+                <Button onClick={() => window.location.reload()} type="button">
+                  Refresh page
+                </Button>
+              ) : null
+            }
           />
         </main>
       );

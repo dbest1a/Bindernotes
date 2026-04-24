@@ -37,6 +37,7 @@ import {
 import { useHistoryMutations, useHistorySuite } from "@/hooks/use-history-suite";
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { useSaveStatus } from "@/hooks/use-save-status";
+import { useTheme } from "@/hooks/use-theme";
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences";
 import { detectMathSuggestions } from "@/lib/math-detection";
 import {
@@ -62,6 +63,7 @@ import {
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
 import {
+  applyGlobalAppearanceToWorkspace,
   applyWorkspaceMode,
   applyPreset,
   createStickyNoteLayout,
@@ -112,6 +114,7 @@ export function BinderReaderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
+  const { globalTheme, setGlobalTheme } = useTheme();
   const binderQuery = useBinderBundle(binderId, profile);
   const noteMutation = useLearnerNoteMutation(profile, binderId);
   const annotations = useAnnotationMutations(profile, binderId);
@@ -306,6 +309,23 @@ export function BinderReaderPage() {
   const currentNoteScopeKey = binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "";
   const activeFolderId = binderQuery.data?.folderLinks[0]?.folder_id ?? null;
   const defaultHighlightColor: HighlightColor = active?.theme.defaultHighlightColor ?? "yellow";
+  const commitWorkspacePreferences = useCallback(
+    (next: WorkspacePreferences) => {
+      const previous = workspace.draft ?? active;
+
+      if (!next.appearance.saveLocalAppearance) {
+        if (previous && appearanceColorsChanged(previous, next)) {
+          setGlobalTheme(next.theme);
+          return workspace.commit(applyGlobalAppearanceToWorkspace(next, next.theme));
+        }
+
+        return workspace.commit(applyGlobalAppearanceToWorkspace(next, globalTheme));
+      }
+
+      return workspace.commit(next);
+    },
+    [active, globalTheme, setGlobalTheme, workspace],
+  );
   const updateNoteMathDraft = useCallback(
     (updater: MathBlock[] | ((current: MathBlock[]) => MathBlock[])) => {
       noteHasLocalEditsRef.current = true;
@@ -333,7 +353,7 @@ export function BinderReaderPage() {
 
       if (!isLayoutEditing) {
         const next = ensureWindowFramesForEnabledModules(updater(active));
-        workspace.commit(next);
+        commitWorkspacePreferences(next);
         return;
       }
 
@@ -341,31 +361,8 @@ export function BinderReaderPage() {
         ensureWindowFramesForEnabledModules(updater(current)),
       );
     },
-    [active, isLayoutEditing, workspace],
+    [active, commitWorkspacePreferences, isLayoutEditing, workspace],
   );
-
-  useEffect(() => {
-    const handleAppearanceChange = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        appTheme?: WorkspacePreferences["appearance"]["appTheme"];
-        customPalette?: WorkspacePreferences["appearance"]["customPalette"];
-      }>).detail;
-
-      if (!detail?.appTheme && !detail?.customPalette) {
-        return;
-      }
-
-      updateWorkspace((current) =>
-        updateWorkspaceAppearance(current, {
-          ...(detail.appTheme ? { appTheme: detail.appTheme } : {}),
-          ...(detail.customPalette ? { customPalette: detail.customPalette } : {}),
-        }),
-      );
-    };
-
-    window.addEventListener("binder-notes:appearance-change", handleAppearanceChange);
-    return () => window.removeEventListener("binder-notes:appearance-change", handleAppearanceChange);
-  }, [updateWorkspace]);
 
   const enterLayoutEditMode = useCallback(() => {
     if (!active) {
@@ -396,13 +393,13 @@ export function BinderReaderPage() {
       return;
     }
 
-    workspace.commit({
+    commitWorkspacePreferences({
       ...current,
       locked: true,
       updatedAt: new Date().toISOString(),
     });
     setLayoutMode("study");
-  }, [active, workspace]);
+  }, [active, commitWorkspacePreferences, workspace]);
 
   const cancelLayoutEditing = useCallback(() => {
     workspace.cancel();
@@ -457,17 +454,17 @@ export function BinderReaderPage() {
         setLayoutMode("setup");
         setPreferencesOpen(false);
       } else if (options?.enterLayoutWhenAdded) {
-        workspace.commit(next);
+        commitWorkspacePreferences(next);
         setPreferencesOpen(true);
       } else if (isLayoutEditing) {
         workspace.updateDraft(() => next);
       } else {
-        workspace.commit(next);
+        commitWorkspacePreferences(next);
       }
 
       return true;
     },
-    [active, isLayoutEditing, workspace],
+    [active, commitWorkspacePreferences, isLayoutEditing, workspace],
   );
 
   const ensureNotesVisible = useCallback(() => {
@@ -2310,7 +2307,7 @@ export function BinderReaderPage() {
               />
               <section className="workspace-preferences-popover">
                 <SimpleSettingsPanel
-                  onChange={(next) => workspace.commit(next)}
+                  onChange={commitWorkspacePreferences}
                   onClose={() => setPreferencesOpen(false)}
                   preferences={active}
                 />
@@ -2323,7 +2320,7 @@ export function BinderReaderPage() {
           >
             <SimplePresentationShell
               context={context}
-              onChange={(next) => workspace.commit(next)}
+              onChange={commitWorkspacePreferences}
               onOpenSettings={() => setPreferencesOpen(true)}
               preferences={active}
             />
@@ -2350,7 +2347,7 @@ export function BinderReaderPage() {
               isResettingHighlights={annotations.resetHighlights.isPending}
               lessonTitle={selectedLesson.title}
               mode="preferences"
-              onChange={(next) => workspace.commit(next)}
+              onChange={commitWorkspacePreferences}
               onClose={() => setPreferencesOpen(false)}
               onResetBinderHighlights={resetBinderHighlights}
               onResetLessonHighlights={resetCurrentLessonHighlights}
@@ -2402,7 +2399,7 @@ export function BinderReaderPage() {
                   isResettingHighlights={annotations.resetHighlights.isPending}
                   lessonTitle={selectedLesson.title}
                   mode="preferences"
-                  onChange={(next) => workspace.commit(next)}
+                  onChange={commitWorkspacePreferences}
                   onClose={() => setPreferencesOpen(false)}
                   onResetBinderHighlights={resetBinderHighlights}
                   onResetLessonHighlights={resetCurrentLessonHighlights}
@@ -2474,6 +2471,29 @@ export function BinderReaderPage() {
         </section>
       )}
     </main>
+  );
+}
+
+function appearanceColorsChanged(
+  previous: WorkspacePreferences,
+  next: WorkspacePreferences,
+) {
+  return (
+    previous.appearance.appTheme !== next.appearance.appTheme ||
+    previous.appearance.studySurface !== next.appearance.studySurface ||
+    previous.appearance.density !== next.appearance.density ||
+    previous.appearance.roundness !== next.appearance.roundness ||
+    previous.appearance.motion !== next.appearance.motion ||
+    previous.theme.accent !== next.theme.accent ||
+    previous.theme.shadow !== next.theme.shadow ||
+    previous.theme.font !== next.theme.font ||
+    previous.theme.backgroundStyle !== next.theme.backgroundStyle ||
+    previous.theme.graphAppearance !== next.theme.graphAppearance ||
+    previous.theme.graphChrome !== next.theme.graphChrome ||
+    previous.theme.defaultHighlightColor !== next.theme.defaultHighlightColor ||
+    previous.appearance.customPalette.primary !== next.appearance.customPalette.primary ||
+    previous.appearance.customPalette.secondary !== next.appearance.customPalette.secondary ||
+    previous.appearance.customPalette.accent !== next.appearance.customPalette.accent
   );
 }
 

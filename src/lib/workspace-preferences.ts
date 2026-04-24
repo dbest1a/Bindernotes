@@ -1223,14 +1223,18 @@ export function createDefaultAppearanceSettings(
   theme: WorkspaceThemeSettings = loadGlobalThemeSettings(),
 ): AppearanceSettings {
   const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
+  const studySurface = simplePresentationThemeOptions.some((option) => option.id === theme.studySurface)
+    ? theme.studySurface
+    : simple.theme;
 
   return {
     appTheme: theme.id,
-    studySurface: simple.theme,
+    studySurface,
     density: theme.density,
     roundness: theme.roundness,
     motion: appearanceMotionFromAnimationLevel(theme.animationLevel),
     customPalette: normalizeCustomPalette(theme.customPalette),
+    saveLocalAppearance: false,
   };
 }
 
@@ -1401,6 +1405,30 @@ export function updateWorkspaceAppearance(
   });
 }
 
+export function applyGlobalAppearanceToWorkspace(
+  preferences: WorkspacePreferences,
+  globalTheme: WorkspaceThemeSettings = loadGlobalThemeSettings(),
+): WorkspacePreferences {
+  return updateWorkspaceAppearance(
+    {
+      ...preferences,
+      appearance: {
+        ...preferences.appearance,
+        saveLocalAppearance: false,
+      },
+    },
+    {
+      appTheme: globalTheme.id,
+      studySurface: globalTheme.studySurface,
+      density: globalTheme.density,
+      roundness: globalTheme.roundness,
+      motion: appearanceMotionFromAnimationLevel(globalTheme.animationLevel),
+      customPalette: normalizeCustomPalette(globalTheme.customPalette),
+      saveLocalAppearance: false,
+    },
+  );
+}
+
 export function applyWorkspaceMode(
   preferences: WorkspacePreferences,
   activeMode: WorkspaceMode,
@@ -1482,7 +1510,6 @@ export function saveWorkspacePreferences(preferences: WorkspacePreferences) {
     updatedAt: new Date().toISOString(),
   };
   window.localStorage.setItem(storageKey(next.userId, next.binderId), JSON.stringify(next));
-  saveGlobalThemeSettings(next.theme);
   return next;
 }
 
@@ -2139,6 +2166,10 @@ function normalizeAppearanceSettings(
         : settings?.motion && (["full", "reduced", "minimal"] as AppearanceMotion[]).includes(settings.motion)
           ? settings.motion
           : fallback.motion;
+  const saveLocalAppearance =
+    typeof settings?.saveLocalAppearance === "boolean"
+      ? settings.saveLocalAppearance
+      : false;
 
   return {
     appTheme,
@@ -2147,6 +2178,7 @@ function normalizeAppearanceSettings(
     roundness,
     motion,
     customPalette: normalizeCustomPalette(settings?.customPalette ?? theme?.customPalette),
+    saveLocalAppearance,
   };
 }
 

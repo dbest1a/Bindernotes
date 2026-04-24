@@ -99,6 +99,35 @@ const mocks = vi.hoisted(() => {
       clearCurrentGraph: vi.fn(),
       reuseSavedFunction: vi.fn(),
     },
+    theme: {
+      globalTheme: {
+        id: "paper-studio",
+        studySurface: "math-blue",
+        accent: "172 82% 27%",
+        density: "cozy",
+        roundness: "round",
+        shadow: "lifted",
+        font: "system",
+        backgroundStyle: "subtle-grid",
+        hoverMotion: false,
+        snapMode: false,
+        focusMode: false,
+        compactMode: false,
+        animationLevel: "none",
+        graphAppearance: "sync",
+        graphChrome: "standard",
+        verticalSpace: "balanced",
+        defaultHighlightColor: "yellow",
+        reducedChrome: true,
+        showUtilityUi: false,
+        customPalette: {
+          primary: "#0f766e",
+          secondary: "#1d4ed8",
+          accent: "#a16207",
+        },
+      },
+      setGlobalTheme: vi.fn(),
+    },
   };
 });
 
@@ -126,6 +155,10 @@ vi.mock("@/hooks/use-history-suite", () => ({
 
 vi.mock("@/hooks/use-math-workspace", () => ({
   useMathWorkspace: () => mocks.mathWorkspace,
+}));
+
+vi.mock("@/hooks/use-theme", () => ({
+  useTheme: () => mocks.theme,
 }));
 
 import { BinderReaderPage } from "@/pages/binder-reader-page";

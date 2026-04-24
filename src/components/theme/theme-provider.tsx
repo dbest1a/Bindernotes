@@ -28,25 +28,48 @@ function notifyAppearanceChange(detail: Partial<Pick<WorkspaceThemeSettings, "id
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<WorkspaceThemeSettings>(() => {
+  const [globalTheme, setGlobalThemeState] = useState<WorkspaceThemeSettings>(() => {
     if (typeof window === "undefined") {
       return defaultThemeSettings;
     }
 
     return loadGlobalThemeSettings();
   });
+  const [themeOverride, setThemeOverride] = useState<WorkspaceThemeSettings | null>(null);
+  const theme = themeOverride ?? globalTheme;
 
   useEffect(() => {
     applyThemeSettings(theme);
-    saveGlobalThemeSettings(theme);
   }, [theme]);
+
+  useEffect(() => {
+    saveGlobalThemeSettings(globalTheme);
+  }, [globalTheme]);
+
+  const setGlobalTheme = useCallback((nextTheme: WorkspaceThemeSettings) => {
+    setThemeOverride(null);
+    setGlobalThemeState(nextTheme);
+    notifyAppearanceChange({
+      id: nextTheme.id,
+      customPalette: nextTheme.customPalette,
+    });
+  }, []);
+
+  const clearThemeOverride = useCallback(() => {
+    setThemeOverride(null);
+  }, []);
+
+  const setTheme = useCallback((nextTheme: WorkspaceThemeSettings) => {
+    setThemeOverride(nextTheme);
+  }, []);
 
   const setThemeId = useCallback((themeId: WorkspaceThemeId) => {
     const nextTheme =
       workspaceThemes.find((candidate) => candidate.id === themeId) ??
       workspaceThemes.find((candidate) => candidate.id === defaultThemeSettings.id);
 
-    setThemeState((current) => ({
+    setThemeOverride(null);
+    setGlobalThemeState((current) => ({
       ...current,
       id: themeId,
       accent: nextTheme?.vars.primary ?? current.accent,
@@ -55,8 +78,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleMonochrome = useCallback(() => {
-    const nextId: WorkspaceThemeId = theme.id === "monochrome-pro" ? "space" : "monochrome-pro";
-    setThemeState((current) => ({
+    const nextId: WorkspaceThemeId =
+      globalTheme.id === "monochrome-pro" ? "space" : "monochrome-pro";
+    setThemeOverride(null);
+    setGlobalThemeState((current) => ({
       ...current,
       id: nextId,
       accent:
@@ -66,7 +91,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           : "0 0% 12%",
     }));
     notifyAppearanceChange({ id: nextId });
-  }, [theme.id]);
+  }, [globalTheme.id]);
 
   const setCustomPalette = useCallback((palette: AppearanceCustomPalette) => {
     const customPalette = {
@@ -74,7 +99,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       ...palette,
     };
 
-    setThemeState((current) => ({
+    setThemeOverride(null);
+    setGlobalThemeState((current) => ({
       ...current,
       id: "custom",
       customPalette,
@@ -84,13 +110,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ThemeContextValue>(
     () => ({
+      clearThemeOverride,
+      globalTheme,
       theme,
-      setTheme: setThemeState,
+      setGlobalTheme,
+      setTheme,
       setThemeId,
       setCustomPalette,
       toggleMonochrome,
     }),
-    [setCustomPalette, setThemeId, theme, toggleMonochrome],
+    [
+      clearThemeOverride,
+      globalTheme,
+      setCustomPalette,
+      setGlobalTheme,
+      setTheme,
+      setThemeId,
+      theme,
+      toggleMonochrome,
+    ],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

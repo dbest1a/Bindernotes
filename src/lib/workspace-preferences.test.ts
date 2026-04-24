@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applyGlobalAppearanceToWorkspace,
   applyWorkspaceMode,
   applyThemeSettings,
   applyPreset,
@@ -37,6 +38,7 @@ describe("workspace preferences", () => {
     expect(preferences.simple.theme).toBe("math-blue");
     expect(preferences.appearance.appTheme).toBe(preferences.theme.id);
     expect(preferences.appearance.studySurface).toBe("math-blue");
+    expect(preferences.appearance.saveLocalAppearance).toBe(false);
     expect(preferences.theme.studySurface).toBe("math-blue");
     expect(preferences.modular.selectedPreset).toBe(preferences.preset);
     expect(preferences.canvas.snapBehavior).toBe("off");
@@ -448,7 +450,7 @@ describe("workspace preferences", () => {
     expect(preferences.theme.showUtilityUi).toBe(defaultThemeSettings.showUtilityUi);
   });
 
-  it("does not let the global theme overwrite saved binder workspace theme", () => {
+  it("uses the global theme for workspace colors unless local color saving is enabled", () => {
     const storage = new Map<string, string>();
     vi.stubGlobal("window", {
       localStorage: {
@@ -463,6 +465,7 @@ describe("workspace preferences", () => {
       JSON.stringify({
         ...defaultThemeSettings,
         id: "space",
+        studySurface: "night-study",
         focusMode: true,
       }),
     );
@@ -472,13 +475,34 @@ describe("workspace preferences", () => {
       theme: {
         ...saved.theme,
         id: "paper-studio",
+        studySurface: "warm-paper",
         focusMode: false,
       },
     });
+    const inherited = applyGlobalAppearanceToWorkspace(normalized);
 
     expect(normalized.theme.id).toBe("paper-studio");
+    expect(normalized.theme.studySurface).toBe("night-study");
+    expect(inherited.theme.id).toBe("space");
+    expect(inherited.theme.studySurface).toBe("night-study");
+    expect(inherited.appearance.saveLocalAppearance).toBe(false);
     expect(normalized.theme.focusMode).toBe(false);
     expect(loadWorkspacePreferences("missing-user", "missing-binder").theme.focusMode).toBe(false);
+  });
+
+  it("keeps explicit workspace colors when local color saving is enabled", () => {
+    const preferences = updateWorkspaceAppearance(
+      createDefaultWorkspacePreferences("user-theme", "binder-theme"),
+      {
+        appTheme: "ocean",
+        studySurface: "warm-paper",
+        saveLocalAppearance: true,
+      },
+    );
+
+    expect(preferences.appearance.saveLocalAppearance).toBe(true);
+    expect(preferences.theme.id).toBe("ocean");
+    expect(preferences.theme.studySurface).toBe("warm-paper");
   });
 
   it("applies theme datasets for workspace behavior controls", () => {

@@ -121,6 +121,25 @@ export function SimpleSettingsPanel({
           description="Choose the overall app theme and the reading surface together."
           title="Appearance"
         >
+          <SimpleToggle
+            active={preferences.appearance.saveLocalAppearance}
+            description={
+              preferences.appearance.saveLocalAppearance
+                ? "This workspace can keep its own colors."
+                : "Use the current app theme whenever this workspace opens."
+            }
+            label="Save color scheme for this workspace"
+            onClick={() =>
+              setNext({
+                ...preferences,
+                appearance: {
+                  ...preferences.appearance,
+                  saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
+                },
+              })
+            }
+          />
+
           <ControlGroup title="App Theme">
             <div className="grid w-full gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
               {workspaceThemes.map((theme) => (
