@@ -364,16 +364,16 @@ export function WorkspaceSettings({
 
         <Section
           description="Theme, density, roundness, and color stay consistent across the app."
-          title="Look & feel"
+          title="Appearance"
         >
           <div className="grid gap-4">
-            <ControlGroup title="Theme">
+            <ControlGroup title="App Theme">
               <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
                 {workspaceThemes.map((theme) => (
                   <button
                     className={cn(
                       "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
-                      preferences.theme.id === theme.id
+                      preferences.appearance.appTheme === theme.id
                         ? "border-primary bg-accent/70"
                         : "border-border/70 bg-background/55",
                     )}
@@ -416,7 +416,7 @@ export function WorkspaceSettings({
               ))}
             </ControlGroup>
 
-            <ControlGroup title="Study surface">
+            <ControlGroup title="Study Surface">
               <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
                 {simplePresentationThemeOptions.map((surface) => (
                   <button

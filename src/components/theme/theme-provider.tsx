@@ -1,13 +1,31 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   applyThemeSettings,
+  defaultCustomPalette,
   defaultThemeSettings,
   loadGlobalThemeSettings,
   saveGlobalThemeSettings,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import { ThemeContext, type ThemeContextValue } from "@/lib/theme-context";
-import type { WorkspaceThemeId, WorkspaceThemeSettings } from "@/types";
+import type { AppearanceCustomPalette, WorkspaceThemeId, WorkspaceThemeSettings } from "@/types";
+
+const appearanceChangeEvent = "binder-notes:appearance-change";
+
+function notifyAppearanceChange(detail: Partial<Pick<WorkspaceThemeSettings, "id" | "customPalette">>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(appearanceChangeEvent, {
+      detail: {
+        appTheme: detail.id,
+        customPalette: detail.customPalette,
+      },
+    }),
+  );
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<WorkspaceThemeSettings>(() => {
@@ -33,18 +51,35 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       id: themeId,
       accent: nextTheme?.vars.primary ?? current.accent,
     }));
+    notifyAppearanceChange({ id: themeId });
   }, []);
 
   const toggleMonochrome = useCallback(() => {
+    const nextId: WorkspaceThemeId = theme.id === "monochrome-pro" ? "space" : "monochrome-pro";
     setThemeState((current) => ({
       ...current,
-      id: current.id === "monochrome-pro" ? "space" : "monochrome-pro",
+      id: nextId,
       accent:
-        current.id === "monochrome-pro"
+        nextId === "space"
           ? workspaceThemes.find((candidate) => candidate.id === "space")?.vars.primary ??
             current.accent
           : "0 0% 12%",
     }));
+    notifyAppearanceChange({ id: nextId });
+  }, [theme.id]);
+
+  const setCustomPalette = useCallback((palette: AppearanceCustomPalette) => {
+    const customPalette = {
+      ...defaultCustomPalette,
+      ...palette,
+    };
+
+    setThemeState((current) => ({
+      ...current,
+      id: "custom",
+      customPalette,
+    }));
+    notifyAppearanceChange({ id: "custom", customPalette });
   }, []);
 
   const value = useMemo<ThemeContextValue>(
@@ -52,9 +87,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       theme,
       setTheme: setThemeState,
       setThemeId,
+      setCustomPalette,
       toggleMonochrome,
     }),
-    [setThemeId, theme, toggleMonochrome],
+    [setCustomPalette, setThemeId, theme, toggleMonochrome],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

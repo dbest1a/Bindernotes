@@ -450,6 +450,7 @@ export type AppearanceSettings = {
 
 export type WorkspaceThemeSettings = {
   id: WorkspaceThemeId;
+  studySurface: StudySurface;
   accent: string;
   density: WorkspaceDensity;
   roundness: WorkspaceRoundness;

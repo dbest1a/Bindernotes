@@ -140,9 +140,10 @@ export function SimplePresentationShell({
                 </Link>
               </Button>
               <label className="simple-theme-select">
-                <span>Study color</span>
+                <span>Study surface</span>
                 <select
-                  aria-label="Study color theme"
+                  aria-label="Study surface"
+                  className="appearance-select"
                   onChange={(event) => setSimpleTheme(event.target.value as SimplePresentationTheme)}
                   value={settings.theme}
                 >

@@ -7,6 +7,7 @@ import {
   simplePresentationThemeOptions,
   updateWorkspaceAppearance,
   workspaceModeOptions,
+  workspaceThemes,
 } from "@/lib/workspace-preferences";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import type {
   SimplePresentationSettings,
   WorkspaceMode,
   WorkspacePreferences,
+  WorkspaceThemeId,
 } from "@/types";
 
 export function SimpleSettingsPanel({
@@ -115,31 +117,55 @@ export function SimpleSettingsPanel({
           </div>
         </section>
 
-        <SimpleSection description="Choose a surface that fits the subject and your eyes." title="Appearance">
-          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
-            {simplePresentationThemeOptions.map((theme) => (
-              <SimpleChoice
-                active={preferences.simple.theme === theme.id}
-                key={theme.id}
-                onClick={() =>
-                  updateSimple({
-                    theme: theme.id,
-                    accentColor:
-                      theme.id === "history-gold"
-                        ? "history-gold"
-                        : theme.id === "math-blue"
-                          ? "math-blue"
-                          : preferences.simple.accentColor,
-                  })
-                }
-              >
-                <span className="block text-sm font-medium">{theme.name}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {theme.description}
-                </span>
-              </SimpleChoice>
-            ))}
-          </div>
+        <SimpleSection
+          description="Choose the overall app theme and the reading surface together."
+          title="Appearance"
+        >
+          <ControlGroup title="App Theme">
+            <div className="grid w-full gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+              {workspaceThemes.map((theme) => (
+                <SimpleChoice
+                  active={preferences.appearance.appTheme === theme.id}
+                  key={theme.id}
+                  onClick={() =>
+                    setNext(updateWorkspaceAppearance(preferences, { appTheme: theme.id as WorkspaceThemeId }))
+                  }
+                >
+                  <span className="block text-sm font-medium">{theme.name}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    {theme.description}
+                  </span>
+                </SimpleChoice>
+              ))}
+            </div>
+          </ControlGroup>
+
+          <ControlGroup title="Study Surface">
+            <div className="grid w-full gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+              {simplePresentationThemeOptions.map((theme) => (
+                <SimpleChoice
+                  active={preferences.appearance.studySurface === theme.id}
+                  key={theme.id}
+                  onClick={() =>
+                    updateSimple({
+                      theme: theme.id,
+                      accentColor:
+                        theme.id === "history-gold"
+                          ? "history-gold"
+                          : theme.id === "math-blue"
+                            ? "math-blue"
+                            : preferences.simple.accentColor,
+                    })
+                  }
+                >
+                  <span className="block text-sm font-medium">{theme.name}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    {theme.description}
+                  </span>
+                </SimpleChoice>
+              ))}
+            </div>
+          </ControlGroup>
           {preferences.appearance.appTheme === "custom" || preferences.simple.theme === "custom" ? (
             <CustomPaletteControls
               onChange={updateCustomColor}

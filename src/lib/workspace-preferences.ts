@@ -769,6 +769,17 @@ const defaultPreset =
 const defaultTheme = workspaceThemes.find((theme) => theme.id === "paper-studio") ?? workspaceThemes[0];
 
 type HslColor = { h: number; s: number; l: number };
+type StudySurfaceVars = {
+  bg: string;
+  surface: string;
+  soft: string;
+  line: string;
+  text: string;
+  muted: string;
+  accent: string;
+  accentSoft: string;
+  accentText: string;
+};
 
 const hexColorPattern = /^#[0-9a-f]{6}$/i;
 
@@ -833,6 +844,14 @@ function adjustHsl(color: HslColor, lightness: number, saturationLimit = 100) {
   });
 }
 
+function hslLightness(parts: string) {
+  return Number(parts.match(/(\d+)%$/)?.[1] ?? 50);
+}
+
+function themeVarsAreDark(themeVars: WorkspaceTheme["vars"]) {
+  return hslLightness(themeVars.background) < 30;
+}
+
 function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme["vars"] {
   const primary = hexToHsl(palette.primary);
   const secondary = hexToHsl(palette.secondary);
@@ -855,6 +874,112 @@ function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme[
       l: isDark ? clampNumber(primary.l, 54, 70) : clampNumber(primary.l, 28, 48),
     }),
   };
+}
+
+function buildStudySurfaceVars(
+  surface: SimplePresentationTheme,
+  themeVars: WorkspaceTheme["vars"],
+  palette: AppearanceCustomPalette,
+): StudySurfaceVars {
+  const appIsDark = themeVarsAreDark(themeVars);
+  const primary = hexToHsl(palette.primary);
+  const secondary = hexToHsl(palette.secondary);
+  const accent = hexToHsl(palette.accent);
+  const customSurfaceIsDark = secondary.l < 45;
+  const appAccent = themeVars.primary;
+  const appAccentSoft = themeVars.accent;
+
+  switch (surface) {
+    case "warm-paper":
+      return {
+        bg: "42 42% 96%",
+        surface: "48 38% 98%",
+        soft: "42 24% 90%",
+        line: "38 22% 78%",
+        text: "222 24% 13%",
+        muted: "222 12% 36%",
+        accent: appAccent,
+        accentSoft: appAccentSoft,
+        accentText: appIsDark ? "220 16% 8%" : "0 0% 100%",
+      };
+    case "night-study":
+      return {
+        bg: "220 18% 8%",
+        surface: "220 16% 11%",
+        soft: "220 12% 16%",
+        line: "220 11% 26%",
+        text: "42 32% 96%",
+        muted: "215 12% 72%",
+        accent: appAccent,
+        accentSoft: appAccentSoft,
+        accentText: "220 18% 8%",
+      };
+    case "history-gold":
+      return {
+        bg: "44 48% 96%",
+        surface: "48 42% 98%",
+        soft: "42 26% 90%",
+        line: "42 24% 76%",
+        text: "224 24% 12%",
+        muted: "224 12% 36%",
+        accent: "38 88% 42%",
+        accentSoft: "43 80% 84%",
+        accentText: "36 90% 18%",
+      };
+    case "math-blue":
+      return {
+        bg: "210 32% 97%",
+        surface: "0 0% 100%",
+        soft: "210 25% 92%",
+        line: "207 22% 78%",
+        text: "221 28% 12%",
+        muted: "220 12% 37%",
+        accent: "207 84% 42%",
+        accentSoft: "207 64% 88%",
+        accentText: "210 84% 20%",
+      };
+    case "high-contrast":
+      return {
+        bg: "0 0% 100%",
+        surface: "0 0% 100%",
+        soft: "0 0% 92%",
+        line: "0 0% 0%",
+        text: "0 0% 0%",
+        muted: "0 0% 18%",
+        accent: "0 0% 0%",
+        accentSoft: "54 100% 80%",
+        accentText: "0 0% 0%",
+      };
+    case "custom":
+      return {
+        bg: adjustHsl(secondary, customSurfaceIsDark ? 8 : 97, 48),
+        surface: adjustHsl(secondary, customSurfaceIsDark ? 12 : 99, 36),
+        soft: adjustHsl(accent, customSurfaceIsDark ? 18 : 92, 54),
+        line: adjustHsl(secondary, customSurfaceIsDark ? 26 : 84, 42),
+        text: customSurfaceIsDark ? "42 32% 96%" : "220 18% 10%",
+        muted: customSurfaceIsDark ? "214 13% 72%" : "220 9% 40%",
+        accent: hslParts({
+          h: primary.h,
+          s: clampNumber(primary.s, 40, 90),
+          l: customSurfaceIsDark ? clampNumber(primary.l, 54, 70) : clampNumber(primary.l, 28, 48),
+        }),
+        accentSoft: adjustHsl(accent, customSurfaceIsDark ? 24 : 90, 70),
+        accentText: customSurfaceIsDark ? "220 16% 8%" : "0 0% 100%",
+      };
+    case "classic-light":
+    default:
+      return {
+        bg: "205 26% 98%",
+        surface: "0 0% 100%",
+        soft: "200 20% 94%",
+        line: "214 22% 84%",
+        text: "220 26% 12%",
+        muted: "218 12% 38%",
+        accent: appAccent,
+        accentSoft: appAccentSoft,
+        accentText: appIsDark ? "220 16% 8%" : "0 0% 100%",
+      };
+  }
 }
 
 function appearanceMotionFromAnimationLevel(level: WorkspaceAnimationLevel): AppearanceMotion {
@@ -1024,6 +1149,7 @@ function buildModuleLayoutFromGrid(
 
 export const defaultThemeSettings: WorkspaceThemeSettings = {
   id: defaultTheme.id,
+  studySurface: "math-blue",
   accent: defaultTheme.vars.primary,
   density: "cozy",
   roundness: "round",
@@ -1147,7 +1273,10 @@ export function createDefaultWorkspacePreferences(
     windowLayout: defaultLayout.windowLayout ?? {},
     stickyNotes: {},
     viewportFit: undefined,
-    theme,
+    theme: normalizeThemeSettings({
+      ...theme,
+      studySurface: appearance.studySurface,
+    }),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -1205,6 +1334,7 @@ export function updateWorkspaceAppearance(
   const themeForAppearance = {
     ...preferences.theme,
     id: patch.appTheme ?? (patch.studySurface === "custom" ? "custom" : preferences.theme.id),
+    studySurface: patch.studySurface ?? preferences.theme.studySurface ?? preferences.simple.theme,
     density: patch.density ?? preferences.theme.density,
     roundness: patch.roundness ?? preferences.theme.roundness,
     animationLevel: patch.motion
@@ -1222,9 +1352,22 @@ export function updateWorkspaceAppearance(
     preferences.binderId,
     preferences.suiteTemplateId,
   );
+  const appThemeChanged = Boolean(
+    patch.appTheme && patch.appTheme !== preferences.appearance?.appTheme,
+  );
+  const appThemeVars =
+    workspaceThemes.find((theme) => theme.id === nextAppearance.appTheme)?.vars ?? defaultTheme.vars;
+  const nextAccent =
+    nextAppearance.appTheme === "custom"
+      ? hslParts(hexToHsl(nextAppearance.customPalette.primary))
+      : appThemeChanged
+        ? appThemeVars.primary
+        : preferences.theme.accent;
   const nextTheme = normalizeThemeSettings({
     ...preferences.theme,
     id: nextAppearance.appTheme,
+    studySurface: nextAppearance.studySurface,
+    accent: nextAccent,
     density: nextAppearance.density,
     roundness: nextAppearance.roundness,
     animationLevel: animationLevelFromAppearanceMotion(nextAppearance.motion),
@@ -1696,12 +1839,30 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     "--focus-ring": normalizedSettings.accent,
     "--shadow-strength": normalizedSettings.shadow === "glow" ? "0.18" : normalizedSettings.shadow === "lifted" ? "0.1" : "0.04",
   };
+  const studySurfaceVars = buildStudySurfaceVars(
+    normalizedSettings.studySurface,
+    themeVars,
+    normalizedSettings.customPalette ?? defaultCustomPalette,
+  );
+  const studyVars = {
+    "--study-bg": studySurfaceVars.bg,
+    "--study-surface": studySurfaceVars.surface,
+    "--study-soft": studySurfaceVars.soft,
+    "--study-line": studySurfaceVars.line,
+    "--study-text": studySurfaceVars.text,
+    "--study-muted": studySurfaceVars.muted,
+    "--study-accent": studySurfaceVars.accent,
+    "--study-accent-soft": studySurfaceVars.accentSoft,
+    "--study-accent-text": studySurfaceVars.accentText,
+  };
 
-  Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
+  Object.entries({ ...vars, ...studyVars }).forEach(([key, value]) => root.style.setProperty(key, value));
   root.classList.toggle("dark", isDark);
   root.style.colorScheme = isDark ? "dark" : "light";
   root.dataset.workspaceTheme = normalizedSettings.id;
-  root.dataset.workspaceCustomPalette = normalizedSettings.id === "custom" ? "on" : "off";
+  root.dataset.studySurface = normalizedSettings.studySurface;
+  root.dataset.workspaceCustomPalette =
+    normalizedSettings.id === "custom" || normalizedSettings.studySurface === "custom" ? "on" : "off";
   root.dataset.workspaceDensity = normalizedSettings.density;
   root.dataset.workspaceRoundness = normalizedSettings.roundness;
   root.dataset.workspaceShadow = normalizedSettings.shadow;
@@ -1759,6 +1920,7 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
   const normalizedTheme = normalizeThemeSettings({
     ...legacyTheme,
     id: normalizedAppearance.appTheme,
+    studySurface: normalizedAppearance.studySurface,
     density: normalizedAppearance.density,
     roundness: normalizedAppearance.roundness,
     animationLevel: animationLevelFromAppearanceMotion(normalizedAppearance.motion),
@@ -1817,6 +1979,11 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
     settings?.id && workspaceThemes.some((theme) => theme.id === settings.id)
       ? (settings.id as WorkspaceThemeId)
       : defaultThemeSettings.id;
+  const studySurface =
+    settings?.studySurface &&
+    simplePresentationThemeOptions.some((option) => option.id === settings.studySurface)
+      ? settings.studySurface
+      : defaultThemeSettings.studySurface;
   const density = densityOptions.includes(settings?.density as WorkspaceDensity)
     ? (settings?.density as WorkspaceDensity)
     : defaultThemeSettings.density;
@@ -1861,6 +2028,7 @@ function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): Wor
     ...defaultThemeSettings,
     ...settings,
     id: nextId,
+    studySurface,
     accent:
       nextId === "custom"
         ? hslParts(hexToHsl(customPalette.primary))

@@ -20,7 +20,7 @@ import type { AppearanceCustomPalette } from "@/types";
 
 export function AppShell() {
   const { profile, signOut, isConfigured } = useAuth();
-  const { theme, setTheme, setThemeId, toggleMonochrome } = useTheme();
+  const { theme, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
   const navigate = useNavigate();
 
   const logout = async () => {
@@ -29,13 +29,9 @@ export function AppShell() {
   };
 
   const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
-    setTheme({
-      ...theme,
-      id: "custom",
-      customPalette: {
-        ...(theme.customPalette ?? defaultCustomPalette),
-        [key]: value,
-      },
+    setCustomPalette({
+      ...(theme.customPalette ?? defaultCustomPalette),
+      [key]: value,
     });
   };
 
@@ -76,10 +72,10 @@ export function AppShell() {
           <div className="flex items-center gap-2">
             {!isConfigured ? <Badge variant="outline">Demo mode</Badge> : null}
             <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary xl:flex">
-              <span className="text-xs font-medium text-muted-foreground">App color</span>
+              <span className="text-xs font-medium text-muted-foreground">App theme</span>
               <select
                 aria-label="App theme"
-                className="h-8 border-0 bg-transparent text-sm font-medium outline-none"
+                className="appearance-select h-8 border-0 bg-transparent text-sm font-medium outline-none"
                 onChange={(event) => setThemeId(event.target.value as typeof theme.id)}
                 value={theme.id}
               >

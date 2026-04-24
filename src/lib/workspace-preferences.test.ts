@@ -37,6 +37,7 @@ describe("workspace preferences", () => {
     expect(preferences.simple.theme).toBe("math-blue");
     expect(preferences.appearance.appTheme).toBe(preferences.theme.id);
     expect(preferences.appearance.studySurface).toBe("math-blue");
+    expect(preferences.theme.studySurface).toBe("math-blue");
     expect(preferences.modular.selectedPreset).toBe(preferences.preset);
     expect(preferences.canvas.snapBehavior).toBe("off");
     expect(preferences.windowLayout.lesson).toBeDefined();
@@ -115,12 +116,40 @@ describe("workspace preferences", () => {
     const canvas = applyWorkspaceMode(withAppearance, "canvas");
 
     expect(withAppearance.theme.id).toBe("custom");
+    expect(withAppearance.theme.studySurface).toBe("warm-paper");
     expect(withAppearance.simple.theme).toBe("warm-paper");
     expect(withAppearance.appearance.customPalette.primary).toBe("#2563eb");
     expect(modular.theme.id).toBe("custom");
+    expect(modular.theme.studySurface).toBe("warm-paper");
     expect(modular.appearance.studySurface).toBe("warm-paper");
     expect(canvas.theme.id).toBe("custom");
+    expect(canvas.theme.studySurface).toBe("warm-paper");
     expect(canvas.appearance.customPalette.accent).toBe("#f59e0b");
+  });
+
+  it("updates app theme without mutating mode or layout state", () => {
+    const preferences = applyWorkspaceMode(
+      applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "math-study"),
+      "canvas",
+    );
+    const previousFrame = preferences.windowLayout.lesson;
+    const next = updateWorkspaceAppearance(preferences, { appTheme: "ocean" });
+
+    expect(next.activeMode).toBe("canvas");
+    expect(next.workspaceStyle).toBe("full-studio");
+    expect(next.windowLayout.lesson).toEqual(previousFrame);
+    expect(next.appearance.appTheme).toBe("ocean");
+    expect(next.theme.id).toBe("ocean");
+    expect(next.theme.accent).toBe("193 86% 32%");
+  });
+
+  it("keeps high contrast as a shared study surface token", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const next = updateWorkspaceAppearance(preferences, { studySurface: "high-contrast" });
+
+    expect(next.appearance.studySurface).toBe("high-contrast");
+    expect(next.simple.theme).toBe("high-contrast");
+    expect(next.theme.studySurface).toBe("high-contrast");
   });
 
   it("applies a preset module arrangement and generates window frames", () => {
@@ -492,8 +521,12 @@ describe("workspace preferences", () => {
     expect(documentElement.dataset.workspaceHighlightColor).toBe("yellow");
     expect(documentElement.dataset.workspaceReducedChrome).toBe("off");
     expect(documentElement.dataset.workspaceUtilityUi).toBe("on");
+    expect(documentElement.dataset.studySurface).toBe("math-blue");
     expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-app", expect.any(String));
     expect(documentElement.style.setProperty).toHaveBeenCalledWith("--accent-primary", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-bg", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-surface", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-accent", expect.any(String));
   });
 
   it("applies a custom three-color palette through the shared theme tokens", () => {
@@ -512,6 +545,7 @@ describe("workspace preferences", () => {
     applyThemeSettings({
       ...defaultThemeSettings,
       id: "custom",
+      studySurface: "custom",
       customPalette: {
         ...defaultCustomPalette,
         primary: "#2563eb",
@@ -522,8 +556,10 @@ describe("workspace preferences", () => {
 
     expect(documentElement.dataset.workspaceTheme).toBe("custom");
     expect(documentElement.dataset.workspaceCustomPalette).toBe("on");
+    expect(documentElement.dataset.studySurface).toBe("custom");
     expect(documentElement.style.setProperty).toHaveBeenCalledWith("--primary", expect.any(String));
     expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-surface", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-accent", expect.any(String));
   });
 });
 

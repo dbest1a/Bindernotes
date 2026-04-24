@@ -68,6 +68,7 @@ import {
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
+  updateWorkspaceAppearance,
   workspacePresets,
   workspaceModeOptions,
 } from "@/lib/workspace-preferences";
@@ -342,6 +343,29 @@ export function BinderReaderPage() {
     },
     [active, isLayoutEditing, workspace],
   );
+
+  useEffect(() => {
+    const handleAppearanceChange = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        appTheme?: WorkspacePreferences["appearance"]["appTheme"];
+        customPalette?: WorkspacePreferences["appearance"]["customPalette"];
+      }>).detail;
+
+      if (!detail?.appTheme && !detail?.customPalette) {
+        return;
+      }
+
+      updateWorkspace((current) =>
+        updateWorkspaceAppearance(current, {
+          ...(detail.appTheme ? { appTheme: detail.appTheme } : {}),
+          ...(detail.customPalette ? { customPalette: detail.customPalette } : {}),
+        }),
+      );
+    };
+
+    window.addEventListener("binder-notes:appearance-change", handleAppearanceChange);
+    return () => window.removeEventListener("binder-notes:appearance-change", handleAppearanceChange);
+  }, [updateWorkspace]);
 
   const enterLayoutEditMode = useCallback(() => {
     if (!active) {

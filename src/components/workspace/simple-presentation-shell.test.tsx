@@ -154,7 +154,7 @@ describe("SimplePresentationShell", () => {
     expect(screen.getAllByText("Slope formula").length).toBeGreaterThan(0);
   });
 
-  it("lets simple view change the study color without opening the settings drawer", () => {
+  it("lets simple view change the study surface without opening the settings drawer", () => {
     const onChange = vi.fn();
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
 
@@ -169,7 +169,7 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Study color theme" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Study surface" }), {
       target: { value: "night-study" },
     });
 

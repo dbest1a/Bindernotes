@@ -39,6 +39,15 @@
     --button-secondary: var(--secondary);
     --focus-ring: var(--ring);
     --shadow-strength: 0.08;
+    --study-bg: 210 32% 97%;
+    --study-surface: 0 0% 100%;
+    --study-soft: 210 25% 92%;
+    --study-line: 207 22% 78%;
+    --study-text: 221 28% 12%;
+    --study-muted: 220 12% 37%;
+    --study-accent: 207 84% 42%;
+    --study-accent-soft: 207 64% 88%;
+    --study-accent-text: 210 84% 20%;
     --lesson-highlight-yellow: 46 96% 59%;
     --lesson-highlight-yellow-alpha: 0.52;
     --lesson-highlight-blue: 209 94% 68%;
@@ -85,6 +94,15 @@
     --button-secondary: var(--secondary);
     --focus-ring: var(--ring);
     --shadow-strength: 0.12;
+    --study-bg: 220 18% 8%;
+    --study-surface: 220 16% 11%;
+    --study-soft: 220 12% 16%;
+    --study-line: 220 11% 26%;
+    --study-text: 42 32% 96%;
+    --study-muted: 215 12% 72%;
+    --study-accent: 170 66% 46%;
+    --study-accent-soft: 172 26% 17%;
+    --study-accent-text: 220 18% 8%;
     --lesson-highlight-yellow: 49 96% 57%;
     --lesson-highlight-yellow-alpha: 0.34;
     --lesson-highlight-blue: 214 95% 61%;
@@ -104,6 +122,16 @@
   button svg,
   button svg * {
     pointer-events: none;
+  }
+
+  .appearance-select {
+    color: hsl(var(--foreground));
+    background-color: transparent;
+  }
+
+  .appearance-select option {
+    color: hsl(var(--popover-foreground));
+    background-color: hsl(var(--popover));
   }
 
   html {
@@ -684,158 +712,36 @@
   }
 
   .simple-presentation-shell {
-    --simple-surface: hsl(var(--card) / 0.96);
-    --simple-soft: hsl(var(--secondary) / 0.62);
-    --simple-line: hsl(var(--border) / 0.72);
-    --simple-accent: hsl(var(--primary));
+    --simple-surface: hsl(var(--study-surface) / 0.96);
+    --simple-soft: hsl(var(--study-soft) / 0.72);
+    --simple-line: hsl(var(--study-line) / 0.78);
+    --simple-accent: hsl(var(--study-accent));
+    --background: var(--study-bg);
+    --foreground: var(--study-text);
+    --card: var(--study-surface);
+    --card-foreground: var(--study-text);
+    --secondary: var(--study-soft);
+    --secondary-foreground: var(--study-text);
+    --muted: var(--study-soft);
+    --muted-foreground: var(--study-muted);
+    --accent: var(--study-accent-soft);
+    --accent-foreground: var(--study-accent-text);
+    --border: var(--study-line);
+    --input: var(--study-line);
+    --ring: var(--study-accent);
+    --primary: var(--study-accent);
+    --primary-foreground: var(--study-accent-text);
     @apply flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden border border-border/70 p-3 shadow-soft;
     border-radius: 8px;
     background:
-      linear-gradient(135deg, hsl(var(--background) / 0.98), hsl(var(--secondary) / 0.36)),
-      radial-gradient(circle at top right, hsl(var(--primary) / 0.12), transparent 30%);
-    color: hsl(var(--foreground));
+      linear-gradient(135deg, hsl(var(--study-bg) / 0.98), hsl(var(--study-soft) / 0.54)),
+      radial-gradient(circle at top right, hsl(var(--study-accent) / 0.14), transparent 34%);
+    color: hsl(var(--study-text));
   }
 
-  .simple-presentation-shell[data-simple-theme="classic-light"] {
-    --background: 0 0% 100%;
-    --foreground: 220 26% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 26% 12%;
-    --secondary: 190 24% 94%;
-    --secondary-foreground: 220 26% 12%;
-    --muted: 200 20% 94%;
-    --muted-foreground: 218 12% 38%;
-    --accent: 172 48% 88%;
-    --accent-foreground: 172 84% 17%;
-    --border: 214 22% 84%;
-    --input: 214 22% 84%;
-    --ring: 170 78% 29%;
-    --primary: 170 78% 29%;
-    --primary-foreground: 0 0% 100%;
-    --simple-accent: hsl(170 78% 29%);
-  }
-
-  .simple-presentation-shell[data-simple-theme="warm-paper"] {
-    --background: 42 42% 96%;
-    --foreground: 222 24% 13%;
-    --card: 48 38% 98%;
-    --card-foreground: 222 24% 13%;
-    --secondary: 188 26% 91%;
-    --secondary-foreground: 222 24% 13%;
-    --muted: 42 24% 90%;
-    --muted-foreground: 222 12% 36%;
-    --accent: 165 46% 86%;
-    --accent-foreground: 166 84% 16%;
-    --border: 38 22% 78%;
-    --input: 38 22% 78%;
-    --ring: 165 72% 30%;
-    --primary: 165 72% 30%;
-    --primary-foreground: 0 0% 100%;
-    --simple-accent: hsl(165 72% 30%);
-    background:
-      linear-gradient(135deg, hsl(42 42% 96%), hsl(188 30% 94%)),
-      radial-gradient(circle at top right, hsl(165 72% 30% / 0.1), transparent 32%);
-  }
-
-  .simple-presentation-shell[data-simple-theme="night-study"] {
-    --background: 220 18% 8%;
-    --foreground: 42 32% 96%;
-    --card: 220 16% 11%;
-    --card-foreground: 42 32% 96%;
-    --secondary: 220 12% 16%;
-    --secondary-foreground: 42 32% 96%;
-    --muted: 220 12% 16%;
-    --muted-foreground: 215 12% 72%;
-    --accent: 175 38% 22%;
-    --accent-foreground: 175 70% 88%;
-    --border: 220 11% 26%;
-    --input: 220 11% 26%;
-    --ring: 175 70% 54%;
-    --primary: 175 70% 54%;
-    --primary-foreground: 220 18% 8%;
-    --simple-accent: hsl(175 70% 54%);
-    --simple-surface: hsl(220 16% 11% / 0.96);
-    --simple-soft: hsl(220 12% 16% / 0.72);
-    --simple-line: hsl(220 11% 26% / 0.8);
-    background:
-      linear-gradient(135deg, hsl(220 18% 8%), hsl(218 18% 13%)),
-      radial-gradient(circle at top right, hsl(175 70% 54% / 0.13), transparent 34%);
-  }
-
-  .simple-presentation-shell[data-simple-theme="history-gold"] {
-    --background: 44 48% 96%;
-    --foreground: 224 24% 12%;
-    --card: 48 42% 98%;
-    --card-foreground: 224 24% 12%;
-    --secondary: 205 30% 92%;
-    --secondary-foreground: 224 24% 12%;
-    --muted: 42 26% 90%;
-    --muted-foreground: 224 12% 36%;
-    --accent: 43 80% 84%;
-    --accent-foreground: 36 90% 18%;
-    --border: 42 24% 76%;
-    --input: 42 24% 76%;
-    --ring: 42 88% 42%;
-    --primary: 170 78% 29%;
-    --primary-foreground: 0 0% 100%;
-    --simple-accent: hsl(170 78% 29%);
-    background:
-      linear-gradient(135deg, hsl(44 48% 96%), hsl(205 36% 94%)),
-      radial-gradient(circle at top right, hsl(42 88% 55% / 0.18), transparent 34%);
-  }
-
-  .simple-presentation-shell[data-simple-theme="math-blue"] {
-    --background: 210 32% 97%;
-    --foreground: 221 28% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 221 28% 12%;
-    --secondary: 177 28% 91%;
-    --secondary-foreground: 221 28% 12%;
-    --muted: 210 25% 92%;
-    --muted-foreground: 220 12% 37%;
-    --accent: 207 64% 88%;
-    --accent-foreground: 210 84% 20%;
-    --border: 207 22% 78%;
-    --input: 207 22% 78%;
-    --ring: 207 84% 42%;
-    --primary: 207 84% 42%;
-    --primary-foreground: 0 0% 100%;
-    --simple-accent: hsl(207 84% 42%);
-    background:
-      linear-gradient(135deg, hsl(210 32% 97%), hsl(177 30% 94%)),
-      radial-gradient(circle at top right, hsl(207 84% 42% / 0.14), transparent 34%);
-  }
-
-  .simple-presentation-shell[data-simple-theme="high-contrast"],
   .simple-presentation-shell[data-simple-contrast="high"] {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --secondary: 0 0% 92%;
-    --secondary-foreground: 0 0% 0%;
-    --muted: 0 0% 92%;
-    --muted-foreground: 0 0% 18%;
-    --accent: 54 100% 80%;
-    --accent-foreground: 0 0% 0%;
-    --border: 0 0% 0%;
-    --input: 0 0% 0%;
-    --ring: 0 0% 0%;
-    --primary: 0 0% 0%;
-    --primary-foreground: 0 0% 100%;
-    --simple-accent: hsl(var(--foreground));
-    --simple-line: hsl(var(--foreground) / 0.42);
+    --simple-line: hsl(var(--study-text) / 0.48);
     background: hsl(var(--background));
-  }
-
-  .simple-presentation-shell[data-simple-theme="custom"] {
-    --simple-surface: hsl(var(--bg-surface) / 0.96);
-    --simple-soft: hsl(var(--bg-elevated) / 0.72);
-    --simple-line: hsl(var(--border-default) / 0.78);
-    --simple-accent: hsl(var(--accent-primary));
-    background:
-      linear-gradient(135deg, hsl(var(--bg-app) / 0.98), hsl(var(--bg-elevated) / 0.44)),
-      radial-gradient(circle at top right, hsl(var(--accent-primary) / 0.16), transparent 34%);
   }
 
   .simple-presentation-shell__body {
