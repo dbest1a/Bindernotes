@@ -5,7 +5,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
-  MonitorCog,
   PenTool,
 } from "lucide-react";
 import { type ReactNode } from "react";
@@ -14,25 +13,17 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { cn, initials } from "@/lib/utils";
-import { accentOptions, defaultCustomPalette, workspaceThemes } from "@/lib/workspace-preferences";
+import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
-import type { AppearanceCustomPalette } from "@/types";
 
 export function AppShell() {
   const { profile, signOut, isConfigured } = useAuth();
-  const { globalTheme, setAccentColor, setCustomPalette, setThemeId, toggleMonochrome } = useTheme();
+  const { globalTheme, setThemeId } = useTheme();
   const navigate = useNavigate();
 
   const logout = async () => {
     await signOut();
     navigate("/");
-  };
-
-  const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
-    setCustomPalette({
-      ...(globalTheme.customPalette ?? defaultCustomPalette),
-      [key]: value,
-    });
   };
 
   return (
@@ -71,11 +62,11 @@ export function AppShell() {
 
           <div className="flex items-center gap-2">
             {!isConfigured ? <Badge variant="outline">Demo mode</Badge> : null}
-            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary xl:flex">
-              <span className="text-xs font-medium text-muted-foreground">App theme</span>
+            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex">
+              <span className="text-xs font-medium text-muted-foreground">Theme</span>
               <select
                 aria-label="App theme"
-                className="appearance-select h-8 border-0 bg-transparent text-sm font-medium outline-none"
+                className="appearance-select h-8 max-w-[150px] border-0 bg-transparent text-sm font-semibold outline-none"
                 onChange={(event) => setThemeId(event.target.value as typeof globalTheme.id)}
                 value={globalTheme.id}
               >
@@ -86,47 +77,6 @@ export function AppShell() {
                 ))}
               </select>
             </label>
-            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary 2xl:flex">
-              <span className="text-xs font-medium text-muted-foreground">Accent</span>
-              <select
-                aria-label="Accent"
-                className="appearance-select h-8 border-0 bg-transparent text-sm font-medium outline-none"
-                onChange={(event) => setAccentColor(event.target.value as typeof globalTheme.accentColor)}
-                value={globalTheme.accentColor}
-              >
-                {accentOptions.map((accent) => (
-                  <option key={accent.id} value={accent.id}>
-                    {accent.name}
-                  </option>
-                ))}
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            {globalTheme.id === "custom" ? (
-              <div className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 px-2 py-1 shadow-sm 2xl:flex">
-                {(["primary", "secondary", "accent"] as const).map((key) => (
-                  <label className="grid gap-0.5 text-[10px] font-medium capitalize text-muted-foreground" key={key}>
-                    <span>{key}</span>
-                    <input
-                      aria-label={`Custom ${key} color`}
-                      className="size-6 rounded border border-border/80 bg-transparent p-0.5"
-                      onChange={(event) => updateCustomColor(key, event.target.value)}
-                      type="color"
-                      value={(globalTheme.customPalette ?? defaultCustomPalette)[key]}
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
-            <Button
-              aria-label="Toggle monochrome workspace"
-              onClick={toggleMonochrome}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <MonitorCog data-icon="inline-start" />
-            </Button>
             <div className="hidden items-center gap-2 rounded-lg border border-border/70 bg-card/80 px-2 py-1.5 xl:flex">
               <span className="flex size-8 items-center justify-center rounded-md bg-secondary text-xs font-semibold">
                 {initials(profile?.full_name ?? "BN")}
