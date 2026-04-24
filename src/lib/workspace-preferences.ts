@@ -942,15 +942,6 @@ function applyAccentToThemeVars(
 }
 
 function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme["vars"] {
-  const sourceTheme =
-    palette.sourceTheme && palette.sourceTheme !== "custom"
-      ? workspaceThemes.find((theme) => theme.id === palette.sourceTheme)
-      : null;
-
-  if (sourceTheme) {
-    return applyAccentToThemeVars(sourceTheme.vars, hslParts(hexToHsl(palette.primary)));
-  }
-
   const primary = hexToHsl(palette.primary);
   const secondary = hexToHsl(palette.secondary);
   const accent = hexToHsl(palette.accent);
@@ -2032,6 +2023,10 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     normalizedSettings.id === "custom"
       ? buildCustomThemeVars(normalizedSettings.customPalette ?? defaultCustomPalette)
       : theme.vars;
+  const appPrimary =
+    normalizedSettings.id === "custom"
+      ? themeVars.primary
+      : normalizedSettings.accent || themeVars.primary;
   const darkSurface = themeVars.background.match(/(\d+)%$/)?.[1];
   const isDark =
     darkSurface ? Number(darkSurface) < 20 : theme.id === "space" || theme.id === "midnight-scholar";
@@ -2050,8 +2045,8 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     "--accent-foreground": themeVars.foreground,
     "--border": themeVars.border,
     "--input": themeVars.border,
-    "--ring": normalizedSettings.accent,
-    "--primary": normalizedSettings.accent || themeVars.primary,
+    "--ring": appPrimary,
+    "--primary": appPrimary,
     "--primary-foreground":
       isDark ? "220 16% 8%" : "0 0% 100%",
     "--bg-app": themeVars.background,
@@ -2061,12 +2056,12 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     "--text-primary": themeVars.foreground,
     "--text-secondary": themeVars.mutedForeground,
     "--border-default": themeVars.border,
-    "--accent-primary": normalizedSettings.accent || themeVars.primary,
+    "--accent-primary": appPrimary,
     "--accent-secondary": themeVars.accent,
     "--accent-soft": themeVars.accent,
-    "--button-primary": normalizedSettings.accent || themeVars.primary,
+    "--button-primary": appPrimary,
     "--button-secondary": themeVars.secondary,
-    "--focus-ring": normalizedSettings.accent,
+    "--focus-ring": appPrimary,
     "--shadow-strength": normalizedSettings.shadow === "glow" ? "0.18" : normalizedSettings.shadow === "lifted" ? "0.1" : "0.04",
   };
   const studySurfaceVars = buildStudySurfaceVars(

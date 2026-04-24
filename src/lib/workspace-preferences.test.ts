@@ -609,15 +609,18 @@ describe("workspace preferences", () => {
         primary: "#2563eb",
         secondary: "#111827",
         accent: "#f59e0b",
+        sourceTheme: "space",
       },
     });
 
     expect(documentElement.dataset.workspaceTheme).toBe("custom");
     expect(documentElement.dataset.workspaceCustomPalette).toBe("on");
     expect(documentElement.dataset.studySurface).toBe("custom");
-    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--primary", expect.any(String));
-    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-surface", expect.any(String));
-    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-accent", expect.any(String));
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--primary", "221 83% 54%");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-app", "221 39% 8%");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--bg-surface", "221 36% 12%");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--accent-secondary", "38 70% 24%");
+    expect(documentElement.style.setProperty).toHaveBeenCalledWith("--study-accent", "221 83% 54%");
   });
 });
 
