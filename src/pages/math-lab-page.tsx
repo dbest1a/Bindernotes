@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import {
+  ArrowRight,
+  Cuboid,
   FunctionSquare,
+  ListChecks,
   Maximize2,
   Minimize2,
 } from "lucide-react";
@@ -22,6 +25,30 @@ import {
 } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { cn } from "@/lib/utils";
+
+const calculusModuleCards = [
+  {
+    title: "Derivative as Slope",
+    description: "A 2D Desmos module for tangent lines, secants, and f'(a).",
+    href: "/math/modules/derivative-as-slope",
+    badge: "2D Desmos",
+    icon: FunctionSquare,
+  },
+  {
+    title: "Taylor Polynomial Explorer",
+    description: "Compare sin(x) with first, third, and fifth degree Taylor approximations.",
+    href: "/math/modules/taylor-polynomial-explorer",
+    badge: "2D Desmos",
+    icon: FunctionSquare,
+  },
+  {
+    title: "Surface and Tangent Plane",
+    description: "A 3D Desmos module for z=x^2+y^2, partials, and tangent planes.",
+    href: "/math/modules/surface-and-tangent-plane-explorer",
+    badge: "3D Desmos",
+    icon: Cuboid,
+  },
+];
 
 export function MathLabPage() {
   const { profile } = useAuth();
@@ -102,6 +129,12 @@ export function MathLabPage() {
             <p>Send expressions from the calculator straight into Desmos.</p>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/math">
+                <ListChecks data-icon="inline-start" />
+                Open calculus modules
+              </Link>
+            </Button>
             <Button onClick={() => setGraphVisible(!state.graphVisible)} type="button" variant="outline">
               <FunctionSquare data-icon="inline-start" />
               {headerControls.graphLabel}
@@ -117,6 +150,51 @@ export function MathLabPage() {
             </Button>
           </div>
         </aside>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div className="page-shell p-5">
+          <Badge variant="outline">Module launcher</Badge>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+            The guided 2D and 3D Desmos modules live here too.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Use this free lab for scratch work, or jump into the production calculus modules for
+            graph-linked lessons, saved graph states, and practice questions.
+          </p>
+          <Button asChild className="mt-5" variant="outline">
+            <Link to="/math/questions">
+              Open question bank
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {calculusModuleCards.map((module) => {
+            const Icon = module.icon;
+            return (
+              <Link
+                className="group rounded-lg border border-border/70 bg-card/85 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card"
+                key={module.href}
+                to={module.href}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded-lg bg-primary/10 p-2 text-primary">
+                    <Icon className="size-5" />
+                  </span>
+                  <Badge variant="secondary">{module.badge}</Badge>
+                </div>
+                <h3 className="mt-4 font-semibold tracking-tight">{module.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{module.description}</p>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                  Open module
+                  <ArrowRight className="size-4 transition group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       {state.graphVisible ? (
