@@ -179,6 +179,7 @@ export type MathBlock =
       xMax: number;
       yMin: number;
       yMax: number;
+      graphMode?: "2d" | "3d";
     });
 
 export type BinderBundle = {

@@ -35,7 +35,7 @@ import {
   useLearnerNoteMutation,
 } from "@/hooks/use-binders";
 import { useHistoryMutations, useHistorySuite } from "@/hooks/use-history-suite";
-import { useMathWorkspace } from "@/hooks/use-math-workspace";
+import { useMathWorkspace, type GraphMode } from "@/hooks/use-math-workspace";
 import { useSaveStatus } from "@/hooks/use-save-status";
 import { useTheme } from "@/hooks/use-theme";
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences";
@@ -147,6 +147,7 @@ export function BinderReaderPage() {
   const [pendingGraphLoad, setPendingGraphLoad] = useState<{
     id: string;
     expressions: string[];
+    graphMode?: GraphMode;
     viewport: {
       xMin: number;
       xMax: number;
@@ -351,7 +352,7 @@ export function BinderReaderPage() {
     profile?.id,
     binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "binder-workspace",
   );
-  const { state: mathState, setGraphExpanded, setGraphVisible, savedFunctionMap, ...mathController } =
+  const { state: mathState, setGraphExpanded, setGraphVisible, setGraphMode, savedFunctionMap, ...mathController } =
     mathWorkspace;
 
   const updateWorkspace = useCallback(
@@ -913,6 +914,7 @@ export function BinderReaderPage() {
 
       ensureMathWorkspaceVisible({ enterLayoutWhenAdded: true });
       setGraphVisible(true);
+      setGraphMode("2d");
       setPendingGraphLoad(null);
       setPendingExpression({
         id: crypto.randomUUID(),
@@ -923,6 +925,7 @@ export function BinderReaderPage() {
       ensureMathWorkspaceVisible,
       mathState.calculatorExpression,
       savedFunctionMap,
+      setGraphMode,
       setGraphVisible,
     ],
   );
@@ -1617,10 +1620,12 @@ export function BinderReaderPage() {
     (block: Extract<MathBlock, { type: "graph" }>) => {
       ensureMathWorkspaceVisible({ enterLayoutWhenAdded: true });
       setGraphVisible(true);
+      setGraphMode(block.graphMode ?? "2d");
       setPendingExpression(null);
       setPendingGraphLoad({
         id: crypto.randomUUID(),
         expressions: block.expressions,
+        graphMode: block.graphMode ?? "2d",
         viewport: {
           xMin: block.xMin,
           xMax: block.xMax,
@@ -1629,7 +1634,7 @@ export function BinderReaderPage() {
         },
       });
     },
-    [ensureMathWorkspaceVisible, setGraphVisible],
+    [ensureMathWorkspaceVisible, setGraphMode, setGraphVisible],
   );
 
   const mathModules = useMemo(
@@ -1637,6 +1642,7 @@ export function BinderReaderPage() {
       controller: {
         state: mathState,
         setGraphExpanded,
+        setGraphMode,
         setGraphVisible,
         savedFunctionMap,
         ...mathController,
@@ -1667,6 +1673,7 @@ export function BinderReaderPage() {
       pushExpressionToGraph,
       savedFunctionMap,
       setGraphExpanded,
+      setGraphMode,
       setGraphVisible,
       snapshotName,
     ],

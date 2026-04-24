@@ -60,6 +60,8 @@ const questionTypes: QuestionType[] = [
   "step_ordering",
 ];
 
+type ActiveGraphMode = Exclude<MathModule["calculator_mode"], "none">;
+
 export function MathLandingPage() {
   const coursesQuery = useMathCourses();
   const modulesQuery = useMathModules();
@@ -79,17 +81,17 @@ export function MathLandingPage() {
         <div className="page-shell p-6 sm:p-8">
           <Badge variant="outline">Math learning</Badge>
           <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">
-            Calculus modules with Desmos graphs and practice that saves.
+            Jacob's Math Notes, upgraded with Desmos graphs and practice that saves.
           </h1>
           <p className="mt-4 max-w-2xl page-copy">
-            Start with a visual module, save your graph state, then turn the same idea into a
-            practice quiz.
+            Move from Geometry to Real Analysis with formula cards, 2D and 3D graph modules,
+            saved graph states, and linked practice.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild>
               <Link to="/math/modules/derivative-as-slope">
                 <FunctionSquare data-icon="inline-start" />
-                Start a Calculus Module
+                Start a Math Module
               </Link>
             </Button>
             <Button asChild variant="outline">
@@ -107,8 +109,8 @@ export function MathLandingPage() {
         <aside className="hero-aside">
           <p className="page-kicker">What is live now</p>
           <div className="mt-4 grid gap-3 text-sm leading-6 text-muted-foreground">
-            <p>2D Desmos modules for Calc 1 and Calc 2.</p>
-            <p>3D Desmos infrastructure with a safe unavailable fallback.</p>
+            <p>Jacob Math Notes modules from Geometry through Real Analysis.</p>
+            <p>2D and 3D Desmos modules with safe unavailable fallbacks.</p>
             <p>Manual question authoring, scoring, quiz attempts, and saved graph states.</p>
           </div>
         </aside>
@@ -204,7 +206,7 @@ export function MathModulesPage() {
         ]}
       />
       <section className="page-shell p-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Calculus modules</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Math modules</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Choose a visual lesson, explore the graph, then practice the linked questions.
         </p>
@@ -225,9 +227,25 @@ export function MathModulePage() {
   const bundleQuery = useMathModuleBundle(moduleSlug, profile?.id);
   const createQuiz = useCreateQuizSet();
   const saveGraph = useSaveMathGraphState();
-  const [graphState, setGraphState] = useState<DesmosState | null>(null);
+  const [activeGraphMode, setActiveGraphMode] = useState<ActiveGraphMode>("2d");
+  const [graphStatesByMode, setGraphStatesByMode] = useState<Record<ActiveGraphMode, DesmosState | null>>({
+    "2d": null,
+    "3d": null,
+  });
   const [snapshotName, setSnapshotName] = useState("");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const loadedModule = bundleQuery.data?.module;
+
+  useEffect(() => {
+    if (!loadedModule) {
+      return;
+    }
+
+    setActiveGraphMode(defaultGraphMode(loadedModule.calculator_mode));
+    setGraphStatesByMode({ "2d": null, "3d": null });
+    setSnapshotName("");
+    setSaveMessage(null);
+  }, [loadedModule?.calculator_mode, loadedModule?.id]);
 
   if (bundleQuery.isLoading) {
     return <MathPageSkeleton />;
@@ -240,7 +258,14 @@ export function MathModulePage() {
 
   const module = bundle.module;
   const expressions = module.module_json.expressions ?? [];
-  const canSaveGraph = module.calculator_mode !== "none" && Boolean(graphState);
+  const activeGraphState = graphStatesByMode[activeGraphMode];
+  const canSaveGraph = module.calculator_mode !== "none" && Boolean(activeGraphState);
+  const setActiveGraphState = (nextState: DesmosState) => {
+    setGraphStatesByMode((current) => ({
+      ...current,
+      [activeGraphMode]: nextState,
+    }));
+  };
 
   const startPractice = async () => {
     if (bundle.questions.length === 0) {
@@ -258,16 +283,16 @@ export function MathModulePage() {
   };
 
   const saveCurrentGraph = async () => {
-    if (!graphState || module.calculator_mode === "none") {
+    if (!activeGraphState || module.calculator_mode === "none") {
       return;
     }
 
     const graph = await saveGraph.mutateAsync({
       userId: profile.id,
       moduleId: module.id,
-      calculatorMode: module.calculator_mode,
+      calculatorMode: activeGraphMode,
       title: snapshotName.trim() || `${module.title} graph`,
-      desmosState: graphState,
+      desmosState: activeGraphState,
       expressions,
     });
     setSnapshotName("");
@@ -344,24 +369,51 @@ export function MathModulePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  {module.calculator_mode === "3d" ? (
+                  {activeGraphMode === "3d" ? (
                     <Cuboid className="size-5 text-primary" />
                   ) : (
                     <FunctionSquare className="size-5 text-primary" />
                   )}
-                  Desmos {module.calculator_mode === "3d" ? "3D" : "2D"} module
+                  Desmos {activeGraphMode === "3d" ? "3D" : "2D"} module
                 </CardTitle>
                 <CardDescription>{module.module_json.graphNotes}</CardDescription>
               </div>
-              <Badge variant="outline">{getModeLabel(module.calculator_mode)}</Badge>
+              {module.calculator_mode !== "none" ? (
+                <div className="flex items-center gap-1 rounded-md border border-border/70 bg-background/70 p-1">
+                  <Button
+                    onClick={() => {
+                      setActiveGraphMode("2d");
+                      setSaveMessage(null);
+                    }}
+                    size="sm"
+                    type="button"
+                    variant={activeGraphMode === "2d" ? "default" : "ghost"}
+                  >
+                    2D Graph
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setActiveGraphMode("3d");
+                      setSaveMessage(null);
+                    }}
+                    size="sm"
+                    type="button"
+                    variant={activeGraphMode === "3d" ? "default" : "ghost"}
+                  >
+                    3D Graph
+                  </Button>
+                </div>
+              ) : (
+                <Badge variant="outline">{getModeLabel(module.calculator_mode)}</Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="grid gap-3">
             <ModuleDesmos
               expressions={expressions.map((expression) => expression.latex)}
-              mode={module.calculator_mode}
-              onStateChange={setGraphState}
-              state={graphState}
+              mode={module.calculator_mode === "none" ? "none" : activeGraphMode}
+              onStateChange={setActiveGraphState}
+              state={activeGraphState}
               viewport={module.module_json.viewport}
             />
             <div className="flex flex-wrap items-center gap-2">
@@ -910,11 +962,11 @@ function ModuleDesmos({
 }) {
   const loadRequest = useMemo(
     () => ({
-      id: expressions.join("|"),
+      id: `${mode}:${expressions.join("|")}`,
       expressions,
       viewport,
     }),
-    [expressions, viewport],
+    [expressions, mode, viewport],
   );
 
   if (mode === "3d") {
@@ -1376,6 +1428,10 @@ function getModeLabel(mode: MathModule["calculator_mode"]) {
   if (mode === "3d") return "Desmos 3D";
   if (mode === "2d") return "Desmos 2D";
   return "No calculator";
+}
+
+function defaultGraphMode(mode: MathModule["calculator_mode"]): ActiveGraphMode {
+  return mode === "3d" ? "3d" : "2d";
 }
 
 function formatQuestionType(type: QuestionType) {

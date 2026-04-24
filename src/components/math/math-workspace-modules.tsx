@@ -1,12 +1,13 @@
+import { useEffect } from "react";
 import { FunctionSquare } from "lucide-react";
-import { DesmosGraph } from "@/components/math/desmos-graph";
+import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import { GraphStateList } from "@/components/math/graph-state-list";
 import { DesmosScientificCalculator } from "@/components/math/desmos-scientific-calculator";
 import { ScientificCalculator } from "@/components/math/scientific-calculator";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
-import type { MathWorkspaceController } from "@/hooks/use-math-workspace";
+import type { GraphMode, MathWorkspaceController } from "@/hooks/use-math-workspace";
 import type { MathBlock } from "@/types";
 
 export type GraphExpressionRequest = {
@@ -17,6 +18,7 @@ export type GraphExpressionRequest = {
 export type GraphLoadRequest = {
   id: string;
   expressions: string[];
+  graphMode?: GraphMode;
   viewport?: {
     xMin: number;
     xMax: number;
@@ -49,15 +51,40 @@ export function DesmosGraphModule({
   title?: string;
 }) {
   const { controller, onExpressionApplied, onGraphLoadApplied, pendingExpression, pendingGraphLoad = null } = bindings;
+  useEffect(() => {
+    if (pendingGraphLoad?.graphMode) {
+      controller.setGraphMode(pendingGraphLoad.graphMode);
+    }
+  }, [controller.setGraphMode, pendingGraphLoad?.graphMode, pendingGraphLoad?.id]);
+
   const height = controller.state.graphExpanded
     ? "clamp(620px, 78vh, 860px)"
     : "clamp(540px, 70vh, 760px)";
+  const activeModeLabel = controller.state.graphMode === "3d" ? "3D Graph" : "2D Graph";
 
   return (
     <WorkspacePanel
       actions={
         controller.state.graphVisible ? (
           <>
+            <div className="flex items-center gap-1 rounded-md border border-border/70 bg-background/70 p-1">
+              <Button
+                onClick={() => controller.setGraphMode("2d")}
+                size="sm"
+                type="button"
+                variant={controller.state.graphMode === "2d" ? "default" : "ghost"}
+              >
+                2D
+              </Button>
+              <Button
+                onClick={() => controller.setGraphMode("3d")}
+                size="sm"
+                type="button"
+                variant={controller.state.graphMode === "3d" ? "default" : "ghost"}
+              >
+                3D
+              </Button>
+            </div>
             <Button onClick={() => controller.setGraphVisible(false)} size="sm" type="button" variant="outline">
               Hide
             </Button>
@@ -73,19 +100,31 @@ export function DesmosGraphModule({
         )
       }
       className="min-h-[520px]"
-      description={description}
+      description={`${description} Current mode: ${activeModeLabel}.`}
       title={title}
     >
       {controller.state.graphVisible ? (
-        <DesmosGraph
-          height={height}
-          loadRequest={pendingGraphLoad}
-          onLoadApplied={onGraphLoadApplied}
-          onExpressionApplied={onExpressionApplied}
-          onStateChange={controller.setCurrentGraphState}
-          pendingExpression={pendingExpression}
-          state={controller.state.currentGraphState}
-        />
+        controller.state.graphMode === "3d" ? (
+          <Desmos3DGraph
+            height={height}
+            loadRequest={pendingGraphLoad}
+            onLoadApplied={onGraphLoadApplied}
+            onExpressionApplied={onExpressionApplied}
+            onStateChange={controller.setCurrentGraphState}
+            pendingExpression={pendingExpression}
+            state={controller.state.currentGraphState}
+          />
+        ) : (
+          <DesmosGraph
+            height={height}
+            loadRequest={pendingGraphLoad}
+            onLoadApplied={onGraphLoadApplied}
+            onExpressionApplied={onExpressionApplied}
+            onStateChange={controller.setCurrentGraphState}
+            pendingExpression={pendingExpression}
+            state={controller.state.currentGraphState}
+          />
+        )
       ) : (
         <EmptyState
           description="The graph engine is unmounted while hidden so the workspace stays lighter."

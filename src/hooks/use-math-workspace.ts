@@ -19,10 +19,13 @@ export type SavedGraphState = {
   kind: "snapshot";
   lessonId?: string;
   name: string;
+  calculatorMode: GraphMode;
   state: DesmosState;
   createdAt: string;
   updatedAt: string;
 };
+
+export type GraphMode = "2d" | "3d";
 
 export type SavedMathFunction = {
   id: string;
@@ -36,6 +39,8 @@ export type MathWorkspaceState = {
   version: 1;
   graphVisible: boolean;
   graphExpanded: boolean;
+  graphMode: GraphMode;
+  graphStatesByMode: Record<GraphMode, DesmosState | null>;
   angleMode: AngleMode;
   calculatorExpression: string;
   calculatorResult: string | null;
@@ -59,6 +64,11 @@ function createDefaultState(): MathWorkspaceState {
     version: 1,
     graphVisible: true,
     graphExpanded: false,
+    graphMode: "2d",
+    graphStatesByMode: {
+      "2d": null,
+      "3d": null,
+    },
     angleMode: "rad",
     calculatorExpression: "",
     calculatorResult: null,
@@ -82,14 +92,20 @@ function loadState(userId?: string, scopeId = "math-lab") {
     }
 
     const parsed = JSON.parse(raw) as Partial<MathWorkspaceState>;
+    const graphMode = normalizeGraphMode(parsed.graphMode);
+    const graphStatesByMode = normalizeGraphStatesByMode(parsed, graphMode);
     return {
       ...createDefaultState(),
       ...parsed,
       version: 1 as const,
+      graphMode,
+      graphStatesByMode,
+      currentGraphState: graphStatesByMode[graphMode] ?? null,
       history: parsed.history ?? [],
       savedGraphs: (parsed.savedGraphs ?? []).map((graph) => ({
         ...graph,
         kind: "snapshot" as const,
+        calculatorMode: normalizeGraphMode(graph.calculatorMode),
       })),
       savedFunctions: parsed.savedFunctions ?? [],
     };
@@ -266,20 +282,44 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     setState((current) => ({ ...current, graphExpanded }));
   }, []);
 
+  const setGraphMode = useCallback((graphMode: GraphMode) => {
+    setState((current) => {
+      if (current.graphMode === graphMode) {
+        return current;
+      }
+
+      return {
+        ...current,
+        graphMode,
+        graphVisible: true,
+        currentGraphState: current.graphStatesByMode[graphMode] ?? null,
+      };
+    });
+  }, []);
+
   const setCurrentGraphState = useCallback((graphState: DesmosState | null) => {
-    setState((current) => ({ ...current, currentGraphState: graphState }));
+    setState((current) => ({
+      ...current,
+      currentGraphState: graphState,
+      graphStatesByMode: {
+        ...current.graphStatesByMode,
+        [current.graphMode]: graphState,
+      },
+    }));
   }, []);
 
   const saveGraphSnapshot = useCallback((name: string) => {
+    if (!state.currentGraphState) {
+      return false;
+    }
+
     const trimmed = name.trim();
-    let saved = false;
 
     setState((current) => {
       if (!current.currentGraphState) {
         return current;
       }
 
-      saved = true;
       const timestamp = new Date().toISOString();
       const existingByName = trimmed
         ? current.savedGraphs.find((item) => item.name.toLowerCase() === trimmed.toLowerCase())
@@ -289,6 +329,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         kind: "snapshot",
         lessonId: scopeId,
         name: trimmed || existingByName?.name || `Graph ${current.savedGraphs.length + 1}`,
+        calculatorMode: current.graphMode,
         state: current.currentGraphState,
         createdAt: existingByName?.createdAt ?? timestamp,
         updatedAt: timestamp,
@@ -303,8 +344,8 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       };
     });
 
-    return saved;
-  }, []);
+    return true;
+  }, [scopeId, state.currentGraphState]);
 
   const loadGraphSnapshot = useCallback((snapshotId: string) => {
     setState((current) => {
@@ -315,7 +356,12 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
 
       return {
         ...current,
+        graphMode: snapshot.calculatorMode,
         currentGraphState: snapshot.state,
+        graphStatesByMode: {
+          ...current.graphStatesByMode,
+          [snapshot.calculatorMode]: snapshot.state,
+        },
         graphVisible: true,
       };
     });
@@ -354,6 +400,10 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     setState((current) => ({
       ...current,
       currentGraphState: null,
+      graphStatesByMode: {
+        ...current.graphStatesByMode,
+        [current.graphMode]: null,
+      },
     }));
   }, []);
 
@@ -371,6 +421,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     clearHistory,
     setGraphVisible,
     setGraphExpanded,
+    setGraphMode,
     setCurrentGraphState,
     saveGraphSnapshot,
     loadGraphSnapshot,
@@ -383,3 +434,18 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
 }
 
 export type MathWorkspaceController = ReturnType<typeof useMathWorkspace>;
+
+function normalizeGraphMode(value: unknown): GraphMode {
+  return value === "3d" ? "3d" : "2d";
+}
+
+function normalizeGraphStatesByMode(
+  parsed: Partial<MathWorkspaceState>,
+  graphMode: GraphMode,
+): Record<GraphMode, DesmosState | null> {
+  const stored = parsed.graphStatesByMode as Partial<Record<GraphMode, DesmosState | null>> | undefined;
+  return {
+    "2d": stored?.["2d"] ?? (graphMode === "2d" ? parsed.currentGraphState ?? null : null),
+    "3d": stored?.["3d"] ?? (graphMode === "3d" ? parsed.currentGraphState ?? null : null),
+  };
+}

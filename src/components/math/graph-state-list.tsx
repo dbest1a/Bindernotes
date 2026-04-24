@@ -73,7 +73,10 @@ export function GraphStateList({
               <div className="rounded-lg border border-border/75 bg-background/80 p-4" key={graph.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{inferMathBlockLabel(graph)}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium">{inferMathBlockLabel(graph)}</p>
+                      <GraphModeBadge mode={graph.graphMode ?? "2d"} />
+                    </div>
                     {graph.sourceHeading ? (
                       <button
                         className="mt-1 text-left text-xs text-muted-foreground transition hover:text-foreground"
@@ -113,7 +116,10 @@ export function GraphStateList({
             <div className="rounded-lg border border-border/75 bg-background/80 p-4" key={graph.id}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{graph.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium">{graph.name}</p>
+                    <GraphModeBadge mode={graph.calculatorMode} />
+                  </div>
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock3 className="size-3.5" />
                     {formatSavedTime(graph.updatedAt)}
@@ -145,6 +151,14 @@ export function GraphStateList({
   }
 
   return <section className="page-shell p-5">{content}</section>;
+}
+
+function GraphModeBadge({ mode }: { mode: "2d" | "3d" }) {
+  return (
+    <span className="rounded-full border border-border/70 bg-secondary/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {mode === "3d" ? "3D Graph" : "2D Graph"}
+    </span>
+  );
 }
 
 function formatSavedTime(value: string) {

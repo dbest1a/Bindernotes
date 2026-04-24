@@ -2,7 +2,7 @@
 
 ## What Was Added
 
-BinderNotes now has a first production-oriented math learning layer for manual calculus modules, Desmos graphing, graph-state saving, question authoring, quizzes, and scored attempts.
+BinderNotes now has a first production-oriented math learning layer for manual calculus modules, Jacob Math Notes modules, Desmos graphing, graph-state saving, question authoring, quizzes, and scored attempts.
 
 This pass intentionally does not add payments, subscriptions, entitlement gates, LLMs, AI generation, chat, marketplace, or live games.
 
@@ -52,6 +52,13 @@ The app uses `VITE_DESMOS_API_KEY`, with optional compatibility for `NEXT_PUBLIC
 
 3D modules use `Desmos.Calculator3D` when available and show a safe fallback when the API key does not expose 3D.
 
+The module player and the in-binder math workspace both expose a visible graph mode switch:
+
+- `2D Graph` uses `Desmos.GraphingCalculator`
+- `3D Graph` uses `Desmos.Calculator3D`
+
+Workspace graph state is kept separately per mode so switching from a 2D function lab to a 3D surface lab does not overwrite the other mode's current state. Named saved graph snapshots also remember their calculator mode.
+
 ## Seed Data
 
 Seed commands:
@@ -68,14 +75,25 @@ Seed content includes:
 - Calculus 1
 - Calculus 2
 - Calculus 3
+- Jacob Math Notes
 
 Published modules:
 
 - Calc 1: Derivative as Slope
 - Calc 2: Taylor Polynomial Explorer
 - Calc 3: Surface and Tangent Plane Explorer
+- Jacob Geometry: Transformations and Conics
+- Jacob Algebra 2: Functions and Structure
+- Jacob Precalculus: Trig, Complex Numbers, and Vectors
+- Jacob Calculus: Tangents, Accumulation, and Series
+- Jacob Multivariable: Surfaces and Vector Operators
+- Jacob Linear Algebra: Transformations and Eigenvectors
+- Jacob Differential Equations: Solution Behavior
+- Jacob Real Analysis: Limits and Proof Habits
 
 Seeds are deterministic and idempotent.
+
+Jacob Math Notes is seeded as a learner-facing math course with topics for Geometry, Algebra 2, Precalculus, Calculus, Multivariable Calculus, Linear Algebra, Differential Equations, and Real Analysis. The original binder remains available as the readable note set, while the math course modules provide graph-first interactive entry points into the same conceptual arc.
 
 ## Quiz And Question Model
 
@@ -124,6 +142,8 @@ Manual verification:
 - open `/math/modules/derivative-as-slope`
 - open `/math/modules/taylor-polynomial-explorer`
 - open `/math/modules/surface-and-tangent-plane-explorer`
+- open `/math/modules/jacob-multivariable-surfaces`
+- switch the graph module between 2D Graph and 3D Graph
 - save a graph state
 - create a manual question
 - build a quiz from selected questions

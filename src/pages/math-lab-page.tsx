@@ -48,6 +48,13 @@ const calculusModuleCards = [
     badge: "3D Desmos",
     icon: Cuboid,
   },
+  {
+    title: "Jacob Multivariable Surfaces",
+    description: "The Jacob flagship 3D module for surfaces, partials, and tangent planes.",
+    href: "/math/modules/jacob-multivariable-surfaces",
+    badge: "3D Jacob",
+    icon: Cuboid,
+  },
 ];
 
 export function MathLabPage() {
@@ -55,6 +62,7 @@ export function MathLabPage() {
   const {
     state,
     setGraphExpanded,
+    setGraphMode,
     setGraphVisible,
     savedFunctionMap,
     ...mathWorkspace
@@ -82,6 +90,7 @@ export function MathLabPage() {
     }
 
     setGraphVisible(true);
+    setGraphMode("2d");
     setPendingGraphLoad(null);
     setPendingExpression({
       id: crypto.randomUUID(),
@@ -89,7 +98,7 @@ export function MathLabPage() {
     });
   };
   const bindings = {
-    controller: { state, setGraphExpanded, setGraphVisible, savedFunctionMap, ...mathWorkspace },
+    controller: { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace },
     lessonGraphs: [] as Extract<MathBlock, { type: "graph" }>[],
     pendingGraphLoad,
     pendingExpression,
@@ -132,7 +141,7 @@ export function MathLabPage() {
             <Button asChild>
               <Link to="/math">
                 <ListChecks data-icon="inline-start" />
-                Open calculus modules
+                Open math modules
               </Link>
             </Button>
             <Button onClick={() => setGraphVisible(!state.graphVisible)} type="button" variant="outline">
@@ -159,7 +168,7 @@ export function MathLabPage() {
             The guided 2D and 3D Desmos modules live here too.
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Use this free lab for scratch work, or jump into the production calculus modules for
+            Use this free lab for scratch work, or jump into the production math modules for
             graph-linked lessons, saved graph states, and practice questions.
           </p>
           <Button asChild className="mt-5" variant="outline">
@@ -170,7 +179,7 @@ export function MathLabPage() {
           </Button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {calculusModuleCards.map((module) => {
             const Icon = module.icon;
             return (

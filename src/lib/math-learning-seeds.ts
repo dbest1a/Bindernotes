@@ -55,6 +55,15 @@ export const mathSeedCourses: MathCourse[] = [
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
   },
+  {
+    id: "course-jacob-math-notes",
+    slug: "jacob-math-notes",
+    title: "Jacob Math Notes",
+    description: "Geometry through real analysis as one interactive graph, formula, and practice path.",
+    order_index: 6,
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
 ];
 
 const topicGroups: Record<string, string[]> = {
@@ -83,6 +92,16 @@ const topicGroups: Record<string, string[]> = {
     "Line Integrals",
     "Surface Integrals",
   ],
+  "course-jacob-math-notes": [
+    "Geometry",
+    "Algebra 2",
+    "Precalculus",
+    "Calculus",
+    "Multivariable Calculus",
+    "Linear Algebra",
+    "Differential Equations",
+    "Real Analysis",
+  ],
 };
 
 export const mathSeedTopics: MathTopic[] = Object.entries(topicGroups).flatMap(
@@ -101,6 +120,8 @@ export const mathSeedTopics: MathTopic[] = Object.entries(topicGroups).flatMap(
 );
 
 const foundational = "foundational" satisfies MathDifficulty;
+const intermediate = "intermediate" satisfies MathDifficulty;
+const advanced = "advanced" satisfies MathDifficulty;
 
 export const mathSeedModules: MathModule[] = [
   {
@@ -241,6 +262,346 @@ export const mathSeedModules: MathModule[] = [
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
   },
+  {
+    id: "module-jacob-geometry-transformations",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-geometry",
+    slug: "jacob-geometry-transformations",
+    title: "Jacob Geometry: Transformations and Conics",
+    description: "Rigid motions, dilations, circle equations, and conic pictures from Jacob's notes.",
+    difficulty: foundational,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Geometry becomes easier when vocabulary, congruence, and coordinate pictures all point to the same object.",
+      learningGoals: [
+        "Use coordinate rules for rotations, reflections, translations, and dilations.",
+        "Connect circle and conic equations to visible shapes.",
+        "Use graph references as checks for geometric claims.",
+      ],
+      graphNotes: "Explore a triangle dilation beside a circle and ellipse reference set.",
+      expressions: [
+        { id: "triangle-a", latex: "A=(1,1)" },
+        { id: "triangle-b", latex: "B=(3,1)" },
+        { id: "triangle-c", latex: "C=(2,3)" },
+        { id: "image-a", latex: "A'=(2,2)" },
+        { id: "circle", latex: "x^2+y^2=9" },
+        { id: "ellipse", latex: "\\frac{x^2}{16}+\\frac{y^2}{9}=1" },
+      ],
+      viewport: { xMin: -6, xMax: 8, yMin: -4, yMax: 8 },
+      sections: [
+        {
+          title: "Start with movement",
+          body:
+            "Translations slide, rotations turn, reflections flip, and dilations scale. The coordinates are not decoration; they are the proof trail.",
+        },
+        {
+          title: "Use equations as shape machines",
+          body:
+            "Circle and ellipse equations let students check whether a geometric description matches the picture they expect.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-algebra-functions",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-algebra-2",
+    slug: "jacob-algebra-functions",
+    title: "Jacob Algebra 2: Functions and Structure",
+    description: "Parent transformations, polynomial behavior, rational functions, logs, and matrices.",
+    difficulty: foundational,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Algebra 2 is a pattern course: forms, transformations, roots, asymptotes, and rules all describe structure.",
+      learningGoals: [
+        "Compare parent functions with shifted and scaled versions.",
+        "Read polynomial zeros and rational asymptotes from graphs.",
+        "Use formulas as compact summaries of algebraic structure.",
+      ],
+      graphNotes: "Use sliders to change a transformed quadratic and compare it to parent functions.",
+      expressions: [
+        { id: "a", latex: "a=1" },
+        { id: "h", latex: "h=2" },
+        { id: "k", latex: "k=3" },
+        { id: "quadratic", latex: "y=a(x-h)^2+k" },
+        { id: "absolute", latex: "y=|x|" },
+        { id: "rational", latex: "y=\\frac{1}{x-1}+2" },
+      ],
+      viewport: { xMin: -8, xMax: 8, yMin: -6, yMax: 12 },
+      sections: [
+        {
+          title: "Transformations first",
+          body:
+            "The form y=a f(b(x-h))+k tells the graph story before any arithmetic starts.",
+        },
+        {
+          title: "Structure as a shortcut",
+          body:
+            "Zeros, holes, asymptotes, and log rules are faster when students can see what each symbol controls.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-precalculus-trig-vectors",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-precalculus",
+    slug: "jacob-precalculus-trig-vectors",
+    title: "Jacob Precalculus: Trig, Complex Numbers, and Vectors",
+    description: "Unit circle habits, trig identities, polar complex form, vectors, growth, and limits.",
+    difficulty: intermediate,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Precalculus ties together circular motion, function composition, vectors, and early limiting behavior.",
+      learningGoals: [
+        "Use the unit circle as the source for trig ratios and identities.",
+        "Interpret complex multiplication as rotation and scaling.",
+        "Use vector magnitude and direction to prepare for calculus.",
+      ],
+      graphNotes: "Compare sine, cosine, tangent, and a rotating complex-number point.",
+      expressions: [
+        { id: "unit-circle", latex: "x^2+y^2=1" },
+        { id: "theta", latex: "\\theta=1" },
+        { id: "point", latex: "(\\cos(\\theta),\\sin(\\theta))" },
+        { id: "sine", latex: "y=\\sin(x)" },
+        { id: "cosine", latex: "y=\\cos(x)" },
+      ],
+      viewport: { xMin: -7, xMax: 7, yMin: -2, yMax: 2 },
+      sections: [
+        {
+          title: "The unit circle is the organizer",
+          body:
+            "Trig identities, inverse trig, and radian measure become much less mysterious when the circle stays visible.",
+        },
+        {
+          title: "Complex and vector thinking",
+          body:
+            "A complex number in polar form and a vector in component form both encode magnitude plus direction.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-calculus-tangent-integral",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-calculus",
+    slug: "jacob-calculus-tangent-integral",
+    title: "Jacob Calculus: Tangents, Accumulation, and Series",
+    description: "Limits, derivative rules, integrals, differential equations, parametric curves, and Taylor series.",
+    difficulty: intermediate,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Calculus is a pair of ideas: local change through derivatives and total accumulation through integrals.",
+      learningGoals: [
+        "Read derivatives as tangent slopes and local predictions.",
+        "Read integrals as accumulation and signed area.",
+        "Use Taylor polynomials as local models.",
+      ],
+      graphNotes: "Move the tangent point and compare a function with its local linear model.",
+      expressions: [
+        { id: "f", latex: "f(x)=x^3-3x" },
+        { id: "a", latex: "a=1" },
+        { id: "tangent", latex: "y=f'(a)(x-a)+f(a)" },
+        { id: "area", latex: "0<y<f(x)\\left\\{0<x<2\\right\\}" },
+      ],
+      viewport: { xMin: -4, xMax: 4, yMin: -8, yMax: 8 },
+      sections: [
+        {
+          title: "Derivative as a local lens",
+          body:
+            "Every derivative rule should still answer one geometric question: what is the curve doing right here?",
+        },
+        {
+          title: "Integral as reconstruction",
+          body:
+            "If a rate describes change, an integral rebuilds the total amount from those tiny changes.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-multivariable-surfaces",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-multivariable-calculus",
+    slug: "jacob-multivariable-surfaces",
+    title: "Jacob Multivariable: Surfaces and Vector Operators",
+    description: "Surfaces, tangent planes, gradients, divergence, curl, Jacobians, and the big integral theorems.",
+    difficulty: advanced,
+    calculator_mode: "3d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Multivariable calculus asks students to keep geometry, algebra, and motion in view at the same time.",
+      learningGoals: [
+        "Use a 3D surface to interpret partial derivatives.",
+        "Connect gradients to steepest ascent and tangent planes.",
+        "Separate divergence, curl, and Jacobian roles.",
+      ],
+      graphNotes: "Switch to 3D, then move a and b to watch the tangent plane follow the surface.",
+      expressions: [
+        { id: "surface", latex: "z=x^2+y^2" },
+        { id: "a", latex: "a=1" },
+        { id: "b", latex: "b=1" },
+        { id: "plane", latex: "z=2a(x-a)+2b(y-b)+a^2+b^2" },
+      ],
+      sections: [
+        {
+          title: "Partial derivatives are slices",
+          body:
+            "Hold one direction still and inspect slope in the other. The tangent plane combines both directions into one local model.",
+        },
+        {
+          title: "Operators describe fields",
+          body:
+            "Gradient points uphill, divergence measures source-like behavior, and curl measures rotation-like behavior.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-linear-algebra-transformations",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-linear-algebra",
+    slug: "jacob-linear-algebra-transformations",
+    title: "Jacob Linear Algebra: Transformations and Eigenvectors",
+    description: "Systems, determinants, vector spaces, orthogonality, eigenvalues, least squares, and SVD.",
+    difficulty: intermediate,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Linear algebra is the study of transformations that respect addition and scaling.",
+      learningGoals: [
+        "Interpret matrix columns as transformed basis vectors.",
+        "Use determinants as area scale factors in 2D.",
+        "Read eigenvectors as directions that keep their line.",
+      ],
+      graphNotes: "Compare a starting grid vector with transformed basis directions.",
+      expressions: [
+        { id: "v1", latex: "(1,0)" },
+        { id: "v2", latex: "(0,1)" },
+        { id: "av1", latex: "(2,1)" },
+        { id: "av2", latex: "(1,2)" },
+        { id: "line-one", latex: "y=x" },
+        { id: "line-two", latex: "y=-x" },
+      ],
+      viewport: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 },
+      sections: [
+        {
+          title: "Matrices move space",
+          body:
+            "A matrix is not just a table. It tells every point where to go, starting with the basis vectors.",
+        },
+        {
+          title: "Eigenvectors are stable directions",
+          body:
+            "When a transformation keeps a direction on the same line, the stretch factor is the eigenvalue.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-differential-equations-slope-fields",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-differential-equations",
+    slug: "jacob-differential-equations-slope-fields",
+    title: "Jacob Differential Equations: Solution Behavior",
+    description: "First-order equations, second-order equations, systems, Fourier series, and heat flow.",
+    difficulty: intermediate,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Differential equations study functions by describing how they change instead of giving the function first.",
+      learningGoals: [
+        "Recognize separable and linear first-order equations.",
+        "Use characteristic equations for common second-order problems.",
+        "Connect solution curves to long-term behavior.",
+      ],
+      graphNotes: "Use the logistic curve to see carrying capacity and flattening behavior.",
+      expressions: [
+        { id: "M", latex: "M=10" },
+        { id: "k", latex: "k=0.7" },
+        { id: "solution", latex: "P(t)=\\frac{M}{1+9e^{-kt}}" },
+        { id: "capacity", latex: "y=M" },
+      ],
+      viewport: { xMin: -1, xMax: 10, yMin: -1, yMax: 12 },
+      sections: [
+        {
+          title: "Behavior before formula",
+          body:
+            "Ask whether solutions grow, decay, oscillate, or settle before diving into symbolic methods.",
+        },
+        {
+          title: "Fourier as a basis idea",
+          body:
+            "Fourier series use orthogonality to rebuild functions from sine and cosine pieces.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
+  {
+    id: "module-jacob-real-analysis-sequence-limits",
+    course_id: "course-jacob-math-notes",
+    topic_id: "topic-jacob-math-notes-real-analysis",
+    slug: "jacob-real-analysis-sequence-limits",
+    title: "Jacob Real Analysis: Limits and Proof Habits",
+    description: "Sets, sequences, metric spaces, series, continuity, uniform convergence, differentiation, and integration.",
+    difficulty: advanced,
+    calculator_mode: "2d",
+    visibility: "published",
+    module_json: {
+      overview:
+        "Real analysis turns calculus statements into precise definitions and proof patterns.",
+      learningGoals: [
+        "Read limits through epsilon-style definitions.",
+        "Use sequences as a testing language for continuity and convergence.",
+        "Separate pointwise ideas from uniform ideas.",
+      ],
+      graphNotes: "Plot a sequence settling toward its limit, then use the picture to support the definition.",
+      expressions: [
+        { id: "sequence", latex: "a_n=1+\\frac{1}{n}" },
+        { id: "limit", latex: "y=1" },
+      ],
+      viewport: { xMin: 0, xMax: 20, yMin: 0.8, yMax: 2.2 },
+      sections: [
+        {
+          title: "Definitions are tools",
+          body:
+            "Epsilon, delta, metric, compactness, and uniform convergence all exist to control how close objects can get.",
+        },
+        {
+          title: "Proof practice is the module",
+          body:
+            "The goal is not to memorize one proof. It is to recognize which definition gives you the right lever.",
+        },
+      ],
+    },
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  },
 ];
 
 export const mathSeedQuestions: QuestionBankItem[] = [
@@ -360,6 +721,106 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     answer: { completionPoints: 1, rubric: "Mentions the tangent point and plane moving." },
     explanation:
       "The tangent point moves across the surface and the tangent plane updates to match the local slopes there.",
+  }),
+  question({
+    id: "question-jacob-dilation-meaning",
+    moduleId: "module-jacob-geometry-transformations",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-geometry",
+    type: "short_answer",
+    title: "Dilation effect",
+    prompt: "What does a dilation with scale factor 2 from the origin do to every coordinate?",
+    answer: {
+      acceptedAnswers: ["it doubles every coordinate", "doubles every coordinate", "multiplies each coordinate by 2"],
+      caseSensitive: false,
+      normalizeWhitespace: true,
+    },
+    explanation: "A dilation from the origin with scale factor 2 sends (x,y) to (2x,2y).",
+  }),
+  question({
+    id: "question-jacob-transform-form",
+    moduleId: "module-jacob-algebra-functions",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-algebra-2",
+    type: "free_response",
+    title: "Reading a transformed parent function",
+    prompt: "In y=a f(b(x-h))+k, what do h and k control on the graph?",
+    answer: { completionPoints: 1, rubric: "Mentions horizontal and vertical shifting." },
+    explanation: "h shifts the graph horizontally and k shifts it vertically.",
+  }),
+  question({
+    id: "question-jacob-unit-circle",
+    moduleId: "module-jacob-precalculus-trig-vectors",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-precalculus",
+    type: "short_answer",
+    title: "Unit circle coordinates",
+    prompt: "What point on the unit circle corresponds to angle theta?",
+    answer: {
+      acceptedAnswers: ["(cos theta, sin theta)", "(cos(theta), sin(theta))", "(\\cos\\theta,\\sin\\theta)"],
+      caseSensitive: false,
+      normalizeWhitespace: true,
+    },
+    explanation: "The unit-circle point is (cos theta, sin theta), which makes trig ratios geometric.",
+  }),
+  question({
+    id: "question-jacob-tangent-purpose",
+    moduleId: "module-jacob-calculus-tangent-integral",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-calculus",
+    type: "free_response",
+    title: "Tangent line purpose",
+    prompt: "Why is the tangent line useful for local prediction?",
+    answer: { completionPoints: 1, rubric: "Mentions matching local slope or nearby approximation." },
+    explanation: "The tangent line uses the current point and derivative to approximate nearby function values.",
+  }),
+  question({
+    id: "question-jacob-partials-tangent-plane",
+    moduleId: "module-jacob-multivariable-surfaces",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-multivariable-calculus",
+    type: "short_answer",
+    title: "Two slopes make a plane",
+    prompt: "What two pieces of derivative information does a tangent plane use?",
+    answer: {
+      acceptedAnswers: ["partial derivatives in x and y", "the x partial and y partial", "f_x and f_y"],
+      caseSensitive: false,
+      normalizeWhitespace: true,
+    },
+    explanation: "A tangent plane uses the x-direction and y-direction partial derivatives at the point.",
+  }),
+  question({
+    id: "question-jacob-determinant-area",
+    moduleId: "module-jacob-linear-algebra-transformations",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-linear-algebra",
+    type: "free_response",
+    title: "Determinant meaning",
+    prompt: "What geometric idea does the determinant of a 2D matrix measure?",
+    answer: { completionPoints: 1, rubric: "Mentions signed area scaling." },
+    explanation: "The determinant measures signed area scaling under the linear transformation.",
+  }),
+  question({
+    id: "question-jacob-logistic-capacity",
+    moduleId: "module-jacob-differential-equations-slope-fields",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-differential-equations",
+    type: "numeric",
+    title: "Logistic carrying capacity",
+    prompt: "In the seeded graph P(t)=M/(1+9e^(-kt)) with M=10, what value does P(t) approach?",
+    answer: { expected: 10, tolerance: 0.001, units: null },
+    explanation: "M is the carrying capacity, so the logistic solution approaches 10.",
+  }),
+  question({
+    id: "question-jacob-sequence-limit",
+    moduleId: "module-jacob-real-analysis-sequence-limits",
+    courseId: "course-jacob-math-notes",
+    topicId: "topic-jacob-math-notes-real-analysis",
+    type: "numeric",
+    title: "Sequence limit",
+    prompt: "What is the limit of a_n = 1 + 1/n as n goes to infinity?",
+    answer: { expected: 1, tolerance: 0.001, units: null },
+    explanation: "The term 1/n goes to 0, so the sequence approaches 1.",
   }),
 ];
 

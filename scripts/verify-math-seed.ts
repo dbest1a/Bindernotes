@@ -57,7 +57,7 @@ async function main() {
   const counts = await getMathSeedCounts(client);
   console.table(counts);
 
-  if (counts.courses < 5 || counts.topics < 19 || counts.modules < 3 || counts.questions < 9) {
+  if (counts.courses < 6 || counts.topics < 27 || counts.modules < 11 || counts.questions < 17) {
     throw new Error("Math learning seed is incomplete.");
   }
 

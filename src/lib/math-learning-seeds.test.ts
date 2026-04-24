@@ -20,18 +20,25 @@ describe("math learning seeds", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("includes the required calculus courses and modules", () => {
+  it("includes the required calculus courses and Jacob Math Notes modules", () => {
     expect(mathSeedCourses.map((course) => course.slug)).toEqual([
       "ap-calculus-ab",
       "ap-calculus-bc",
       "calculus-1",
       "calculus-2",
       "calculus-3",
+      "jacob-math-notes",
     ]);
-    expect(mathSeedModules.map((module) => module.slug)).toEqual([
-      "derivative-as-slope",
-      "taylor-polynomial-explorer",
-      "surface-and-tangent-plane-explorer",
-    ]);
+    expect(mathSeedModules.map((module) => module.slug)).toEqual(
+      expect.arrayContaining([
+        "derivative-as-slope",
+        "taylor-polynomial-explorer",
+        "surface-and-tangent-plane-explorer",
+        "jacob-geometry-transformations",
+        "jacob-multivariable-surfaces",
+        "jacob-real-analysis-sequence-limits",
+      ]),
+    );
+    expect(mathSeedTopics.filter((topic) => topic.course_id === "course-jacob-math-notes")).toHaveLength(8);
   });
 });

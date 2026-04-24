@@ -391,7 +391,7 @@ describe("workspace preferences", () => {
     expect(maxX).toBeGreaterThanOrEqual(1980);
   });
 
-  it("does not auto-inject extra math windows when math study is chosen", () => {
+  it("keeps the math graph lab preset intentionally connected without post-load injection", () => {
     const storage = new Map<string, string>();
     vi.stubGlobal("window", {
       localStorage: {
@@ -409,9 +409,11 @@ describe("workspace preferences", () => {
       "lesson",
       "private-notes",
       "desmos-graph",
+      "formula-sheet",
+      "saved-graphs",
       "scientific-calculator",
     ]);
-    expect(reloaded.enabledModules).not.toContain("saved-graphs");
+    expect(reloaded.enabledModules).not.toContain("math-blocks");
   });
 
   it("can inject math modules into an existing workspace", () => {
