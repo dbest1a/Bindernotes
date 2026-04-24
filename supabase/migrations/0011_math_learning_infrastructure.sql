@@ -147,7 +147,7 @@ create table if not exists public.question_attempts (
 );
 
 create index if not exists math_topics_course_order_idx on public.math_topics(course_id, order_index);
-create index if not exists math_modules_course_topic_idx on public.math_modules(course_id, topic_id, order_index) where visibility = 'published';
+create index if not exists math_modules_course_topic_idx on public.math_modules(course_id, topic_id) where visibility = 'published';
 create index if not exists math_graph_states_user_module_idx on public.math_graph_states(user_id, module_id, updated_at desc);
 create index if not exists question_bank_course_topic_idx on public.question_bank(course_id, topic_id, status);
 create index if not exists question_bank_module_idx on public.question_bank(module_id, status);
