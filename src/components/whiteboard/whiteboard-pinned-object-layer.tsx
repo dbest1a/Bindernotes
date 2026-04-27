@@ -294,6 +294,7 @@ function getSourceLessonModuleContext(
   return {
     ...context,
     surface: "whiteboard",
+    whiteboardModuleId: moduleElement.id,
     binder,
     lessons,
     filteredLessons: lessons,
@@ -346,6 +347,21 @@ function getSourceLessonModuleContext(
       const comment = createWhiteboardComment({
         anchorText: anchorText?.trim() || null,
         binder,
+        ownerId: context.ownerId,
+        selectedLesson,
+      });
+      onChangeModule({
+        ...moduleElement,
+        whiteboardComments: [comment, ...(moduleElement.whiteboardComments ?? [])],
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    onAddCommentForSelection: (selection: LessonTextSelection, body: string) => {
+      const scopedSelection = scopeSelectionToSource(selection, binder, selectedLesson);
+      const comment = createWhiteboardComment({
+        anchorText: scopedSelection.text,
+        binder,
+        body,
         ownerId: context.ownerId,
         selectedLesson,
       });

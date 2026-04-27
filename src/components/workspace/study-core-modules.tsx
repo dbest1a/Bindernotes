@@ -59,8 +59,10 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   surface = "workspace",
   whiteboardDensity = "compact",
   whiteboardDisplayMode = "compact",
+  whiteboardModuleId,
   whiteboardShowMathInline = false,
   whiteboardTextSize = "normal",
+  onCommentSelection,
   onStickyNote,
 }: {
   binder: Binder;
@@ -79,8 +81,10 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   surface?: "workspace" | "whiteboard";
   whiteboardDensity?: "compact" | "comfortable";
   whiteboardDisplayMode?: "compact" | "full" | "summary" | "header-hidden";
+  whiteboardModuleId?: string;
   whiteboardShowMathInline?: boolean;
   whiteboardTextSize?: "small" | "normal" | "large";
+  onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
   onStickyNote: (anchorText?: string | null) => void;
 }) {
   const readingStats = createReadingStats(lesson.content);
@@ -176,12 +180,20 @@ export const SourceLessonModule = memo(function SourceLessonModule({
           data-maximize-module-space-target="source-body"
         >
           <div className="absolute inset-y-0 left-0 hidden w-1 rounded-l-[26px] bg-primary/70 lg:block" />
-            <LessonContentRenderer content={lesson.content} highlights={highlights} lessonId={lesson.id} />
+            <LessonContentRenderer
+              content={lesson.content}
+              highlights={highlights}
+              lessonId={lesson.id}
+              whiteboardAnnotationKind={whiteboard ? "source-lesson" : undefined}
+              whiteboardModuleId={whiteboardModuleId}
+              whiteboardModuleType={whiteboard ? "lesson" : undefined}
+            />
             <LessonSelectionToolbar
-              containerSelector={buildLessonContentSelector(lesson.id)}
+              containerSelector={buildLessonContentSelector(lesson.id, whiteboardModuleId)}
               defaultHighlightColor={defaultHighlightColor}
               highlights={highlights}
               onHighlight={onHighlight}
+            onCommentSelection={onCommentSelection}
             onRemoveHighlight={onRemoveHighlight}
             onSaveAsEvidence={onSaveSelectionAsEvidence}
             onQuoteToNotes={onQuoteToNotes}

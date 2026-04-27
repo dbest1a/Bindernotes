@@ -4,20 +4,30 @@ import { buildHighlightSegments, extractRenderablePlainText, type HighlightSegme
 import { buildLessonSectionAnchorId, normalizeReferenceText } from "@/lib/study-references";
 import type { Highlight, HighlightColor } from "@/types";
 
-export function buildLessonContentSelector(lessonId?: string) {
-  return lessonId
-    ? `[data-lesson-content="true"][data-lesson-id="${lessonId}"]`
+export function buildLessonContentSelector(lessonId?: string, whiteboardModuleId?: string) {
+  const selector = lessonId
+    ? `[data-lesson-content="true"][data-lesson-id="${escapeSelectorAttribute(lessonId)}"]`
     : `[data-lesson-content="true"]`;
+
+  return whiteboardModuleId
+    ? `${selector}[data-whiteboard-module-id="${escapeSelectorAttribute(whiteboardModuleId)}"]`
+    : selector;
 }
 
 export function LessonContentRenderer({
   content,
   highlights,
   lessonId,
+  whiteboardAnnotationKind,
+  whiteboardModuleId,
+  whiteboardModuleType,
 }: {
   content: JSONContent;
   highlights: Highlight[];
   lessonId?: string;
+  whiteboardAnnotationKind?: string;
+  whiteboardModuleId?: string;
+  whiteboardModuleType?: string;
 }) {
   const plainText = useMemo(() => extractRenderablePlainText(content), [content]);
   const segments = useMemo(() => buildHighlightSegments(highlights, plainText), [highlights, plainText]);
@@ -29,10 +39,18 @@ export function LessonContentRenderer({
       className="source-reading-flow"
       data-lesson-content="true"
       data-lesson-id={lessonId}
+      data-whiteboard-annotation-kind={whiteboardAnnotationKind}
+      data-whiteboard-annotation-surface={whiteboardModuleId ? "true" : undefined}
+      data-whiteboard-module-id={whiteboardModuleId}
+      data-whiteboard-module-type={whiteboardModuleType}
     >
       {renderNode(content, segments, cursor, lessonId, headingOccurrences)}
     </div>
   );
+}
+
+function escapeSelectorAttribute(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function renderNode(

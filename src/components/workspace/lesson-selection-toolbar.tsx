@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eraser, Quote, Scale, Send, StickyNote } from "lucide-react";
+import { Eraser, MessageSquareText, Quote, Scale, Send, Sparkles, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   buildSelectionQuoteContext,
   createLessonSelection,
@@ -31,6 +32,7 @@ export function LessonSelectionToolbar({
   onQuoteToNotes,
   onSendToNotes,
   onStickyNote,
+  onCommentSelection,
 }: {
   containerSelector?: string;
   defaultHighlightColor: HighlightColor;
@@ -41,8 +43,11 @@ export function LessonSelectionToolbar({
   onQuoteToNotes: (anchorText: string) => void;
   onSendToNotes: (anchorText: string) => void;
   onStickyNote: (anchorText: string) => void;
+  onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
 }) {
   const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentOpen, setCommentOpen] = useState(false);
   const selectionRef = useRef<SelectionState | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const selectionHighlightIds = useMemo(() => {
@@ -70,6 +75,8 @@ export function LessonSelectionToolbar({
   const clearSelection = useCallback(() => {
     clearCurrentSelection();
     selectionRef.current = null;
+    setCommentDraft("");
+    setCommentOpen(false);
     setSelection(null);
   }, []);
 
@@ -158,10 +165,31 @@ export function LessonSelectionToolbar({
     clearSelection();
   };
 
+  const openCommentComposer = () => {
+    restoreSelection(selectionRef.current);
+    setCommentOpen(true);
+  };
+
+  const submitComment = () => {
+    const currentSelection = selectionRef.current?.selection ?? selection.selection;
+    const body = commentDraft.trim();
+    if (!body) {
+      return;
+    }
+
+    if (onCommentSelection) {
+      onCommentSelection(currentSelection, body);
+    } else {
+      onStickyNote(`${body}\n\n${currentSelection.text}`);
+    }
+    clearSelection();
+  };
+
   const toolbar = (
     <div
       className="pointer-events-none fixed z-[70]"
       data-lesson-selection-toolbar="true"
+      data-testid="whiteboard-annotation-popup"
       ref={toolbarRef}
       style={{
         left: selection.anchor.left,
@@ -169,7 +197,10 @@ export function LessonSelectionToolbar({
         transform: toolbarTransform,
       }}
     >
-      <div className="pointer-events-auto flex max-w-[min(92vw,680px)] flex-wrap items-center gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur">
+      <div className="pointer-events-auto flex max-w-[min(92vw,760px)] flex-wrap items-center gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur">
+        <span className="px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Highlight
+        </span>
         {orderedHighlightButtons.map((button) => (
           <button
             className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-2.5 py-1.5 text-xs font-medium transition hover:border-primary/35 hover:bg-accent/60"
@@ -220,6 +251,17 @@ export function LessonSelectionToolbar({
         <Button
           onMouseDown={preserveSelection}
           onPointerDown={preserveSelection}
+          onClick={openCommentComposer}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <MessageSquareText data-icon="inline-start" />
+          Add comment
+        </Button>
+        <Button
+          onMouseDown={preserveSelection}
+          onPointerDown={preserveSelection}
           onClick={() => {
             runSelectionAction((currentSelection) => onSendToNotes(currentSelection.text));
           }}
@@ -228,7 +270,7 @@ export function LessonSelectionToolbar({
           variant="outline"
         >
           <Send data-icon="inline-start" />
-          Send to notes
+          Add note
         </Button>
         <Button
           onMouseDown={preserveSelection}
@@ -241,7 +283,19 @@ export function LessonSelectionToolbar({
           variant="outline"
         >
           <Quote data-icon="inline-start" />
-          Quote block
+          Copy quote
+        </Button>
+        <Button
+          disabled
+          onMouseDown={preserveSelection}
+          onPointerDown={preserveSelection}
+          size="sm"
+          title="Explanation notes are not available for this selection yet."
+          type="button"
+          variant="ghost"
+        >
+          <Sparkles data-icon="inline-start" />
+          Explain this
         </Button>
         {onSaveAsEvidence ? (
           <Button
@@ -257,6 +311,36 @@ export function LessonSelectionToolbar({
             <Scale data-icon="inline-start" />
             Save as evidence
           </Button>
+        ) : null}
+        {commentOpen ? (
+          <div
+            className="mt-1 flex w-full min-w-[280px] items-center gap-2 rounded-xl border border-border/70 bg-background/95 p-2"
+            onMouseDown={preserveSelection}
+            onPointerDown={preserveSelection}
+          >
+            <Input
+              aria-label="Comment"
+              autoFocus
+              className="h-9"
+              onChange={(event) => setCommentDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submitComment();
+                }
+              }}
+              placeholder="Write a comment..."
+              value={commentDraft}
+            />
+            <Button
+              disabled={!commentDraft.trim()}
+              onClick={submitComment}
+              size="sm"
+              type="button"
+            >
+              Save comment
+            </Button>
+          </div>
         ) : null}
       </div>
     </div>

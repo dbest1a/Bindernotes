@@ -69,6 +69,7 @@ export type WorkspaceLibraryContext = {
 
 export type WorkspaceModuleContext = {
   surface?: "workspace" | "whiteboard";
+  whiteboardModuleId?: string;
   ownerId?: string | null;
   library?: WorkspaceLibraryContext;
   binder: Binder;
@@ -143,6 +144,7 @@ export type WorkspaceModuleContext = {
   onPrepareComment: (anchorText?: string | null) => void;
   onClearPreparedComment: () => void;
   onAddComment: () => void;
+  onAddCommentForSelection?: (selection: LessonTextSelection, body: string) => void;
   onCreateLooseSticky: () => void;
   onToggleStickyManager: () => void;
   onDeleteComment: (commentId: string) => void;
@@ -212,12 +214,14 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onRemoveHighlight={context.onRemoveHighlight}
         onSaveSelectionAsEvidence={context.onSaveSelectionAsEvidence}
         onQuoteToNotes={context.onCreateQuoteExcerpt}
+        onCommentSelection={context.onAddCommentForSelection}
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         onSendToNotes={context.onSendSelectionToNotes}
         surface={context.surface ?? "workspace"}
         whiteboardDensity={context.whiteboardCardDensity}
         whiteboardDisplayMode={context.whiteboardSourceDisplayMode}
+        whiteboardModuleId={context.whiteboardModuleId}
         whiteboardShowMathInline={context.whiteboardShowMathInline}
         whiteboardTextSize={context.whiteboardTextSize}
         onStickyNote={context.onPrepareComment}
