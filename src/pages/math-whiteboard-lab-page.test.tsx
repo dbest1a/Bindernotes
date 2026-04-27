@@ -194,6 +194,21 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.getByText("No saved whiteboards yet.")).toBeTruthy();
   });
 
+  it("keeps a newly created whiteboard open when an empty startup list resolves late", async () => {
+    renderLab({ seedBoard: false });
+
+    fireEvent.click(screen.getByTestId("whiteboard-new-board"));
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId("whiteboard-start-panel")).toBeNull();
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy();
+  });
+
   it("collapses the whiteboard control stack into a compact square chip", () => {
     renderLab();
 

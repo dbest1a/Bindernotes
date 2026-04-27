@@ -197,7 +197,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       }
 
       void listWhiteboards(scope).then((result) => {
-        applyWhiteboardListResult(result.boards, nextActiveId ?? boardRef.current?.id);
+        const currentBoard = boardRef.current;
+        if (result.boards.length > 0 || !currentBoard) {
+          applyWhiteboardListResult(result.boards, nextActiveId ?? currentBoard?.id);
+        } else {
+          setBoards((currentBoards) => {
+            const withoutCurrent = currentBoards.filter((candidate) => candidate.id !== currentBoard.id);
+            return [currentBoard, ...withoutCurrent].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+          });
+        }
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
         setSaveMessage(result.message);
         setWarning(result.error ? result.message : null);
@@ -232,14 +240,22 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      const currentBoard = boardRef.current;
       if (result.boards.length > 0) {
         applyWhiteboardListResult(result.boards, boardRef.current?.id);
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
         setSaveMessage(result.message);
-      } else {
+      } else if (!currentBoard) {
         applyWhiteboardListResult([], undefined);
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
         setSaveMessage(result.backend === "supabase" ? "Supabase ready" : result.message);
+      } else {
+        setBoards((currentBoards) => {
+          const withoutCurrent = currentBoards.filter((candidate) => candidate.id !== currentBoard.id);
+          return [currentBoard, ...withoutCurrent].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+        });
+        setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
+        setSaveMessage(result.message);
       }
       if (result.error && result.backend === "local") {
         setWarning(result.message);
@@ -429,8 +445,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         handleViewportChange(extractWhiteboardViewportTransform(nextBoard.scene.appState));
         setSaveStatus(mapSaveResultStatus(result.status));
         setSaveMessage(result.message);
+        setBoards((currentBoards) => {
+          const withoutCreated = currentBoards.filter((candidate) => candidate.id !== nextBoard.id);
+          return [nextBoard, ...withoutCreated].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+        });
         setWarning(result.status === "saved" ? null : result.message);
-        refreshBoards(nextBoard.id);
+        if (result.backend === "supabase" && result.status === "saved") {
+          refreshBoards(nextBoard.id);
+        }
       });
     },
     [
