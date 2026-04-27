@@ -85,7 +85,7 @@ export function WorkspaceWindow({
     }
     frameRef.current = frame;
     applyFrameToElement(windowRef.current, frame);
-  }, [frame, activeMode]);
+  }, [frame]);
 
   useEffect(
     () => () => {
