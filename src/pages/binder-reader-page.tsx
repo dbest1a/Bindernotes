@@ -8,6 +8,7 @@ import {
   Minimize2,
   LayoutPanelLeft,
   Lock,
+  Plus,
   RotateCcw,
   Save,
   SlidersHorizontal,
@@ -49,7 +50,7 @@ import {
 import { buildBinderNotebookStructure } from "@/lib/notebook-structure";
 import { formatNoteSavedAt, NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 import { saveQueue } from "@/lib/save-queue";
-import { isWorkspaceContainerId } from "@/lib/workspace-records";
+import { extractPlainText, isWorkspaceContainerId } from "@/lib/workspace-records";
 import {
   buildSelectionQuoteContext,
   dedupeHighlights,
@@ -64,17 +65,21 @@ import {
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
 import {
+  applyFocusModeToViewport,
   applyGlobalAppearanceToWorkspace,
-  applyWorkspaceMode,
-  applyPreset,
+  applyWorkspaceModeToViewport,
+  applyPresetToViewport,
   createStickyNoteLayout,
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
+  getTopbarWorkspacePresetRecommendations,
+  tidyWorkspaceLayout as tidyWorkspaceToViewport,
   updateWorkspaceAppearance,
   workspacePresets,
   workspaceModeOptions,
 } from "@/lib/workspace-preferences";
+import { getWorkspaceMobileModuleTabs } from "@/lib/workspace-preset-designs";
 import { emptyDoc } from "@/lib/utils";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
@@ -111,7 +116,7 @@ type PendingNoteSave = {
 
 export function BinderReaderPage() {
   const { binderId, lessonId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
@@ -170,6 +175,7 @@ export function BinderReaderPage() {
   const [activeHistorySourceId, setActiveHistorySourceId] = useState<string | null>(null);
   const [presetLoadError, setPresetLoadError] = useState<Error | null>(null);
   const workspaceRootRef = useRef<HTMLElement | null>(null);
+  const handledWhiteboardOpenIntentRef = useRef<string | null>(null);
   const pendingNoteSaveRef = useRef<PendingNoteSave | null>(null);
   const retryNoteSaveRef = useRef<PendingNoteSave | null>(null);
   const noteSaveTimerRef = useRef<number | null>(null);
@@ -187,6 +193,7 @@ export function BinderReaderPage() {
   const isSimpleMode = active?.activeMode === "simple";
   const isCanvasMode = active?.activeMode === "canvas";
   const isLayoutEditing = layoutMode === "setup" && isCanvasMode;
+  const isLayoutEditingRef = useRef(isLayoutEditing);
   const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
   const lessons = binderQuery.data?.lessons ?? [];
@@ -212,6 +219,10 @@ export function BinderReaderPage() {
       : "highlight:none";
   const highlightStatus = useSaveStatus(highlightScopeKey);
   const historyData = historyQuery.data;
+
+  useEffect(() => {
+    isLayoutEditingRef.current = isLayoutEditing;
+  }, [isLayoutEditing]);
   const highlightOperationRef = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
@@ -367,11 +378,44 @@ export function BinderReaderPage() {
         return;
       }
 
-      workspace.updateDraft((current) =>
-        ensureWindowFramesForEnabledModules(updater(current)),
-      );
+      const editableDraft = {
+        ...(workspace.draft ?? active),
+        locked: false,
+      };
+      const next = ensureWindowFramesForEnabledModules(updater(editableDraft));
+      let nextDraft = {
+        ...next,
+        locked: false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (!nextDraft.appearance.saveLocalAppearance && appearanceColorsChanged(editableDraft, nextDraft)) {
+        setGlobalTheme(nextDraft.theme);
+        nextDraft = applyGlobalAppearanceToWorkspace(nextDraft, nextDraft.theme);
+      }
+
+      workspace.updateDraft(() => nextDraft);
     },
-    [active, commitWorkspacePreferences, isLayoutEditing, workspace],
+    [active, commitWorkspacePreferences, isLayoutEditing, setGlobalTheme, workspace],
+  );
+
+  const updateLayoutDraftFromSettings = useCallback(
+    (next: WorkspacePreferences) => {
+      const previous = workspace.draft ?? active;
+      let nextDraft = {
+        ...next,
+        locked: false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (previous && !nextDraft.appearance.saveLocalAppearance && appearanceColorsChanged(previous, nextDraft)) {
+        setGlobalTheme(nextDraft.theme);
+        nextDraft = applyGlobalAppearanceToWorkspace(nextDraft, nextDraft.theme);
+      }
+
+      workspace.updateDraft(() => nextDraft);
+    },
+    [active, setGlobalTheme, workspace],
   );
 
   const enterLayoutEditMode = useCallback(() => {
@@ -416,17 +460,113 @@ export function BinderReaderPage() {
     setLayoutMode(workspace.saved?.activeMode === "canvas" && workspace.saved?.locked === false ? "setup" : "study");
   }, [workspace]);
 
+  const getWorkspaceViewport = useCallback(() => {
+    const shell = workspaceRootRef.current?.querySelector(".workspace-canvas-shell");
+    if (shell instanceof HTMLElement && shell.clientWidth > 0 && shell.clientHeight > 0) {
+      return {
+        width: shell.clientWidth,
+        height: shell.clientHeight,
+      };
+    }
+
+    return {
+      width: window.innerWidth,
+      height: Math.max(360, window.innerHeight - 168),
+    };
+  }, []);
+
   const resetWorkspaceLayout = useCallback(() => {
-    const next = workspace.reset();
-    setLayoutMode(next?.activeMode === "canvas" && next?.locked === false ? "setup" : "study");
-  }, [workspace]);
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => applyPresetToViewport(current, current.preset, viewport));
+    setLayoutMode("setup");
+  }, [getWorkspaceViewport, updateWorkspace]);
 
   const applyWorkspacePreset = useCallback(
     (presetId: WorkspacePresetId) => {
-      updateWorkspace((current) => applyPreset(current, presetId));
+      const viewport = getWorkspaceViewport();
+      updateWorkspace((current) => applyPresetToViewport(current, presetId, viewport));
     },
-    [updateWorkspace],
+    [getWorkspaceViewport, updateWorkspace],
   );
+
+  useEffect(() => {
+    if (!active || !binderId || !selectedLesson || searchParams.get("open") !== "whiteboard") {
+      return;
+    }
+
+    const intentKey = `${binderId}:${selectedLesson.id}:whiteboard`;
+    if (handledWhiteboardOpenIntentRef.current === intentKey) {
+      return;
+    }
+
+    handledWhiteboardOpenIntentRef.current = intentKey;
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => {
+      const canvasWorkspace =
+        current.activeMode === "canvas"
+          ? current
+          : applyWorkspaceModeToViewport(current, "canvas", viewport);
+
+      return applyPresetToViewport(canvasWorkspace, "math-practice-mode", viewport);
+    });
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete("open");
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [
+    active,
+    binderId,
+    getWorkspaceViewport,
+    searchParams,
+    selectedLesson,
+    setSearchParams,
+    updateWorkspace,
+  ]);
+
+  const fitWorkspaceToScreen = useCallback(() => {
+    if (!active || active.activeMode === "simple") {
+      return;
+    }
+
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => fitWorkspaceToViewport(current, viewport, { force: true }));
+  }, [active, getWorkspaceViewport, updateWorkspace]);
+
+  const tidyWorkspaceLayout = useCallback(() => {
+    if (!active || active.activeMode === "simple") {
+      return;
+    }
+
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => tidyWorkspaceToViewport(current, viewport));
+  }, [active, getWorkspaceViewport, updateWorkspace]);
+
+  const addCanvasSpaceBelow = useCallback(() => {
+    if (!active || active.activeMode !== "canvas") {
+      return;
+    }
+
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => {
+      const frameBottom = Math.max(
+        viewport.height,
+        ...Object.values(current.windowLayout).map((frame) =>
+          frame ? frame.y + frame.h : 0,
+        ),
+      );
+      return {
+        ...current,
+        canvas: {
+          ...current.canvas,
+          canvasHeight: Math.max(current.canvas.canvasHeight, frameBottom + 960),
+        },
+        theme: {
+          ...current.theme,
+          verticalSpace: "infinite",
+        },
+      };
+    });
+  }, [active, getWorkspaceViewport, updateWorkspace]);
 
   const ensureModulesVisible = useCallback(
     (
@@ -467,7 +607,10 @@ export function BinderReaderPage() {
         commitWorkspacePreferences(next);
         setPreferencesOpen(true);
       } else if (isLayoutEditing) {
-        workspace.updateDraft(() => next);
+        workspace.updateDraft(() => ({
+          ...next,
+          locked: false,
+        }));
       } else {
         commitWorkspacePreferences(next);
       }
@@ -478,16 +621,18 @@ export function BinderReaderPage() {
   );
 
   const ensureNotesVisible = useCallback(() => {
+    const viewport = getWorkspaceViewport();
     updateWorkspace((current) =>
       current.enabledModules.includes("private-notes")
         ? current
-        : applyPreset(current, "split-study"),
+        : applyPresetToViewport(current, "split-study", viewport),
     );
-  }, [updateWorkspace]);
+  }, [getWorkspaceViewport, updateWorkspace]);
 
   const enterNotebookFocus = useCallback(() => {
+    const viewport = getWorkspaceViewport();
     updateWorkspace((current) => {
-      const next = applyPreset(current, "notes-focus");
+      const next = applyPresetToViewport(current, "notes-focus", viewport);
       return {
         ...next,
         theme: {
@@ -496,7 +641,7 @@ export function BinderReaderPage() {
         },
       };
     });
-  }, [updateWorkspace]);
+  }, [getWorkspaceViewport, updateWorkspace]);
 
   const selectHistoryEvent = useCallback((eventId: string) => {
     setActiveHistoryEventId(eventId);
@@ -510,9 +655,10 @@ export function BinderReaderPage() {
     const nextEventId = historyData?.templateEvents[0]?.id ?? historyData?.events[0]?.id ?? null;
     setActiveHistoryEventId(nextEventId);
     if (active?.preset !== "history-timeline-focus") {
-      updateWorkspace((current) => applyPreset(current, "history-timeline-focus"));
+      const viewport = getWorkspaceViewport();
+      updateWorkspace((current) => applyPresetToViewport(current, "history-timeline-focus", viewport));
     }
-  }, [active?.preset, historyData?.events, historyData?.templateEvents, updateWorkspace]);
+  }, [active?.preset, getWorkspaceViewport, historyData?.events, historyData?.templateEvents, updateWorkspace]);
 
   const createHistoryStarterEvent = useCallback(async () => {
     if (!profile || !binderId || !selectedLesson) {
@@ -640,9 +786,10 @@ export function BinderReaderPage() {
   const useHistorySourceInArgument = useCallback(
     (sourceId: string) => {
       setActiveHistorySourceId(sourceId);
-      updateWorkspace((current) => applyPreset(current, "history-argument-builder"));
+      const viewport = getWorkspaceViewport();
+      updateWorkspace((current) => applyPresetToViewport(current, "history-argument-builder", viewport));
     },
-    [updateWorkspace],
+    [getWorkspaceViewport, updateWorkspace],
   );
 
   const createHistoryStarterChain = useCallback(async () => {
@@ -654,28 +801,57 @@ export function BinderReaderPage() {
       entityType: "history_argument",
       scopeKey: `history-argument:${binderId}:${profile.id}`,
       runner: async () => {
+        const isRomeBinder = binderId === "binder-rise-of-rome";
+        const starterDraft = isRomeBinder
+          ? {
+              prompt: "How did Rome's republic transform into an empire?",
+              thesis:
+                "Rome's imperial system grew out of expansion, elite rivalry, military loyalty, and civil war rather than a smooth constitutional handoff.",
+              context:
+                "Use the timeline to connect republican offices, Mediterranean expansion, reform conflict, Caesar, and Augustus.",
+              counterargument:
+                "A size-only explanation misses how social inequality, army politics, and elite competition changed the republic from within.",
+              conclusion:
+                "The strongest answer shows how overseas power created pressures that republican institutions could not absorb without one-man rule.",
+            }
+          : {
+              prompt: "What were the most important causes of the French Revolution?",
+              thesis:
+                "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
+              context:
+                "Use chronology to show why structural problems became a political revolution in 1789.",
+              counterargument:
+                "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
+              conclusion:
+                "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
+            };
         const chain = await historyMutations.createArgumentChain.mutateAsync({
           binder_id: binderId,
           lesson_id: selectedLesson.id,
-          prompt: "What were the most important causes of the French Revolution?",
-          thesis:
-            "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
-          context:
-            "Use chronology to show why structural problems became a political revolution in 1789.",
-          counterargument:
-            "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
-          conclusion:
-            "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
+          prompt: starterDraft.prompt,
+          thesis: starterDraft.thesis,
+          context: starterDraft.context,
+          counterargument: starterDraft.counterargument,
+          conclusion: starterDraft.conclusion,
         });
 
-        const starterTitles = [
-          "Financial crisis",
-          "Estates-General called",
-          "Political conflict grows",
-          "Tennis Court Oath",
-          "Revolutionary momentum",
-          "Storming of the Bastille",
-        ];
+        const starterTitles = isRomeBinder
+          ? [
+              "Mediterranean expansion",
+              "Land and citizenship conflict",
+              "Military loyalty shifts",
+              "Caesar crosses the Rubicon",
+              "Civil war settlement",
+              "Augustus stabilizes one-man rule",
+            ]
+          : [
+              "Financial crisis",
+              "Estates-General called",
+              "Political conflict grows",
+              "Tennis Court Oath",
+              "Revolutionary momentum",
+              "Storming of the Bastille",
+            ];
 
         const createdNodes: HistoryArgumentNode[] = [];
         for (const [index, title] of starterTitles.entries()) {
@@ -683,7 +859,9 @@ export function BinderReaderPage() {
             chain_id: chain.id,
             node_type: index === 0 ? "cause" : index === starterTitles.length - 1 ? "effect" : "cause",
             title,
-            body: `Explain how ${title.toLowerCase()} pushes the revolution forward.`,
+            body: isRomeBinder
+              ? `Explain how ${title.toLowerCase()} pushes Rome toward imperial rule.`
+              : `Explain how ${title.toLowerCase()} pushes the revolution forward.`,
             sort_order: index,
             event_id: null,
             source_id: null,
@@ -705,7 +883,7 @@ export function BinderReaderPage() {
           });
         }
 
-        updateWorkspace((current) => applyPreset(current, "history-argument-builder"));
+        applyWorkspacePreset("history-argument-builder");
         return chain;
       },
     });
@@ -714,9 +892,9 @@ export function BinderReaderPage() {
     historyMutations.createArgumentChain,
     historyMutations.createArgumentEdge,
     historyMutations.createArgumentNode,
+    applyWorkspacePreset,
     profile,
     selectedLesson,
-    updateWorkspace,
   ]);
 
   const updateHistoryArgumentChain = useCallback(
@@ -744,8 +922,8 @@ export function BinderReaderPage() {
   );
 
   const useHistoryEvidencePrompt = useCallback(() => {
-    updateWorkspace((current) => applyPreset(current, "history-source-evidence"));
-  }, [updateWorkspace]);
+    applyWorkspacePreset("history-source-evidence");
+  }, [applyWorkspacePreset]);
 
   const createHistoryMythCheck = useCallback(async () => {
     if (!profile || !binderId) {
@@ -781,31 +959,21 @@ export function BinderReaderPage() {
 
   const applyModeChoice = useCallback(
     (workspaceMode: WorkspaceMode) => {
-      updateWorkspace((current) => applyWorkspaceMode(current, workspaceMode));
+      const viewport = getWorkspaceViewport();
+      updateWorkspace((current) => applyWorkspaceModeToViewport(current, workspaceMode, viewport));
       setPreferencesOpen(false);
     },
-    [updateWorkspace],
+    [getWorkspaceViewport, updateWorkspace],
   );
 
   const toggleFocusMode = useCallback(() => {
-    updateWorkspace((current) => ({
-      ...current,
-      simple:
-        current.activeMode === "simple"
-          ? {
-              ...current.simple,
-              focusMode: !current.simple.focusMode,
-            }
-          : current.simple,
-      theme:
-        current.activeMode === "simple"
-          ? current.theme
-          : {
-              ...current.theme,
-              focusMode: !current.theme.focusMode,
-            },
-    }));
-  }, [updateWorkspace]);
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) => {
+      const nextFocusMode =
+        current.activeMode === "simple" ? !current.simple.focusMode : !current.theme.focusMode;
+      return applyFocusModeToViewport(current, nextFocusMode, viewport);
+    });
+  }, [getWorkspaceViewport, updateWorkspace]);
 
   useEffect(() => {
     const node = workspaceRootRef.current;
@@ -935,10 +1103,23 @@ export function BinderReaderPage() {
       return;
     }
 
-    setMobileModule((current) =>
-      active.enabledModules.includes(current) ? current : active.enabledModules[0] ?? "lesson",
-    );
+    const mobileTabIds = getWorkspaceMobileModuleTabs(
+      active.preset,
+      active.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
+    ).map((tab) => tab.moduleId);
+    setMobileModule((current) => (mobileTabIds.includes(current) ? current : mobileTabIds[0] ?? "lesson"));
   }, [active]);
+
+  const searchableLessons = useMemo(
+    () =>
+      lessons.map((lesson) => ({
+        lesson,
+        searchText: `${lesson.title} ${extractPlainText(lesson.content)}`
+          .replace(/\s+/g, " ")
+          .toLowerCase(),
+      })),
+    [lessons],
+  );
 
   const filteredLessons = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
@@ -946,10 +1127,10 @@ export function BinderReaderPage() {
       return lessons;
     }
 
-    return lessons.filter((lesson) =>
-      `${lesson.title} ${JSON.stringify(lesson.content)}`.toLowerCase().includes(normalized),
-    );
-  }, [deferredQuery, lessons]);
+    return searchableLessons
+      .filter(({ searchText }) => searchText.includes(normalized))
+      .map(({ lesson }) => lesson);
+  }, [deferredQuery, lessons, searchableLessons]);
 
   const currentNote = useMemo(() => {
     if (!binderQuery.data || !profile || !selectedLesson) {
@@ -1759,13 +1940,18 @@ export function BinderReaderPage() {
   );
   const currentPresetLabel =
     workspacePresets.find((preset) => preset.id === active.preset)?.name ?? "Split Study";
-  const showUtilityUi = isLayoutEditing || active.theme.showUtilityUi;
+  const visibleTopbarPresets = getTopbarWorkspacePresetRecommendations(active, {
+    binderSubject: binderQuery.data.binder.subject,
+    historyEnabled,
+  });
+  const showTopbarUtilityUi = isLayoutEditing;
   const workspaceModeLabel =
     workspaceModeOptions.find((option) => option.id === active.activeMode)?.name ?? "Simple View";
   const activeFocusMode =
     active.activeMode === "simple" ? active.simple.focusMode : active.theme.focusMode;
 
   const context: WorkspaceModuleContext = {
+    ownerId,
     binder: binderQuery.data.binder,
     lessons,
     selectedLesson,
@@ -2167,14 +2353,22 @@ export function BinderReaderPage() {
     },
   };
 
-  const mobileModules = active.enabledModules.filter(
-    (moduleId) => Boolean(workspaceModuleRegistry[moduleId]),
+  const mobileTabs = getWorkspaceMobileModuleTabs(
+    active.preset,
+    active.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
   );
+  const mobileModules = mobileTabs.map((tab) => tab.moduleId);
   const mobileActiveModule =
     workspaceModuleRegistry[mobileModule] ?? workspaceModuleRegistry[mobileModules[0]];
 
   return (
-    <main className="workspace-page" ref={workspaceRootRef}>
+    <main
+      className="workspace-page"
+      data-maximize-module-space={active.theme.compactMode ? "true" : "false"}
+      data-workspace-active-focus={activeFocusMode ? "true" : "false"}
+      data-workspace-preset={active.preset}
+      ref={workspaceRootRef}
+    >
       <Breadcrumbs
         items={[
           { label: "Workspace", to: "/dashboard" },
@@ -2186,7 +2380,8 @@ export function BinderReaderPage() {
 
       <section
         className="workspace-topbar"
-        data-utility-ui={showUtilityUi ? "true" : "false"}
+        data-layout-editing={isLayoutEditing ? "true" : "false"}
+        data-utility-ui={showTopbarUtilityUi ? "true" : "false"}
       >
         <div className="workspace-topbar__summary">
           <p className="workspace-topbar__eyebrow">
@@ -2206,7 +2401,7 @@ export function BinderReaderPage() {
                   ? "Locked study mode"
                   : "Studio mode"}
           </p>
-          {showUtilityUi ? (
+          {showTopbarUtilityUi ? (
               <div className="workspace-topbar__meta">
                 <Badge variant="outline">Study workspace</Badge>
                 <Badge variant="secondary">
@@ -2218,96 +2413,127 @@ export function BinderReaderPage() {
               </div>
             ) : null}
         </div>
-        <div
-          className="workspace-topbar__presets"
-          data-visible={showUtilityUi ? "true" : "false"}
-        >
-          {workspacePresets.map((preset) => (
-            <button
-              className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                active.preset === preset.id
-                  ? "border-primary bg-accent/80 text-foreground shadow-sm"
-                  : "border-border/70 bg-background/70 text-muted-foreground hover:border-primary/35 hover:text-foreground"
-              }`}
-              key={preset.id}
-              onClick={() => applyWorkspacePreset(preset.id)}
-              type="button"
-            >
-              {preset.name}
-            </button>
-          ))}
-        </div>
-        <div className="workspace-topbar__actions">
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link aria-label="Workspace home" to="/dashboard">
-              <Home data-icon="inline-start" />
-              Workspace
-            </Link>
-          </Button>
-          <Button
-            onClick={toggleFocusMode}
-            size="sm"
-            type="button"
-            variant={activeFocusMode ? "default" : "outline"}
+        {showTopbarUtilityUi ? (
+          <div
+            className="workspace-topbar__presets"
+            data-visible="true"
           >
-            {activeFocusMode ? (
+            {visibleTopbarPresets.map((preset) => (
+              <button
+                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
+                  active.preset === preset.id
+                    ? "border-primary bg-accent/80 text-foreground shadow-sm"
+                    : "border-border/70 bg-background/70 text-muted-foreground hover:border-primary/35 hover:text-foreground"
+                }`}
+                key={preset.id}
+                onClick={() => applyWorkspacePreset(preset.id)}
+                type="button"
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="workspace-topbar__actions">
+          {activeFocusMode ? (
+            <Button onClick={toggleFocusMode} size="sm" type="button" variant="default">
               <Minimize2 data-icon="inline-start" />
-            ) : (
-              <Maximize2 data-icon="inline-start" />
-            )}
-            {activeFocusMode ? "Exit focus" : active.activeMode === "simple" ? "Focus" : "Focus canvas"}
-          </Button>
-          {!isLayoutEditing ? (
-            <Button
-              onClick={() => setPreferencesOpen((current) => !current)}
-              size="sm"
-              type="button"
-              variant={preferencesOpen ? "default" : "outline"}
-            >
-              <SlidersHorizontal data-icon="inline-start" />
-              Settings
-            </Button>
-          ) : null}
-          {!isLayoutEditing ? (
-            <Button
-              onClick={enterLayoutEditMode}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <LayoutPanelLeft data-icon="inline-start" />
-              {active.activeMode === "simple"
-                ? "Change view"
-                : active.activeMode === "modular"
-                  ? "Adjust panels"
-                  : "Edit layout"}
+              Exit focus
             </Button>
           ) : (
             <>
-              <Button onClick={saveUnlockedLayout} size="sm" type="button" variant="outline">
-                <Save data-icon="inline-start" />
-                Save
+              <Button asChild size="sm" type="button" variant="outline">
+                <Link aria-label="Workspace home" to="/dashboard">
+                  <Home data-icon="inline-start" />
+                  Workspace
+                </Link>
               </Button>
-              <Button onClick={lockWorkspaceLayout} size="sm" type="button">
-                <Lock data-icon="inline-start" />
-                Lock
+              <Button onClick={toggleFocusMode} size="sm" type="button" variant="outline">
+                <Maximize2 data-icon="inline-start" />
+                {active.activeMode === "simple" ? "Focus" : "Focus canvas"}
               </Button>
-              <Button onClick={cancelLayoutEditing} size="sm" type="button" variant="ghost">
-                <Unlock data-icon="inline-start" />
-                Cancel
-              </Button>
-              <Button onClick={resetWorkspaceLayout} size="sm" type="button" variant="ghost">
-                <RotateCcw data-icon="inline-start" />
-                Reset
+              {!isLayoutEditing ? (
+                <Button
+                  onClick={() => setPreferencesOpen((current) => !current)}
+                  size="sm"
+                  type="button"
+                  variant={preferencesOpen ? "default" : "outline"}
+                >
+                  <SlidersHorizontal data-icon="inline-start" />
+                  Settings
+                </Button>
+              ) : null}
+              {!isLayoutEditing ? (
+                <Button
+                  onClick={enterLayoutEditMode}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <LayoutPanelLeft data-icon="inline-start" />
+                  {active.activeMode === "simple"
+                    ? "Change view"
+                    : active.activeMode === "modular"
+                      ? "Adjust panels"
+                      : "Edit layout"}
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={saveUnlockedLayout} size="sm" type="button" variant="outline">
+                    <Save data-icon="inline-start" />
+                    Save layout
+                  </Button>
+                  <Button onClick={lockWorkspaceLayout} size="sm" type="button">
+                    <Lock data-icon="inline-start" />
+                    Lock
+                  </Button>
+                  <Button onClick={cancelLayoutEditing} size="sm" type="button" variant="ghost">
+                    <Unlock data-icon="inline-start" />
+                    Cancel
+                  </Button>
+                  <Button onClick={resetWorkspaceLayout} size="sm" type="button" variant="ghost">
+                    <RotateCcw data-icon="inline-start" />
+                    Reset to preset
+                  </Button>
+                  <Button onClick={addCanvasSpaceBelow} size="sm" type="button" variant="outline">
+                    <Plus data-icon="inline-start" />
+                    Add space below
+                  </Button>
+                </>
+              )}
+              {active.activeMode !== "simple" ? (
+                <>
+                  <Button onClick={fitWorkspaceToScreen} size="sm" type="button" variant="outline">
+                    <Maximize2 data-icon="inline-start" />
+                    {isLayoutEditing ? "Fit visible" : "Fit"}
+                  </Button>
+                  <Button onClick={tidyWorkspaceLayout} size="sm" type="button" variant="outline">
+                    <LayoutPanelLeft data-icon="inline-start" />
+                    Tidy
+                  </Button>
+                  <Button onClick={toggleStickyManager} size="sm" type="button" variant="outline">
+                    <StickyNote data-icon="inline-start" />
+                    {stickyManagerVisible ? "Hide stickies" : "Sticky manager"}
+                  </Button>
+                </>
+              ) : null}
+              <Button onClick={() => void createSticky(null, "")} size="sm" type="button" variant="outline">
+                <StickyNote data-icon="inline-start" />
+                New sticky
               </Button>
             </>
           )}
-          <Button onClick={() => void createSticky(null, "")} size="sm" type="button" variant="outline">
-            <StickyNote data-icon="inline-start" />
-            New sticky
-          </Button>
         </div>
       </section>
+
+      {workspace.saveError ? (
+        <p
+          className="rounded-2xl border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          role="alert"
+        >
+          {workspace.saveError}
+        </p>
+      ) : null}
 
       {!active.styleChoiceCompleted ? (
         <section className="grid gap-3 rounded-[22px] border border-border/70 bg-card/90 p-5 shadow-soft">
@@ -2363,7 +2589,7 @@ export function BinderReaderPage() {
             </>
           ) : null}
           <WorkspaceRenderBoundary
-            resetKey={`${selectedLesson.id}:${active.updatedAt}:simple`}
+            resetKey={`${selectedLesson.id}:${active.activeMode}:simple`}
             title="This simple study view could not render"
           >
             <SimplePresentationShell
@@ -2379,19 +2605,23 @@ export function BinderReaderPage() {
           {isLayoutEditing ? (
             <WorkspaceSettings
               binderTitle={binderQuery.data.binder.title}
+              binderSubject={binderQuery.data.binder.subject}
+              historyEnabled={historyEnabled}
               isResettingHighlights={annotations.resetHighlights.isPending}
               lessonTitle={selectedLesson.title}
               mode="layout"
               onResetBinderHighlights={resetBinderHighlights}
               onResetLessonHighlights={resetCurrentLessonHighlights}
               preferences={active}
-              onChange={(next) => workspace.updateDraft(() => next)}
+              onChange={updateLayoutDraftFromSettings}
             />
           ) : null}
 
           {!isLayoutEditing && preferencesOpen ? (
             <WorkspaceSettings
               binderTitle={binderQuery.data.binder.title}
+              binderSubject={binderQuery.data.binder.subject}
+              historyEnabled={historyEnabled}
               isResettingHighlights={annotations.resetHighlights.isPending}
               lessonTitle={selectedLesson.title}
               mode="preferences"
@@ -2404,15 +2634,15 @@ export function BinderReaderPage() {
           ) : null}
 
           <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/86 p-3 shadow-sm">
-            {mobileModules.map((moduleId) => (
+            {mobileTabs.map((tab) => (
               <Button
-                key={moduleId}
-                onClick={() => setMobileModule(moduleId)}
+                key={tab.moduleId}
+                onClick={() => setMobileModule(tab.moduleId)}
                 size="sm"
                 type="button"
-                variant={mobileModule === moduleId ? "default" : "outline"}
+                variant={mobileModule === tab.moduleId ? "default" : "outline"}
               >
-                {workspaceModuleRegistry[moduleId]?.title ?? moduleId}
+                {tab.label}
               </Button>
             ))}
           </div>
@@ -2444,6 +2674,8 @@ export function BinderReaderPage() {
               <section className="workspace-preferences-popover">
                 <WorkspaceSettings
                   binderTitle={binderQuery.data.binder.title}
+                  binderSubject={binderQuery.data.binder.subject}
+                  historyEnabled={historyEnabled}
                   isResettingHighlights={annotations.resetHighlights.isPending}
                   lessonTitle={selectedLesson.title}
                   mode="preferences"
@@ -2461,22 +2693,33 @@ export function BinderReaderPage() {
             {isLayoutEditing ? (
               <WorkspaceSettings
                 binderTitle={binderQuery.data.binder.title}
+                binderSubject={binderQuery.data.binder.subject}
+                historyEnabled={historyEnabled}
                 isResettingHighlights={annotations.resetHighlights.isPending}
                 lessonTitle={selectedLesson.title}
                 mode="layout"
                 onResetBinderHighlights={resetBinderHighlights}
                 onResetLessonHighlights={resetCurrentLessonHighlights}
                 preferences={active}
-                onChange={(next) => workspace.updateDraft(() => next)}
+                onChange={updateLayoutDraftFromSettings}
               />
             ) : null}
             <WorkspaceRenderBoundary
-              resetKey={`${selectedLesson.id}:${active.updatedAt}`}
+              resetKey={`${selectedLesson.id}:${active.activeMode}:${active.preset}`}
               title="This document workspace could not render"
             >
               <WindowedWorkspace
                 context={context}
                 mode={isLayoutEditing ? "setup" : "study"}
+                onCanvasHeightChange={(canvasHeight) =>
+                  updateWorkspace((current) => ({
+                    ...current,
+                    canvas: {
+                      ...current.canvas,
+                      canvasHeight,
+                    },
+                  }))
+                }
                 onCommitFrame={(moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
                   updateWorkspace((current) => ({
                     ...current,
@@ -2484,6 +2727,10 @@ export function BinderReaderPage() {
                       current.activeMode === "canvas"
                         ? {
                             ...current.canvas,
+                            canvasHeight: Math.max(
+                              current.canvas.canvasHeight,
+                              frame.y + frame.h + 320,
+                            ),
                             panelPositions: {
                               ...current.canvas.panelPositions,
                               [moduleId]: frame,
@@ -2496,9 +2743,13 @@ export function BinderReaderPage() {
                     },
                   }))
                 }
-                onFitViewport={(viewport) =>
-                  updateWorkspace((current) => fitWorkspaceToViewport(current, viewport))
-                }
+                onFitViewport={(viewport) => {
+                  if (isLayoutEditingRef.current) {
+                    return;
+                  }
+
+                  updateWorkspace((current) => fitWorkspaceToViewport(current, viewport));
+                }}
                 onToggleCollapsed={(moduleId: WorkspaceModuleId, collapsed: boolean) =>
                   updateWorkspace((current) => ({
                     ...current,

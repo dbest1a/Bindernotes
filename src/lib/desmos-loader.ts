@@ -27,8 +27,8 @@ export function getDesmosApiKey() {
 
   return (
     runtimeKey?.trim() ||
-    import.meta.env.VITE_DESMOS_API_KEY?.trim() ||
-    import.meta.env.NEXT_PUBLIC_DESMOS_API_KEY?.trim() ||
+    import.meta.env?.VITE_DESMOS_API_KEY?.trim() ||
+    import.meta.env?.NEXT_PUBLIC_DESMOS_API_KEY?.trim() ||
     ""
   );
 }

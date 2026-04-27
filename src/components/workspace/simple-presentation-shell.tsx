@@ -116,6 +116,7 @@ export function SimplePresentationShell({
       data-simple-motion={settings.motion}
       data-simple-reading-width={settings.readingWidth}
       data-simple-theme={settings.theme}
+      data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
       data-testid="simple-presentation-shell"
     >
       <div className="simple-presentation-shell__body">
@@ -133,44 +134,54 @@ export function SimplePresentationShell({
               </p>
             </div>
             <div className="simple-presentation-actions">
-              <Button asChild size="sm" type="button" variant="outline">
-                <Link aria-label="Workspace home" to="/dashboard">
-                  <Home data-icon="inline-start" />
-                  Workspace
-                </Link>
-              </Button>
-              <label className="simple-theme-select">
-                <span>Study surface</span>
-                <select
-                  aria-label="Study surface"
-                  className="appearance-select"
-                  onChange={(event) => setSimpleTheme(event.target.value as SimplePresentationTheme)}
-                  value={settings.theme}
+              {settings.focusMode ? (
+                <Button
+                  onClick={() => setSimple({ focusMode: false })}
+                  size="sm"
+                  type="button"
+                  variant="default"
                 >
-                  {simplePresentationThemeOptions.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
-                <Settings2 data-icon="inline-start" />
-                Settings
-              </Button>
-              <Button
-                onClick={() => setSimple({ focusMode: !settings.focusMode })}
-                size="sm"
-                type="button"
-                variant={settings.focusMode ? "default" : "outline"}
-              >
-                {settings.focusMode ? (
                   <Minimize2 data-icon="inline-start" />
-                ) : (
-                  <Maximize2 data-icon="inline-start" />
-                )}
-                {settings.focusMode ? "Exit focus" : "Focus"}
-              </Button>
+                  Exit focus
+                </Button>
+              ) : (
+                <>
+                  <Button asChild size="sm" type="button" variant="outline">
+                    <Link aria-label="Workspace home" to="/dashboard">
+                      <Home data-icon="inline-start" />
+                      Workspace
+                    </Link>
+                  </Button>
+                  <label className="simple-theme-select">
+                    <span>Study surface</span>
+                    <select
+                      aria-label="Study surface"
+                      className="appearance-select"
+                      onChange={(event) => setSimpleTheme(event.target.value as SimplePresentationTheme)}
+                      value={settings.theme}
+                    >
+                      {simplePresentationThemeOptions.map((theme) => (
+                        <option key={theme.id} value={theme.id}>
+                          {theme.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
+                    <Settings2 data-icon="inline-start" />
+                    Settings
+                  </Button>
+                  <Button
+                    onClick={() => setSimple({ focusMode: true })}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Maximize2 data-icon="inline-start" />
+                    Focus
+                  </Button>
+                </>
+              )}
             </div>
           </header>
 

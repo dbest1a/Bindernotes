@@ -37,12 +37,39 @@ import type {
   WorkspaceZone,
 } from "@/types";
 import { SYSTEM_BINDER_IDS, systemSuiteTemplates } from "@/lib/history-suite-seeds";
+import {
+  fitWindowFramesToViewport,
+  tidyWorkspaceFrames,
+  WORKSPACE_MAX_CANVAS_HEIGHT,
+  WORKSPACE_SAFE_EDGE_PADDING,
+} from "@/lib/workspace-layout-engine";
 import { getPresetDefinition, gridLayoutToWindowFrames } from "@/lib/preset-validator";
+import { hasDesmosApiKey } from "@/lib/desmos-loader";
+import {
+  applyWorkspacePresetDesignAvailability,
+  getWorkspacePresetDesign,
+  selectWorkspacePresetVisibleModules,
+  type WorkspacePresetRuntimeAvailability,
+} from "@/lib/workspace-preset-designs";
 
 export type WorkspacePreset = {
   id: WorkspacePresetId;
   name: string;
   description: string;
+};
+
+type WorkspacePresetSubject = "general" | "math" | "history";
+
+type WorkspacePresetVisibility = {
+  subject: WorkspacePresetSubject;
+  modes: WorkspaceMode[];
+  advanced?: boolean;
+};
+
+type VisibleWorkspacePresetOptions = {
+  binderSubject?: string | null;
+  historyEnabled?: boolean;
+  includeAdvanced?: boolean;
 };
 
 type WorkspacePresetLayout = {
@@ -85,6 +112,7 @@ export type WorkspaceModeOption = {
 
 const WINDOW_CANVAS_WIDTH = 1920;
 const WINDOW_CANVAS_HEIGHT = 1600;
+const WINDOW_CANVAS_MIN_HEIGHT = WINDOW_CANVAS_HEIGHT;
 const WINDOW_PADDING = 16;
 const WINDOW_GAP = 16;
 const PRESET_SPACE = {
@@ -115,6 +143,7 @@ export const workspaceModules: {
   { id: "desmos-graph", name: "Desmos graph", description: "A live graphing calculator window." },
   { id: "scientific-calculator", name: "Scientific calculator", description: "Desmos scientific calculator and fallback tools." },
   { id: "saved-graphs", name: "Saved graphs", description: "Named graph states and snapshots." },
+  { id: "whiteboard", name: "Whiteboard", description: "A graph-paper study board for drawing, templates, and live BinderNotes modules." },
   { id: "recent-highlights", name: "Recent highlights", description: "Saved anchors and takeaways." },
   { id: "tasks", name: "Tasks/checklist", description: "A focused study checklist." },
   { id: "related-concepts", name: "Related concepts", description: "Connected concepts and references." },
@@ -163,14 +192,29 @@ export const simplePresentationThemeOptions: {
   name: string;
   description: string;
 }[] = [
+  { id: "match", name: "Study Surface Match", description: "Follow the selected app theme." },
   { id: "classic-light", name: "Classic Light", description: "Crisp white study surface." },
   { id: "warm-paper", name: "Warm Paper", description: "Softer reading with paper-like warmth." },
   { id: "night-study", name: "Night Study", description: "Dark, calm, and lower glare." },
   { id: "history-gold", name: "History Gold", description: "Warm accent for timelines and sources." },
   { id: "math-blue", name: "Math Blue", description: "Cool, clear tone for formulas and graph work." },
   { id: "high-contrast", name: "High Contrast", description: "Maximum readability and stronger edges." },
-  { id: "custom", name: "Custom", description: "Use your custom app palette on the study surface." },
 ];
+
+const studySurfaceThemeIds: SimplePresentationTheme[] = [
+  "match",
+  "classic-light",
+  "warm-paper",
+  "night-study",
+  "history-gold",
+  "math-blue",
+  "high-contrast",
+  "custom",
+];
+
+function isStudySurfaceTheme(value: unknown): value is SimplePresentationTheme {
+  return studySurfaceThemeIds.includes(value as SimplePresentationTheme);
+}
 
 export const simplePresentationFontSizeOptions: {
   id: SimplePresentationFontSize;
@@ -269,6 +313,7 @@ const defaultModuleLayout: WorkspacePreferences["moduleLayout"] = {
   "desmos-graph": { span: "full" },
   "scientific-calculator": { span: "wide" },
   "saved-graphs": { span: "medium" },
+  whiteboard: { span: "full" },
   tasks: { span: "medium" },
   "related-concepts": { span: "medium" },
   flashcards: { span: "medium" },
@@ -293,7 +338,7 @@ export const workspacePresets: WorkspacePreset[] = [
   },
   {
     id: "math-study",
-    name: "Math Graph Lab",
+    name: "Math Study",
     description: "A graph-first study preset with lesson context, notes, formula cards, and saved graph states in reach.",
   },
   {
@@ -358,6 +403,111 @@ export const workspacePresets: WorkspacePreset[] = [
   },
 ];
 
+const workspacePresetVisibility: Record<WorkspacePresetId, WorkspacePresetVisibility> = {
+  "focused-reading": { subject: "general", modes: ["simple", "modular"] },
+  "notes-focus": { subject: "general", modes: ["simple", "modular"] },
+  "split-study": { subject: "general", modes: ["simple", "modular", "canvas"] },
+  "math-study": { subject: "math", modes: ["modular", "canvas"] },
+  "math-simple-presentation": { subject: "math", modes: ["simple"] },
+  "math-guided-study": { subject: "math", modes: ["modular", "canvas"] },
+  "math-graph-lab": { subject: "math", modes: ["modular", "canvas"] },
+  "math-proof-concept": { subject: "math", modes: ["modular", "canvas"] },
+  "math-practice-mode": { subject: "math", modes: ["modular", "canvas"] },
+  "full-math-canvas": { subject: "math", modes: ["canvas"], advanced: true },
+  "annotation-mode": { subject: "general", modes: ["modular", "canvas"], advanced: true },
+  "history-guided": { subject: "history", modes: ["modular", "canvas"] },
+  "history-timeline-focus": { subject: "history", modes: ["modular", "canvas"] },
+  "history-source-evidence": { subject: "history", modes: ["modular", "canvas"] },
+  "history-argument-builder": { subject: "history", modes: ["modular", "canvas"] },
+  "history-full-studio": { subject: "history", modes: ["canvas"], advanced: true },
+};
+
+export function getWorkspacePresetSubject(presetId: WorkspacePresetId) {
+  return workspacePresetVisibility[presetId]?.subject ?? "general";
+}
+
+export function getVisibleWorkspacePresets(
+  preferences: Pick<WorkspacePreferences, "activeMode" | "preset">,
+  options: VisibleWorkspacePresetOptions = {},
+) {
+  const activeSubject = resolvePresetSubject(options.binderSubject, options.historyEnabled);
+
+  return workspacePresets.filter((preset) => {
+    const visibility = workspacePresetVisibility[preset.id];
+    if (!visibility) {
+      return true;
+    }
+
+    const presetIsActive = preset.id === preferences.preset;
+    const subjectMatches =
+      visibility.subject === "general" ||
+      visibility.subject === activeSubject ||
+      (presetIsActive && visibility.subject !== "history" && activeSubject === "general");
+    const modeMatches = visibility.modes.includes(preferences.activeMode) || presetIsActive;
+    const advancedMatches = options.includeAdvanced || !visibility.advanced || presetIsActive;
+
+    return subjectMatches && modeMatches && advancedMatches;
+  });
+}
+
+export function getTopbarWorkspacePresetRecommendations(
+  preferences: Pick<WorkspacePreferences, "activeMode" | "preset">,
+  options: VisibleWorkspacePresetOptions = {},
+  limit = 2,
+) {
+  const activeSubject = resolvePresetSubject(options.binderSubject, options.historyEnabled);
+  const visiblePresets = getVisibleWorkspacePresets(preferences, {
+    ...options,
+    includeAdvanced: true,
+  });
+  const preferredMathPresetOrder: WorkspacePresetId[] = [
+    "split-study",
+    "math-study",
+    "math-guided-study",
+    "math-graph-lab",
+    "math-proof-concept",
+    "math-practice-mode",
+  ];
+  const orderedVisiblePresets =
+    activeSubject === "math"
+      ? [
+          ...preferredMathPresetOrder
+            .map((presetId) => visiblePresets.find((preset) => preset.id === presetId))
+            .filter((preset): preset is WorkspacePreset => Boolean(preset)),
+          ...visiblePresets.filter((preset) => !preferredMathPresetOrder.includes(preset.id)),
+        ]
+      : visiblePresets;
+  const activePreset = visiblePresets.find((preset) => preset.id === preferences.preset);
+  const recommendations = [
+    ...(activePreset ? [activePreset] : []),
+    ...orderedVisiblePresets.filter((preset) => preset.id !== activePreset?.id),
+  ];
+
+  return recommendations.slice(0, limit);
+}
+
+function resolvePresetSubject(
+  binderSubject?: string | null,
+  historyEnabled = false,
+): WorkspacePresetSubject {
+  const normalized = binderSubject?.trim().toLowerCase() ?? "";
+  if (historyEnabled || normalized === "history") {
+    return "history";
+  }
+
+  if (
+    normalized.includes("math") ||
+    normalized.includes("algebra") ||
+    normalized.includes("geometry") ||
+    normalized.includes("calculus") ||
+    normalized.includes("statistics")
+  ) {
+    return "math";
+  }
+
+  return "general";
+}
+
 const workspacePresetLayouts: Partial<
   Record<WorkspacePresetId, Record<WorkspaceStyle, WorkspacePresetLayout>>
 > = {
@@ -416,8 +566,8 @@ const workspacePresetLayouts: Partial<
       zones: zones(["lesson"], ["private-notes"], ["binder-notebook"]),
       paneLayout: paneLayout(14, 55, 31, 0),
       windowLayout: {
-        lesson: frame(20, 20, 260, 1320, 1),
-        "private-notes": frame(300, 20, 1020, 1380, 2),
+        lesson: frame(20, 20, 420, 520, 1),
+        "private-notes": frame(460, 20, 860, 1380, 2),
         "binder-notebook": frame(1340, 20, 560, 1380, 3),
       },
       moduleLayout: {
@@ -431,8 +581,8 @@ const workspacePresetLayouts: Partial<
       zones: zones(["lesson"], ["private-notes"], ["binder-notebook"]),
       paneLayout: paneLayout(14, 55, 31, 0),
       windowLayout: {
-        lesson: frame(20, 20, 260, 420, 1),
-        "private-notes": frame(300, 20, 1020, 1400, 2),
+        lesson: frame(20, 20, 420, 520, 1),
+        "private-notes": frame(460, 20, 860, 1400, 2),
         "binder-notebook": frame(1340, 20, 560, 1400, 3),
       },
       moduleLayout: {
@@ -519,7 +669,7 @@ const workspacePresetLayouts: Partial<
         "desmos-graph": frame(540, 20, 980, 1060, 3),
         "formula-sheet": frame(1540, 20, 360, 520, 4),
         "saved-graphs": frame(1540, 560, 360, 520, 5),
-        "scientific-calculator": frame(1540, 1100, 360, 340, 6),
+        "scientific-calculator": frame(1540, 1100, 360, 420, 6),
       },
       moduleLayout: {
         lesson: { span: "wide", pinned: true },
@@ -540,7 +690,7 @@ const workspacePresetLayouts: Partial<
         "saved-graphs": frame(20, 780, 420, 300, 3),
         "desmos-graph": frame(460, 20, 1060, 860, 4),
         "private-notes": frame(1540, 20, 360, 860, 5),
-        "scientific-calculator": frame(460, 900, 520, 340, 6),
+        "scientific-calculator": frame(460, 900, 520, 420, 6),
         "math-blocks": frame(1000, 900, 900, 340, 7),
       },
       moduleLayout: {
@@ -564,7 +714,7 @@ const workspacePresetLayouts: Partial<
         "desmos-graph": frame(400, 20, 1040, 940, 4),
         "math-blocks": frame(400, 980, 1040, 360, 5),
         "private-notes": frame(1460, 20, 440, 500, 6),
-        "scientific-calculator": frame(1460, 540, 440, 360, 7),
+        "scientific-calculator": frame(1460, 540, 440, 420, 7),
       },
       moduleLayout: {
         lesson: { span: "medium", pinned: true },
@@ -688,7 +838,7 @@ const workspacePresetLayouts: Partial<
         "private-notes": frame(1360, 20, 420, 500, 4),
         "math-blocks": frame(1360, 540, 420, 420, 5),
         "saved-graphs": frame(460, 980, 640, 300, 6),
-        "scientific-calculator": frame(1120, 980, 660, 300, 7),
+        "scientific-calculator": frame(1120, 980, 660, 420, 7),
       },
       moduleLayout: {
         lesson: { span: "medium", pinned: true },
@@ -732,7 +882,7 @@ const workspacePresetLayouts: Partial<
         "private-notes": frame(1480, 20, 420, 420, 4),
         "math-blocks": frame(1480, 460, 420, 500, 5),
         "saved-graphs": frame(420, 980, 500, 320, 6),
-        "scientific-calculator": frame(940, 980, 520, 320, 7),
+        "scientific-calculator": frame(940, 980, 520, 420, 7),
       },
       moduleLayout: {
         "desmos-graph": { span: "full" },
@@ -755,7 +905,7 @@ const workspacePresetLayouts: Partial<
         "desmos-graph": frame(400, 20, 1060, 980, 4),
         "private-notes": frame(1480, 20, 420, 440, 5),
         "math-blocks": frame(1480, 480, 420, 520, 6),
-        "scientific-calculator": frame(400, 1020, 1060, 320, 7),
+        "scientific-calculator": frame(400, 1020, 1060, 420, 7),
       },
       moduleLayout: {
         "desmos-graph": { span: "full" },
@@ -863,7 +1013,7 @@ const workspacePresetLayouts: Partial<
         "math-blocks": frame(460, 20, 960, 980, 3),
         "private-notes": frame(1440, 20, 460, 460, 4),
         "desmos-graph": frame(1440, 500, 460, 420, 5),
-        "scientific-calculator": frame(460, 1020, 960, 300, 6),
+        "scientific-calculator": frame(460, 1020, 960, 420, 6),
       },
       moduleLayout: {
         "math-blocks": { span: "full" },
@@ -885,7 +1035,7 @@ const workspacePresetLayouts: Partial<
         "math-blocks": frame(420, 20, 960, 1040, 4),
         "private-notes": frame(1400, 20, 500, 500, 5),
         "desmos-graph": frame(1400, 540, 500, 440, 6),
-        "scientific-calculator": frame(420, 1080, 960, 280, 7),
+        "scientific-calculator": frame(420, 1080, 960, 420, 7),
       },
       moduleLayout: {
         "math-blocks": { span: "full" },
@@ -911,7 +1061,7 @@ const workspacePresetLayouts: Partial<
         "private-notes": frame(1300, 20, 420, 420, 5),
         "related-concepts": frame(1300, 460, 420, 320, 6),
         "saved-graphs": frame(1740, 20, 160, 420, 7),
-        "scientific-calculator": frame(1300, 800, 600, 360, 8),
+        "scientific-calculator": frame(1300, 800, 600, 420, 8),
       },
       moduleLayout: defaultModuleLayout,
     },
@@ -927,7 +1077,7 @@ const workspacePresetLayouts: Partial<
         "math-blocks": frame(1360, 20, 360, 440, 5),
         "private-notes": frame(1360, 480, 360, 440, 6),
         "related-concepts": frame(1740, 20, 160, 440, 7),
-        "scientific-calculator": frame(420, 940, 1300, 320, 8),
+        "scientific-calculator": frame(420, 940, 1300, 420, 8),
       },
       moduleLayout: defaultModuleLayout,
     },
@@ -943,7 +1093,7 @@ const workspacePresetLayouts: Partial<
         "math-blocks": frame(1400, 20, 500, 460, 5),
         "private-notes": frame(1400, 500, 500, 460, 6),
         "related-concepts": frame(420, 980, 460, 320, 7),
-        "scientific-calculator": frame(900, 980, 1000, 320, 8),
+        "scientific-calculator": frame(900, 980, 1000, 420, 8),
       },
       moduleLayout: defaultModuleLayout,
     },
@@ -1388,6 +1538,18 @@ function buildStudySurfaceVars(
   const appAccentSoft = themeVars.accent;
 
   switch (surface) {
+    case "match":
+      return {
+        bg: themeVars.background,
+        surface: themeVars.card,
+        soft: themeVars.secondary,
+        line: themeVars.border,
+        text: themeVars.foreground,
+        muted: themeVars.mutedForeground,
+        accent: appAccent,
+        accentSoft: appAccentSoft,
+        accentText: appIsDark ? "220 16% 8%" : "0 0% 100%",
+      };
     case "warm-paper":
       return {
         bg: "42 42% 96%",
@@ -1656,13 +1818,13 @@ export function resolveWorkspacePresetLayout(
 
     if (breakpointLayout) {
       const enabledModules = breakpointLayout.items.map((item) => item.panelId);
-      return {
+      return applyPresetVisibilityProfile({
         enabledModules,
         zones: buildZonesFromGridLayout(enabledModules),
         paneLayout: buildPaneLayoutFromGrid(enabledModules),
         windowLayout: gridLayoutToWindowFrames(breakpointLayout),
         moduleLayout: buildModuleLayoutFromGrid(enabledModules, breakpointLayout),
-      };
+      }, presetId);
     }
   }
 
@@ -1675,7 +1837,119 @@ export function resolveWorkspacePresetLayout(
     throw new Error(`Workspace preset layout is missing for ${presetId}.`);
   }
 
-  return packPresetWindowLayout(baseLayout, workspaceStyle);
+  return applyPresetVisibilityProfile(
+    packPresetWindowLayout(baseLayout, workspaceStyle),
+    presetId,
+  );
+}
+
+function applyPresetVisibilityProfile(
+  layout: WorkspacePresetLayout,
+  presetId: WorkspacePresetId,
+  availability: WorkspacePresetRuntimeAvailability = detectWorkspacePresetRuntimeAvailability(),
+): WorkspacePresetLayout {
+  const design = getAvailablePresetDesign(presetId, availability);
+  if (!design) {
+    return layout;
+  }
+
+  const visibleModules = design.defaultVisible.filter(isRegisteredModule);
+  const collapsedModules = design.collapsedByDefault.filter(
+    (moduleId) => isRegisteredModule(moduleId) && !visibleModules.includes(moduleId),
+  );
+  const leftoverModules = layout.enabledModules.filter(
+    (moduleId) => !visibleModules.includes(moduleId) && !collapsedModules.includes(moduleId),
+  );
+  const enabledModules = appendUnique([...visibleModules, ...collapsedModules], leftoverModules);
+  const moduleLayout = {
+    ...layout.moduleLayout,
+  };
+
+  enabledModules.forEach((moduleId) => {
+    const base = moduleLayout[moduleId] ?? defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
+    moduleLayout[moduleId] = {
+      ...base,
+      collapsed: !visibleModules.includes(moduleId),
+    };
+  });
+
+  return {
+    ...layout,
+    enabledModules,
+    moduleLayout,
+  };
+}
+
+function applyPresetVisibilityToPreferences(
+  preferences: WorkspacePreferences,
+  viewport?: { width: number; height: number },
+  availability: WorkspacePresetRuntimeAvailability = detectWorkspacePresetRuntimeAvailability(),
+): WorkspacePreferences {
+  const design = getAvailablePresetDesign(preferences.preset, availability);
+  if (!design) {
+    return preferences;
+  }
+
+  const visibleModules = (
+    viewport
+      ? selectWorkspacePresetVisibleModules(preferences.preset, {
+          availability,
+          viewport,
+        })
+      : design.defaultVisible
+  ).filter(isRegisteredModule);
+  const collapsedModules = design.collapsedByDefault.filter(
+    (moduleId) => isRegisteredModule(moduleId) && !visibleModules.includes(moduleId),
+  );
+  const leftoverModules = preferences.enabledModules.filter(
+    (moduleId) => !visibleModules.includes(moduleId) && !collapsedModules.includes(moduleId),
+  );
+  const enabledModules = appendUnique([...visibleModules, ...collapsedModules], leftoverModules);
+  let changed =
+    enabledModules.length !== preferences.enabledModules.length ||
+    enabledModules.some((moduleId, index) => preferences.enabledModules[index] !== moduleId);
+  const moduleLayout = { ...preferences.moduleLayout };
+
+  enabledModules.forEach((moduleId) => {
+    const shouldCollapse = !visibleModules.includes(moduleId);
+    const current = moduleLayout[moduleId] ?? defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
+    if (current.collapsed !== shouldCollapse) {
+      changed = true;
+    }
+    moduleLayout[moduleId] = {
+      ...current,
+      collapsed: shouldCollapse,
+    };
+  });
+
+  if (!changed) {
+    return preferences;
+  }
+
+  return ensureWindowFramesForEnabledModules({
+    ...preferences,
+    enabledModules,
+    moduleLayout,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function getAvailablePresetDesign(
+  presetId: WorkspacePresetId,
+  availability: WorkspacePresetRuntimeAvailability,
+) {
+  const design = getWorkspacePresetDesign(presetId);
+  return design ? applyWorkspacePresetDesignAvailability(design, availability) : null;
+}
+
+function detectWorkspacePresetRuntimeAvailability(): WorkspacePresetRuntimeAvailability {
+  return {
+    desmosApiKeyAvailable: hasDesmosApiKey(),
+  };
+}
+
+function isRegisteredModule(moduleId: WorkspaceModuleId) {
+  return workspaceModules.some((module) => module.id === moduleId);
 }
 
 function buildZonesFromGridLayout(enabledModules: WorkspaceModuleId[]) {
@@ -1774,7 +2048,7 @@ function buildModuleLayoutFromGrid(
 
 export const defaultThemeSettings: WorkspaceThemeSettings = {
   id: defaultTheme.id,
-  studySurface: "math-blue",
+  studySurface: "match",
   accent: defaultTheme.vars.primary,
   accentColor: accentColorForTheme(defaultTheme.id),
   density: "cozy",
@@ -1785,7 +2059,7 @@ export const defaultThemeSettings: WorkspaceThemeSettings = {
   hoverMotion: false,
   snapMode: false,
   focusMode: false,
-  compactMode: false,
+  compactMode: true,
   animationLevel: "none",
   graphAppearance: "sync",
   graphChrome: "standard",
@@ -1806,7 +2080,7 @@ export function createDefaultSimplePresentationSettings(
     binderId === SYSTEM_BINDER_IDS.riseOfRome;
 
   return {
-    theme: isHistory ? "history-gold" : "math-blue",
+    theme: "match",
     fontSize: "medium",
     readingWidth: "comfortable",
     showSideNotes: true,
@@ -1839,6 +2113,8 @@ export function createDefaultFullCanvasSettings(): FullCanvasSettings {
     snapBehavior: "off",
     panelPositions: {},
     customModules: [],
+    safeEdgePadding: false,
+    canvasHeight: WINDOW_CANVAS_MIN_HEIGHT,
     showDiagnostics: false,
   };
 }
@@ -1849,7 +2125,7 @@ export function createDefaultAppearanceSettings(
   theme: WorkspaceThemeSettings = loadGlobalThemeSettings(),
 ): AppearanceSettings {
   const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
-  const studySurface = simplePresentationThemeOptions.some((option) => option.id === theme.studySurface)
+  const studySurface = isStudySurfaceTheme(theme.studySurface)
     ? theme.studySurface
     : simple.theme;
 
@@ -1943,6 +2219,56 @@ export function applyPreset(
   });
 }
 
+export function applyPresetToViewport(
+  preferences: WorkspacePreferences,
+  presetId: WorkspacePresetId,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  return fitWorkspaceToViewport(applyPreset(preferences, presetId), viewport, { force: true });
+}
+
+export function applyWorkspaceModeToViewport(
+  preferences: WorkspacePreferences,
+  workspaceMode: WorkspaceMode,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  const next = applyWorkspaceMode(preferences, workspaceMode);
+  return next.activeMode === "simple"
+    ? next
+    : fitWorkspaceToViewport(next, viewport, { force: true });
+}
+
+export function applyFocusModeToViewport(
+  preferences: WorkspacePreferences,
+  focusMode: boolean,
+  viewport?: { width: number; height: number },
+): WorkspacePreferences {
+  const next: WorkspacePreferences = {
+    ...preferences,
+    simple:
+      preferences.activeMode === "simple"
+        ? {
+            ...preferences.simple,
+            focusMode,
+          }
+        : preferences.simple,
+    theme:
+      preferences.activeMode === "simple"
+        ? preferences.theme
+        : {
+            ...preferences.theme,
+            focusMode,
+          },
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!focusMode || preferences.activeMode === "simple" || !preferences.locked || !viewport) {
+    return normalizeWorkspacePreferences(next);
+  }
+
+  return fitWorkspaceToViewport(next, viewport, { force: true });
+}
+
 export function applyWorkspaceStyle(
   preferences: WorkspacePreferences,
   workspaceStyle: WorkspaceStyle,
@@ -1951,7 +2277,7 @@ export function applyWorkspaceStyle(
     ...preferences,
     workspaceStyle,
     styleChoiceCompleted: true,
-    locked: workspaceStyle === "full-studio" ? false : true,
+    locked: true,
     updatedAt: new Date().toISOString(),
   };
 
@@ -2063,7 +2389,7 @@ export function applyGlobalAppearanceToWorkspace(
     {
       appTheme: globalTheme.id,
       ...(globalTheme.id === "custom" ? { accent: globalTheme.accentColor } : {}),
-      studySurface: globalTheme.studySurface,
+      studySurface: preferences.appearance.studySurface === "match" ? "match" : globalTheme.studySurface,
       density: globalTheme.density,
       roundness: globalTheme.roundness,
       motion: appearanceMotionFromAnimationLevel(globalTheme.animationLevel),
@@ -2110,7 +2436,7 @@ export function applyWorkspaceMode(
     activeMode,
     workspaceStyle: "full-studio",
     styleChoiceCompleted: true,
-    locked: false,
+    locked: true,
     theme: {
       ...preferences.theme,
       snapMode: preferences.canvas.snapBehavior !== "off",
@@ -2294,127 +2620,87 @@ export function createStickyNoteLayout(index: number): StickyNoteLayout {
 export function fitWorkspaceToViewport(
   preferences: WorkspacePreferences,
   viewport: { width: number; height: number },
-) {
+  options: { force?: boolean } = {},
+): WorkspacePreferences {
   const width = Math.round(viewport.width);
   const height = Math.round(viewport.height);
   if (width < 320 || height < 240) {
     return preferences;
   }
 
-  const visibleModules = preferences.enabledModules.filter(
+  const composedPreferences = applyPresetVisibilityToPreferences(preferences, { width, height });
+  const visibilityChanged = composedPreferences !== preferences;
+  if (isPhoneViewport({ width, height })) {
+    return applyMobileViewportFit(composedPreferences, width, height);
+  }
+  const visibleModules = composedPreferences.enabledModules.filter(
     (moduleId) =>
-      preferences.windowLayout[moduleId] &&
-      !preferences.moduleLayout[moduleId]?.collapsed,
+      composedPreferences.windowLayout[moduleId] &&
+      !composedPreferences.moduleLayout[moduleId]?.collapsed,
   );
   if (visibleModules.length === 0) {
-    return preferences;
+    return visibilityChanged ? composedPreferences : preferences;
   }
 
-  const bounds = getWindowBounds(visibleModules, preferences.windowLayout);
+  const bounds = getWindowBounds(visibleModules, composedPreferences.windowLayout);
   if (!bounds) {
-    return preferences;
+    return visibilityChanged ? composedPreferences : preferences;
   }
-
-  const outerPaddingX = preferences.workspaceStyle === "guided" ? 12 : 8;
-  const outerPaddingY = 12;
-  const widthFillTarget =
-    preferences.workspaceStyle === "guided"
-      ? 0.92
-      : preferences.workspaceStyle === "flexible"
-        ? 0.95
-        : 0.972;
-  const availableWidth = Math.max(320, width - outerPaddingX * 2);
-  const verticalMetrics = resolveVerticalWorkspaceMetrics(
-    preferences.theme.verticalSpace,
-    height,
-  );
-  const availableHeight = verticalMetrics.availableHeight;
-  const allowVerticalOverflow = preferences.theme.verticalSpace !== "fit";
-  const previousViewport = preferences.viewportFit;
+  const previousViewport = composedPreferences.viewportFit;
   const viewportChanged =
     !previousViewport ||
     Math.abs(previousViewport.width - width) > 120 ||
     Math.abs(previousViewport.height - height) > 120;
-  const overflowing =
-    bounds.width > availableWidth + 24 ||
-    bounds.maxX > width + 16 ||
-    (!allowVerticalOverflow &&
-      (bounds.height > availableHeight + verticalMetrics.overflowTolerance ||
-        bounds.maxY > height + 16));
-  const underfilled =
-    bounds.width < availableWidth * widthFillTarget ||
-    (!allowVerticalOverflow &&
-      bounds.height < availableHeight * verticalMetrics.underfillThreshold);
+  const force = options.force ?? false;
+  const hasDesignedPreset = Boolean(getWorkspacePresetDesign(composedPreferences.preset));
+  const layoutResult = hasDesignedPreset
+    ? tidyWorkspaceFrames({
+        frames: composedPreferences.windowLayout,
+        moduleIds: visibleModules,
+        presetId: composedPreferences.preset,
+        safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+        viewport: { width, height },
+      })
+    : fitWindowFramesToViewport({
+        force: force || viewportChanged,
+        frames: composedPreferences.windowLayout,
+        moduleIds: visibleModules,
+        presetId: composedPreferences.preset,
+        safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+        viewport: { width, height },
+      });
+  const shouldFitSplitCanvasHeight =
+    composedPreferences.activeMode === "canvas" && composedPreferences.preset === "split-study";
+  const splitCanvasHeightChanged =
+    shouldFitSplitCanvasHeight && composedPreferences.canvas.canvasHeight !== height;
 
-  if (!viewportChanged && !overflowing && !underfilled) {
-    return preferences;
+  if (!force && !viewportChanged && !layoutResult.changed && !splitCanvasHeightChanged) {
+    return visibilityChanged ? composedPreferences : preferences;
   }
-
-  let scale = 1;
-  const fitScale = allowVerticalOverflow
-    ? availableWidth / Math.max(bounds.width, 1)
-    : Math.min(
-        availableWidth / Math.max(bounds.width, 1),
-        availableHeight / Math.max(bounds.height, 1),
-      );
-
-  if (overflowing) {
-    scale = Math.min(1, fitScale);
-  } else if (underfilled && !previousViewport) {
-    scale = Math.min(1.22, Math.max(1, fitScale * 0.992));
-  } else if (underfilled && viewportChanged) {
-    scale = Math.min(1.14, Math.max(1, fitScale * 0.985));
-  }
-
-  const fittedWidth = bounds.width * scale;
-  const fittedHeight = bounds.height * scale;
-  const offsetX =
-    outerPaddingX + Math.max(0, (availableWidth - fittedWidth) / 2) - bounds.minX * scale;
-  const offsetY =
-    outerPaddingY +
-    Math.max(
-      0,
-      Math.min(
-        verticalMetrics.topSlack,
-        (availableHeight - fittedHeight) / verticalMetrics.topSlackDivisor,
-      ),
-    ) -
-    bounds.minY * scale;
 
   let changed = false;
-  const nextWindowLayout = { ...preferences.windowLayout };
+  const nextWindowLayout = Object.fromEntries(
+    Object.entries(layoutResult.frames).map(([moduleId, frame]) => [
+      moduleId,
+      frame ? normalizeWindowFrame(frame) : frame,
+    ]),
+  ) as WorkspacePreferences["windowLayout"];
 
-  visibleModules.forEach((moduleId) => {
-    const frame = preferences.windowLayout[moduleId];
-    if (!frame) {
-      return;
-    }
-
-    const nextFrame = normalizeWindowFrame({
-      x: offsetX + frame.x * scale,
-      y: offsetY + frame.y * scale,
-      w: frame.w * scale,
-      h: frame.h * scale,
-      z: frame.z,
-    });
-
-    if (
-      nextFrame.x !== frame.x ||
-      nextFrame.y !== frame.y ||
-      nextFrame.w !== frame.w ||
-      nextFrame.h !== frame.h
-    ) {
-      changed = true;
-      nextWindowLayout[moduleId] = nextFrame;
-    }
-  });
-
-  const nextStickyNotes = { ...preferences.stickyNotes };
-  Object.entries(preferences.stickyNotes).forEach(([commentId, sticky]) => {
+  const nextStickyNotes = { ...composedPreferences.stickyNotes };
+  const safePadding = composedPreferences.canvas.safeEdgePadding ? WORKSPACE_SAFE_EDGE_PADDING : 0;
+  Object.entries(composedPreferences.stickyNotes).forEach(([commentId, sticky]) => {
     const nextSticky = {
       ...sticky,
-      x: clamp(Math.round(offsetX + sticky.x * scale), 8, Math.max(8, width - sticky.w - 8)),
-      y: clamp(Math.round(offsetY + sticky.y * scale), 8, Math.max(8, height - (sticky.minimized ? 56 : sticky.h) - 8)),
+      x: clamp(
+        Math.round(sticky.x),
+        safePadding,
+        Math.max(safePadding, width - sticky.w - safePadding),
+      ),
+      y: clamp(
+        Math.round(sticky.y),
+        safePadding,
+        Math.max(safePadding, height - (sticky.minimized ? 56 : sticky.h) - safePadding),
+      ),
     };
     if (nextSticky.x !== sticky.x || nextSticky.y !== sticky.y) {
       changed = true;
@@ -2422,12 +2708,24 @@ export function fitWorkspaceToViewport(
     }
   });
 
-  if (!changed && previousViewport?.width === width && previousViewport?.height === height) {
-    return preferences;
+  if (
+    !changed &&
+    !layoutResult.changed &&
+    !splitCanvasHeightChanged &&
+    previousViewport?.width === width &&
+    previousViewport?.height === height
+  ) {
+    return visibilityChanged ? composedPreferences : preferences;
   }
 
   return {
-    ...preferences,
+    ...composedPreferences,
+    canvas: shouldFitSplitCanvasHeight
+      ? {
+          ...composedPreferences.canvas,
+          canvasHeight: height,
+        }
+      : composedPreferences.canvas,
     windowLayout: nextWindowLayout,
     stickyNotes: nextStickyNotes,
     viewportFit: {
@@ -2436,6 +2734,96 @@ export function fitWorkspaceToViewport(
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+export function tidyWorkspaceLayout(
+  preferences: WorkspacePreferences,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  const width = Math.round(viewport.width);
+  const height = Math.round(viewport.height);
+  if (width < 320 || height < 240) {
+    return preferences;
+  }
+
+  const composedPreferences = applyPresetVisibilityToPreferences(preferences, { width, height });
+  if (isPhoneViewport({ width, height })) {
+    return applyMobileViewportFit(composedPreferences, width, height);
+  }
+  const visibleModules = composedPreferences.enabledModules.filter(
+    (moduleId) =>
+      composedPreferences.windowLayout[moduleId] &&
+      !composedPreferences.moduleLayout[moduleId]?.collapsed,
+  );
+  const result = tidyWorkspaceFrames({
+    frames: composedPreferences.windowLayout,
+    moduleIds: visibleModules,
+    presetId: composedPreferences.preset,
+    safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+    viewport: { width, height },
+  });
+  const shouldFitSplitCanvasHeight =
+    composedPreferences.activeMode === "canvas" && composedPreferences.preset === "split-study";
+  const splitCanvasHeightChanged =
+    shouldFitSplitCanvasHeight && composedPreferences.canvas.canvasHeight !== height;
+
+  if (!result.changed && !splitCanvasHeightChanged) {
+    return composedPreferences;
+  }
+
+  const windowLayout = Object.fromEntries(
+    Object.entries(result.frames).map(([moduleId, frame]) => [
+      moduleId,
+      frame ? normalizeWindowFrame(frame) : frame,
+    ]),
+  ) as WorkspacePreferences["windowLayout"];
+
+  return {
+    ...composedPreferences,
+    canvas:
+      composedPreferences.activeMode === "canvas"
+        ? {
+            ...composedPreferences.canvas,
+            canvasHeight: shouldFitSplitCanvasHeight ? height : composedPreferences.canvas.canvasHeight,
+            panelPositions: {
+              ...composedPreferences.canvas.panelPositions,
+              ...windowLayout,
+            },
+          }
+        : composedPreferences.canvas,
+    windowLayout,
+    viewportFit: {
+      width,
+      height,
+      updatedAt: new Date().toISOString(),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function applyMobileViewportFit(
+  preferences: WorkspacePreferences,
+  width: number,
+  height: number,
+): WorkspacePreferences {
+  const updatedAt = new Date().toISOString();
+  return {
+    ...preferences,
+    theme: {
+      ...preferences.theme,
+      verticalSpace: "fit",
+    },
+    viewportFit: {
+      width,
+      height,
+      updatedAt,
+    },
+    updatedAt,
+  };
+}
+
+function isPhoneViewport(viewport: { width: number; height: number }): boolean {
+  return viewport.width <= 760;
 }
 
 export function loadGlobalThemeSettings(): WorkspaceThemeSettings {
@@ -2548,6 +2936,7 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
   root.dataset.workspaceSnapMode = normalizedSettings.snapMode ? "on" : "off";
   root.dataset.workspaceFocusMode = normalizedSettings.focusMode ? "on" : "off";
   root.dataset.workspaceCompactMode = normalizedSettings.compactMode ? "on" : "off";
+  root.dataset.maximizeModuleSpace = normalizedSettings.compactMode ? "true" : "false";
   root.dataset.workspaceAnimation = normalizedSettings.animationLevel;
   root.dataset.workspaceGraphAppearance = normalizedSettings.graphAppearance;
   root.dataset.workspaceGraphChrome = normalizedSettings.graphChrome;
@@ -2657,7 +3046,7 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
       : defaultThemeSettings.id;
   const studySurface =
     settings?.studySurface &&
-    simplePresentationThemeOptions.some((option) => option.id === settings.studySurface)
+    isStudySurfaceTheme(settings.studySurface)
       ? settings.studySurface
       : defaultThemeSettings.studySurface;
   const density = densityOptions.includes(settings?.density as WorkspaceDensity)
@@ -2802,10 +3191,10 @@ function normalizeAppearanceSettings(
         : fallback.appTheme;
   const studySurface =
     settings?.studySurface &&
-    simplePresentationThemeOptions.some((option) => option.id === settings.studySurface)
+    isStudySurfaceTheme(settings.studySurface)
       ? settings.studySurface
       : simple?.theme &&
-          simplePresentationThemeOptions.some((option) => option.id === simple.theme)
+          isStudySurfaceTheme(simple.theme)
         ? (simple.theme as AppearanceSettings["studySurface"])
         : fallback.studySurface;
   const accent = normalizeAccentColor(
@@ -2863,7 +3252,7 @@ function normalizeSimplePresentationSettings(
   suiteTemplateId?: string | null,
 ): SimplePresentationSettings {
   const fallback = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
-  const theme = simplePresentationThemeOptions.some((option) => option.id === settings?.theme)
+  const theme = isStudySurfaceTheme(settings?.theme)
     ? (settings?.theme as SimplePresentationTheme)
     : fallback.theme;
   const fontSize = simplePresentationFontSizeOptions.some((option) => option.id === settings?.fontSize)
@@ -2961,12 +3350,21 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
   const customModules = (settings?.customModules ?? [])
     .map((moduleId) => normalizeModuleId(moduleId))
     .filter((moduleId, index, list): moduleId is WorkspaceModuleId => Boolean(moduleId) && list.indexOf(moduleId) === index);
+  const canvasHeight =
+    typeof settings?.canvasHeight === "number" && Number.isFinite(settings.canvasHeight)
+      ? clamp(Math.round(settings.canvasHeight), WINDOW_CANVAS_MIN_HEIGHT, WORKSPACE_MAX_CANVAS_HEIGHT)
+      : fallback.canvasHeight;
 
   return {
     gridSize,
     snapBehavior,
     panelPositions: normalizeWindowLayout(settings?.panelPositions),
     customModules,
+    safeEdgePadding:
+      typeof settings?.safeEdgePadding === "boolean"
+        ? settings.safeEdgePadding
+        : fallback.safeEdgePadding,
+    canvasHeight,
     showDiagnostics:
       typeof settings?.showDiagnostics === "boolean"
         ? settings.showDiagnostics
@@ -3014,7 +3412,7 @@ export function resolveVerticalWorkspaceMetrics(
       return {
         availableHeight: Math.max(280, viewportHeight - 32),
         canvasFloor: Math.max(0, viewportHeight - 8),
-        canvasPadding: 40,
+        canvasPadding: 16,
         overflowTolerance: 24,
         underfillThreshold: 0.68,
         topSlack: 32,
@@ -3416,7 +3814,7 @@ function getWindowBounds(
 function normalizeWindowFrame(frame: WorkspaceWindowFrame): WorkspaceWindowFrame {
   return {
     x: clamp(Math.round(frame.x), 0, WINDOW_CANVAS_WIDTH * 2),
-    y: clamp(Math.round(frame.y), 0, WINDOW_CANVAS_HEIGHT * 2),
+    y: clamp(Math.round(frame.y), 0, WORKSPACE_MAX_CANVAS_HEIGHT),
     w: clamp(Math.round(frame.w), 160, WINDOW_CANVAS_WIDTH),
     h: clamp(Math.round(frame.h), 160, WINDOW_CANVAS_HEIGHT),
     z: Math.max(1, Math.round(frame.z)),

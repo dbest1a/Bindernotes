@@ -19,6 +19,7 @@ import {
   PrivateNotesModule,
   SourceLessonModule,
 } from "@/components/workspace/study-core-modules";
+import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,8 @@ import type {
 } from "@/types";
 
 export type WorkspaceModuleContext = {
+  surface?: "workspace" | "whiteboard";
+  ownerId?: string | null;
   binder: Binder;
   lessons: BinderLesson[];
   selectedLesson: BinderLesson;
@@ -188,7 +191,6 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         highlights={context.highlights}
         highlightStatus={context.highlightStatus}
         lesson={context.selectedLesson}
-        onApplyPreset={context.onApplyPreset}
         onHighlight={context.onAddHighlight}
         onJumpToMathSource={context.onJumpToMathSource}
         onRemoveHighlight={context.onRemoveHighlight}
@@ -197,9 +199,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         onSendToNotes={context.onSendSelectionToNotes}
+        surface={context.surface ?? "workspace"}
         onStickyNote={context.onPrepareComment}
-        onToggleStickyManager={context.onToggleStickyManager}
-        stickyManagerVisible={context.stickyManagerVisible}
       />
     ),
   },
@@ -223,7 +224,6 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         currentNotebookSection={context.currentNotebookSection}
         hasUnsavedNoteChanges={context.hasUnsavedNoteChanges}
         onAcceptMathSuggestion={context.onAcceptMathSuggestion}
-        onApplyPreset={context.onApplyPreset}
         onCreateSticky={context.onCreateLooseSticky}
         onDismissMathSuggestion={context.onDismissMathSuggestion}
         onEnterNotebookFocus={context.onEnterNotebookFocus}
@@ -246,8 +246,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onNoteTitleChange={context.onNoteTitleChange}
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
-        onToggleStickyManager={context.onToggleStickyManager}
-        stickyManagerVisible={context.stickyManagerVisible}
+        surface={context.surface ?? "workspace"}
       />
     ),
   },
@@ -260,7 +259,6 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         currentNotebookSection={context.currentNotebookSection}
         entries={context.binderNotebookEntries}
         onEnterNotebookFocus={context.onEnterNotebookFocus}
-        onApplyPreset={context.onApplyPreset}
         onSelectLesson={context.onSelectLesson}
         sections={context.binderNotebookSections}
         selectedLessonId={context.selectedLesson.id}
@@ -330,6 +328,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           onCreateStarterChain={context.onCreateHistoryStarterChain}
           onUpdateChain={context.onUpdateHistoryArgumentChain}
           onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
+          starterTopic={context.binder.id === "binder-rise-of-rome" ? "rome" : "french"}
           status={context.history.status.argument}
         />
       ) : (
@@ -472,7 +471,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       );
       return (
         <WorkspacePanel description="Reusable equations" title="Formula sheet">
-          <MathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+          <div className="formula-sheet-readable">
+            <MathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+          </div>
           {formulaBlocks.length === 0 ? (
             <p className="text-sm text-muted-foreground">Add LaTeX blocks to build a formula sheet.</p>
           ) : null}
@@ -507,6 +508,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         <DesmosGraphModule
           bindings={context.mathModules}
           description="Legacy graph cards now route through a real Desmos graphing surface."
+          surface={context.surface ?? "workspace"}
           title="Interactive graph"
         />
       ) : (
@@ -524,7 +526,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Live graphing calculator",
     render: (context) =>
       context.mathModules ? (
-        <DesmosGraphModule bindings={context.mathModules} />
+        <DesmosGraphModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
       ) : (
         <WorkspacePanel description="Math workspace only" title="Desmos graph">
           <EmptyState
@@ -540,7 +542,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Numeric work and reusable function input",
     render: (context) =>
       context.mathModules ? (
-        <ScientificCalculatorModule bindings={context.mathModules} />
+        <ScientificCalculatorModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
       ) : (
         <WorkspacePanel description="Math workspace only" title="Scientific calculator">
           <EmptyState
@@ -556,7 +558,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Reusable graph states",
     render: (context) =>
       context.mathModules ? (
-        <SavedGraphsModule bindings={context.mathModules} />
+        <SavedGraphsModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
       ) : (
         <WorkspacePanel description="Math workspace only" title="Saved graphs">
           <EmptyState
@@ -565,6 +567,23 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           />
         </WorkspacePanel>
       ),
+  },
+  whiteboard: {
+    id: "whiteboard",
+    title: "Whiteboard",
+    description: "Graph-paper study board with live BinderNotes modules",
+    render: (context) => (
+      <WhiteboardModule
+        context={context}
+        renderModule={(moduleId, embeddedContext) => {
+          if (moduleId === "whiteboard") {
+            return null;
+          }
+
+          return workspaceModuleRegistry[moduleId]?.render(embeddedContext) ?? null;
+        }}
+      />
+    ),
   },
   "recent-highlights": {
     id: "recent-highlights",

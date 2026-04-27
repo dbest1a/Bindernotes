@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Cuboid,
@@ -7,6 +7,7 @@ import {
   ListChecks,
   Maximize2,
   Minimize2,
+  PenTool,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +19,15 @@ import {
   type GraphExpressionRequest,
   type GraphLoadRequest,
 } from "@/components/math/math-workspace-modules";
-import type { MathBlock } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMathWorkspace,
 } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { cn } from "@/lib/utils";
+import type {
+  MathBlock,
+} from "@/types";
 
 const calculusModuleCards = [
   {
@@ -59,6 +62,7 @@ const calculusModuleCards = [
 
 export function MathLabPage() {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
   const {
     state,
     setGraphExpanded,
@@ -81,6 +85,10 @@ export function MathLabPage() {
 
   if (!profile) {
     return <Navigate replace to="/auth" />;
+  }
+
+  if (searchParams.get("lab") === "whiteboard") {
+    return <Navigate replace to="/math/lab/whiteboard" />;
   }
 
   const pushExpressionToGraph = (expression?: string) => {
@@ -114,10 +122,30 @@ export function MathLabPage() {
       setPendingGraphLoad((current) => (current?.id === id ? null : current));
     },
   };
-
   return (
     <main className="app-page max-w-[1540px]">
       <Breadcrumbs items={[{ label: "Workspace", to: "/dashboard" }, { label: "Math lab" }]} />
+
+      <section className="page-shell flex flex-wrap items-center justify-between gap-3 p-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            MathLab
+          </p>
+          <h1 className="text-xl font-semibold tracking-tight">Math tools</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="default">
+            <FunctionSquare data-icon="inline-start" />
+            Math tools
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/math/lab/whiteboard">
+              <PenTool data-icon="inline-start" />
+              Whiteboard Lab
+            </Link>
+          </Button>
+        </div>
+      </section>
 
       <section className="hero-grid">
         <div className="page-shell p-6 sm:p-8">
@@ -159,6 +187,23 @@ export function MathLabPage() {
             </Button>
           </div>
         </aside>
+      </section>
+
+      <section className="page-shell grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div>
+          <Badge variant="outline">New math feature</Badge>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Math Whiteboard lives inside the lesson workspace.</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Open a math lesson, choose Math Practice Mode or Full Math Canvas, and use Whiteboard as a graph-paper board
+            with templates plus live lesson, notes, formula, graph, and calculator cards.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link to="/math/lab/whiteboard">
+            <PenTool data-icon="inline-start" />
+            Open Whiteboard Lab
+          </Link>
+        </Button>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">

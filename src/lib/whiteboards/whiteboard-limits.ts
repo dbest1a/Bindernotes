@@ -1,0 +1,8 @@
+export const MAX_WHITEBOARDS_PER_USER = 3;
+export const MAX_SCENE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_ASSET_BYTES_PER_BOARD = 50 * 1024 * 1024;
+export const MAX_ASSET_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_OBJECTS_WARNING = 1000;
+export const MAX_OBJECTS_HARD_CAP = 5000;
+export const MAX_VERSION_HISTORY = 10;
+export const AUTOSAVE_DEBOUNCE_MS = 1500;

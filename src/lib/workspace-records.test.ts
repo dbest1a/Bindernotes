@@ -109,7 +109,7 @@ describe("workspace-records", () => {
     });
 
     expect(visible.binders.map((binder) => binder.id)).toEqual([baseBinder.id]);
-    expect(visible.folders.map((folder) => folder.id)).toEqual(["folder-history"]);
+    expect(visible.folders.map((folder) => folder.id)).toEqual(["folder-history", "folder-chemistry"]);
     expect(visible.lessons.map((lesson) => lesson.id)).toEqual([realLesson.id]);
   });
 
@@ -236,12 +236,25 @@ describe("workspace-records", () => {
       notes: [],
     });
 
-    expect(visible.folders.map((folder) => folder.name)).toEqual(["Math", "History"]);
+    expect(visible.folders.map((folder) => folder.name)).toEqual(["Math", "History", "Chemistry"]);
     expect(visible.folderBinders.map((link) => `${link.folder_id}:${link.binder_id}`)).toEqual([
       "folder-math:binder-algebra-foundations",
       "folder-history:binder-rise-of-rome",
     ]);
     expect(visible.binders.map((binder) => binder.id)).not.toContain(junkBinder.id);
+  });
+
+  it("keeps the Chemistry folder available even before it has binders", () => {
+    const visible = filterVisibleWorkspaceData({
+      binders: [],
+      folders: [],
+      folderBinders: [],
+      lessons: [],
+      notes: [],
+    });
+
+    expect(visible.folders.map((folder) => folder.name)).toEqual(["Chemistry"]);
+    expect(visible.folderBinders).toEqual([]);
   });
 
   it("picks one primary diagnostic instead of surfacing a pile of warnings", () => {

@@ -48,63 +48,49 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   highlights,
   highlightStatus,
   lesson,
-  onApplyPreset,
   onHighlight,
   onJumpToMathSource,
   onRemoveHighlight,
   onSaveSelectionAsEvidence,
   onQuoteToNotes,
   onSendToNotes,
-  onToggleStickyManager,
   onOpenGraphBlock,
   onSendToGraph,
+  surface = "workspace",
   onStickyNote,
-  stickyManagerVisible,
 }: {
   binder: Binder;
   defaultHighlightColor: HighlightColor;
   highlights: Highlight[];
   highlightStatus: SaveStatusSnapshot;
   lesson: BinderLesson;
-  onApplyPreset: (presetId: "focused-reading" | "split-study" | "notes-focus") => void;
   onHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
   onJumpToMathSource: (block: MathBlock) => void;
   onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) => void;
   onSaveSelectionAsEvidence: (selection: LessonTextSelection) => void;
   onQuoteToNotes: (anchorText?: string) => void;
-  onToggleStickyManager: () => void;
   onOpenGraphBlock?: (block: Extract<MathBlock, { type: "graph" }>) => void;
   onSendToNotes: (anchorText?: string) => void;
   onSendToGraph?: (expression: string) => void;
+  surface?: "workspace" | "whiteboard";
   onStickyNote: (anchorText?: string | null) => void;
-  stickyManagerVisible: boolean;
 }) {
   const readingStats = createReadingStats(lesson.content);
 
   return (
     <WorkspacePanel
-      actions={
-        <>
-          <Button onClick={() => onApplyPreset("focused-reading")} size="sm" type="button" variant="outline">
-            <BookOpenText data-icon="inline-start" />
-            Focus source
-          </Button>
-          <Button onClick={() => onApplyPreset("split-study")} size="sm" type="button" variant="outline">
-            <Layers2 data-icon="inline-start" />
-            Split study
-          </Button>
-          <Button onClick={onToggleStickyManager} size="sm" type="button" variant="outline">
-            <StickyNote data-icon="inline-start" />
-            {stickyManagerVisible ? "Hide stickies" : "Sticky manager"}
-          </Button>
-        </>
-      }
-      className="min-h-[720px]"
+      className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[720px]"}
       description={binder.title}
       title={lesson.title}
     >
-      <div className="mx-auto flex max-w-[80ch] flex-col gap-5">
-        <div className="rounded-[22px] border border-border/70 bg-background/72 p-4 shadow-sm">
+      <div
+        className="source-lesson-content mx-auto flex max-w-[80ch] flex-col gap-5"
+        data-maximize-module-space-target="source-shell"
+      >
+        <div
+          className="source-lesson-hero rounded-[22px] border border-border/70 bg-background/72 p-4 shadow-sm"
+          data-compact-module-header="source-lesson"
+        >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -131,14 +117,17 @@ export const SourceLessonModule = memo(function SourceLessonModule({
             </div>
           ) : null}
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="source-lesson-stats mt-3 grid gap-2 sm:grid-cols-3" data-compact-module-detail="source-stats">
             <StatTile label="Reading time" value={`${readingStats.minutes} min`} />
             <StatTile label="Words" value={String(readingStats.words)} />
             <StatTile label="Highlights" value={String(highlights.length)} />
           </div>
         </div>
 
-        <div className="relative rounded-[26px] border border-border/70 bg-card/92 px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7">
+        <div
+          className="source-lesson-body-card relative rounded-[26px] border border-border/70 bg-card/92 px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7"
+          data-maximize-module-space-target="source-body"
+        >
           <div className="absolute inset-y-0 left-0 hidden w-1 rounded-l-[26px] bg-primary/70 lg:block" />
             <LessonContentRenderer content={lesson.content} highlights={highlights} lessonId={lesson.id} />
             <LessonSelectionToolbar
@@ -195,7 +184,6 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   noteTitle,
   selectedLessonTitle,
   onAcceptMathSuggestion,
-  onApplyPreset,
   onCreateSticky,
   onDismissMathSuggestion,
   onEnterNotebookFocus,
@@ -218,8 +206,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   onOpenGraphBlock,
   onSaveNoteNow,
   onSendToGraph,
-  onToggleStickyManager,
-  stickyManagerVisible,
+  surface = "workspace",
 }: {
   autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error";
   canRetryNoteSave: boolean;
@@ -235,7 +222,6 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   noteTitle: string;
   selectedLessonTitle: string;
   onAcceptMathSuggestion: (suggestion: MathSuggestion) => void;
-  onApplyPreset: (presetId: "notes-focus" | "split-study") => void;
   onCreateSticky: () => void;
   onDismissMathSuggestion: (key: string) => void;
   onEnterNotebookFocus: () => void;
@@ -258,8 +244,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   onOpenGraphBlock?: (block: Extract<MathBlock, { type: "graph" }>) => void;
   onSaveNoteNow: () => void;
   onSendToGraph?: (expression: string) => void;
-  onToggleStickyManager: () => void;
-  stickyManagerVisible: boolean;
+  surface?: "workspace" | "whiteboard";
 }) {
   const [showGuide, setShowGuide] = useState(true);
   const [showInsertTools, setShowInsertTools] = useState(false);
@@ -371,22 +356,12 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   return (
     <WorkspacePanel
       actions={
-        <>
-          <Button onClick={onEnterNotebookFocus} size="sm" type="button" variant="outline">
-            <FileText data-icon="inline-start" />
-            Notebook focus
-          </Button>
-          <Button onClick={() => onApplyPreset("split-study")} size="sm" type="button" variant="outline">
-            <Layers2 data-icon="inline-start" />
-            Split study
-          </Button>
-          <Button onClick={onToggleStickyManager} size="sm" type="button" variant="outline">
-            <StickyNote data-icon="inline-start" />
-            {stickyManagerVisible ? "Hide stickies" : "Sticky manager"}
-          </Button>
-        </>
+        <Button onClick={onEnterNotebookFocus} size="sm" type="button" variant="outline">
+          <FileText data-icon="inline-start" />
+          Notebook focus
+        </Button>
       }
-      className="min-h-[680px]"
+      className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[680px]"}
       description={
         currentNotebookSection
           ? `Private lesson notes inside ${currentNotebookSection.title}`
@@ -394,8 +369,14 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
       }
       title="Private notes"
     >
-      <div className="mx-auto flex max-w-[104ch] flex-col gap-4">
-        <div className="rounded-[22px] border border-border/70 bg-background/72 p-3.5 shadow-sm">
+      <div
+        className="private-notes-content mx-auto flex max-w-[104ch] flex-col gap-4"
+        data-maximize-module-space-target="notes-shell"
+      >
+        <div
+          className="private-notes-overview rounded-[22px] border border-border/70 bg-background/72 p-3.5 shadow-sm"
+          data-compact-module-header="private-notes"
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -468,10 +449,11 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
 
         <div
           className="private-notes-editor-hero rounded-[26px] border border-border/70 bg-card/92 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:p-5"
+          data-maximize-module-space-target="notes-editor"
           onClick={() => editorInstance?.chain().focus().run()}
           role="presentation"
         >
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="private-notes-editor-intro flex flex-wrap items-start justify-between gap-3" data-compact-module-detail="private-notes-intro">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Notebook slice
@@ -663,7 +645,6 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
 export const BinderNotebookModule = memo(function BinderNotebookModule({
   currentNotebookSection,
   entries,
-  onApplyPreset,
   onEnterNotebookFocus,
   onSelectLesson,
   sections,
@@ -671,7 +652,6 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
 }: {
   currentNotebookSection: BinderNotebookSection | null;
   entries: BinderNotebookLessonEntry[];
-  onApplyPreset: (presetId: "notes-focus" | "split-study") => void;
   onEnterNotebookFocus: () => void;
   onSelectLesson: (lesson: BinderLesson) => void;
   sections: BinderNotebookSection[];
@@ -755,23 +735,17 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
   return (
     <WorkspacePanel
       actions={
-        <>
-          <Button onClick={onEnterNotebookFocus} size="sm" type="button" variant="outline">
-            <FileText data-icon="inline-start" />
-            Notebook focus
-          </Button>
-          <Button onClick={() => onApplyPreset("split-study")} size="sm" type="button" variant="outline">
-            <Layers2 data-icon="inline-start" />
-            Split study
-          </Button>
-        </>
+        <Button onClick={onEnterNotebookFocus} size="sm" type="button" variant="outline">
+          <FileText data-icon="inline-start" />
+          Notebook focus
+        </Button>
       }
       className="min-h-[720px]"
       description="A full-picture notebook view across the binder, section by section."
       title="Binder notebook"
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
-        <aside className="binder-notebook-nav flex min-h-0 flex-col gap-4 rounded-[22px] border border-border/70 bg-background/72 p-4 shadow-sm">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
+        <aside className="binder-notebook-nav flex min-h-0 flex-col gap-3 rounded-[22px] border border-border/70 bg-background/72 p-3 shadow-sm 2xl:p-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Notebook hierarchy
@@ -782,13 +756,13 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
             </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+          <div className="hidden gap-2 sm:grid sm:grid-cols-3 2xl:grid-cols-1">
             <StatTile label="Sections" value={String(notebookStats.sectionCount)} />
             <StatTile label="Notes saved" value={`${notebookStats.noteCount}/${entries.length}`} />
             <StatTile label="Words captured" value={String(notebookStats.totalWords)} />
           </div>
 
-          <div className="flex min-h-0 flex-col gap-3 xl:overflow-y-auto xl:pr-1">
+          <div className="flex min-h-0 flex-col gap-2 2xl:overflow-y-auto 2xl:pr-1">
             {sections.map((section) => {
               const expanded = expandedSectionIds.includes(section.id);
               const isActiveSection = activeSection?.id === section.id;
@@ -878,7 +852,7 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
           </div>
         </aside>
 
-        <section className="binder-notebook-view flex min-h-0 flex-col gap-4 rounded-[24px] border border-border/70 bg-card/92 p-5 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:p-6">
+        <section className="binder-notebook-view flex min-h-0 flex-col gap-4 rounded-[24px] border border-border/70 bg-card/92 p-4 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:p-5">
           {viewMode === "section" && activeSection ? (
             <>
               <div className="flex flex-wrap items-start justify-between gap-3">

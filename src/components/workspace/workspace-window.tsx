@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Grip, Minus, MoveDiagonal2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  WORKSPACE_CANVAS_BOTTOM_PADDING,
+  WORKSPACE_CANVAS_EXPAND_STEP,
+  WORKSPACE_CANVAS_EXPAND_THRESHOLD,
+  getWorkspaceModuleMinimumSize,
+  snapWindowFrame,
+  type WorkspaceSnapGuide,
+} from "@/lib/workspace-layout-engine";
 import { cn } from "@/lib/utils";
-import type { WorkspaceModuleId, WorkspaceWindowFrame } from "@/types";
+import type { FullCanvasSnapBehavior, WorkspaceModuleId, WorkspaceWindowFrame } from "@/types";
 
 type WorkspaceWindowProps = {
   boundsHeight: number;
@@ -13,9 +21,14 @@ type WorkspaceWindowProps = {
   frame: WorkspaceWindowFrame;
   locked: boolean;
   moduleId: WorkspaceModuleId;
+  peerFrames: WorkspaceWindowFrame[];
+  safeEdgePadding: boolean;
+  snapBehavior: FullCanvasSnapBehavior;
   snapEnabled: boolean;
   workspaceStyle: "guided" | "flexible" | "full-studio";
+  onCanvasHeightRequest?: (frame: WorkspaceWindowFrame) => void;
   onCommit: (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => void;
+  onSnapGuidesChange?: (moduleId: WorkspaceModuleId, guides: WorkspaceSnapGuide[]) => void;
   onToggleCollapsed: (moduleId: WorkspaceModuleId, collapsed: boolean) => void;
   topZ: number;
 };
@@ -23,23 +36,18 @@ type WorkspaceWindowProps = {
 type ResizeMode = "move" | "corner" | "right" | "bottom";
 type SnapPreview = {
   frame: WorkspaceWindowFrame;
+  guides: WorkspaceSnapGuide[];
   label: string;
 };
 
-const minSizes: Partial<Record<WorkspaceModuleId, { width: number; height: number }>> = {
-  lesson: { width: 620, height: 460 },
-  "private-notes": { width: 640, height: 500 },
-  "binder-notebook": { width: 560, height: 460 },
-  "desmos-graph": { width: 720, height: 520 },
-  "scientific-calculator": { width: 320, height: 320 },
-  "saved-graphs": { width: 320, height: 260 },
-  "formula-sheet": { width: 320, height: 260 },
-  "math-blocks": { width: 420, height: 260 },
-  "lesson-outline": { width: 220, height: 220 },
-  "recent-highlights": { width: 300, height: 240 },
-  "related-concepts": { width: 300, height: 240 },
-  tasks: { width: 300, height: 220 },
-  comments: { width: 320, height: 320 },
+const SNAP_UI_UPDATE_INTERVAL_MS = 48;
+type WorkspacePointerStartEvent = {
+  clientX: number;
+  clientY: number;
+  currentTarget: HTMLElement;
+  pointerId: number;
+  target: EventTarget | null;
+  preventDefault: () => void;
 };
 
 export function WorkspaceWindow({
@@ -51,10 +59,15 @@ export function WorkspaceWindow({
   frame,
   locked,
   moduleId,
+  onCanvasHeightRequest,
+  onSnapGuidesChange,
+  onToggleCollapsed,
+  peerFrames,
+  safeEdgePadding,
+  snapBehavior,
   snapEnabled,
   workspaceStyle,
   onCommit,
-  onToggleCollapsed,
   topZ,
 }: WorkspaceWindowProps) {
   const [activeMode, setActiveMode] = useState<ResizeMode | null>(null);
@@ -63,6 +76,7 @@ export function WorkspaceWindow({
   const frameRef = useRef(frame);
   const rafRef = useRef<number | null>(null);
   const snapPreviewRef = useRef<SnapPreview | null>(null);
+  const lastSnapUiUpdateAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
   const interactionActiveRef = useRef(false);
 
   useEffect(() => {
@@ -108,7 +122,7 @@ export function WorkspaceWindow({
     onCommit(moduleId, next);
   };
 
-  const beginPointerAction = (event: React.PointerEvent<HTMLDivElement>, mode: ResizeMode) => {
+  const beginPointerAction = (event: WorkspacePointerStartEvent, mode: ResizeMode) => {
     if (locked) {
       focusWindow();
       return;
@@ -122,31 +136,37 @@ export function WorkspaceWindow({
     const startY = event.clientY;
     const pointerId = event.pointerId;
     const source = event.currentTarget;
-    const minWidth = minSizes[moduleId]?.width ?? 280;
-    const minHeight = minSizes[moduleId]?.height ?? 220;
-    const canvasLimitWidth = Math.max(minWidth, canvasWidth);
-    const canvasLimitHeight = Math.max(minHeight, canvasHeight);
+    const minimum = getWorkspaceModuleMinimumSize(moduleId);
+    const minWidth = minimum.width;
+    const minHeight = minimum.height;
     const shell = event.currentTarget.closest(".workspace-canvas-shell");
+    let interactionCanvasHeight = canvasHeight;
     setActiveMode(mode);
     setSnapPreview(null);
+    lastSnapUiUpdateAtRef.current = Number.NEGATIVE_INFINITY;
     interactionActiveRef.current = true;
     source.setPointerCapture?.(pointerId);
 
     const getViewportBounds = () => {
+      const padding = safeEdgePadding ? 8 : 0;
       if (shell instanceof HTMLElement) {
+        const minX = shell.scrollLeft + padding;
+        const minY = padding;
         return {
-          minX: shell.scrollLeft,
-          maxX: shell.scrollLeft + Math.max(minWidth, shell.clientWidth - 8),
-          minY: 0,
-          maxY: canvasLimitHeight,
+          minX,
+          maxX: minX + Math.max(minWidth, shell.clientWidth - padding * 2),
+          minY,
+          maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
         };
       }
 
+      const minX = padding;
+      const minY = padding;
       return {
-        minX: 0,
-        maxX: Math.max(minWidth, boundsWidth),
-        minY: 0,
-        maxY: Math.max(minHeight, boundsHeight),
+        minX,
+        maxX: minX + Math.max(minWidth, boundsWidth - padding * 2),
+        minY,
+        maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
       };
     };
 
@@ -174,27 +194,44 @@ export function WorkspaceWindow({
                 w: Math.max(minWidth, snapToFrame(startFrame.w + dx, 8)),
                 h: Math.max(minHeight, snapToFrame(startFrame.h + dy, 8)),
               },
-              { width: canvasLimitWidth, height: canvasLimitHeight },
+              viewportBounds,
               { minWidth, minHeight },
             );
 
       const nextPreview =
-        snapEnabled && mode === "move"
-          ? resolveSnapPreview(shell, moveEvent, viewportBounds, startFrame)
+        snapEnabled
+          ? resolveSnapPreview({
+              interaction: mode === "move" ? "move" : "resize",
+              movedFrame,
+              peerFrames,
+              safeEdgePadding,
+              snapBehavior,
+              viewportBounds,
+            })
           : null;
       const next = nextPreview?.frame ?? movedFrame;
+      if (next.y + next.h > interactionCanvasHeight - WORKSPACE_CANVAS_EXPAND_THRESHOLD) {
+        interactionCanvasHeight = Math.max(
+          interactionCanvasHeight + WORKSPACE_CANVAS_EXPAND_STEP,
+          next.y + next.h + WORKSPACE_CANVAS_BOTTOM_PADDING,
+        );
+        onCanvasHeightRequest?.(next);
+      }
 
       frameRef.current = next;
+      const previousPreview = snapPreviewRef.current;
       snapPreviewRef.current = nextPreview;
-      setSnapPreview((current) =>
-        current?.label === nextPreview?.label &&
-        current?.frame?.x === nextPreview?.frame?.x &&
-        current?.frame?.y === nextPreview?.frame?.y &&
-        current?.frame?.w === nextPreview?.frame?.w &&
-        current?.frame?.h === nextPreview?.frame?.h
-          ? current
-          : nextPreview,
-      );
+      const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const previewChanged = !areSnapPreviewsEqual(previousPreview, nextPreview);
+      const shouldFlushSnapUi =
+        previewChanged &&
+        (nextPreview === null ||
+          nowMs - lastSnapUiUpdateAtRef.current >= SNAP_UI_UPDATE_INTERVAL_MS);
+      if (shouldFlushSnapUi) {
+        lastSnapUiUpdateAtRef.current = nowMs;
+        onSnapGuidesChange?.(moduleId, nextPreview?.guides ?? []);
+        setSnapPreview(nextPreview);
+      }
       scheduleFrameRender();
     };
 
@@ -203,9 +240,13 @@ export function WorkspaceWindow({
       const resolvedFrame = resolveCommittedFrame({
         frame: snapPreviewRef.current?.frame ?? frameRef.current,
         moduleId,
+        safeEdgePadding,
         snapEnabled,
+        snapBehavior,
+        peerFrames,
         canvasWidth,
         canvasHeight,
+        viewportBounds: getViewportBounds(),
       });
       if (rafRef.current !== null) {
         window.cancelAnimationFrame(rafRef.current);
@@ -217,6 +258,7 @@ export function WorkspaceWindow({
       interactionActiveRef.current = false;
       snapPreviewRef.current = null;
       setSnapPreview(null);
+      onSnapGuidesChange?.(moduleId, []);
       onCommit(moduleId, resolvedFrame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -230,6 +272,59 @@ export function WorkspaceWindow({
     window.addEventListener("pointerup", onUp, { once: true });
   };
 
+  useEffect(() => {
+    const node = windowRef.current;
+    if (!node || locked) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) {
+        return;
+      }
+
+      const resizeHandle = target.closest("[data-window-resize='corner']");
+      const dragHandle = target.closest("[data-window-drag-handle='true']");
+      const interactive = target.closest("button, input, textarea, select, a, [role='button']");
+      if (interactive && !resizeHandle) {
+        return;
+      }
+      if (resizeHandle) {
+        beginPointerAction(
+          {
+            clientX: event.clientX,
+            clientY: event.clientY,
+            currentTarget: node,
+            pointerId: event.pointerId,
+            target: event.target,
+            preventDefault: () => event.preventDefault(),
+          },
+          "corner",
+        );
+        return;
+      }
+      if (!dragHandle) {
+        return;
+      }
+
+      beginPointerAction(
+        {
+          clientX: event.clientX,
+          clientY: event.clientY,
+          currentTarget: node,
+          pointerId: event.pointerId,
+          target: event.target,
+          preventDefault: () => event.preventDefault(),
+        },
+        "move",
+      );
+    };
+
+    node.addEventListener("pointerdown", onPointerDown, true);
+    return () => node.removeEventListener("pointerdown", onPointerDown, true);
+  });
+
   return (
     <div
       className={cn(
@@ -239,6 +334,7 @@ export function WorkspaceWindow({
         activeMode === "move" && "workspace-window--dragging",
         activeMode === "corner" && "workspace-window--resizing",
       )}
+      data-window-module-id={moduleId}
       onMouseDown={!locked ? focusWindow : undefined}
       ref={windowRef}
       style={{
@@ -288,19 +384,6 @@ export function WorkspaceWindow({
         ) : null}
         <div
           className={cn("h-full", !locked && "cursor-move")}
-          onPointerDown={(event) => {
-            const target = event.target as HTMLElement;
-            const handle = target.closest("[data-window-drag-handle='true']");
-            const interactive = target.closest(
-              "button, input, textarea, select, a, [role='button']",
-            );
-            if (interactive) {
-              return;
-            }
-            if (handle) {
-              beginPointerAction(event, "move");
-            }
-          }}
         >
           {children}
         </div>
@@ -310,7 +393,6 @@ export function WorkspaceWindow({
         <div
           className="absolute bottom-2 right-2 z-30 flex size-9 cursor-nwse-resize items-center justify-center rounded-full border border-border/70 bg-background/94 shadow-sm backdrop-blur"
           data-window-resize="corner"
-          onPointerDown={(event) => beginPointerAction(event, "corner")}
           title="Resize window"
         >
           <MoveDiagonal2 className="size-3.5 text-muted-foreground" />
@@ -322,6 +404,25 @@ export function WorkspaceWindow({
 
 function snapToFrame(value: number, grid = 16) {
   return Math.round(value / grid) * grid;
+}
+
+function areSnapPreviewsEqual(left: SnapPreview | null, right: SnapPreview | null) {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return false;
+  }
+
+  return (
+    left.label === right.label &&
+    left.frame.x === right.frame.x &&
+    left.frame.y === right.frame.y &&
+    left.frame.w === right.frame.w &&
+    left.frame.h === right.frame.h &&
+    left.guides.length === right.guides.length
+  );
 }
 
 function applyFrameToElement(node: HTMLDivElement | null, frame: WorkspaceWindowFrame) {
@@ -336,82 +437,45 @@ function applyFrameToElement(node: HTMLDivElement | null, frame: WorkspaceWindow
   node.style.zIndex = `${frame.z}`;
 }
 
-function resolveSnapPreview(
-  shell: Element | null,
-  moveEvent: PointerEvent,
-  viewportBounds: { minX: number; maxX: number; minY: number; maxY: number },
-  startFrame: WorkspaceWindowFrame,
-): SnapPreview | null {
-  if (!(shell instanceof HTMLElement)) {
+function resolveSnapPreview({
+  interaction,
+  movedFrame,
+  peerFrames,
+  safeEdgePadding,
+  snapBehavior,
+  viewportBounds,
+}: {
+  interaction: "move" | "resize";
+  movedFrame: WorkspaceWindowFrame;
+  peerFrames: WorkspaceWindowFrame[];
+  safeEdgePadding: boolean;
+  snapBehavior: FullCanvasSnapBehavior;
+  viewportBounds: { minX: number; maxX: number; minY: number; maxY: number };
+}): SnapPreview | null {
+  const result = snapWindowFrame({
+    frame: movedFrame,
+    interaction,
+    peerFrames,
+    safeEdgePadding,
+    snapBehavior,
+    viewport: {
+      width: viewportBounds.maxX - viewportBounds.minX,
+      height: viewportBounds.maxY - viewportBounds.minY,
+    },
+    viewportBounds,
+  });
+
+  if (result.guides.length === 0) {
     return null;
   }
 
-  const rect = shell.getBoundingClientRect();
-  const localX = moveEvent.clientX - rect.left + shell.scrollLeft;
-  const localY = moveEvent.clientY - rect.top + shell.scrollTop;
-  const edgeThreshold = Math.max(40, Math.min(84, Math.round(shell.clientWidth * 0.065)));
-  const gutter = 8;
-  const splitGap = 8;
-  const snappedHeight = snapToFrame(Math.max(240, shell.clientHeight - gutter * 2), 8);
-  const snappedY = snapToFrame(shell.scrollTop + gutter, 8);
-  const fullWidth = snapToFrame(Math.max(320, shell.clientWidth - gutter * 2), 8);
-  const halfWidth = snapToFrame(
-    Math.max(320, Math.round((shell.clientWidth - gutter * 2 - splitGap) / 2)),
-    8,
-  );
-
-  if (localY <= shell.scrollTop + edgeThreshold) {
-    return {
-      label: "Release for full-width layout",
-      frame: clampResizedFrame(
-        {
-          ...startFrame,
-          x: snapToFrame(shell.scrollLeft + gutter),
-          y: snappedY,
-          w: fullWidth,
-          h: snappedHeight,
-        },
-        { width: Math.max(viewportBounds.maxX, shell.scrollLeft + shell.clientWidth), height: viewportBounds.maxY },
-        { minWidth: 320, minHeight: 220 },
-      ),
-    };
-  }
-
-  if (localX <= shell.scrollLeft + edgeThreshold) {
-    return {
-      label: "Release for left split",
-      frame: clampResizedFrame(
-        {
-          ...startFrame,
-          x: snapToFrame(shell.scrollLeft + gutter),
-          y: snappedY,
-          w: halfWidth,
-          h: snappedHeight,
-        },
-        { width: Math.max(viewportBounds.maxX, shell.scrollLeft + shell.clientWidth), height: viewportBounds.maxY },
-        { minWidth: 320, minHeight: 220 },
-      ),
-    };
-  }
-
-  if (localX >= shell.scrollLeft + shell.clientWidth - edgeThreshold) {
-    return {
-      label: "Release for right split",
-      frame: clampResizedFrame(
-        {
-          ...startFrame,
-          x: snapToFrame(shell.scrollLeft + shell.clientWidth - gutter - halfWidth),
-          y: snappedY,
-          w: halfWidth,
-          h: snappedHeight,
-        },
-        { width: Math.max(viewportBounds.maxX, shell.scrollLeft + shell.clientWidth), height: viewportBounds.maxY },
-        { minWidth: 320, minHeight: 220 },
-      ),
-    };
-  }
-
-  return null;
+  return {
+    frame: result.frame,
+    guides: result.guides,
+    label: result.guides.some((guide) => guide.kind.startsWith("module"))
+      ? "Aligning to module"
+      : "Aligning to canvas edge",
+  };
 }
 
 function clampMovedFrame(
@@ -430,18 +494,18 @@ function clampMovedFrame(
 
 function clampResizedFrame(
   frame: WorkspaceWindowFrame,
-  bounds: { width: number; height: number },
+  bounds: { minX: number; maxX: number; minY: number; maxY: number },
   minimums: { minWidth: number; minHeight: number },
 ) {
-  const width = clamp(frame.w, minimums.minWidth, bounds.width);
-  const height = clamp(frame.h, minimums.minHeight, bounds.height);
-  const maxX = Math.max(0, bounds.width - width);
-  const maxY = Math.max(0, bounds.height - height);
+  const width = clamp(frame.w, minimums.minWidth, bounds.maxX - bounds.minX);
+  const height = clamp(frame.h, minimums.minHeight, bounds.maxY - bounds.minY);
+  const maxX = Math.max(bounds.minX, bounds.maxX - width);
+  const maxY = Math.max(bounds.minY, bounds.maxY - height);
 
   return {
     ...frame,
-    x: clamp(frame.x, 0, maxX),
-    y: clamp(frame.y, 0, maxY),
+    x: clamp(frame.x, bounds.minX, maxX),
+    y: clamp(frame.y, bounds.minY, maxY),
     w: width,
     h: height,
   };
@@ -454,27 +518,22 @@ function clamp(value: number, min: number, max: number) {
 function resolveCommittedFrame(input: {
   frame: WorkspaceWindowFrame;
   moduleId: WorkspaceModuleId;
+  peerFrames: WorkspaceWindowFrame[];
+  safeEdgePadding: boolean;
+  snapBehavior: FullCanvasSnapBehavior;
   snapEnabled: boolean;
   canvasWidth: number;
   canvasHeight: number;
+  viewportBounds: { minX: number; maxX: number; minY: number; maxY: number };
 }) {
-  const minimums = minSizes[input.moduleId] ?? { width: 280, height: 220 };
-  const effectiveMinimums =
-    input.snapEnabled
-      ? {
-          minWidth: Math.min(minimums.width, 320),
-          minHeight: Math.min(minimums.height, 220),
-        }
-      : {
-          minWidth: minimums.width,
-          minHeight: minimums.height,
-        };
+  const minimums = getWorkspaceModuleMinimumSize(input.moduleId);
+  const effectiveMinimums = {
+    minWidth: minimums.width,
+    minHeight: minimums.height,
+  };
   const bounded = clampResizedFrame(
     input.frame,
-    {
-      width: Math.max(minimums.width, input.canvasWidth),
-      height: Math.max(minimums.height, input.canvasHeight),
-    },
+    input.viewportBounds,
     effectiveMinimums,
   );
 
@@ -482,18 +541,23 @@ function resolveCommittedFrame(input: {
     return bounded;
   }
 
+  const snapped = snapWindowFrame({
+    frame: bounded,
+    interaction: "move",
+    moduleId: input.moduleId,
+    peerFrames: input.peerFrames,
+    safeEdgePadding: input.safeEdgePadding,
+    snapBehavior: input.snapBehavior,
+    viewport: {
+      width: input.canvasWidth,
+      height: input.canvasHeight,
+    },
+    viewportBounds: input.viewportBounds,
+  }).frame;
+
   return clampResizedFrame(
-    {
-      ...bounded,
-      x: snapToFrame(bounded.x, 8),
-      y: snapToFrame(bounded.y, 8),
-      w: snapToFrame(bounded.w, 8),
-      h: snapToFrame(bounded.h, 8),
-    },
-    {
-      width: Math.max(minimums.width, input.canvasWidth),
-      height: Math.max(minimums.height, input.canvasHeight),
-    },
+    snapped,
+    input.viewportBounds,
     effectiveMinimums,
   );
 }

@@ -373,6 +373,8 @@ function folderColor(color: string) {
       return "rgb(225 29 72)";
     case "blue":
       return "rgb(37 99 235)";
+    case "emerald":
+      return "rgb(5 150 105)";
     default:
       return "rgb(13 148 136)";
   }

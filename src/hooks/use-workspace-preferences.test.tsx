@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspacePreferences } from "@/types";
 
@@ -51,7 +51,11 @@ vi.mock("@/hooks/use-theme", () => ({
 }));
 
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences";
-import { createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
+import {
+  applyPreset,
+  applyWorkspaceMode,
+  createDefaultWorkspacePreferences,
+} from "@/lib/workspace-preferences";
 
 describe("useWorkspacePreferences", () => {
   beforeEach(() => {
@@ -77,8 +81,8 @@ describe("useWorkspacePreferences", () => {
       expect(result.current.active?.simple.focusMode).toBe(false);
     });
 
-    expect(result.current.active?.appearance.studySurface).toBe("night-study");
-    expect(result.current.active?.theme.studySurface).toBe("night-study");
+    expect(result.current.active?.appearance.studySurface).toBe("match");
+    expect(result.current.active?.theme.studySurface).toBe("match");
     expect(result.current.active?.appearance.saveLocalAppearance).toBe(false);
     expect(mocks.clearThemeOverride).toHaveBeenCalled();
     expect(mocks.setTheme).not.toHaveBeenCalled();
@@ -119,5 +123,134 @@ describe("useWorkspacePreferences", () => {
         studySurface: "warm-paper",
       }),
     );
+  });
+
+  it("unlocks a canvas edit draft without moving frames, reapplying presets, or persisting", async () => {
+    const customFrame = { x: 64, y: 2200, w: 720, h: 520, z: 9 };
+    const saved = {
+      ...applyWorkspaceMode(
+        applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "history-guided"),
+        "canvas",
+      ),
+      locked: true,
+      windowLayout: {
+        lesson: customFrame,
+      },
+    };
+    mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
+
+    const { result } = renderHook(() =>
+      useWorkspacePreferences("user-1", "binder-1", null),
+    );
+
+    await waitFor(() => {
+      expect(result.current.active?.windowLayout.lesson).toEqual(customFrame);
+    });
+
+    act(() => {
+      result.current.updateDraft((current) => ({
+        ...current,
+        locked: false,
+        updatedAt: "edit-draft",
+      }));
+    });
+
+    expect(result.current.active?.locked).toBe(false);
+    expect(result.current.active?.preset).toBe("history-guided");
+    expect(result.current.active?.windowLayout.lesson).toEqual(customFrame);
+    expect(mocks.upsertWorkspacePreferencesRecord).not.toHaveBeenCalled();
+  });
+
+  it("cancels edit drafts back to saved frames and saves unlocked drafts when requested", async () => {
+    const savedFrame = { x: 64, y: 320, w: 720, h: 520, z: 9 };
+    const editedFrame = { x: 80, y: 3400, w: 760, h: 540, z: 10 };
+    const saved = {
+      ...applyWorkspaceMode(
+        applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "history-guided"),
+        "canvas",
+      ),
+      locked: true,
+      windowLayout: {
+        lesson: savedFrame,
+      },
+    };
+    mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
+    mocks.upsertWorkspacePreferencesRecord.mockImplementation(async (next) => next);
+
+    const { result } = renderHook(() =>
+      useWorkspacePreferences("user-1", "binder-1", null),
+    );
+
+    await waitFor(() => {
+      expect(result.current.active?.windowLayout.lesson).toEqual(savedFrame);
+    });
+
+    act(() => {
+      result.current.updateDraft((current) => ({
+        ...current,
+        locked: false,
+        windowLayout: {
+          ...current.windowLayout,
+          lesson: editedFrame,
+        },
+      }));
+    });
+
+    expect(result.current.active?.windowLayout.lesson).toEqual(editedFrame);
+
+    act(() => {
+      result.current.cancel();
+    });
+
+    expect(result.current.active?.windowLayout.lesson).toEqual(savedFrame);
+
+    act(() => {
+      result.current.updateDraft((current) => ({
+        ...current,
+        locked: false,
+        windowLayout: {
+          ...current.windowLayout,
+          lesson: editedFrame,
+        },
+      }));
+    });
+
+    expect(result.current.active?.windowLayout.lesson).toEqual(editedFrame);
+
+    act(() => {
+      result.current.saveUnlocked();
+    });
+
+    expect(result.current.saved?.locked).toBe(false);
+    expect(result.current.saved?.windowLayout.lesson).toEqual(editedFrame);
+    expect(mocks.upsertWorkspacePreferencesRecord).toHaveBeenCalled();
+  });
+
+  it("surfaces workspace preference save failures instead of only logging them", async () => {
+    const saved = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
+    mocks.upsertWorkspacePreferencesRecord.mockRejectedValueOnce(new Error("RLS rejected"));
+
+    const { result } = renderHook(() =>
+      useWorkspacePreferences("user-1", "binder-1", null),
+    );
+
+    await waitFor(() => {
+      expect(result.current.active).toBeTruthy();
+    });
+
+    act(() => {
+      result.current.commit({
+        ...result.current.active!,
+        theme: {
+          ...result.current.active!.theme,
+          compactMode: !result.current.active!.theme.compactMode,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.saveError).toMatch(/workspace layout could not be saved/i);
+    });
   });
 });

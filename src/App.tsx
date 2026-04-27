@@ -37,6 +37,9 @@ const BinderPage = lazy(() =>
 const MathLabPage = lazy(() =>
   import("@/pages/math-lab-page").then((module) => ({ default: module.MathLabPage })),
 );
+const MathWhiteboardLabPage = lazy(() =>
+  import("@/pages/math-whiteboard-lab-page").then((module) => ({ default: module.MathWhiteboardLabPage })),
+);
 const MathLandingPage = lazy(() =>
   import("@/pages/math-learning-page").then((module) => ({ default: module.MathLandingPage })),
 );
@@ -117,6 +120,7 @@ function AppRoutes() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route element={<ProtectedRoute />}>
+            <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/folders/:folderId" element={<FolderPage />} />

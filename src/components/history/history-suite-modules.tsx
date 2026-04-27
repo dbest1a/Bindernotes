@@ -529,6 +529,7 @@ export function ArgumentBuilderModule({
   onCreateStarterChain,
   onUpdateChain,
   onUseEvidencePrompt,
+  starterTopic = "french",
   status,
 }: {
   activeChain: HistoryArgumentChain | null;
@@ -542,13 +543,14 @@ export function ArgumentBuilderModule({
     >,
   ) => void;
   onUseEvidencePrompt: () => void;
+  starterTopic?: "french" | "rome";
   status: SaveStatusSnapshot;
 }) {
-  const [draft, setDraft] = useState(() => buildChainDraft(activeChain));
+  const [draft, setDraft] = useState(() => buildChainDraft(activeChain, starterTopic));
 
   useEffect(() => {
-    setDraft(buildChainDraft(activeChain));
-  }, [activeChain?.id, activeChain?.updated_at]);
+    setDraft(buildChainDraft(activeChain, starterTopic));
+  }, [activeChain?.id, activeChain?.updated_at, starterTopic]);
 
   const orderedNodes = useMemo(() => {
     if (!activeChain) {
@@ -707,7 +709,11 @@ export function ArgumentBuilderModule({
                 })
               ) : (
                 <EmptyState
-                  description="Create a starter chain to seed the French Revolution cause sequence."
+                  description={
+                    starterTopic === "rome"
+                      ? "Create a starter chain to seed the Rise of Rome cause sequence."
+                      : "Create a starter chain to seed the French Revolution cause sequence."
+                  }
                   title="No chain nodes yet"
                 />
               )}
@@ -811,21 +817,42 @@ export function MythHistoryModule({
   );
 }
 
-function buildChainDraft(activeChain: HistoryArgumentChain | null) {
-  return {
-    prompt: activeChain?.prompt ?? "What were the most important causes of the French Revolution?",
+const starterChainDrafts = {
+  french: {
+    prompt: "What were the most important causes of the French Revolution?",
     thesis:
-      activeChain?.thesis ??
       "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
     context:
-      activeChain?.context ??
       "Use chronology to show why structural problems became a political revolution in 1789.",
     counterargument:
-      activeChain?.counterargument ??
       "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
     conclusion:
-      activeChain?.conclusion ??
       "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
+  },
+  rome: {
+    prompt: "How did Rome's republic transform into an empire?",
+    thesis:
+      "Rome's imperial system grew out of expansion, elite rivalry, military loyalty, and civil war rather than a smooth constitutional handoff.",
+    context:
+      "Use the timeline to connect republican offices, Mediterranean expansion, reform conflict, Caesar, and Augustus.",
+    counterargument:
+      "A size-only explanation misses how social inequality, army politics, and elite competition changed the republic from within.",
+    conclusion:
+      "The strongest answer shows how overseas power created pressures that republican institutions could not absorb without one-man rule.",
+  },
+} as const;
+
+function buildChainDraft(
+  activeChain: HistoryArgumentChain | null,
+  starterTopic: keyof typeof starterChainDrafts,
+) {
+  const starter = starterChainDrafts[starterTopic];
+  return {
+    prompt: activeChain?.prompt ?? starter.prompt,
+    thesis: activeChain?.thesis ?? starter.thesis,
+    context: activeChain?.context ?? starter.context,
+    counterargument: activeChain?.counterargument ?? starter.counterargument,
+    conclusion: activeChain?.conclusion ?? starter.conclusion,
   };
 }
 

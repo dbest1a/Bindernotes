@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => {
       comment: { mutateAsync: vi.fn() },
       updateComment: { mutate: vi.fn() },
       deleteComment: { mutate: vi.fn() },
+      resetHighlights: { isPending: false, mutateAsync: vi.fn() },
     },
     mathWorkspace: {
       state: {
@@ -310,5 +311,336 @@ describe("BinderReaderPage", () => {
 
     expect(screen.getByText("No private note saved for this lesson yet.")).toBeTruthy();
     expect(screen.queryByText("Saved to your account.")).toBeNull();
+  });
+
+  it("opens the math whiteboard route intent as a canvas whiteboard preset", async () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-jacob-math-notes");
+    mocks.workspacePreferences.commit.mockClear();
+    mocks.workspacePreferences.updateDraft.mockClear();
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "split-study",
+      locked: true,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-jacob-math-notes",
+        owner_id: "admin-1",
+        title: "Jacob Math Notes",
+        slug: "jacob-math-notes",
+        subject: "Math",
+        level: "Calculus",
+        description: "A math binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-jacob-calculus-limits",
+          binder_id: "binder-jacob-math-notes",
+          title: "Calculus Limits and the Derivative Definition",
+          order_index: 1,
+          content: emptyDoc("Limits are local predictions."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    renderReaderPage(
+      "/binders/binder-jacob-math-notes/documents/lesson-jacob-calculus-limits?open=whiteboard",
+    );
+
+    await waitFor(() => {
+      expect(mocks.workspacePreferences.commit).toHaveBeenCalled();
+    });
+    const next = mocks.workspacePreferences.commit.mock.calls.at(-1)?.[0];
+
+    expect(next).toEqual(
+      expect.objectContaining({
+        activeMode: "canvas",
+        preset: "math-practice-mode",
+      }),
+    );
+    expect(next.enabledModules).toContain("whiteboard");
+    expect(next.moduleLayout.whiteboard?.collapsed).toBe(false);
+  });
+
+  it("marks the rendered workspace root when maximize module space is enabled", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "split-study",
+      styleChoiceCompleted: true,
+      theme: {
+        ...preferences.theme,
+        compactMode: true,
+      },
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-1",
+        owner_id: "admin-1",
+        title: "Calculus",
+        slug: "calculus",
+        subject: "Math",
+        level: "Foundations",
+        description: "A calculus binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-1",
+          binder_id: "binder-1",
+          title: "Limits",
+          order_index: 1,
+          content: emptyDoc("Limits are local predictions."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-maximize-module-space")).toBe("true");
+  });
+
+  it("marks the topbar when canvas layout editing is active", async () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: false,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-1",
+        owner_id: "admin-1",
+        title: "Algebra",
+        slug: "algebra",
+        subject: "Math",
+        level: "Foundations",
+        description: "An algebra binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-1",
+          binder_id: "binder-1",
+          title: "Like Terms",
+          order_index: 1,
+          content: emptyDoc("Combine matching terms."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    await waitFor(() => {
+      expect(container.querySelector(".workspace-topbar")?.getAttribute("data-layout-editing")).toBe("true");
+    });
+    const topbar = container.querySelector(".workspace-topbar");
+
+    expect(topbar?.getAttribute("data-utility-ui")).toBe("true");
+    expect(topbar?.querySelector(".workspace-topbar__meta")).not.toBeNull();
+    expect(topbar?.querySelector(".workspace-topbar__presets")).not.toBeNull();
+    expect(topbar?.textContent).toContain("Study workspace");
+    expect(topbar?.textContent).toContain("Edit mode");
+    expect(topbar?.textContent).toContain("Math Graph Lab");
+    expect(topbar?.textContent).toContain("Split Study");
+  });
+
+  it("keeps the locked study topbar compact even when utility UI is enabled", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: true,
+      styleChoiceCompleted: true,
+      theme: {
+        ...preferences.theme,
+        showUtilityUi: true,
+      },
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-1",
+        owner_id: "admin-1",
+        title: "Algebra",
+        slug: "algebra",
+        subject: "Math",
+        level: "Foundations",
+        description: "An algebra binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-1",
+          binder_id: "binder-1",
+          title: "Like Terms and Expressions",
+          order_index: 1,
+          content: emptyDoc("Combine matching terms."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+    const topbar = container.querySelector(".workspace-topbar");
+
+    expect(topbar?.getAttribute("data-utility-ui")).toBe("false");
+    expect(topbar?.textContent).toContain("Like Terms and Expressions");
+    expect(topbar?.textContent).toContain("Canvas");
+    expect(topbar?.textContent).toContain("Math Graph Lab");
+    expect(topbar?.textContent).toContain("Locked study mode");
+    expect(container.querySelector(".workspace-topbar__meta")).toBeNull();
+    expect(container.querySelector(".workspace-topbar__presets")).toBeNull();
+  });
+
+  it("applies appearance color changes immediately from edit layout settings", async () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.theme.setGlobalTheme.mockClear();
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: false,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = {
+      binder: {
+        id: "binder-1",
+        owner_id: "admin-1",
+        title: "Algebra",
+        slug: "algebra",
+        subject: "Math",
+        level: "Foundations",
+        description: "An algebra binder.",
+        status: "published",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+      folders: [],
+      folderLinks: [],
+      lessons: [
+        {
+          id: "lesson-1",
+          binder_id: "binder-1",
+          title: "Like Terms",
+          order_index: 1,
+          content: emptyDoc("Combine matching terms."),
+          math_blocks: [],
+          is_preview: false,
+          created_at: new Date(0).toISOString(),
+          updated_at: new Date(0).toISOString(),
+        },
+      ],
+      notes: [],
+      comments: [],
+      highlights: [],
+      conceptNodes: [],
+      conceptEdges: [],
+      seedHealth: null,
+    };
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    await waitFor(() => {
+      expect(container.querySelector(".workspace-topbar")?.getAttribute("data-layout-editing")).toBe("true");
+    });
+
+    const oceanThemeButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Ocean"),
+    );
+    expect(oceanThemeButton).not.toBeNull();
+    fireEvent.click(oceanThemeButton!);
+
+    expect(mocks.workspacePreferences.updateDraft).toHaveBeenCalled();
+    expect(mocks.theme.setGlobalTheme).toHaveBeenCalled();
+    expect(mocks.theme.setGlobalTheme.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ id: "ocean" }),
+    );
   });
 });

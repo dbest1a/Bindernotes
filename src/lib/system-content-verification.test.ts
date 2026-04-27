@@ -46,7 +46,7 @@ function makeDataset() {
     {
       id: `folder-${SYSTEM_SUITE_IDS.algebra}`,
       owner_id: "system-owner",
-      name: "Math Suite Demo",
+      name: "Math Foundations",
       color: "rose",
       source: "system",
       suite_template_id: SYSTEM_SUITE_IDS.algebra,

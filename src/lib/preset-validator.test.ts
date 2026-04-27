@@ -5,11 +5,12 @@ import {
   gridLayoutToWindowFrames,
   registerPresetDefinitions,
   resetPresetRegistryForTests,
+  validatePresetCatalog,
   validateGridLayout,
   validatePresetDefinition,
 } from "@/lib/preset-validator";
 import type { WorkspacePresetDefinition } from "@/types";
-import { workspaceModules } from "@/lib/workspace-preferences";
+import { workspaceModules, workspacePresets } from "@/lib/workspace-preferences";
 
 afterEach(() => {
   resetPresetRegistryForTests();
@@ -61,6 +62,48 @@ describe("preset-validator", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.includes("overlaps another panel"))).toBe(true);
+  });
+
+  it("detects panels that are too small to be useful", () => {
+    const preset = getPresetDefinition("history-guided");
+    const desktop = preset?.breakpoints.desktop;
+    expect(desktop).toBeTruthy();
+    if (!desktop || !preset) {
+      return;
+    }
+
+    const tiny = {
+      ...desktop,
+      items: [
+        {
+          ...desktop.items[0],
+          w: 1,
+          h: 1,
+          minW: 1,
+          minH: 1,
+        },
+      ],
+    };
+
+    const result = validateGridLayout(tiny, preset.requiredPanels, new Set(allowedPanelTypes));
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes("too small"))).toBe(true);
+  });
+
+  it("detects duplicate preset titles in a catalog", () => {
+    const validCatalog = validatePresetCatalog(workspacePresets);
+    const duplicateCatalog = validatePresetCatalog([
+      ...workspacePresets,
+      {
+        id: "duplicate",
+        name: "Math Graph Lab",
+      },
+    ]);
+
+    expect(validCatalog.valid).toBe(true);
+    expect(duplicateCatalog.valid).toBe(false);
+    expect(duplicateCatalog.errors.some((error) => error.includes("Duplicate preset title"))).toBe(true);
   });
 
   it("derives positive window frames from grid layouts", () => {

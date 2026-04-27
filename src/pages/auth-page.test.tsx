@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Profile } from "@/types";
 
 const mocks = vi.hoisted(() => {
-  const enterDemo = vi.fn();
   const signIn = vi.fn();
   const signInWithGoogle = vi.fn();
   const signUp = vi.fn();
@@ -20,7 +19,6 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
-    enterDemo,
     signIn,
     signInWithGoogle,
     signUp,
@@ -38,7 +36,6 @@ vi.mock("@/hooks/use-auth", () => ({
     signIn: mocks.signIn,
     signInWithGoogle: mocks.signInWithGoogle,
     signUp: mocks.signUp,
-    enterDemo: mocks.enterDemo,
     isConfigured: mocks.authState.isConfigured,
   }),
 }));
@@ -47,7 +44,6 @@ import { AuthPage } from "@/pages/auth-page";
 
 describe("AuthPage", () => {
   beforeEach(() => {
-    mocks.enterDemo.mockReset();
     mocks.signIn.mockReset();
     mocks.signInWithGoogle.mockReset();
     mocks.signUp.mockReset();
@@ -55,21 +51,21 @@ describe("AuthPage", () => {
     mocks.authState.isConfigured = false;
   });
 
-  it("sends demo users back to the requested route instead of always dumping them on dashboard", () => {
+  it("does not expose demo access when Supabase is unavailable", () => {
     render(
       <MemoryRouter initialEntries={["/auth?next=%2Fbinders%2Fbinder-1%2Fdocuments%2Flesson-1"]}>
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/binders/:binderId/documents/:lessonId" element={<div>Lesson route</div>} />
-          <Route path="/dashboard" element={<div>Dashboard route</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Learner demo" }));
-
-    expect(mocks.enterDemo).toHaveBeenCalledWith("learner");
-    expect(screen.getByText("Lesson route")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
+    expect(screen.getByText("Supabase configuration required")).toBeTruthy();
+    const submitButton = screen
+      .getAllByRole("button", { name: "Login" })
+      .find((button) => button.getAttribute("type") === "submit");
+    expect(submitButton?.hasAttribute("disabled")).toBe(true);
   });
 
   it("redirects signed-in users to the requested route when one exists", () => {

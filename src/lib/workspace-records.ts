@@ -27,7 +27,12 @@ const PLACEHOLDER_BINDER_DESCRIPTIONS = new Set([
 const LEGACY_EMPTY_FOLDER_TITLES = new Set(["course notes", "problem sets"]);
 const GENERIC_LOOSE_BINDER_TITLES = new Set(["general", "history", "math", "notes", "course notes", "problem sets"]);
 
-export type WorkspaceContainerId = "folder-math" | "folder-history" | "folder-study-skills" | "folder-other";
+export type WorkspaceContainerId =
+  | "folder-math"
+  | "folder-history"
+  | "folder-study-skills"
+  | "folder-chemistry"
+  | "folder-other";
 
 type WorkspaceContainerDefinition = {
   id: WorkspaceContainerId;
@@ -42,12 +47,14 @@ export const workspaceContainerDefinitions: WorkspaceContainerDefinition[] = [
   { id: "folder-math", name: "Math", color: "blue", order: 1 },
   { id: "folder-history", name: "History", color: "amber", order: 2 },
   { id: "folder-study-skills", name: "Study Skills", color: "teal", order: 3 },
-  { id: "folder-other", name: "Other", color: "violet", order: 4 },
+  { id: "folder-chemistry", name: "Chemistry", color: "emerald", order: 4 },
+  { id: "folder-other", name: "Other", color: "violet", order: 5 },
 ];
 
 const workspaceContainerById = new Map(
   workspaceContainerDefinitions.map((container) => [container.id, container]),
 );
+const pinnedWorkspaceContainerIds = new Set<WorkspaceContainerId>(["folder-chemistry"]);
 
 const LEGACY_FOLDER_ID_TO_CONTAINER: Record<string, WorkspaceContainerId> = {
   "folder-suite-algebra-foundations": "folder-math",
@@ -407,6 +414,18 @@ export function getWorkspaceFolderIdForBinder(binder: Binder): WorkspaceContaine
   }
 
   if (
+    haystack.includes("chemistry") ||
+    haystack.includes("chemical") ||
+    haystack.includes("stoichiometry") ||
+    haystack.includes("molecule") ||
+    haystack.includes("molecular") ||
+    haystack.includes("periodic table") ||
+    haystack.includes("reaction")
+  ) {
+    return "folder-chemistry";
+  }
+
+  if (
     haystack.includes("writing") ||
     haystack.includes("study skills") ||
     haystack.includes("notes") ||
@@ -433,7 +452,10 @@ export function createWorkspaceContainerLinks(binders: Binder[]): FolderBinderLi
 }
 
 export function createWorkspaceContainerFolders(binders: Binder[]): Folder[] {
-  const visibleFolderIds = new Set(binders.map((binder) => getWorkspaceFolderIdForBinder(binder)));
+  const visibleFolderIds = new Set<WorkspaceContainerId>([
+    ...binders.map((binder) => getWorkspaceFolderIdForBinder(binder)),
+    ...pinnedWorkspaceContainerIds,
+  ]);
   return workspaceContainerDefinitions
     .filter((definition) => visibleFolderIds.has(definition.id))
     .sort((left, right) => left.order - right.order)

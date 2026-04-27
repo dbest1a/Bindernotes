@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
-import type { Role } from "@/types";
 import { LogoMark } from "@/components/ui/logo-mark";
 
 const authSchema = z.object({
@@ -18,15 +17,15 @@ const authSchema = z.object({
 });
 
 export function AuthPage() {
-  const { profile, signIn, signInWithGoogle, signUp, enterDemo, isConfigured } = useAuth();
+  const { profile, signIn, signInWithGoogle, signUp, isConfigured } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [role, setRole] = useState<Role>("learner");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const nextPath = getSafeNextPath(searchParams.get("next"));
+  const authDisabled = !isConfigured || isSubmitting;
 
   if (profile) {
     return <Navigate replace to={nextPath} />;
@@ -59,7 +58,7 @@ export function AuthPage() {
           parsed.data.email,
           parsed.data.password,
           parsed.data.fullName || parsed.data.email.split("@")[0],
-          isConfigured ? "learner" : role,
+          "learner",
         );
       }
       navigate(nextPath, { replace: true });
@@ -124,15 +123,25 @@ export function AuthPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <Badge className="w-fit" variant="outline">
-              {isConfigured ? "Supabase Auth" : "Demo mode"}
+              {isConfigured ? "Supabase Auth" : "Auth setup required"}
             </Badge>
             <CardTitle className="text-3xl sm:text-4xl">Open Binder Notes</CardTitle>
             <CardDescription>
-              Sign in with email and password. Without Supabase env vars, use demo access to
-              preview the workspace.
+              Sign in with email and password or Google. Your workspace is tied to your Supabase
+              account so notes, highlights, and layouts stay with you.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {!isConfigured ? (
+              <p className="mb-5 flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 shrink-0" data-icon="inline-start" />
+                <span>
+                  <strong className="block">Supabase configuration required</strong>
+                  Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before account sign-in can run.
+                </span>
+              </p>
+            ) : null}
+
             <TabsList className="mb-5 w-full">
               <TabsTrigger active={mode === "login"} className="flex-1" onClick={() => setMode("login")}>
                 Login
@@ -146,24 +155,17 @@ export function AuthPage() {
               {mode === "signup" ? (
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Full name
-                  <Input name="fullName" placeholder="Ada Lovelace" />
+                  <Input disabled={!isConfigured} name="fullName" placeholder="Ada Lovelace" />
                 </label>
               ) : null}
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Email
-                <Input name="email" placeholder="you@example.com" type="email" />
+                <Input disabled={!isConfigured} name="email" placeholder="you@example.com" type="email" />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Password
-                <Input name="password" placeholder="Enter your password" type="password" />
+                <Input disabled={!isConfigured} name="password" placeholder="Enter your password" type="password" />
               </label>
-
-              {mode === "signup" && !isConfigured ? (
-                <div className="flex gap-2 rounded-lg border border-border/70 bg-secondary p-1">
-                  <RoleButton active={role === "learner"} label="Learner" onClick={() => setRole("learner")} />
-                  <RoleButton active={role === "admin"} label="Admin" onClick={() => setRole("admin")} />
-                </div>
-              ) : null}
 
               {mode === "signup" && isConfigured ? (
                 <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
@@ -178,7 +180,7 @@ export function AuthPage() {
                 </p>
               ) : null}
 
-              <Button disabled={isSubmitting} type="submit">
+              <Button disabled={authDisabled} type="submit">
                 {isSubmitting ? "Working..." : mode === "login" ? "Login" : "Create account"}
               </Button>
             </form>
@@ -205,30 +207,6 @@ export function AuthPage() {
               </>
             ) : null}
 
-            {!isConfigured ? (
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <Button
-                  onClick={() => {
-                    enterDemo("learner");
-                    navigate(nextPath, { replace: true });
-                  }}
-                  type="button"
-                  variant="outline"
-                >
-                  Learner demo
-                </Button>
-                <Button
-                  onClick={() => {
-                    enterDemo("admin");
-                    navigate(nextPath, { replace: true });
-                  }}
-                  type="button"
-                  variant="outline"
-                >
-                  Admin demo
-                </Button>
-              </div>
-            ) : null}
           </CardContent>
         </Card>
       </section>
@@ -250,26 +228,6 @@ function FeaturePill({ icon, label }: { icon: ReactNode; label: string }) {
       <div className="mb-2 text-background/70">{icon}</div>
       <p className="font-medium">{label}</p>
     </div>
-  );
-}
-
-function RoleButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${active ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
   );
 }
 

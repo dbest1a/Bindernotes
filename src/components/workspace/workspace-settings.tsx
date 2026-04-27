@@ -1,13 +1,14 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   accentOptions,
   animationLevelOptions,
-  applyPreset,
-  applyWorkspaceMode,
+  applyPresetToViewport,
+  applyWorkspaceModeToViewport,
   backgroundStyleOptions,
   densityOptions,
   ensureWindowFramesForEnabledModules,
   fontOptions,
+  getVisibleWorkspacePresets,
   graphAppearanceOptions,
   graphChromeOptions,
   highlightColorOptions,
@@ -17,7 +18,6 @@ import {
   verticalSpaceOptions,
   workspaceModules,
   workspaceModeOptions,
-  workspacePresets,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import type {
@@ -39,7 +39,9 @@ type WorkspaceSettingsProps = {
   onResetBinderHighlights?: () => Promise<void> | void;
   onResetLessonHighlights?: () => Promise<void> | void;
   binderTitle?: string;
+  binderSubject?: string;
   lessonTitle?: string;
+  historyEnabled?: boolean;
   isResettingHighlights?: boolean;
   mode?: "layout" | "preferences";
 };
@@ -75,6 +77,19 @@ const verticalSpaceLabels = {
   infinite: "Infinite vertical canvas",
 } as const;
 
+const settingsSearchAliases = {
+  snap: ["snap", "alignment", "magnet", "grid"],
+  safeEdgePadding: ["safe", "padding", "bezel", "edge", "corner", "margin"],
+  fit: ["fit", "fit visible", "fit to screen", "viewport", "screen"],
+  tidy: ["tidy", "layout", "arrange", "clean"],
+  preset: ["preset", "layout", "mode", "composition"],
+  theme: ["theme", "appearance", "color", "surface", "study surface"],
+  graph: ["graph", "desmos", "calculator", "math"],
+  mobile: ["phone", "mobile", "responsive", "small screen"],
+  header: ["header", "space", "compact", "maximize", "chrome", "module", "source", "lesson", "notes"],
+  whiteboard: ["whiteboard", "board", "canvas", "drawing", "sketch", "module", "math board"],
+} as const;
+
 export function WorkspaceSettings({
   mode = "layout",
   onChange,
@@ -82,15 +97,132 @@ export function WorkspaceSettings({
   onResetBinderHighlights,
   onResetLessonHighlights,
   binderTitle,
+  binderSubject,
+  historyEnabled = false,
   isResettingHighlights = false,
   lessonTitle,
   preferences,
 }: WorkspaceSettingsProps) {
+  const [showAdvancedCustomization, setShowAdvancedCustomization] = useState(mode === "layout");
+  const [settingsQuery, setSettingsQuery] = useState("");
   const isLayoutMode = mode === "layout";
   const isCanvas = preferences.activeMode === "canvas";
   const isModular = preferences.activeMode === "modular";
   const isFullStudio = isCanvas || preferences.workspaceStyle === "full-studio";
   const isGuided = preferences.workspaceStyle === "guided";
+  const normalizedSettingsQuery = useMemo(() => normalizeSearch(settingsQuery), [settingsQuery]);
+  const visiblePresets = getVisibleWorkspacePresets(preferences, {
+    binderSubject,
+    historyEnabled,
+    includeAdvanced: showAdvancedCustomization,
+  });
+  const matchesSetting = (terms: Array<string | undefined | null>) =>
+    matchesSettingsSearch(normalizedSettingsQuery, terms);
+  const showStudyModeSettings = matchesSetting([
+    "Study mode",
+    "workspace control",
+    "Simple View",
+    "Study Panels",
+    "Canvas",
+    ...aliases("mobile"),
+  ]);
+  const showPresetSettings = matchesSetting([
+    "Presets",
+    "Start from a mode",
+    ...visiblePresets.flatMap((preset) => [preset.name, preset.description]),
+    ...aliases("preset", "fit", "tidy"),
+  ]);
+  const showCustomizationDepthSettings = matchesSetting([
+    "Customization depth",
+    "full canvas",
+    "module controls",
+    "advanced",
+    ...aliases("preset"),
+  ]);
+  const showStudyPanelSettings = isModular && matchesSetting([
+    "Study panels",
+    "Panel density",
+    "Side panel",
+    "Save layout per binder",
+    "compact",
+    "responsive",
+    ...aliases("mobile", "header"),
+  ]);
+  const showAppearanceSettings = matchesSetting([
+    "Appearance",
+    "Workspace colors",
+    "App Theme",
+    "Accent",
+    "Density",
+    "Maximize module space",
+    "Compact module headers",
+    "Roundness",
+    "Shadow",
+    "Font",
+    ...aliases("theme", "header"),
+  ]);
+  const showMotionSettings = matchesSetting([
+    "Motion",
+    "Animation level",
+    "Hover motion",
+  ]);
+  const showCanvasSettings = isCanvas && matchesSetting([
+    "Canvas / workspace",
+    "Background",
+    "Vertical workspace",
+    "Snap mode",
+    "Safe edge padding",
+    "Focus mode",
+    "Whiteboard",
+    "phone",
+    "mobile",
+    ...aliases("snap", "safeEdgePadding", "fit", "tidy", "mobile", "whiteboard"),
+  ]);
+  const showGraphSettings = matchesSetting([
+    "Graphs",
+    "Graph appearance",
+    "Graph chrome",
+    ...aliases("graph"),
+  ]);
+  const showHighlightSettings = matchesSetting([
+    "Highlights",
+    "Default highlight meaning",
+    "Reset highlights",
+  ]);
+  const showAdvancedSettings = showAdvancedCustomization && matchesSetting([
+    "Advanced",
+    "Sticky notes",
+    "Reduced chrome",
+    "Utility UI",
+    "header",
+    "space",
+    ...aliases("header"),
+  ]);
+  const showLayoutSettings =
+    showAdvancedCustomization &&
+    isLayoutMode &&
+    !isGuided &&
+    matchesSetting([
+      "Layout",
+      "Show or hide windows",
+      "collapse",
+      "hide",
+      "module",
+      ...workspaceModules.flatMap((module) => [module.name, module.description]),
+    ]);
+  const visibleSettingsSections = [
+    showStudyModeSettings,
+    showPresetSettings,
+    showCustomizationDepthSettings,
+    showStudyPanelSettings,
+    showAppearanceSettings,
+    showMotionSettings,
+    showCanvasSettings,
+    showGraphSettings,
+    showHighlightSettings,
+    showAdvancedSettings,
+    showLayoutSettings,
+  ].filter(Boolean).length;
 
   const setNext = (next: WorkspacePreferences) =>
     onChange({
@@ -145,7 +277,7 @@ export function WorkspaceSettings({
   };
 
   const changeMode = (workspaceMode: WorkspaceMode) => {
-    setNext(applyWorkspaceMode(preferences, workspaceMode));
+    setNext(applyWorkspaceModeToViewport(preferences, workspaceMode, getWorkspaceSettingsViewport()));
   };
 
   const confirmAndRunReset = async (
@@ -231,10 +363,30 @@ export function WorkspaceSettings({
         ) : null}
       </div>
 
+      <div className="border-b border-border/60 px-4 py-3">
+        <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+          <span>Search settings</span>
+          <input
+            className="h-10 rounded-xl border border-border/80 bg-background/80 px-3 text-sm text-foreground outline-none transition focus:border-primary/45 focus:ring-4 focus:ring-ring/15"
+            onChange={(event) => setSettingsQuery(event.target.value)}
+            placeholder="Search settings"
+            type="search"
+            value={settingsQuery}
+          />
+        </label>
+      </div>
+
       <div
         className="workspace-settings__scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4 pr-3"
         data-workspace-settings-scroll="true"
       >
+        {visibleSettingsSections === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/70 bg-background/55 p-4 text-sm text-muted-foreground">
+            No settings found.
+          </div>
+        ) : null}
+
+        {showStudyModeSettings ? (
         <Section
           description="Choose how much workspace control BinderNotes should expose."
           title="Study mode"
@@ -260,7 +412,9 @@ export function WorkspaceSettings({
             ))}
           </div>
         </Section>
+        ) : null}
 
+        {showPresetSettings ? (
         <Section
           description={
             isLayoutMode
@@ -270,7 +424,7 @@ export function WorkspaceSettings({
           title="Presets"
         >
           <div className="grid gap-2">
-            {workspacePresets.map((preset) => (
+            {visiblePresets.map((preset) => (
               <button
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
@@ -279,7 +433,9 @@ export function WorkspaceSettings({
                     : "border-border/70 bg-background/55",
                 )}
                 key={preset.id}
-                onClick={() => setNext(applyPreset(preferences, preset.id))}
+                onClick={() =>
+                  setNext(applyPresetToViewport(preferences, preset.id, getWorkspaceSettingsViewport()))
+                }
                 type="button"
               >
                 <span className="block text-sm font-medium">{preset.name}</span>
@@ -290,8 +446,30 @@ export function WorkspaceSettings({
             ))}
           </div>
         </Section>
+        ) : null}
 
-        {isModular ? (
+        {showCustomizationDepthSettings ? (
+        <div className="mt-6 rounded-xl border border-border/70 bg-background/55 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">Customization depth</h3>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Keep the normal workspace compact, or expand the full canvas and module controls.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowAdvancedCustomization((current) => !current)}
+              size="sm"
+              type="button"
+              variant={showAdvancedCustomization ? "default" : "outline"}
+            >
+              {showAdvancedCustomization ? "Expanded" : "Customize"}
+            </Button>
+          </div>
+        </div>
+        ) : null}
+
+        {showStudyPanelSettings ? (
           <Section
             description="Keep study panels orderly without opening the full canvas controls."
             title="Study panels"
@@ -308,10 +486,6 @@ export function WorkspaceSettings({
                         modular: {
                           ...preferences.modular,
                           panelDensity: density,
-                        },
-                        theme: {
-                          ...preferences.theme,
-                          compactMode: density === "compact",
                         },
                       })
                     }
@@ -361,6 +535,7 @@ export function WorkspaceSettings({
           </Section>
         ) : null}
 
+        {showAppearanceSettings ? (
         <Section
           description="Theme, density, roundness, and color stay consistent across the app."
           title="Appearance"
@@ -457,10 +632,15 @@ export function WorkspaceSettings({
                   </ThemeChoice>
                 ))}
               </ControlGroup>
-              <ControlGroup title="Compact mode">
+              <ControlGroup title="Maximize module space">
                 <ToggleChoice
                   active={preferences.theme.compactMode}
-                  label={preferences.theme.compactMode ? "On" : "Off"}
+                  description={
+                    preferences.theme.compactMode
+                      ? "Large module headers stay compact so source and notes get more room."
+                      : "Keep the normal decorative module headers."
+                  }
+                  label="Maximize module space"
                   onClick={() =>
                     updateTheme((current) => ({
                       ...current,
@@ -520,7 +700,9 @@ export function WorkspaceSettings({
             </div>
           </div>
         </Section>
+        ) : null}
 
+        {showMotionSettings ? (
         <Section
           description="Dial motion up only when you actually want it."
           title="Motion"
@@ -565,8 +747,9 @@ export function WorkspaceSettings({
             </ControlGroup>
           </div>
         </Section>
+        ) : null}
 
-        {isCanvas ? (
+        {showCanvasSettings ? (
           <Section
             description="Adjust the study atmosphere and how much room the canvas gives you vertically."
             title="Canvas / workspace"
@@ -609,20 +792,48 @@ export function WorkspaceSettings({
               </ControlGroup>
 
               <ControlGroup title="Snap mode">
+                {(["off", "edges", "modules"] as const).map((snapBehavior) => (
+                  <ThemeChoice
+                    active={preferences.canvas.snapBehavior === snapBehavior}
+                    key={snapBehavior}
+                    onClick={() =>
+                      setNext({
+                        ...preferences,
+                        canvas: {
+                          ...preferences.canvas,
+                          snapBehavior,
+                        },
+                        theme: {
+                          ...preferences.theme,
+                          snapMode: snapBehavior !== "off",
+                        },
+                      })
+                    }
+                  >
+                    {snapBehavior === "off"
+                      ? "Off"
+                      : snapBehavior === "edges"
+                        ? "Edges"
+                        : "Edges + modules"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Safe edge padding">
                 <ToggleChoice
-                  active={preferences.theme.snapMode}
-                  description="Snap windows to the visible canvas edges while dragging in creator mode"
-                  label={preferences.theme.snapMode ? "On" : "Off"}
+                  active={preferences.canvas.safeEdgePadding}
+                  description={
+                    preferences.canvas.safeEdgePadding
+                      ? "Keep an 8px edge margin while editing."
+                      : "Allow windows to sit exactly on canvas edges and corners."
+                  }
+                  label={preferences.canvas.safeEdgePadding ? "On" : "Off"}
                   onClick={() =>
                     setNext({
                       ...preferences,
                       canvas: {
                         ...preferences.canvas,
-                        snapBehavior: preferences.theme.snapMode ? "off" : "edges",
-                      },
-                      theme: {
-                        ...preferences.theme,
-                        snapMode: !preferences.theme.snapMode,
+                        safeEdgePadding: !preferences.canvas.safeEdgePadding,
                       },
                     })
                   }
@@ -642,10 +853,17 @@ export function WorkspaceSettings({
                   }
                 />
               </ControlGroup>
+
+              <ControlGroup title="Whiteboard">
+                <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+                  Math Whiteboard uses local draft autosave, graph-paper templates, and live BinderNotes module cards.
+                </div>
+              </ControlGroup>
             </div>
           </Section>
         ) : null}
 
+        {showGraphSettings ? (
         <Section
           description="Keep graphs readable without having to enter layout mode."
           title="Graphs"
@@ -688,7 +906,9 @@ export function WorkspaceSettings({
             </ControlGroup>
           </div>
         </Section>
+        ) : null}
 
+        {showHighlightSettings ? (
         <Section
           description="Keep highlight capture consistent with the way you study."
           title="Highlights"
@@ -755,52 +975,55 @@ export function WorkspaceSettings({
             ) : null}
           </div>
         </Section>
+        ) : null}
 
-        <Section
-          description="Keep normal study mode minimal, and hide extra helper UI unless you want it."
-          title="Advanced"
-        >
-          <div className="grid gap-4">
-            <ControlGroup title="Sticky notes">
-              <ToggleChoice
-                active={preferences.enabledModules.includes("comments")}
-                description="Show or hide floating sticky notes and the annotation manager"
-                label={preferences.enabledModules.includes("comments") ? "Shown" : "Hidden"}
-                onClick={() => toggleModule("comments")}
-              />
-            </ControlGroup>
+        {showAdvancedSettings ? (
+          <Section
+            description="Keep normal study mode minimal, and hide extra helper UI unless you want it."
+            title="Advanced"
+          >
+            <div className="grid gap-4">
+              <ControlGroup title="Sticky notes">
+                <ToggleChoice
+                  active={preferences.enabledModules.includes("comments")}
+                  description="Show or hide floating sticky notes and the annotation manager"
+                  label={preferences.enabledModules.includes("comments") ? "Shown" : "Hidden"}
+                  onClick={() => toggleModule("comments")}
+                />
+              </ControlGroup>
 
-            <ControlGroup title="Reduced chrome in locked mode">
-              <ToggleChoice
-                active={preferences.theme.reducedChrome}
-                description="Hide extra panel framing while studying"
-                label={preferences.theme.reducedChrome ? "On" : "Off"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    reducedChrome: !current.reducedChrome,
-                  }))
-                }
-              />
-            </ControlGroup>
+              <ControlGroup title="Reduced chrome in locked mode">
+                <ToggleChoice
+                  active={preferences.theme.reducedChrome}
+                  description="Hide extra panel framing while studying"
+                  label={preferences.theme.reducedChrome ? "On" : "Off"}
+                  onClick={() =>
+                    updateTheme((current) => ({
+                      ...current,
+                      reducedChrome: !current.reducedChrome,
+                    }))
+                  }
+                />
+              </ControlGroup>
 
-            <ControlGroup title="Utility UI">
-              <ToggleChoice
-                active={preferences.theme.showUtilityUi}
-                description="Preset chips and extra status controls"
-                label={preferences.theme.showUtilityUi ? "Shown" : "Minimal"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    showUtilityUi: !current.showUtilityUi,
-                  }))
-                }
-              />
-            </ControlGroup>
-          </div>
-        </Section>
+              <ControlGroup title="Utility UI">
+                <ToggleChoice
+                  active={preferences.theme.showUtilityUi}
+                  description="Preset chips and extra status controls"
+                  label={preferences.theme.showUtilityUi ? "Shown" : "Minimal"}
+                  onClick={() =>
+                    updateTheme((current) => ({
+                      ...current,
+                      showUtilityUi: !current.showUtilityUi,
+                    }))
+                  }
+                />
+              </ControlGroup>
+            </div>
+          </Section>
+        ) : null}
 
-        {isLayoutMode && !isGuided ? (
+        {showLayoutSettings ? (
           <Section
             description={
               isFullStudio
@@ -814,7 +1037,7 @@ export function WorkspaceSettings({
                 .filter((module) =>
                   isFullStudio
                     ? true
-                    : ["lesson", "private-notes", "comments", "lesson-outline", "search", "desmos-graph", "scientific-calculator", "recent-highlights"].includes(module.id),
+                    : ["lesson", "private-notes", "comments", "lesson-outline", "search", "desmos-graph", "scientific-calculator", "recent-highlights", "whiteboard"].includes(module.id),
                 )
                 .map((module) => {
                 const enabled = preferences.enabledModules.includes(module.id);
@@ -993,4 +1216,41 @@ function ToggleChoice({
       ) : null}
     </button>
   );
+}
+
+function getWorkspaceSettingsViewport() {
+  if (typeof window === "undefined") {
+    return { width: 1366, height: 768 };
+  }
+
+  const shell = document.querySelector(".workspace-canvas-shell");
+  if (shell instanceof HTMLElement && shell.clientWidth > 0 && shell.clientHeight > 0) {
+    return {
+      width: shell.clientWidth,
+      height: shell.clientHeight,
+    };
+  }
+
+  return {
+    width: window.innerWidth || 1366,
+    height: Math.max(360, (window.innerHeight || 900) - 168),
+  };
+}
+
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function aliases(...keys: Array<keyof typeof settingsSearchAliases>) {
+  return keys.flatMap((key) => settingsSearchAliases[key]);
+}
+
+function matchesSettingsSearch(query: string, terms: Array<string | undefined | null>) {
+  if (!query) {
+    return true;
+  }
+
+  return terms
+    .filter((term): term is string => Boolean(term))
+    .some((term) => term.toLowerCase().includes(query));
 }

@@ -289,6 +289,7 @@ export type WorkspaceModuleId =
   | "desmos-graph"
   | "scientific-calculator"
   | "saved-graphs"
+  | "whiteboard"
   | "recent-highlights"
   | "tasks"
   | "related-concepts"
@@ -389,6 +390,7 @@ export type WorkspaceGraphChrome = "standard" | "focused";
 export type WorkspaceVerticalSpace = "fit" | "balanced" | "extended" | "infinite";
 
 export type SimplePresentationTheme =
+  | "match"
   | "classic-light"
   | "warm-paper"
   | "night-study"
@@ -433,6 +435,8 @@ export type FullCanvasSettings = {
   snapBehavior: FullCanvasSnapBehavior;
   panelPositions: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
   customModules: WorkspaceModuleId[];
+  safeEdgePadding: boolean;
+  canvasHeight: number;
   showDiagnostics: boolean;
 };
 

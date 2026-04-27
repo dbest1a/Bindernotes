@@ -9,12 +9,9 @@ import {
 } from "react";
 import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { demoAdmin, demoProfile } from "@/lib/demo-data";
 import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 import { getProfile } from "@/services/binder-service";
 import type { Profile, Role } from "@/types";
-
-const DEMO_PROFILE_STORAGE_KEY = "binder-notes:demo-profile:v1";
 
 type AuthState = {
   session: Session | null;
@@ -25,7 +22,6 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (nextPath?: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, role: Role) => Promise<void>;
-  enterDemo: (role: Role) => void;
   signOut: () => Promise<void>;
 };
 
@@ -33,7 +29,7 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(() => loadStoredDemoProfile());
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const sessionRef = useRef<Session | null>(null);
   const profileRef = useRef<Profile | null>(profile);
@@ -164,14 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (supabase) {
-      return;
-    }
-
-    saveStoredDemoProfile(profile);
-  }, [profile]);
-
   const value = useMemo<AuthState>(
     () => ({
       session,
@@ -181,9 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       signIn: async (email, password) => {
         if (!supabase) {
-          setProfile(email.includes("admin") ? demoAdmin : demoProfile);
           setIsLoading(false);
-          return;
+          throw createSupabaseRequiredError();
         }
 
         setIsLoading(true);
@@ -220,9 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signUp: async (email, password, fullName, role) => {
         if (!supabase) {
-          setProfile(role === "admin" ? demoAdmin : demoProfile);
           setIsLoading(false);
-          return;
+          throw createSupabaseRequiredError();
         }
 
         setIsLoading(true);
@@ -241,10 +227,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
           throw error;
         }
-      },
-      enterDemo: (role) => {
-        setProfile(role === "admin" ? demoAdmin : demoProfile);
-        setIsLoading(false);
       },
       signOut: async () => {
         setIsLoading(true);
@@ -282,44 +264,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-function loadStoredDemoProfile() {
-  if (typeof window === "undefined" || supabase) {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(DEMO_PROFILE_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<Profile>;
-    if (parsed.id === demoAdmin.id) {
-      return demoAdmin;
-    }
-    if (parsed.id === demoProfile.id) {
-      return demoProfile;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function saveStoredDemoProfile(profile: Profile | null) {
-  if (typeof window === "undefined" || supabase) {
-    return;
-  }
-
-  if (!profile) {
-    window.localStorage.removeItem(DEMO_PROFILE_STORAGE_KEY);
-    return;
-  }
-
-  window.localStorage.setItem(
-    DEMO_PROFILE_STORAGE_KEY,
-    JSON.stringify({ id: profile.id, role: profile.role }),
+function createSupabaseRequiredError() {
+  return new Error(
+    "Supabase is required for Binder Notes accounts. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before signing in.",
   );
 }
 

@@ -103,6 +103,34 @@ export function validatePresetDefinition(
   };
 }
 
+export function validatePresetCatalog(
+  presets: readonly { id: string; name: string }[],
+): WorkspacePresetValidationResult {
+  const errors: string[] = [];
+  const titleByKey = new Map<string, string>();
+
+  presets.forEach((preset) => {
+    const key = preset.name.trim().toLowerCase();
+    if (!key) {
+      errors.push(`Preset ${preset.id} has an empty title.`);
+      return;
+    }
+
+    const existingId = titleByKey.get(key);
+    if (existingId) {
+      errors.push(`Duplicate preset title "${preset.name}" used by ${existingId} and ${preset.id}.`);
+      return;
+    }
+
+    titleByKey.set(key, preset.id);
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
 export function validateGridLayout(
   layout: WorkspaceGridLayout,
   requiredPanels: readonly WorkspaceModuleId[],
@@ -127,6 +155,10 @@ export function validateGridLayout(
 
     if (item.w < item.minW || item.h < item.minH) {
       errors.push(`Panel ${item.panelId} is smaller than its minimum size.`);
+    }
+
+    if (item.w < 2 || item.h < 2 || item.w * item.h < 4) {
+      errors.push(`Panel ${item.panelId} is too small to be usable.`);
     }
 
     if (item.x + item.w > layout.columns) {

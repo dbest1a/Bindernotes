@@ -44,10 +44,12 @@ export type MathWorkspaceModuleBindings = {
 export function DesmosGraphModule({
   bindings,
   description = "Live Desmos graphing calculator",
+  surface = "workspace",
   title = "Desmos graph",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
   const { controller, onExpressionApplied, onGraphLoadApplied, pendingExpression, pendingGraphLoad = null } = bindings;
@@ -57,9 +59,12 @@ export function DesmosGraphModule({
     }
   }, [controller.setGraphMode, pendingGraphLoad?.graphMode, pendingGraphLoad?.id]);
 
-  const height = controller.state.graphExpanded
-    ? "clamp(620px, 78vh, 860px)"
-    : "clamp(540px, 70vh, 760px)";
+  const height =
+    surface === "whiteboard"
+      ? "100%"
+      : controller.state.graphExpanded
+        ? "clamp(620px, 78vh, 860px)"
+        : "clamp(540px, 70vh, 760px)";
   const activeModeLabel = controller.state.graphMode === "3d" ? "3D Graph" : "2D Graph";
 
   return (
@@ -99,7 +104,7 @@ export function DesmosGraphModule({
           </Button>
         )
       }
-      className="min-h-[520px]"
+      className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"}
       description={`${description} Current mode: ${activeModeLabel}.`}
       title={title}
     >
@@ -138,10 +143,12 @@ export function DesmosGraphModule({
 export function ScientificCalculatorModule({
   bindings,
   description = "Numeric work, graphable expressions, and reusable functions",
+  surface = "workspace",
   title = "Scientific calculator",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
   const { controller, pushExpressionToGraph } = bindings;
@@ -173,8 +180,10 @@ export function ScientificCalculatorModule({
   );
 
   return (
-    <WorkspacePanel description={description} title={title}>
-      <DesmosScientificCalculator fallback={fallback} />
+    <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"} description={description} title={title}>
+      <div className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[460px]"}>
+        <DesmosScientificCalculator fallback={fallback} />
+      </div>
     </WorkspacePanel>
   );
 }
@@ -182,10 +191,12 @@ export function ScientificCalculatorModule({
 export function SavedGraphsModule({
   bindings,
   description = "Lesson graph references plus your own named Desmos snapshots",
+  surface = "workspace",
   title = "Saved graphs",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
   const {
@@ -198,7 +209,7 @@ export function SavedGraphsModule({
   } = bindings;
 
   return (
-    <WorkspacePanel description={description} title={title}>
+    <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : undefined} description={description} title={title}>
       <GraphStateList
         canSave={Boolean(controller.state.currentGraphState)}
         embedded

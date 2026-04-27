@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { cn, initials } from "@/lib/utils";
@@ -17,7 +16,7 @@ import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
 
 export function AppShell() {
-  const { profile, signOut, isConfigured } = useAuth();
+  const { profile, signOut } = useAuth();
   const { globalTheme, setThemeId } = useTheme();
   const navigate = useNavigate();
 
@@ -44,7 +43,7 @@ export function AppShell() {
             <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
               Workspace
             </NavItem>
-            <NavItem to="/math" icon={<Calculator data-icon="inline-start" />}>
+            <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
               Math lab
             </NavItem>
             <NavItem to="/tutorial" icon={<BookOpenCheck data-icon="inline-start" />}>
@@ -61,7 +60,6 @@ export function AppShell() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {!isConfigured ? <Badge variant="outline">Demo mode</Badge> : null}
             <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex">
               <span className="text-xs font-medium text-muted-foreground">Theme</span>
               <select

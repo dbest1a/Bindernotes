@@ -184,6 +184,21 @@ function getLocalBundledBinders() {
   return [...demoBinders, localHistorySuiteSeed.binder];
 }
 
+const SYSTEM_BINDER_ID_SET = new Set<string>(Object.values(SYSTEM_BINDER_IDS));
+const LEGACY_LOCAL_SAMPLE_BINDER_IDS = new Set(
+  demoBinders
+    .map((binder) => binder.id)
+    .filter((binderId) => !SYSTEM_BINDER_ID_SET.has(binderId)),
+);
+
+function isLegacyLocalSampleBinderId(binderId: string) {
+  return LEGACY_LOCAL_SAMPLE_BINDER_IDS.has(binderId);
+}
+
+function createLegacyLocalSampleUnavailableError() {
+  return new Error("This sample binder is no longer available in account workspaces.");
+}
+
 function buildSyntheticSystemFolderArtifacts(
   binders: Binder[],
   viewerId?: string,
@@ -747,6 +762,50 @@ function shouldUseShadowFallback(binderId: string, error: unknown) {
   return true;
 }
 
+function createSupabaseAccountDataRequiredError() {
+  return new Error(
+    "Supabase is required to save account data. Account notes, highlights, comments, and workspace layouts were not saved locally.",
+  );
+}
+
+function createAccountDataCloudSaveError(label: string) {
+  return new Error(
+    `${label} could not save to Supabase. Account data was not saved locally to avoid data loss.`,
+  );
+}
+
+function getAccountDataSupabaseClient() {
+  if (!supabase) {
+    throw createSupabaseAccountDataRequiredError();
+  }
+
+  return supabase;
+}
+
+async function requireRemoteAccountDataStorage(binderId: string, label: string) {
+  try {
+    if ((await resolveBundledContentStorageMode(binderId)) === "shadow") {
+      throw createAccountDataCloudSaveError(label);
+    }
+  } catch {
+    throw createAccountDataCloudSaveError(label);
+  }
+}
+
+function throwAccountDataErrorInsteadOfShadowFallback(
+  binderId: string,
+  error: unknown,
+  label: string,
+) {
+  try {
+    if (shouldUseShadowFallback(binderId, error)) {
+      throw createAccountDataCloudSaveError(label);
+    }
+  } catch {
+    throw createAccountDataCloudSaveError(label);
+  }
+}
+
 function isLegacyHighlightSchemaError(error: unknown) {
   if (!error || typeof error !== "object") {
     return false;
@@ -980,11 +1039,9 @@ function mergeDemoConceptEdges(remoteEdges: ConceptEdge[], binderId: string) {
 
 export async function getProfile(userId: string, email: string): Promise<Profile> {
   if (!supabase) {
-    return {
-      ...createBootstrapProfile(userId, email),
-      full_name: email.split("@")[0] ?? "Demo user",
-      role: email.includes("admin") ? "admin" : "learner",
-    };
+    throw new Error(
+      "Supabase is required for Binder Notes accounts. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
+    );
   }
 
   const { data, error } = await supabase
@@ -1337,6 +1394,10 @@ export async function getBinderBundle(
   profile: Profile,
 ): Promise<BinderBundle> {
   if (!supabase) {
+    if (isLegacyLocalSampleBinderId(binderId)) {
+      throw createLegacyLocalSampleUnavailableError();
+    }
+
     const binders = getLocalBundledBinders();
     const binder = binders.find((item) => item.id === binderId) ?? binders[0];
     const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
@@ -1579,6 +1640,10 @@ export async function getBinderOverview(
   profile: Profile,
 ): Promise<BinderOverviewData> {
   if (!supabase) {
+    if (isLegacyLocalSampleBinderId(binderId)) {
+      throw createLegacyLocalSampleUnavailableError();
+    }
+
     const binders = getLocalBundledBinders();
     const binder = binders.find((item) => item.id === binderId) ?? binders[0];
     const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
@@ -1664,46 +1729,8 @@ export async function upsertLearnerNote(input: {
   mathBlocks: MathBlock[];
 }): Promise<LearnerNote> {
   const normalizedTitle = input.title.trim() || "Private lesson notes";
-  const note: LearnerNote = {
-    id: input.id ?? crypto.randomUUID(),
-    owner_id: input.ownerId,
-    binder_id: input.binderId,
-    lesson_id: input.lessonId,
-    folder_id: input.folderId ?? null,
-    title: normalizedTitle,
-    content: input.content,
-    math_blocks: input.mathBlocks,
-    pinned: false,
-    created_at: now(),
-    updated_at: now(),
-  };
-
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const index = demoState.notes.findIndex(
-      (item) =>
-        item.id === note.id ||
-        (item.owner_id === note.owner_id &&
-          item.binder_id === note.binder_id &&
-          item.lesson_id === note.lesson_id),
-    );
-    if (index >= 0) {
-      demoState.notes[index] = {
-        ...demoState.notes[index],
-        ...note,
-        id: demoState.notes[index].id,
-      };
-    } else {
-      demoState.notes.unshift(note);
-    }
-    saveDemoState(demoState);
-    return note;
-  }
-
-  const client = supabase;
-  if ((await resolveBundledContentStorageMode(input.binderId)) === "shadow") {
-    return upsertShadowLearnerNote(note);
-  }
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(input.binderId, "Private note");
 
   const persistWithFolderId = (folderId: string | null) =>
     client
@@ -1734,9 +1761,7 @@ export async function upsertLearnerNote(input: {
   }
 
   if (error) {
-    if (shouldUseShadowFallback(input.binderId, error)) {
-      return upsertShadowLearnerNote(note);
-    }
+    throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Private note");
     throw error;
   }
 
@@ -1786,35 +1811,8 @@ export async function createHighlight(input: {
     end_offset: input.endOffset ?? null,
   };
 
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const saved = {
-      id: crypto.randomUUID(),
-      ...highlight,
-      start_offset: input.startOffset ?? null,
-      end_offset: input.endOffset ?? null,
-      created_at: now(),
-    };
-    demoState.highlights.unshift(saved);
-    saveDemoState(demoState);
-    persistHighlightMetadata(saved);
-    return saved;
-  }
-
-  if ((await resolveBundledContentStorageMode(input.binderId)) === "shadow") {
-    const saved: Highlight = {
-      id: crypto.randomUUID(),
-      ...highlight,
-      start_offset: input.startOffset ?? null,
-      end_offset: input.endOffset ?? null,
-      created_at: now(),
-    };
-    return upsertShadowHighlight(saved);
-  }
-  const client = supabase;
-  if (!client) {
-    throw new Error("Supabase client is unavailable.");
-  }
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(input.binderId, "Highlight");
 
   const { data, error } = await runHighlightMutationWithFallback({
     preferredMode: readCachedHighlightSchemaMode(),
@@ -1857,16 +1855,7 @@ export async function createHighlight(input: {
   });
 
   if (error) {
-    if (shouldUseShadowFallback(input.binderId, error)) {
-      const saved: Highlight = {
-        id: crypto.randomUUID(),
-        ...highlight,
-        start_offset: input.startOffset ?? null,
-        end_offset: input.endOffset ?? null,
-        created_at: now(),
-      };
-      return upsertShadowHighlight(saved);
-    }
+    throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Highlight");
     throw error;
   }
 
@@ -1912,39 +1901,14 @@ export async function updateHighlight(input: {
     updated_at: now(),
   };
 
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const index = demoState.highlights.findIndex(
-      (highlight) => highlight.id === input.highlightId && highlight.owner_id === input.ownerId,
-    );
-    if (index < 0) {
-      throw new Error("Highlight not found.");
-    }
-
-    const saved: Highlight = {
-      ...demoState.highlights[index],
-      ...patch,
-    };
-    demoState.highlights[index] = saved;
-    saveDemoState(demoState);
-    persistHighlightMetadata(saved);
-    return saved;
-  }
+  const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
   const shadowIndex = shadowState.highlights.findIndex(
     (highlight) => highlight.id === input.highlightId && highlight.owner_id === input.ownerId,
   );
   if (shadowIndex >= 0) {
-    const saved: Highlight = {
-      ...shadowState.highlights[shadowIndex],
-      ...patch,
-    };
-    return upsertShadowHighlight(saved);
-  }
-  const client = supabase;
-  if (!client) {
-    throw new Error("Supabase client is unavailable.");
+    throw createAccountDataCloudSaveError("Highlight");
   }
 
   const { data, error } = await runHighlightMutationWithFallback({
@@ -2004,29 +1968,17 @@ export async function deleteHighlight(input: {
   ownerId: string;
   highlightId: string;
 }): Promise<void> {
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const index = demoState.highlights.findIndex(
-      (highlight) => highlight.id === input.highlightId && highlight.owner_id === input.ownerId,
-    );
-    if (index >= 0) {
-      demoState.highlights.splice(index, 1);
-      saveDemoState(demoState);
-    }
-    removeStoredHighlightMetadata(input.highlightId);
-    return;
-  }
+  const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
   const shadowExists = shadowState.highlights.some(
     (highlight) => highlight.id === input.highlightId && highlight.owner_id === input.ownerId,
   );
   if (shadowExists) {
-    deleteShadowHighlight(input.ownerId, input.highlightId);
-    return;
+    throw createAccountDataCloudSaveError("Highlight");
   }
 
-  const { error } = await supabase
+  const { error } = await client
     .from("highlights")
     .delete()
     .eq("owner_id", input.ownerId)
@@ -2044,22 +1996,8 @@ export async function resetHighlights(input: {
   binderId: string;
   lessonId?: string;
 }): Promise<void> {
-  if (!supabase) {
-    const demoState = loadDemoState();
-    demoState.highlights = demoState.highlights.filter((highlight) => {
-      if (highlight.owner_id !== input.ownerId || highlight.binder_id !== input.binderId) {
-        return true;
-      }
-
-      return input.lessonId ? highlight.lesson_id !== input.lessonId : false;
-    });
-    saveDemoState(demoState);
-    removeStoredHighlightMetadataByScope({
-      binderId: input.binderId,
-      lessonId: input.lessonId,
-    });
-    return;
-  }
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(input.binderId, "Highlights");
 
   const shadowState = loadShadowState();
   const shadowExists = shadowState.highlights.some(
@@ -2069,11 +2007,10 @@ export async function resetHighlights(input: {
       (!input.lessonId || highlight.lesson_id === input.lessonId),
   );
   if (shadowExists) {
-    resetShadowHighlights(input.ownerId, input.binderId, input.lessonId);
-    return;
+    throw createAccountDataCloudSaveError("Highlights");
   }
 
-  let query = supabase
+  let query = client
     .from("highlights")
     .delete()
     .eq("owner_id", input.ownerId)
@@ -2111,46 +2048,17 @@ export async function createComment(input: {
     parent_id: null,
   };
 
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const saved = {
-      id: crypto.randomUUID(),
-      ...comment,
-      resolved_at: null,
-      created_at: now(),
-      updated_at: now(),
-    };
-    demoState.comments.unshift(saved);
-    saveDemoState(demoState);
-    return saved;
-  }
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(input.binderId, "Comment");
 
-  if ((await resolveBundledContentStorageMode(input.binderId)) === "shadow") {
-    return createShadowComment({
-      id: crypto.randomUUID(),
-      ...comment,
-      resolved_at: null,
-      created_at: now(),
-      updated_at: now(),
-    });
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("comments")
     .insert(comment)
     .select("*")
     .single();
 
   if (error) {
-    if (shouldUseShadowFallback(input.binderId, error)) {
-      return createShadowComment({
-        id: crypto.randomUUID(),
-        ...comment,
-        resolved_at: null,
-        created_at: now(),
-        updated_at: now(),
-      });
-    }
+    throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Comment");
     throw error;
   }
 
@@ -2162,33 +2070,17 @@ export async function updateComment(input: {
   ownerId: string;
   body: string;
 }): Promise<Comment> {
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const index = demoState.comments.findIndex(
-      (comment) => comment.id === input.commentId && comment.owner_id === input.ownerId,
-    );
-    if (index < 0) {
-      throw new Error("Comment not found.");
-    }
-
-    demoState.comments[index] = {
-      ...demoState.comments[index],
-      body: input.body,
-      updated_at: now(),
-    };
-    saveDemoState(demoState);
-    return demoState.comments[index];
-  }
+  const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
   const shadowIndex = shadowState.comments.findIndex(
     (comment) => comment.id === input.commentId && comment.owner_id === input.ownerId,
   );
   if (shadowIndex >= 0) {
-    return updateShadowComment(input.commentId, input.ownerId, input.body);
+    throw createAccountDataCloudSaveError("Comment");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("comments")
     .update({
       body: input.body,
@@ -2210,28 +2102,17 @@ export async function deleteComment(input: {
   commentId: string;
   ownerId: string;
 }) {
-  if (!supabase) {
-    const demoState = loadDemoState();
-    const index = demoState.comments.findIndex(
-      (comment) => comment.id === input.commentId && comment.owner_id === input.ownerId,
-    );
-    if (index >= 0) {
-      demoState.comments.splice(index, 1);
-      saveDemoState(demoState);
-    }
-    return;
-  }
+  const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
   const shadowExists = shadowState.comments.some(
     (comment) => comment.id === input.commentId && comment.owner_id === input.ownerId,
   );
   if (shadowExists) {
-    deleteShadowComment(input.commentId, input.ownerId);
-    return;
+    throw createAccountDataCloudSaveError("Comment");
   }
 
-  const { error } = await supabase
+  const { error } = await client
     .from("comments")
     .delete()
     .eq("id", input.commentId)
@@ -2296,15 +2177,10 @@ export async function upsertWorkspacePreferencesRecord(
     updatedAt: now(),
   };
 
-  if (!supabase) {
-    return saveWorkspacePreferences(next);
-  }
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(next.binderId, "Workspace layout");
 
-  if ((await resolveBundledContentStorageMode(next.binderId)) === "shadow") {
-    return upsertShadowWorkspacePreferences(next);
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("workspace_preferences")
     .upsert(
       {
@@ -2319,9 +2195,7 @@ export async function upsertWorkspacePreferencesRecord(
     .single<WorkspacePreferencesRecord>();
 
   if (error) {
-    if (shouldUseShadowFallback(next.binderId, error)) {
-      return upsertShadowWorkspacePreferences(next);
-    }
+    throwAccountDataErrorInsteadOfShadowFallback(next.binderId, error, "Workspace layout");
     throw error;
   }
 

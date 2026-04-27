@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import {
   accentOptions,
-  applyWorkspaceMode,
+  applyWorkspaceModeToViewport,
   simplePresentationFontSizeOptions,
   simplePresentationMotionOptions,
   simplePresentationReadingWidthOptions,
@@ -53,7 +53,7 @@ export function SimpleSettingsPanel({
   };
 
   const changeMode = (mode: WorkspaceMode) => {
-    setNext(applyWorkspaceMode(preferences, mode));
+    setNext(applyWorkspaceModeToViewport(preferences, mode, getSimpleSettingsViewport()));
   };
 
   const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
@@ -290,6 +290,17 @@ export function SimpleSettingsPanel({
       </div>
     </aside>
   );
+}
+
+function getSimpleSettingsViewport() {
+  if (typeof window === "undefined") {
+    return { width: 1366, height: 768 };
+  }
+
+  return {
+    width: Math.max(320, Math.round(window.innerWidth)),
+    height: Math.max(360, Math.round(window.innerHeight - 168)),
+  };
 }
 
 function SimpleSection({

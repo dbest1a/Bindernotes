@@ -37,18 +37,21 @@ export function useWorkspacePreferences(
 ) {
   const [saved, setSaved] = useState<WorkspacePreferences | null>(null);
   const [draft, setDraft] = useState<WorkspacePreferences | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { clearThemeOverride, globalTheme, setTheme } = useTheme();
 
   useEffect(() => {
     if (!userId || !binderId) {
       setSaved(null);
       setDraft(null);
+      setSaveError(null);
       return;
     }
 
     let cancelled = false;
     setSaved(null);
     setDraft(null);
+    setSaveError(null);
 
     void getWorkspacePreferencesRecord(userId, binderId)
       .then((loaded) => {
@@ -114,13 +117,18 @@ export function useWorkspacePreferences(
   };
 
   const persist = useCallback((next: WorkspacePreferences) => {
+    setSaveError(null);
     void upsertWorkspacePreferencesRecord(next)
       .then((persisted) => {
+        setSaveError(null);
         setSaved(persisted);
         setDraft((current) => (current?.updatedAt === next.updatedAt ? persisted : current));
       })
       .catch((error) => {
         console.error("Failed to save workspace preferences.", error);
+        setSaveError(
+          "Workspace layout could not be saved to your account. Try again before leaving this binder.",
+        );
       });
   }, []);
 
@@ -193,6 +201,7 @@ export function useWorkspacePreferences(
     saved,
     draft,
     active: draft ?? saved,
+    saveError,
     updateDraft,
     commit,
     save,

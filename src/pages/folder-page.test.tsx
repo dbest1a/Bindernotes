@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
   const seedHealth: SeedHealth = {
     suiteTemplateId: "suite-history",
     suiteSlug: "history-suite-demo",
-    suiteTitle: "History Suite Demo",
+    suiteTitle: "History Source Studio",
     status: "stale",
     expectedVersion: "2026.04.22-history-suite-foundation",
     actualVersion: null,
@@ -98,4 +98,3 @@ describe("FolderPage", () => {
     expect(screen.getAllByText("Expected version").length).toBeGreaterThan(0);
   });
 });
-

@@ -98,8 +98,34 @@ describe("SimplePresentationShell", () => {
     expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe(
       "/dashboard",
     );
+    expect((screen.getByRole("combobox", { name: "Study surface" }) as HTMLSelectElement).value).toBe("match");
     expect(container.querySelector(".workspace-canvas")).toBeNull();
     expect(screen.queryByText(/Drag windows/i)).toBeNull();
+  });
+
+  it("keeps only the exit focus action visible in simple focus mode", () => {
+    const preferences = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      simple: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").simple,
+        focusMode: true,
+      },
+    };
+
+    render(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: /Exit focus/i })).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Study surface" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Workspace home" })).toBeNull();
   });
 
   it("renders a history binder in simple presentation mode", () => {
@@ -183,6 +209,59 @@ describe("SimplePresentationShell", () => {
         }),
       }),
     );
+  });
+
+  it("marks Simple View with maximize-space state so turning it off restores the rich lesson header", () => {
+    const compactPreferences = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      theme: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").theme,
+        compactMode: true,
+      },
+    };
+    const richHeaderPreferences = {
+      ...compactPreferences,
+      theme: {
+        ...compactPreferences.theme,
+        compactMode: false,
+      },
+    };
+
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={compactPreferences}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Read the source, work the example, and keep your own explanation beside it.")).toBeTruthy();
+    expect(screen.getByText("Progress")).toBeTruthy();
+    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
+      "true",
+    );
+
+    rerender(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={createContext()}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={richHeaderPreferences}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
+      "false",
+    );
+    expect(screen.getByRole("link", { name: "Workspace home" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Study surface" })).toBeTruthy();
+    expect(screen.getByText("Reading")).toBeTruthy();
+    expect(screen.getByText("Highlights")).toBeTruthy();
   });
 });
 
