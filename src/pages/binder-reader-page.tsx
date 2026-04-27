@@ -802,6 +802,7 @@ export function BinderReaderPage() {
       scopeKey: `history-argument:${binderId}:${profile.id}`,
       runner: async () => {
         const isRomeBinder = binderId === "binder-rise-of-rome";
+        const isRussianBinder = binderId === "binder-russian-revolution";
         const starterDraft = isRomeBinder
           ? {
               prompt: "How did Rome's republic transform into an empire?",
@@ -814,6 +815,18 @@ export function BinderReaderPage() {
               conclusion:
                 "The strongest answer shows how overseas power created pressures that republican institutions could not absorb without one-man rule.",
             }
+          : isRussianBinder
+            ? {
+                prompt: "Why did imperial Russia collapse and Bolshevik power survive?",
+                thesis:
+                  "The Russian Revolution grew from autocracy, land hunger, industrial unrest, war collapse, and Bolshevik organization converging during a legitimacy crisis.",
+                context:
+                  "Use the timeline to connect 1861, 1905, World War I, February, dual power, October, civil war, NEP, and USSR formation.",
+                counterargument:
+                  "A war-only explanation misses the older land, labor, nationality, and institutional problems that made wartime failure revolutionary.",
+                conclusion:
+                  "The strongest answer shows why February destroyed the monarchy but October and civil war created a very different one-party state.",
+              }
           : {
               prompt: "What were the most important causes of the French Revolution?",
               thesis:
@@ -844,6 +857,15 @@ export function BinderReaderPage() {
               "Civil war settlement",
               "Augustus stabilizes one-man rule",
             ]
+          : isRussianBinder
+            ? [
+                "Autocracy and land hunger",
+                "Industrial unrest",
+                "World War I breakdown",
+                "February dual power",
+                "Bolshevik strategy",
+                "Civil war consolidation",
+              ]
           : [
               "Financial crisis",
               "Estates-General called",
@@ -861,6 +883,8 @@ export function BinderReaderPage() {
             title,
             body: isRomeBinder
               ? `Explain how ${title.toLowerCase()} pushes Rome toward imperial rule.`
+              : isRussianBinder
+                ? `Explain how ${title.toLowerCase()} pushes Russia from imperial crisis toward Bolshevik power.`
               : `Explain how ${title.toLowerCase()} pushes the revolution forward.`,
             sort_order: index,
             event_id: null,

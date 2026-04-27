@@ -328,7 +328,13 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           onCreateStarterChain={context.onCreateHistoryStarterChain}
           onUpdateChain={context.onUpdateHistoryArgumentChain}
           onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
-          starterTopic={context.binder.id === "binder-rise-of-rome" ? "rome" : "french"}
+          starterTopic={
+            context.binder.id === "binder-rise-of-rome"
+              ? "rome"
+              : context.binder.id === "binder-russian-revolution"
+                ? "russian"
+                : "french"
+          }
           status={context.history.status.argument}
         />
       ) : (

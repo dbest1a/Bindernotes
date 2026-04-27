@@ -10,6 +10,13 @@ import {
   systemSuiteTemplates,
 } from "@/lib/history-suite-seeds";
 import {
+  russianRevolutionBinder,
+  russianRevolutionEventTemplates,
+  russianRevolutionLessons,
+  russianRevolutionMythCheckTemplates,
+  russianRevolutionSourceTemplates,
+} from "@/lib/russian-revolution-seeds";
+import {
   createHealthySeedHealth,
   createLegacySeedHealth,
   createMissingSeedError,
@@ -822,6 +829,23 @@ function buildLocalHistorySuiteData(input: {
     };
   }
 
+  if (input.binder.id === SYSTEM_BINDER_IDS.russianRevolution) {
+    return {
+      suite: input.suite,
+      seedHealth: input.seedHealth,
+      templateEvents: russianRevolutionEventTemplates,
+      templateSources: russianRevolutionSourceTemplates,
+      templateMythChecks: russianRevolutionMythCheckTemplates,
+      events: localEvents,
+      sources: localSources,
+      evidenceCards: localEvidence,
+      argumentChains: localChains,
+      argumentNodes: localNodes,
+      argumentEdges: localEdges,
+      mythChecks: localMyths,
+    };
+  }
+
   return {
     suite: input.suite,
     seedHealth: input.seedHealth,
@@ -946,4 +970,16 @@ export const localHistorySuiteSeed = {
   templateEvents: frenchRevolutionEventTemplates,
   templateSources: frenchRevolutionSourceTemplates,
   templateMythChecks: frenchRevolutionMythCheckTemplates,
+};
+
+export const localRussianRevolutionSuiteSeed = {
+  suite: systemSuiteTemplates.find((suite) => suite.id === russianRevolutionBinder.suite_template_id)!,
+  folder: buildSystemFolderFromSuite(
+    systemSuiteTemplates.find((suite) => suite.id === russianRevolutionBinder.suite_template_id)!,
+  ),
+  binder: russianRevolutionBinder,
+  lessons: russianRevolutionLessons,
+  templateEvents: russianRevolutionEventTemplates,
+  templateSources: russianRevolutionSourceTemplates,
+  templateMythChecks: russianRevolutionMythCheckTemplates,
 };

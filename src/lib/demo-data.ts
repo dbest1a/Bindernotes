@@ -15,6 +15,12 @@ import type {
 } from "@/types";
 import type { JSONContent } from "@tiptap/react";
 import { emptyDoc } from "@/lib/utils";
+import {
+  russianRevolutionBinder,
+  russianRevolutionConceptEdges,
+  russianRevolutionConceptNodes,
+  russianRevolutionLessons,
+} from "@/lib/russian-revolution-seeds";
 
 const now = new Date().toISOString();
 
@@ -244,6 +250,14 @@ export const demoFolders: Folder[] = [
     created_at: now,
     updated_at: now,
   },
+  {
+    id: "folder-history",
+    owner_id: demoProfile.id,
+    name: "History",
+    color: "amber",
+    created_at: now,
+    updated_at: now,
+  },
 ];
 
 export const demoBinders: Binder[] = [
@@ -332,6 +346,7 @@ export const demoBinders: Binder[] = [
     created_at: now,
     updated_at: now,
   },
+  russianRevolutionBinder,
 ];
 
 export const demoFolderBinders: FolderBinderLink[] = [
@@ -356,6 +371,22 @@ export const demoFolderBinders: FolderBinderLink[] = [
     owner_id: demoProfile.id,
     folder_id: "folder-jacob-math",
     binder_id: "binder-jacob-math-notes",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-history:binder-rise-of-rome",
+    owner_id: demoProfile.id,
+    folder_id: "folder-history",
+    binder_id: "binder-rise-of-rome",
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: "folder-history:binder-russian-revolution",
+    owner_id: demoProfile.id,
+    folder_id: "folder-history",
+    binder_id: "binder-russian-revolution",
     created_at: now,
     updated_at: now,
   },
@@ -2933,6 +2964,7 @@ export const demoLessons: BinderLesson[] = [
     updated_at: now,
   },
   ...romanLessons,
+  ...russianRevolutionLessons,
   ...jacobLessons,
   {
     id: "lesson-limits",
@@ -3260,6 +3292,7 @@ export const demoConceptNodes: ConceptNode[] = [
     description: "The later name for the Eastern Roman Empire, which preserved Roman state claims for centuries.",
     created_at: now,
   },
+  ...russianRevolutionConceptNodes,
   {
     id: "node-jacob-geometry",
     binder_id: "binder-jacob-math-notes",
@@ -3500,6 +3533,7 @@ export const demoConceptEdges: ConceptEdge[] = [
     label: "reorders",
     created_at: now,
   },
+  ...russianRevolutionConceptEdges,
   {
     id: "edge-jacob-geometry-trig",
     binder_id: "binder-jacob-math-notes",

@@ -21,6 +21,15 @@ import {
   SYSTEM_SUITE_IDS,
   systemSuiteTemplates,
 } from "@/lib/history-suite-seeds";
+import {
+  russianRevolutionBinder,
+  russianRevolutionConceptEdges,
+  russianRevolutionConceptNodes,
+  russianRevolutionEventTemplates,
+  russianRevolutionLessons,
+  russianRevolutionMythCheckTemplates,
+  russianRevolutionSourceTemplates,
+} from "@/lib/russian-revolution-seeds";
 import type {
   Binder,
   BinderLesson,
@@ -173,7 +182,16 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
 
   const now = systemNow();
   const algebraAndRomeBinders = getSeededDemoBinders(profile.id);
-  const binders = [...algebraAndRomeBinders, { ...frenchRevolutionBinder, owner_id: profile.id, updated_at: now }];
+  const binders = [
+    ...algebraAndRomeBinders,
+    { ...frenchRevolutionBinder, owner_id: profile.id, updated_at: now },
+    {
+      ...russianRevolutionBinder,
+      owner_id: profile.id,
+      suite_template_id: SYSTEM_SUITE_IDS.historyDemo,
+      updated_at: now,
+    },
+  ];
   const folders = systemSuiteTemplates.map((suite) => ({
     ...buildSystemFolderFromSuite(suite),
     owner_id: profile.id,
@@ -200,19 +218,25 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
     };
   });
   const historyFolder = folders.find((folder) => folder.suite_template_id === SYSTEM_SUITE_IDS.historyDemo);
-  const riseOfRomeBinder = binders.find((binder) => binder.id === SYSTEM_BINDER_IDS.riseOfRome);
+  const historyShowcaseBinderIds = new Set<string>([
+    SYSTEM_BINDER_IDS.riseOfRome,
+    SYSTEM_BINDER_IDS.russianRevolution,
+  ]);
+  const historyShowcaseBinders = binders.filter((binder) => historyShowcaseBinderIds.has(binder.id));
   const folderBinders =
-    historyFolder && riseOfRomeBinder
+    historyFolder && historyShowcaseBinders.length > 0
       ? [
           ...primaryFolderBinders,
-          {
-            id: `folder-link:${historyFolder.id}:${riseOfRomeBinder.id}`,
-            owner_id: profile.id,
-            folder_id: historyFolder.id,
-            binder_id: riseOfRomeBinder.id,
-            created_at: now,
-            updated_at: now,
-          },
+          ...historyShowcaseBinders
+            .filter((binder) => binder.suite_template_id !== SYSTEM_SUITE_IDS.historyDemo)
+            .map((binder) => ({
+              id: `folder-link:${historyFolder.id}:${binder.id}`,
+              owner_id: profile.id,
+              folder_id: historyFolder.id,
+              binder_id: binder.id,
+              created_at: now,
+              updated_at: now,
+            })),
         ]
       : primaryFolderBinders;
 
@@ -230,27 +254,37 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
     folders,
     folderBinders,
     binders,
-    lessons: [...getSeededDemoLessons(), ...frenchRevolutionLessons].map((lesson) => ({
+    lessons: [...getSeededDemoLessons(), ...frenchRevolutionLessons, ...russianRevolutionLessons].map((lesson) => ({
       ...lesson,
       updated_at: now,
     })),
-    conceptNodes: getSeededConceptNodes(),
-    conceptEdges: getSeededConceptEdges(),
+    conceptNodes: [...getSeededConceptNodes(), ...russianRevolutionConceptNodes],
+    conceptEdges: [...getSeededConceptEdges(), ...russianRevolutionConceptEdges],
     workspacePresets: buildWorkspacePresetRows(now),
-    historyEventTemplates: [...frenchRevolutionEventTemplates, ...riseOfRomeEventTemplates].map((event) => ({
+    historyEventTemplates: [
+      ...frenchRevolutionEventTemplates,
+      ...riseOfRomeEventTemplates,
+      ...russianRevolutionEventTemplates,
+    ].map((event) => ({
       ...event,
       updated_at: now,
     })),
-    historySourceTemplates: [...frenchRevolutionSourceTemplates, ...riseOfRomeSourceTemplates].map((source) => ({
+    historySourceTemplates: [
+      ...frenchRevolutionSourceTemplates,
+      ...riseOfRomeSourceTemplates,
+      ...russianRevolutionSourceTemplates,
+    ].map((source) => ({
       ...source,
       updated_at: now,
     })),
-    historyMythCheckTemplates: [...frenchRevolutionMythCheckTemplates, ...riseOfRomeMythCheckTemplates].map(
-      (myth) => ({
-        ...myth,
-        updated_at: now,
-      }),
-    ),
+    historyMythCheckTemplates: [
+      ...frenchRevolutionMythCheckTemplates,
+      ...riseOfRomeMythCheckTemplates,
+      ...russianRevolutionMythCheckTemplates,
+    ].map((myth) => ({
+      ...myth,
+      updated_at: now,
+    })),
   };
 }
 

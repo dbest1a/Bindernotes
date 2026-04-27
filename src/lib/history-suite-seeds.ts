@@ -10,6 +10,14 @@ import type {
   WorkspacePresetDefinition,
 } from "@/types";
 import { demoLessons } from "@/lib/demo-data";
+import {
+  RUSSIAN_REVOLUTION_BINDER_ID,
+  russianRevolutionBinder,
+  russianRevolutionEventTemplates,
+  russianRevolutionLessons,
+  russianRevolutionMythCheckTemplates,
+  russianRevolutionSourceTemplates,
+} from "@/lib/russian-revolution-seeds";
 
 const now = new Date().toISOString();
 const systemOwnerId = "system-seed-admin";
@@ -60,6 +68,7 @@ export const SYSTEM_BINDER_IDS = {
   algebra: "binder-algebra-foundations",
   riseOfRome: "binder-rise-of-rome",
   frenchRevolution: "binder-french-revolution-history-suite",
+  russianRevolution: RUSSIAN_REVOLUTION_BINDER_ID,
 } as const;
 
 export const SYSTEM_SEED_VERSION = "2026.04.22-history-suite-foundation";
@@ -96,7 +105,7 @@ export const systemSuiteTemplates: SuiteTemplate[] = [
     slug: "history-suite-demo",
     title: "History Source Studio",
     subject: "History",
-    description: "A French Revolution showcase for timeline, evidence, argument, and myth-versus-history study.",
+    description: "A History Suite showcase folder for timeline, evidence, argument, myth-checking, and source-based study.",
     folder_title: "History",
     history_mode: true,
     default_preset_id: "history-guided",

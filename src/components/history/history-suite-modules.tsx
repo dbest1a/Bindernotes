@@ -543,7 +543,7 @@ export function ArgumentBuilderModule({
     >,
   ) => void;
   onUseEvidencePrompt: () => void;
-  starterTopic?: "french" | "rome";
+  starterTopic?: "french" | "rome" | "russian";
   status: SaveStatusSnapshot;
 }) {
   const [draft, setDraft] = useState(() => buildChainDraft(activeChain, starterTopic));
@@ -712,6 +712,8 @@ export function ArgumentBuilderModule({
                   description={
                     starterTopic === "rome"
                       ? "Create a starter chain to seed the Rise of Rome cause sequence."
+                      : starterTopic === "russian"
+                        ? "Create a starter chain to seed the Russian Revolution cause sequence."
                       : "Create a starter chain to seed the French Revolution cause sequence."
                   }
                   title="No chain nodes yet"
@@ -839,6 +841,17 @@ const starterChainDrafts = {
       "A size-only explanation misses how social inequality, army politics, and elite competition changed the republic from within.",
     conclusion:
       "The strongest answer shows how overseas power created pressures that republican institutions could not absorb without one-man rule.",
+  },
+  russian: {
+    prompt: "Why did imperial Russia collapse and Bolshevik power survive?",
+    thesis:
+      "The Russian Revolution grew from autocracy, land hunger, industrial unrest, war collapse, and Bolshevik organization converging during a legitimacy crisis.",
+    context:
+      "Use the timeline to connect 1861, 1905, World War I, February, dual power, October, civil war, NEP, and USSR formation.",
+    counterargument:
+      "A war-only explanation misses the older land, labor, nationality, and institutional problems that made wartime failure revolutionary.",
+    conclusion:
+      "The strongest answer shows why February destroyed the monarchy but October and civil war created a very different one-party state.",
   },
 } as const;
 
