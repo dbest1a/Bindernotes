@@ -87,6 +87,19 @@ describe("lesson selection toolbar helpers", () => {
     }
   });
 
+  it("renders above the full-screen whiteboard shell instead of underneath it", async () => {
+    const restoreRange = installSelectionRect();
+    try {
+      renderSelectionToolbar({});
+      selectText("Second selectable quote");
+      document.dispatchEvent(new Event("selectionchange"));
+
+      expect((await screen.findByTestId("whiteboard-annotation-popup")).className).toContain("z-[2147483647]");
+    } finally {
+      restoreRange();
+    }
+  });
+
   it("routes add note and copy quote actions from the annotation popup", async () => {
     const onSendToNotes = vi.fn();
     const onQuoteToNotes = vi.fn();

@@ -187,7 +187,7 @@ export function LessonSelectionToolbar({
 
   const toolbar = (
     <div
-      className="pointer-events-none fixed z-[70]"
+      className="pointer-events-none fixed z-[2147483647]"
       data-lesson-selection-toolbar="true"
       data-testid="whiteboard-annotation-popup"
       ref={toolbarRef}
