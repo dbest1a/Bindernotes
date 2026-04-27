@@ -7,6 +7,7 @@ import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/wh
 
 const excalidrawMock = vi.hoisted(() => ({
   props: null as Record<string, unknown> | null,
+  refresh: vi.fn(),
   apiState: {
     scrollX: 0,
     scrollY: 0,
@@ -22,6 +23,7 @@ vi.mock("@excalidraw/excalidraw", async () => {
       if (typeof props.excalidrawAPI === "function") {
         props.excalidrawAPI({
           getAppState: () => excalidrawMock.apiState,
+          refresh: excalidrawMock.refresh,
         });
       }
       return React.createElement("div", { "data-testid": "mock-excalidraw" });
@@ -68,6 +70,7 @@ describe("WhiteboardCanvas", () => {
       scrollY: 0,
       zoom: { value: 1 },
     };
+    excalidrawMock.refresh.mockClear();
   });
 
   it("wires Excalidraw onScrollChange for live camera updates", async () => {
@@ -187,5 +190,47 @@ describe("WhiteboardCanvas", () => {
     });
 
     expect(onSceneChange).not.toHaveBeenCalled();
+  });
+
+  it("refreshes Excalidraw when its host container is resized", async () => {
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+
+    class MockResizeObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+    }
+
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    try {
+      render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={vi.fn()} />);
+
+      await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+      excalidrawMock.refresh.mockClear();
+
+      act(() => {
+        resizeCallbacks[0]?.(
+          [
+            {
+              contentRect: {
+                width: 900,
+                height: 520,
+              },
+            } as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      });
+
+      await waitFor(() => expect(excalidrawMock.refresh).toHaveBeenCalled());
+    } finally {
+      globalThis.ResizeObserver = OriginalResizeObserver;
+    }
   });
 });

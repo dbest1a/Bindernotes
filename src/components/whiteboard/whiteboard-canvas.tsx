@@ -161,6 +161,45 @@ export function WhiteboardCanvas({
     emitViewportChange(initialData.appState ?? {});
   }, [board.id, board.scene.appState, emitViewportChange]);
 
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    let animationFrame = 0;
+    const refreshCanvas = () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      animationFrame = window.requestAnimationFrame(() => {
+        animationFrame = 0;
+        const api = excalidrawApiRef.current;
+        api?.refresh?.();
+        emitViewportChange(api?.getAppState?.() ?? initialData.appState ?? {});
+      });
+    };
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry?.contentRect.width || !entry.contentRect.height) {
+        return;
+      }
+
+      refreshCanvas();
+    });
+
+    resizeObserver.observe(host);
+
+    return () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+      resizeObserver.disconnect();
+    };
+  }, [emitViewportChange, initialData.appState]);
+
   if (!ExcalidrawComponent) {
     return (
       <div className="absolute inset-0 grid place-items-center bg-[#10131a] text-sm text-muted-foreground">

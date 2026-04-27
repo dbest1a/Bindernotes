@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { AdminMotionRootSync } from "@/hooks/use-admin-motion";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { UserAppearanceSync } from "@/components/theme/user-appearance-sync";
@@ -99,6 +100,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <AdminMotionRootSync />
           <UserAppearanceSync />
           <SyncRecoveryBridge />
           <Router>

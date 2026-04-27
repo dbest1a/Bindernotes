@@ -173,6 +173,292 @@
   }
 }
 
+.whiteboard-workspace-panel--module .workspace-panel__body {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.75rem;
+}
+
+.whiteboard-module-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.whiteboard-module-surface {
+  contain: layout paint;
+}
+
+.whiteboard-module-surface .whiteboard-excalidraw-host {
+  position: absolute;
+  inset: 0;
+}
+
+:root {
+  --admin-motion-duration-fast: 140ms;
+  --admin-motion-duration-normal: 220ms;
+  --admin-motion-duration-slow: 420ms;
+  --admin-motion-pop-distance: 8px;
+  --admin-motion-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --admin-motion-ease-pop: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-motion-speed="quick"] {
+  --admin-motion-duration-fast: 90ms;
+  --admin-motion-duration-normal: 170ms;
+  --admin-motion-duration-slow: 280ms;
+}
+
+:root[data-motion-speed="slow"] {
+  --admin-motion-duration-fast: 200ms;
+  --admin-motion-duration-normal: 320ms;
+  --admin-motion-duration-slow: 560ms;
+}
+
+:root[data-motion-intensity="full"] {
+  --admin-motion-pop-distance: 12px;
+}
+
+:root[data-motion-intensity="party"] {
+  --admin-motion-pop-distance: 16px;
+}
+
+.admin-profile-trigger {
+  position: relative;
+  overflow: hidden;
+}
+
+:root[data-admin-motion="on"] .admin-profile-trigger[data-admin="true"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, hsl(var(--primary)) 35%, transparent), 0 12px 36px hsl(var(--primary) / 0.14);
+}
+
+:root[data-admin-motion="on"] .admin-profile-trigger[data-admin="true"]::before {
+  background: linear-gradient(120deg, transparent, hsl(var(--primary) / 0.28), hsl(188 95% 52% / 0.22), transparent);
+  content: "";
+  inset: -1px;
+  opacity: 0;
+  position: absolute;
+  transform: translateX(-55%);
+  transition: opacity var(--admin-motion-duration-fast) var(--admin-motion-ease);
+}
+
+:root[data-admin-motion="on"] .admin-profile-trigger[data-admin="true"]:hover::before {
+  animation: admin-light-sweep var(--admin-motion-duration-slow) var(--admin-motion-ease) both;
+  opacity: 1;
+}
+
+.admin-motion-popover {
+  transform-origin: top right;
+}
+
+:root[data-admin-motion="on"] .admin-motion-popover {
+  animation: admin-popover-in var(--admin-motion-duration-normal) var(--admin-motion-ease-pop) both;
+}
+
+.admin-motion-toggle {
+  display: inline-flex;
+  height: 1.75rem;
+  width: 3rem;
+}
+
+.admin-motion-toggle__knob {
+  background: hsl(var(--muted-foreground));
+  border-radius: 999px;
+  display: block;
+  height: 1.25rem;
+  transform: translateX(0);
+  transition: transform var(--admin-motion-duration-normal) var(--admin-motion-ease-pop), background var(--admin-motion-duration-fast) ease;
+  width: 1.25rem;
+}
+
+.admin-motion-toggle__knob--on {
+  background: hsl(var(--primary));
+  transform: translateX(1.25rem);
+}
+
+:root[data-admin-motion="on"] .app-route-transition-shell[data-route-transition-active="true"] {
+  animation: admin-route-soft-land var(--admin-motion-duration-normal) var(--admin-motion-ease) both;
+}
+
+:root[data-admin-motion="on"][data-page-transition="slide-pop"] .app-route-transition-shell[data-route-transition-active="true"] {
+  animation-name: admin-route-slide-pop;
+}
+
+:root[data-admin-motion="on"][data-page-transition="drop-in"] .app-route-transition-shell[data-route-transition-active="true"] {
+  animation-name: admin-route-drop-in;
+}
+
+:root[data-admin-motion="on"] nav a,
+:root[data-admin-motion="on"] .ui-button-motion,
+:root[data-admin-motion="on"] .workspace-window,
+:root[data-admin-motion="on"] .dashboard-card,
+:root[data-admin-motion="on"] .binder-card,
+:root[data-admin-motion="on"] .whiteboard-toolbox-card,
+:root[data-admin-motion="on"] .whiteboard-action-button {
+  transition-duration: var(--admin-motion-duration-fast);
+  transition-property: transform, box-shadow, background, border-color, color, opacity;
+  transition-timing-function: var(--admin-motion-ease);
+}
+
+:root[data-admin-motion="on"] nav a:hover,
+:root[data-admin-motion="on"] .ui-button-motion:hover,
+:root[data-admin-motion="on"] .dashboard-card:hover,
+:root[data-admin-motion="on"] .binder-card:hover,
+:root[data-admin-motion="on"] .whiteboard-toolbox-card:hover,
+:root[data-admin-motion="on"] .whiteboard-action-button:hover {
+  box-shadow: 0 14px 34px hsl(var(--primary) / 0.14);
+  transform: translateY(-1px);
+}
+
+:root[data-admin-motion="on"][data-premium-color-mode="gradient"] nav a[aria-current="page"],
+:root[data-admin-motion="on"][data-premium-color-mode="gradient"] .ui-button-motion:not(:disabled):active,
+:root[data-admin-motion="on"][data-premium-color-mode="neon-lab"] nav a[aria-current="page"],
+:root[data-admin-motion="on"][data-premium-color-mode="neon-lab"] .ui-button-motion:not(:disabled):active {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.38), 0 0 28px hsl(188 95% 52% / 0.22);
+}
+
+:root[data-admin-motion="on"] .whiteboard-control-panel,
+:root[data-admin-motion="on"] .whiteboard-toolbox-panel {
+  animation: admin-float-in var(--admin-motion-duration-normal) var(--admin-motion-ease) both;
+}
+
+:root[data-admin-motion="on"] .whiteboard-toolbox-card {
+  animation: admin-card-stagger var(--admin-motion-duration-normal) var(--admin-motion-ease) both;
+}
+
+:root[data-admin-motion="on"] .whiteboard-save-status[data-status="saving"],
+:root[data-admin-motion="on"] .whiteboard-save-status[data-status="saved"] {
+  animation: admin-save-pulse var(--admin-motion-duration-slow) var(--admin-motion-ease) 1;
+}
+
+:root[data-admin-motion="on"] .workspace-window--editable [data-window-resize="corner"] {
+  animation: admin-handle-glow var(--admin-motion-duration-slow) ease-in-out infinite alternate;
+}
+
+:root[data-admin-motion="on"] [data-testid="whiteboard-annotation-popup"],
+:root[data-admin-motion="on"] [data-testid="whiteboard-zoom-safety-prompt"],
+:root[data-admin-motion="on"] [data-testid="whiteboard-no-private-notes-prompt"] {
+  animation: admin-popover-in var(--admin-motion-duration-normal) var(--admin-motion-ease-pop) both;
+}
+
+@keyframes admin-light-sweep {
+  from {
+    transform: translateX(-55%);
+  }
+  to {
+    transform: translateX(55%);
+  }
+}
+
+@keyframes admin-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--admin-motion-pop-distance) * -0.5)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes admin-route-soft-land {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--admin-motion-pop-distance) * -1)) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes admin-route-slide-pop {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--admin-motion-pop-distance) * 1.4)) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes admin-route-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--admin-motion-pop-distance) * -1.6)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes admin-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--admin-motion-pop-distance));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes admin-card-stagger {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes admin-save-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 hsl(142 72% 48% / 0);
+  }
+  45% {
+    box-shadow: 0 0 0 8px hsl(142 72% 48% / 0.16);
+  }
+}
+
+@keyframes admin-handle-glow {
+  from {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.2);
+  }
+  to {
+    box-shadow: 0 0 0 5px hsl(var(--primary) / 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-admin-motion="on"] .app-route-transition-shell,
+  :root[data-admin-motion="on"] .admin-motion-popover,
+  :root[data-admin-motion="on"] .whiteboard-control-panel,
+  :root[data-admin-motion="on"] .whiteboard-toolbox-panel,
+  :root[data-admin-motion="on"] .whiteboard-toolbox-card,
+  :root[data-admin-motion="on"] [data-testid="whiteboard-annotation-popup"],
+  :root[data-admin-motion="on"] [data-testid="whiteboard-zoom-safety-prompt"],
+  :root[data-admin-motion="on"] [data-testid="whiteboard-no-private-notes-prompt"],
+  :root[data-admin-motion="on"] .workspace-window--editable [data-window-resize="corner"] {
+    animation: none !important;
+  }
+
+  :root[data-admin-motion="on"] nav a,
+  :root[data-admin-motion="on"] .ui-button-motion,
+  :root[data-admin-motion="on"] .workspace-window,
+  :root[data-admin-motion="on"] .dashboard-card,
+  :root[data-admin-motion="on"] .binder-card,
+  :root[data-admin-motion="on"] .whiteboard-toolbox-card,
+  :root[data-admin-motion="on"] .whiteboard-action-button {
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer components {
   .app-page {
     @apply mx-auto flex w-full max-w-[1540px] flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8;

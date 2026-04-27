@@ -1110,16 +1110,12 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
 
   return (
     <WorkspacePanel
-      className={labMode ? "whiteboard-workspace-panel whiteboard-workspace-panel--lab min-h-[calc(100svh-13rem)]" : "whiteboard-workspace-panel min-h-[720px]"}
-      description={
-        labMode
-          ? "Full-screen local review lab with graph-paper drawing, templates, and live BinderNotes modules"
-          : "Local review draft with graph-paper drawing and live BinderNotes modules"
-      }
-      title={labMode ? "Whiteboard Lab" : "Math Whiteboard"}
+      className="whiteboard-workspace-panel whiteboard-workspace-panel--module h-full min-h-0"
+      description="Local review draft with graph-paper drawing and live BinderNotes modules"
+      title="Math Whiteboard"
     >
-      <div className={labMode ? "grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]" : "grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]"}>
-        <aside className="grid content-start gap-4 rounded-xl border border-border/70 bg-background/60 p-3">
+      <div className="whiteboard-module-layout grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
+        <aside className="grid min-h-0 content-start gap-3 overflow-auto rounded-xl border border-border/70 bg-background/60 p-3">
           <div>
             <div className="flex items-center justify-between gap-2">
               <Badge variant="outline">Local draft</Badge>
@@ -1136,12 +1132,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             onSelectBoard={selectBoard}
           />
           <WhiteboardTemplatePicker onCreateFromTemplate={createBoardFromTemplate} />
-          {labMode ? <WhiteboardModuleLauncher onAddModule={addModule} placement="panel" /> : null}
         </aside>
 
-        <div className={labMode ? "relative min-h-[calc(100svh-18rem)] overflow-auto rounded-xl border border-border/70 bg-[#10131a]" : "relative min-h-[680px] overflow-auto rounded-xl border border-border/70 bg-[#10131a]"}>
+        <div className="whiteboard-module-surface relative h-full min-h-0 overflow-hidden rounded-xl border border-border/70 bg-[#10131a]">
           {activeBoard ? (
-            <div className={labMode ? "relative min-h-[2200px] min-w-[2200px]" : "relative min-h-[1800px] min-w-[1800px]"}>
+            <div className="whiteboard-module-board relative h-full min-h-0 min-w-0 overflow-hidden">
               <WhiteboardCanvas
                 board={activeBoard}
                 onSceneChange={handleSceneChange}
@@ -1175,10 +1170,10 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 title={activeBoard.title}
                 warning={warning}
               />
-              {!labMode ? <WhiteboardModuleLauncher onAddModule={addModule} /> : null}
+              <WhiteboardModuleLauncher onAddModule={addModule} />
             </div>
           ) : (
-            <div className="grid min-h-[680px] place-items-center p-6">
+            <div className="grid h-full min-h-[24rem] place-items-center p-6">
               <EmptyState
                 description="Create a board from a template to start drawing."
                 title="No whiteboard selected"
