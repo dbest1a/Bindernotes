@@ -1,4 +1,4 @@
-import { Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, Trash2 } from "lucide-react";
+import { BookOpenText, Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, Sigma, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,9 @@ type WhiteboardModuleCardProps = {
   onChange: (moduleElement: WhiteboardModuleElement) => void;
   onBringToFront: () => void;
   onRemove: (moduleId: string) => void;
+  onEditSource?: () => void;
+  onOpenFormulaSheet?: () => void;
+  onResetSource?: () => void;
   presentation?: EmbeddedModulePresentation;
   viewportTransform?: WhiteboardViewportTransform;
   getViewportTransform?: () => WhiteboardViewportTransform;
@@ -128,7 +131,10 @@ export function WhiteboardModuleCard({
   children,
   onChange,
   onBringToFront,
+  onEditSource,
+  onOpenFormulaSheet,
   onRemove,
+  onResetSource,
   presentation = "live",
   viewportTransform = defaultWhiteboardViewportTransform,
   getViewportTransform,
@@ -139,6 +145,7 @@ export function WhiteboardModuleCard({
   const styleRafRef = useRef<number | null>(null);
   const pendingStyleRef = useRef<StylePatch>({});
   const [anchorMenuOpen, setAnchorMenuOpen] = useState(false);
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [selected, setSelected] = useState(false);
   const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
   const heavy = isHeavyWhiteboardModule(moduleElement.moduleId);
@@ -150,6 +157,11 @@ export function WhiteboardModuleCard({
   const boardRenderPoint = zoomScaled ? getBoardRenderPoint(moduleElement, viewportTransform) : screenFrame;
   const renderScale = zoomScaled ? viewportTransform.zoom : 1;
   const latestViewportTransform = () => getViewportTransform?.() ?? viewportTransform;
+  const foreground = selected || anchorMenuOpen || optionsMenuOpen;
+  const cardStyle = {
+    ...getModuleCardStyle(moduleElement, screenFrame, viewportTransform),
+    zIndex: foreground ? 10000 + moduleElement.zIndex : moduleElement.zIndex,
+  };
 
   useEffect(
     () => () => {
@@ -161,7 +173,7 @@ export function WhiteboardModuleCard({
   );
 
   useEffect(() => {
-    if (!selected && !anchorMenuOpen) {
+    if (!selected && !anchorMenuOpen && !optionsMenuOpen) {
       return;
     }
 
@@ -172,11 +184,12 @@ export function WhiteboardModuleCard({
       }
       setSelected(false);
       setAnchorMenuOpen(false);
+      setOptionsMenuOpen(false);
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [anchorMenuOpen, selected]);
+  }, [anchorMenuOpen, optionsMenuOpen, selected]);
 
   const scheduleStylePatch = (patch: StylePatch) => {
     const root = rootRef.current;
@@ -222,10 +235,21 @@ export function WhiteboardModuleCard({
   const selectAnchorMode = (nextAnchorMode: WhiteboardModuleAnchorMode) => {
     setSelected(true);
     setAnchorMenuOpen(false);
+    setOptionsMenuOpen(false);
     if (nextAnchorMode === anchorMode) {
       return;
     }
     onChange(convertWhiteboardCardAnchor(moduleElement, nextAnchorMode, latestViewportTransform()));
+  };
+
+  const updateModuleSettings = (patch: Partial<WhiteboardModuleElement>) => {
+    setSelected(true);
+    setOptionsMenuOpen(false);
+    onChange({
+      ...moduleElement,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   const updatePointerAction = (event: React.PointerEvent) => {
@@ -318,10 +342,139 @@ export function WhiteboardModuleCard({
     });
   };
 
+  const renderAnchorMenu = () => (
+    <div
+      className="whiteboard-card-anchor-menu grid max-h-72 w-full gap-1 overflow-auto bg-popover p-1.5 text-xs text-popover-foreground"
+      data-testid="whiteboard-card-anchor-menu"
+      onPointerDown={(event) => event.stopPropagation()}
+      role="menu"
+    >
+      {(["board", "board-fixed-size", "viewport"] as WhiteboardModuleAnchorMode[]).map((mode) => (
+        <button
+          aria-pressed={anchorMode === mode}
+          className={cn(
+            "flex w-full flex-col rounded-md px-2.5 py-2 text-left text-xs transition hover:bg-secondary",
+            anchorMode === mode && "bg-accent/75 text-accent-foreground",
+          )}
+          data-testid={
+            mode === "board"
+              ? "whiteboard-card-anchor-board"
+              : mode === "board-fixed-size"
+                ? "whiteboard-card-anchor-board-fixed"
+                : "whiteboard-card-anchor-viewport"
+          }
+          key={mode}
+          onClick={(event) => {
+            event.stopPropagation();
+            selectAnchorMode(mode);
+          }}
+          role="menuitemradio"
+          type="button"
+        >
+          <span className="font-semibold">{anchorLabels[mode]}</span>
+          <span className="mt-0.5 leading-4 text-muted-foreground">{anchorDescriptions[mode]}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderOptionsMenu = () => (
+    <div
+      className="whiteboard-card-options-menu grid max-h-80 w-full gap-1 overflow-auto bg-popover p-1.5 text-xs text-popover-foreground"
+      data-testid="whiteboard-card-options-menu"
+      onPointerDown={(event) => event.stopPropagation()}
+      role="menu"
+    >
+      {moduleElement.moduleId === "lesson" ? (
+        <>
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => {
+              setOptionsMenuOpen(false);
+              onEditSource?.();
+            }}
+            type="button"
+          >
+            <BookOpenText className="size-3.5" />
+            Edit source
+          </button>
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => {
+              setOptionsMenuOpen(false);
+              onResetSource?.();
+            }}
+            type="button"
+          >
+            Reset source
+          </button>
+          <div className="my-1 h-px bg-border" />
+          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Source display
+          </p>
+          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "compact" })} type="button">
+            Compact reading
+          </button>
+          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "summary" })} type="button">
+            Summary first
+          </button>
+          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "full" })} type="button">
+            Full lesson
+          </button>
+          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "header-hidden" })} type="button">
+            Hide lesson header
+          </button>
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => {
+              setOptionsMenuOpen(false);
+              onOpenFormulaSheet?.();
+            }}
+            type="button"
+          >
+            <Sigma className="size-3.5" />
+            Formula sheet
+          </button>
+        </>
+      ) : null}
+      <div className="my-1 h-px bg-border" />
+      <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Card density
+      </p>
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ cardDensity: "compact" })} type="button">
+        Compact density
+      </button>
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ cardDensity: "comfortable" })} type="button">
+        Comfortable density
+      </button>
+      <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Text size
+      </p>
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "small" })} type="button">
+        Small text
+      </button>
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "normal" })} type="button">
+        Normal text
+      </button>
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "large" })} type="button">
+        Large text
+      </button>
+      <div className="my-1 h-px bg-border" />
+      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ mode: moduleElement.mode === "collapsed" ? "preview" : "collapsed" })} type="button">
+        Collapse card
+      </button>
+      <button className="whiteboard-card-menu-item text-destructive" onClick={() => onRemove(moduleElement.id)} type="button">
+        Remove card
+      </button>
+    </div>
+  );
+
+  const activeCardMenu = anchorMenuOpen ? renderAnchorMenu() : optionsMenuOpen ? renderOptionsMenu() : null;
+
   return (
     <div
       className={cn(
-        "whiteboard-module-card pointer-events-auto absolute flex flex-col overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_16px_38px_rgba(15,23,42,0.18)] ring-0 transition-[box-shadow,border-color]",
+        "whiteboard-module-card pointer-events-auto absolute flex flex-col overflow-visible rounded-lg border border-border bg-card text-card-foreground shadow-[0_16px_38px_rgba(15,23,42,0.18)] ring-0 transition-[box-shadow,border-color]",
         "hover:border-primary hover:shadow-[0_18px_46px_rgba(15,23,42,0.24)]",
         zoomScaled && "shadow-[0_8px_18px_rgba(15,23,42,0.14)] hover:shadow-[0_10px_24px_rgba(15,23,42,0.18)]",
         selected && "border-primary/70 shadow-[0_22px_56px_rgba(15,23,42,0.28)] ring-2 ring-primary/45",
@@ -329,7 +482,9 @@ export function WhiteboardModuleCard({
       )}
       data-card-anchor={anchorMode}
       data-card-mode={moduleElement.mode}
+      data-card-density={moduleElement.cardDensity ?? "compact"}
       data-card-selected={String(selected)}
+      data-card-text-size={moduleElement.textSize ?? "normal"}
       data-card-scene-x={boardPositioned ? moduleElement.x : ""}
       data-card-scene-y={boardPositioned ? moduleElement.y : ""}
       data-card-scene-width={boardPositioned ? moduleElement.width : ""}
@@ -362,10 +517,10 @@ export function WhiteboardModuleCard({
         onBringToFront();
       }}
       ref={rootRef}
-      style={getModuleCardStyle(moduleElement, screenFrame, viewportTransform)}
+      style={cardStyle}
     >
       <div
-        className="whiteboard-module-card__chrome flex cursor-grab items-center justify-between gap-2 border-b border-border bg-popover px-2.5 py-2 text-sm text-popover-foreground active:cursor-grabbing"
+        className="whiteboard-module-card__chrome z-30 flex cursor-grab items-center justify-between gap-2 border-b border-border bg-popover px-2.5 py-2 text-sm text-popover-foreground active:cursor-grabbing"
         onPointerCancel={finishPointerAction}
         onPointerDown={(event) => beginPointerAction(event, "drag")}
         onPointerMove={updatePointerAction}
@@ -408,6 +563,7 @@ export function WhiteboardModuleCard({
             onClick={(event) => {
               event.stopPropagation();
               setSelected(true);
+              setOptionsMenuOpen(false);
               setAnchorMenuOpen((current) => !current);
             }}
             size="icon"
@@ -417,41 +573,6 @@ export function WhiteboardModuleCard({
           >
             {pinned ? <Pin className="size-4" /> : <PinOff className="size-4" />}
           </Button>
-          {anchorMenuOpen ? (
-            <div
-              className="absolute right-0 top-[calc(100%+0.4rem)] z-50 w-64 rounded-lg border border-border/80 bg-popover p-1.5 text-popover-foreground shadow-2xl"
-              data-testid="whiteboard-card-anchor-menu"
-              onPointerDown={(event) => event.stopPropagation()}
-              role="menu"
-            >
-              {(["board", "board-fixed-size", "viewport"] as WhiteboardModuleAnchorMode[]).map((mode) => (
-                <button
-                  aria-pressed={anchorMode === mode}
-                  className={cn(
-                    "flex w-full flex-col rounded-md px-2.5 py-2 text-left text-xs transition hover:bg-secondary",
-                    anchorMode === mode && "bg-accent/75 text-accent-foreground",
-                  )}
-                  data-testid={
-                    mode === "board"
-                      ? "whiteboard-card-anchor-board"
-                      : mode === "board-fixed-size"
-                        ? "whiteboard-card-anchor-board-fixed"
-                        : "whiteboard-card-anchor-viewport"
-                  }
-                  key={mode}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    selectAnchorMode(mode);
-                  }}
-                  role="menuitemradio"
-                  type="button"
-                >
-                  <span className="font-semibold">{anchorLabels[mode]}</span>
-                  <span className="mt-0.5 leading-4 text-muted-foreground">{anchorDescriptions[mode]}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
           <Button
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -488,10 +609,13 @@ export function WhiteboardModuleCard({
           </Button>
           <Button
             aria-label="Board card options"
+            data-testid="whiteboard-card-options-button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               setSelected(true);
+              setAnchorMenuOpen(false);
+              setOptionsMenuOpen((current) => !current);
             }}
             size="icon"
             title="Board card options"
@@ -515,14 +639,24 @@ export function WhiteboardModuleCard({
           </Button>
         </div>
       </div>
+      {activeCardMenu ? (
+        <div
+          className="whiteboard-card-menu-dock z-20 shrink-0 border-b border-border bg-popover text-popover-foreground shadow-[inset_0_1px_0_hsl(var(--background)/0.8),0_12px_28px_rgb(15_23_42/0.12)]"
+          data-testid="whiteboard-card-menu-dock"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {activeCardMenu}
+        </div>
+      ) : null}
       {moduleElement.mode === "collapsed" || presentation === "chip" ? null : (
-        <div className="whiteboard-module-card__content flex-1 min-h-0 overflow-hidden bg-background/60 p-0">
+        <div className="whiteboard-module-card__content z-10 flex-1 min-h-0 overflow-hidden bg-card p-0">
           {children}
         </div>
       )}
       {moduleElement.mode !== "collapsed" && presentation !== "chip" ? (
         <div
-          className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 size-5 cursor-se-resize rounded-tl-lg border-l border-t border-primary/35 bg-primary/40 opacity-80 transition hover:opacity-100"
+          className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-6 cursor-se-resize rounded-tl-lg border-l border-t border-primary/45 bg-primary opacity-95 shadow-[0_0_0_2px_hsl(var(--card)),0_10px_24px_rgb(15_23_42/0.24)] transition hover:opacity-100"
+          data-testid="whiteboard-card-resize-handle"
           onPointerCancel={finishPointerAction}
           onPointerDown={(event) => beginPointerAction(event, "resize")}
           onPointerMove={updatePointerAction}

@@ -190,7 +190,7 @@ describe("whiteboard coordinate utilities", () => {
     });
   });
 
-  it("converts viewport cards to board while preserving visual position and size", () => {
+  it("converts viewport cards to board while preserving visual center and useful module size", () => {
     const converted = convertWhiteboardCardAnchor(
       moduleElement({ anchorMode: "viewport", pinned: false, x: 240, y: 120, width: 720, height: 560 }),
       "board",
@@ -201,17 +201,20 @@ describe("whiteboard coordinate utilities", () => {
     expect(converted).toMatchObject({
       anchorMode: "board",
       pinned: true,
-      x: 20,
-      y: 140,
-      width: 360,
-      height: 280,
-    });
-    expect(boardToScreenFrame(converted, { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 })).toMatchObject({
-      x: 240,
+      x: -10,
       y: 120,
-      width: 720,
-      height: 560,
+      width: 420,
+      height: 320,
     });
+    const screenFrame = boardToScreenFrame(converted, { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 });
+    expect(screenFrame).toMatchObject({
+      x: 180,
+      y: 80,
+      width: 840,
+      height: 640,
+    });
+    expect(screenFrame.x + screenFrame.width / 2).toBe(600);
+    expect(screenFrame.y + screenFrame.height / 2).toBe(400);
   });
 
   it("converts board cards to viewport while preserving visual position and size", () => {
@@ -230,5 +233,26 @@ describe("whiteboard coordinate utilities", () => {
       width: 720,
       height: 560,
     });
+  });
+
+  it("keeps Desmos usable when pinning to board from a zoomed-in viewport card", () => {
+    const transform = { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 };
+    const converted = convertWhiteboardCardAnchor(
+      moduleElement({ anchorMode: "viewport", pinned: false, x: 240, y: 120, width: 720, height: 560 }),
+      "board",
+      transform,
+      "2026-04-26T13:00:00.000Z",
+    );
+    const screenFrame = boardToScreenFrame(converted, transform);
+
+    expect(converted).toMatchObject({
+      anchorMode: "board",
+      pinned: true,
+      width: 420,
+      height: 320,
+    });
+    expect(screenFrame.x + screenFrame.width / 2).toBe(600);
+    expect(screenFrame.y + screenFrame.height / 2).toBe(400);
+    expect(getEmbeddedModulePresentation(converted, transform, true)).toBe("live");
   });
 });

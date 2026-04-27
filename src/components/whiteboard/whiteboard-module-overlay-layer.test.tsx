@@ -198,6 +198,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const layer = screen.getByTestId("whiteboard-pinned-object-layer");
     const card = screen.getByTestId("whiteboard-module-card-module-1");
     expect(layer.className).toContain("fixed");
+    expect(layer.className).toContain("z-[55]");
     expect(card.getAttribute("style")).toContain("transform: translate3d(252px, 200px, 0) scale(2)");
   });
 
@@ -367,7 +368,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(after.getAttribute("style")).toContain("height: 560px");
   });
 
-  it("lets source lesson cards choose a folder, binder, and lesson by name", () => {
+  it("lets source lesson cards confirm a folder, binder, and lesson before applying it", () => {
     const onChangeModule = vi.fn();
     const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
       <div>
@@ -379,7 +380,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
       binderId: "math-lab",
       lessonId: "math-lab-whiteboard",
       anchorMode: "board-fixed-size",
-    });
+      sourceConfirmed: false,
+    } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean });
     const libraryContext = {
       ...context,
       binder: { id: "math-lab", title: "Math Lab" },
@@ -410,7 +412,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
         loading: false,
         error: null,
       },
-    } as WorkspaceModuleContext;
+    } as unknown as WorkspaceModuleContext;
 
     render(
       <WhiteboardPinnedObjectLayer
@@ -429,11 +431,290 @@ describe("WhiteboardModuleOverlayLayer", () => {
     fireEvent.click(screen.getByRole("button", { name: "The Russian Revolution" }));
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
 
+    expect(onChangeModule).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /use this lesson/i }));
+
     expect(onChangeModule).toHaveBeenLastCalledWith(
       expect.objectContaining({
         binderId: "binder-russian-revolution",
         lessonId: "lesson-russian-timeline",
         title: "Timeline",
+        sourceConfirmed: true,
+      }),
+    );
+  });
+
+  it("does not treat the synthetic Math Lab source as a confirmed real source", () => {
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>
+        Loaded {embeddedContext.binder.title}: {embeddedContext.selectedLesson.title}
+      </div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      library: {
+        folders: [{ id: "folder-math", name: "Math" }],
+        folderBinders: [{ id: "math-jacob", folder_id: "folder-math", binder_id: "binder-jacob-math-notes" }],
+        binders: [{ id: "binder-jacob-math-notes", title: "Jacob Math Notes" }],
+        lessons: [{ id: "lesson-calculus", binder_id: "binder-jacob-math-notes", title: "Calculus Limits" }],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "lesson",
+            binderId: "math-lab",
+            lessonId: "math-lab-whiteboard",
+            anchorMode: "board-fixed-size",
+          }),
+        ]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.getByTestId("whiteboard-source-lesson-picker")).toBeTruthy();
+    expect(screen.queryByTestId("whiteboard-source-summary")).toBeNull();
+    expect(renderModule).not.toHaveBeenCalled();
+  });
+
+  it("hides the source picker after confirmation and leaves only a compact source summary", () => {
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>Lesson body for {embeddedContext.selectedLesson.title}</div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      lessons: [],
+      filteredLessons: [],
+      library: {
+        folders: [{ id: "folder-history", name: "History" }],
+        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
+        lessons: [{ id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline", math_blocks: [] }],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "lesson",
+            binderId: "binder-russian-revolution",
+            lessonId: "lesson-russian-timeline",
+            anchorMode: "board-fixed-size",
+            sourceConfirmed: true,
+          } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean }),
+        ]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.queryByTestId("whiteboard-source-lesson-picker")).toBeNull();
+    expect(screen.getByTestId("whiteboard-source-summary").textContent).toContain("The Russian Revolution");
+    expect(screen.getByText("Lesson body for Timeline")).toBeTruthy();
+  });
+
+  it("opens a real card options menu that can edit or reset a confirmed source", () => {
+    const onChangeModule = vi.fn();
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      lessons: [],
+      filteredLessons: [],
+      library: {
+        folders: [{ id: "folder-history", name: "History" }],
+        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
+        lessons: [{ id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline", math_blocks: [] }],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    const confirmedSource = moduleElement({
+      moduleId: "lesson",
+      binderId: "binder-russian-revolution",
+      lessonId: "lesson-russian-timeline",
+      anchorMode: "board-fixed-size",
+      sourceConfirmed: true,
+      cardDensity: "compact",
+      textSize: "normal",
+    } as Partial<WhiteboardModuleElement> & {
+      sourceConfirmed: boolean;
+      cardDensity: "compact";
+      textSize: "normal";
+    });
+
+    const { rerender } = render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[confirmedSource]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div>Lesson body</div>}
+        viewportTransform={viewport}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+    expect(screen.getByTestId("whiteboard-card-options-menu")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /edit source/i }));
+
+    const editSource = onChangeModule.mock.calls.at(-1)?.[0] as WhiteboardModuleElement & { sourceConfirmed?: boolean };
+    expect(editSource.sourceConfirmed).toBe(false);
+    expect(editSource.x).toBe(confirmedSource.x);
+    expect(editSource.anchorMode).toBe("board-fixed-size");
+
+    rerender(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[{ ...confirmedSource, sourceConfirmed: false } as WhiteboardModuleElement]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div>Lesson body</div>}
+        viewportTransform={viewport}
+      />,
+    );
+    expect(screen.getByTestId("whiteboard-source-lesson-picker")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+    fireEvent.click(screen.getByRole("button", { name: /reset source/i }));
+    expect(onChangeModule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        binderId: undefined,
+        lessonId: undefined,
+        sourceConfirmed: false,
+        x: confirmedSource.x,
+        y: confirmedSource.y,
+      }),
+    );
+  });
+
+  it("stores density and text-size choices without moving or repinning the card", () => {
+    const onChangeModule = vi.fn();
+    const sourceCard = moduleElement({
+      moduleId: "lesson",
+      anchorMode: "board",
+      sourceConfirmed: true,
+      cardDensity: "comfortable",
+      textSize: "normal",
+    } as Partial<WhiteboardModuleElement> & {
+      sourceConfirmed: boolean;
+      cardDensity: "comfortable";
+      textSize: "normal";
+    });
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[sourceCard]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div>Lesson body</div>}
+        viewportTransform={viewport}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+    fireEvent.click(screen.getByRole("button", { name: /compact density/i }));
+    expect(onChangeModule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cardDensity: "compact",
+        x: sourceCard.x,
+        y: sourceCard.y,
+        anchorMode: "board",
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+    fireEvent.click(screen.getByRole("button", { name: /large text/i }));
+    expect(onChangeModule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        textSize: "large",
+        x: sourceCard.x,
+        y: sourceCard.y,
+        anchorMode: "board",
+      }),
+    );
+  });
+
+  it("shows compact formula sheet access instead of full inline math blocks in confirmed whiteboard source lessons", () => {
+    const onAddLinkedModule = vi.fn();
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>Lesson body with {embeddedContext.selectedLesson.math_blocks.length} math blocks</div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      lessons: [],
+      filteredLessons: [],
+      library: {
+        folders: [{ id: "folder-math", name: "Math" }],
+        folderBinders: [{ id: "math-geometry", folder_id: "folder-math", binder_id: "binder-geometry" }],
+        binders: [{ id: "binder-geometry", title: "Geometry" }],
+        lessons: [
+          {
+            id: "lesson-geometry",
+            binder_id: "binder-geometry",
+            title: "Rigid Motions",
+            math_blocks: [{ id: "rotation", type: "latex", label: "Rotation rule", latex: "(x,y) -> (-y,x)" }],
+          },
+        ],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "lesson",
+            binderId: "binder-geometry",
+            lessonId: "lesson-geometry",
+            anchorMode: "board-fixed-size",
+            sourceConfirmed: true,
+          } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean }),
+        ]}
+        onAddLinkedModule={onAddLinkedModule}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.queryByText("Lesson math and study blocks")).toBeNull();
+    expect(screen.getByRole("button", { name: /formula sheet/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /formula sheet/i }));
+    expect(onAddLinkedModule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moduleId: "formula-sheet",
+        binderId: "binder-geometry",
+        lessonId: "lesson-geometry",
       }),
     );
   });
@@ -482,6 +763,78 @@ describe("WhiteboardModuleOverlayLayer", () => {
     );
 
     expect(screen.getByText("Loaded The Russian Revolution: Timeline")).toBeTruthy();
+  });
+
+  it("persists source lesson highlight annotations on the selected whiteboard card", () => {
+    const onChangeModule = vi.fn();
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <button
+        onClick={() =>
+          embeddedContext.onAddHighlight(
+            {
+              text: "limits",
+              startOffset: 4,
+              endOffset: 10,
+            },
+            "green",
+          )
+        }
+        type="button"
+      >
+        Highlight source text
+      </button>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      highlights: [],
+      onAddHighlight: vi.fn(),
+      library: {
+        folders: [{ id: "folder-math", name: "Math" }],
+        folderBinders: [{ id: "math-jacob", folder_id: "folder-math", binder_id: "binder-jacob-math-notes" }],
+        binders: [{ id: "binder-jacob-math-notes", title: "Jacob Math Notes" }],
+        lessons: [{ id: "lesson-calculus", binder_id: "binder-jacob-math-notes", title: "Calculus Limits" }],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "lesson",
+            binderId: "binder-jacob-math-notes",
+            lessonId: "lesson-calculus",
+            anchorMode: "board-fixed-size",
+            sourceConfirmed: true,
+          } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean }),
+        ]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /highlight source text/i }));
+
+    expect(onChangeModule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        whiteboardHighlights: [
+          expect.objectContaining({
+            anchor_text: "limits",
+            binder_id: "binder-jacob-math-notes",
+            lesson_id: "lesson-calculus",
+            color: "green",
+          }),
+        ],
+      }),
+    );
   });
 
   it("lets multiple source lesson cards stay pointed at different note sets", () => {
@@ -545,6 +898,59 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(screen.getByText("Loaded Rise of Rome: Mythic Origins")).toBeTruthy();
   });
 
+  it("routes source quote actions through the whiteboard Private Notes resolver", () => {
+    const onRouteSelectionToNotes = vi.fn();
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <button onClick={() => embeddedContext.onSendSelectionToNotes("quoted passage")} type="button">
+        Send source quote
+      </button>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [],
+      filteredLessons: [],
+      library: {
+        folders: [{ id: "folder-math", name: "Math" }],
+        folderBinders: [{ id: "math-jacob", folder_id: "folder-math", binder_id: "binder-jacob-math-notes" }],
+        binders: [{ id: "binder-jacob-math-notes", title: "Jacob Math Notes" }],
+        lessons: [{ id: "lesson-calculus", binder_id: "binder-jacob-math-notes", title: "Calculus Limits", math_blocks: [] }],
+        loading: false,
+        error: null,
+      },
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            id: "source-card",
+            moduleId: "lesson",
+            binderId: "binder-jacob-math-notes",
+            lessonId: "lesson-calculus",
+            anchorMode: "board-fixed-size",
+            sourceConfirmed: true,
+          } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean }),
+        ]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        onRouteSelectionToNotes={onRouteSelectionToNotes}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /send source quote/i }));
+
+    expect(onRouteSelectionToNotes).toHaveBeenCalledWith({
+      anchorText: "quoted passage",
+      prefix: "Source quote",
+      sourceModuleId: "source-card",
+    });
+  });
+
   it("lets annotation cards choose the binder and lesson they are attached to", () => {
     const onChangeModule = vi.fn();
     const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
@@ -580,7 +986,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
             binderId: "math-lab",
             lessonId: "math-lab-whiteboard",
             anchorMode: "board-fixed-size",
-          }),
+            sourceConfirmed: false,
+          } as Partial<WhiteboardModuleElement> & { sourceConfirmed: boolean }),
         ]}
         onChangeModule={onChangeModule}
         onRemoveModule={vi.fn()}
@@ -593,6 +1000,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
     fireEvent.click(screen.getByRole("button", { name: "History" }));
     fireEvent.click(screen.getByRole("button", { name: "The Russian Revolution" }));
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+    fireEvent.click(screen.getByRole("button", { name: /use this lesson/i }));
 
     expect(onChangeModule).toHaveBeenLastCalledWith(
       expect.objectContaining({

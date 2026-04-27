@@ -1,5 +1,10 @@
-import { memo, useMemo, useState, type ReactElement } from "react";
+import { memo, useCallback, useMemo, useState, type ReactElement } from "react";
+import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
+import type {
+  GraphExpressionRequest,
+  GraphLoadRequest,
+} from "@/components/math/math-workspace-modules";
 import {
   getWhiteboardModuleDefinition,
   shouldRenderWhiteboardModuleLive,
@@ -14,8 +19,10 @@ import {
 import type { WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-card";
+import { useMathWorkspace } from "@/hooks/use-math-workspace";
+import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { cn } from "@/lib/utils";
-import type { Binder, BinderLesson } from "@/types";
+import type { Binder, BinderLesson, Comment, Highlight, HighlightColor, LessonTextSelection, MathBlock } from "@/types";
 
 const lessonScopedWhiteboardModules = new Set<WhiteboardModuleElement["moduleId"]>([
   "lesson",
@@ -26,16 +33,131 @@ const lessonScopedWhiteboardModules = new Set<WhiteboardModuleElement["moduleId"
   "math-blocks",
 ]);
 
+const syntheticMathLabBinderId = "math-lab";
+const syntheticMathLabLessonId = "math-lab-whiteboard";
+
+type ScopedLessonTextSelection = LessonTextSelection & {
+  binderId?: string;
+  lessonId?: string;
+};
+
 type WhiteboardPinnedObjectLayerProps = {
   context: WorkspaceModuleContext;
   fixed?: boolean;
   modules: WhiteboardModuleElement[];
+  onAddLinkedModule?: (moduleElement: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">) => void;
   renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
   onChangeModule: (moduleElement: WhiteboardModuleElement) => void;
   onRemoveModule: (moduleId: string) => void;
+  onRouteSelectionToNotes?: (request: {
+    anchorText?: string;
+    prefix: "Source quote" | "Quote block" | "Sticky note";
+    sourceModuleId: string;
+  }) => void;
   viewportTransform?: WhiteboardViewportTransform;
   getViewportTransform?: () => WhiteboardViewportTransform;
 };
+
+function emptyNoteDoc(): JSONContent {
+  return { type: "doc", content: [] };
+}
+
+function appendParagraph(content: JSONContent | undefined, text: string): JSONContent {
+  const cleanText = text.trim();
+  if (!cleanText) {
+    return content ?? emptyNoteDoc();
+  }
+
+  return {
+    type: "doc",
+    content: [
+      ...(((content ?? emptyNoteDoc()).content as JSONContent[] | undefined) ?? []),
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: cleanText }],
+      },
+    ],
+  };
+}
+
+function createWhiteboardHighlight({
+  binder,
+  color,
+  ownerId,
+  selectedLesson,
+  selection,
+}: {
+  binder: Binder;
+  color: HighlightColor;
+  ownerId?: string | null;
+  selectedLesson: BinderLesson;
+  selection: LessonTextSelection;
+}): Highlight {
+  const timestamp = new Date().toISOString();
+  return {
+    id: `whiteboard-highlight-${crypto.randomUUID()}`,
+    owner_id: ownerId ?? "whiteboard-local",
+    binder_id: binder.id,
+    lesson_id: selectedLesson.id,
+    document_id: null,
+    source_version_id: null,
+    anchor_text: selection.text,
+    selected_text: selection.text,
+    prefix_text: selection.prefixText ?? null,
+    suffix_text: selection.suffixText ?? null,
+    selector_json: {
+      selectors: [
+        {
+          type: "TextQuoteSelector",
+          exact: selection.text,
+          prefix: selection.prefixText,
+          suffix: selection.suffixText,
+        },
+        {
+          type: "TextPositionSelector",
+          start: selection.startOffset,
+          end: selection.endOffset,
+        },
+      ],
+    },
+    color,
+    note_id: null,
+    start_offset: selection.startOffset,
+    end_offset: selection.endOffset,
+    status: "active",
+    reanchor_confidence: 1,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+function createWhiteboardComment({
+  anchorText,
+  binder,
+  body,
+  ownerId,
+  selectedLesson,
+}: {
+  anchorText: string | null;
+  binder: Binder;
+  body?: string;
+  ownerId?: string | null;
+  selectedLesson: BinderLesson;
+}): Comment {
+  const timestamp = new Date().toISOString();
+  return {
+    id: `whiteboard-comment-${crypto.randomUUID()}`,
+    owner_id: ownerId ?? "whiteboard-local",
+    binder_id: binder.id,
+    lesson_id: selectedLesson.id,
+    anchor_text: anchorText,
+    body: body?.trim() || (anchorText ? `Comment on: ${anchorText}` : "Whiteboard note"),
+    parent_id: null,
+    resolved_at: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
 
 function getLayerTransform(transform: WhiteboardViewportTransform, fixed: boolean): WhiteboardViewportTransform {
   if (fixed) {
@@ -72,10 +194,76 @@ function sortLessonsByOrder(lessons: BinderLesson[]) {
   });
 }
 
+function isSyntheticMathLabSource(moduleElement: Pick<WhiteboardModuleElement, "binderId" | "lessonId">) {
+  return moduleElement.binderId === syntheticMathLabBinderId && moduleElement.lessonId === syntheticMathLabLessonId;
+}
+
+function scopeSelectionToSource(
+  selection: LessonTextSelection,
+  binder: Binder,
+  lesson: BinderLesson,
+): ScopedLessonTextSelection {
+  return {
+    ...selection,
+    binderId: binder.id,
+    lessonId: lesson.id,
+  };
+}
+
 function getSourceLessonModuleContext(
   context: WorkspaceModuleContext,
   moduleElement: WhiteboardModuleElement,
+  onChangeModule: (moduleElement: WhiteboardModuleElement) => void,
+  onRouteSelectionToNotes?: WhiteboardPinnedObjectLayerProps["onRouteSelectionToNotes"],
 ): WorkspaceModuleContext {
+  if (moduleElement.moduleId === "private-notes") {
+    const appendToModuleNote = (text: string) => {
+      onChangeModule({
+        ...moduleElement,
+        noteContent: appendParagraph(moduleElement.noteContent, text),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    return {
+      ...context,
+      surface: "whiteboard",
+      noteTitle: moduleElement.noteTitle ?? moduleElement.title ?? context.noteTitle,
+      noteContent: moduleElement.noteContent ?? emptyNoteDoc(),
+      autosaveStatus: "saved",
+      noteSaveLabel: "Saved with board",
+      noteSaveDetail: "This Private Notes card saves with the whiteboard.",
+      noteSaveError: null,
+      canRetryNoteSave: false,
+      hasUnsavedNoteChanges: false,
+      onNoteTitleChange: (value: string) =>
+        onChangeModule({
+          ...moduleElement,
+          noteTitle: value,
+          title: value.trim() || moduleElement.title,
+          updatedAt: new Date().toISOString(),
+        }),
+      onNoteContentChange: (value: JSONContent) =>
+        onChangeModule({
+          ...moduleElement,
+          noteContent: value,
+          updatedAt: new Date().toISOString(),
+        }),
+      onSaveNoteNow: () => {},
+      onRetryNoteSave: () => {},
+      onInsertCallout: () => appendToModuleNote("Callout: "),
+      onInsertChecklist: () => appendToModuleNote("Checklist:\n- "),
+      onInsertDefinition: () => appendToModuleNote("Definition: "),
+      onInsertTheorem: () => appendToModuleNote("Theorem: "),
+      onInsertProof: () => appendToModuleNote("Proof: "),
+      onInsertFormulaReference: () => appendToModuleNote("Formula reference: "),
+      onInsertGraphNote: () => appendToModuleNote("Graph observation: "),
+      onInsertWorkedExample: () => appendToModuleNote("Worked example: "),
+      onInsertMathBlock: () => appendToModuleNote("Math block: "),
+      onInsertGraphBlock: () => appendToModuleNote("Graph block: "),
+    };
+  }
+
   if (!lessonScopedWhiteboardModules.has(moduleElement.moduleId) || !context.library) {
     return {
       ...context,
@@ -94,6 +282,9 @@ function getSourceLessonModuleContext(
     lessons[0] ??
     context.selectedLesson;
   const highlights = context.highlights ?? [];
+  const comments = context.comments ?? [];
+  const moduleHighlights = moduleElement.whiteboardHighlights ?? [];
+  const moduleComments = moduleElement.whiteboardComments ?? [];
   const conceptNodes = context.conceptNodes ?? [];
   const conceptEdges = context.conceptEdges ?? [];
   const binderConceptNodeIds = new Set(
@@ -107,18 +298,186 @@ function getSourceLessonModuleContext(
     lessons,
     filteredLessons: lessons,
     selectedLesson,
-    highlights: highlights.filter((highlight) => {
-      if (highlight.binder_id !== binder.id) {
-        return false;
-      }
+    comments: [
+      ...moduleComments.filter((comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id),
+      ...comments.filter((comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id),
+    ],
+    highlights: [
+      ...moduleHighlights.filter((highlight) => highlight.binder_id === binder.id && highlight.lesson_id === selectedLesson.id),
+      ...highlights.filter((highlight) => {
+        if (highlight.binder_id !== binder.id) {
+          return false;
+        }
 
-      return selectedLesson ? highlight.lesson_id === selectedLesson.id : true;
-    }),
+        return selectedLesson ? highlight.lesson_id === selectedLesson.id : true;
+      }),
+    ],
     conceptNodes: conceptNodes.filter((node) => node.binder_id === binder.id),
     conceptEdges: conceptEdges.filter(
       (edge) => binderConceptNodeIds.has(edge.source_id) || binderConceptNodeIds.has(edge.target_id),
     ),
+    whiteboardCardDensity: moduleElement.cardDensity ?? "compact",
+    whiteboardShowMathInline: moduleElement.showMathInline ?? false,
+    whiteboardSourceDisplayMode: moduleElement.sourceDisplayMode ?? "compact",
+    whiteboardTextSize: moduleElement.textSize ?? "normal",
+    onAddHighlight: (selection: LessonTextSelection, color: HighlightColor) => {
+      const highlight = createWhiteboardHighlight({
+        binder,
+        color,
+        ownerId: context.ownerId,
+        selectedLesson,
+        selection,
+      });
+      onChangeModule({
+        ...moduleElement,
+        whiteboardHighlights: [highlight, ...(moduleElement.whiteboardHighlights ?? [])],
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) =>
+      onChangeModule({
+        ...moduleElement,
+        whiteboardHighlights: (moduleElement.whiteboardHighlights ?? []).filter(
+          (highlight) => !highlightIds.includes(highlight.id),
+        ),
+        updatedAt: new Date().toISOString(),
+      }),
+    onPrepareComment: (anchorText?: string | null) => {
+      const comment = createWhiteboardComment({
+        anchorText: anchorText?.trim() || null,
+        binder,
+        ownerId: context.ownerId,
+        selectedLesson,
+      });
+      onChangeModule({
+        ...moduleElement,
+        whiteboardComments: [comment, ...(moduleElement.whiteboardComments ?? [])],
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    onSendSelectionToNotes: (anchorText?: string) => {
+      if (onRouteSelectionToNotes) {
+        onRouteSelectionToNotes({
+          anchorText,
+          prefix: "Source quote",
+          sourceModuleId: moduleElement.id,
+        });
+        return;
+      }
+
+      context.onSendSelectionToNotes(anchorText);
+    },
+    onCreateQuoteExcerpt: (anchorText?: string) => {
+      if (onRouteSelectionToNotes) {
+        onRouteSelectionToNotes({
+          anchorText,
+          prefix: "Quote block",
+          sourceModuleId: moduleElement.id,
+        });
+        return;
+      }
+
+      context.onCreateQuoteExcerpt(anchorText);
+    },
+    onSaveSelectionAsEvidence: (selection: LessonTextSelection) =>
+      context.onSaveSelectionAsEvidence(scopeSelectionToSource(selection, binder, selectedLesson)),
   };
+}
+
+function isSourceConfirmed(moduleElement: WhiteboardModuleElement) {
+  if (isSyntheticMathLabSource(moduleElement)) {
+    return false;
+  }
+
+  return moduleElement.sourceConfirmed ?? Boolean(moduleElement.binderId && moduleElement.lessonId);
+}
+
+function getDesmosGraphInstanceId(moduleElement: WhiteboardModuleElement) {
+  return moduleElement.graphInstanceId?.trim() || `whiteboard-desmos-${moduleElement.id}`;
+}
+
+function WhiteboardScopedDesmosGraphModule({
+  context,
+  moduleElement,
+  renderModule,
+}: {
+  context: WorkspaceModuleContext;
+  moduleElement: WhiteboardModuleElement;
+  renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+}) {
+  const {
+    state,
+    setGraphExpanded,
+    setGraphMode,
+    setGraphVisible,
+    savedFunctionMap,
+    ...mathWorkspace
+  } = useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement));
+  const [snapshotName, setSnapshotName] = useState("");
+  const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
+  const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
+
+  const pushExpressionToGraph = useCallback(
+    (expression?: string) => {
+      const latex = prepareExpressionForGraph(expression ?? state.calculatorExpression, savedFunctionMap);
+      if (!latex) {
+        return;
+      }
+
+      setGraphVisible(true);
+      setGraphMode("2d");
+      setPendingGraphLoad(null);
+      setPendingExpression({
+        id: crypto.randomUUID(),
+        latex,
+      });
+    },
+    [savedFunctionMap, setGraphMode, setGraphVisible, state.calculatorExpression],
+  );
+
+  return renderModule(moduleElement.moduleId, {
+    ...context,
+    surface: "whiteboard",
+    mathModules: {
+      controller: { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace },
+      lessonGraphs: [] as Extract<MathBlock, { type: "graph" }>[],
+      pendingGraphLoad,
+      pendingExpression,
+      snapshotName,
+      jumpToGraphSource: () => {},
+      loadLessonGraph: () => {},
+      setSnapshotName,
+      pushExpressionToGraph,
+      onExpressionApplied: (id: string) => {
+        setPendingExpression((current) => (current?.id === id ? null : current));
+      },
+      onGraphLoadApplied: (id: string) => {
+        setPendingGraphLoad((current) => (current?.id === id ? null : current));
+      },
+    },
+  });
+}
+
+function WhiteboardLiveModuleContent({
+  context,
+  moduleElement,
+  renderModule,
+}: {
+  context: WorkspaceModuleContext;
+  moduleElement: WhiteboardModuleElement;
+  renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+}) {
+  if (moduleElement.moduleId === "desmos-graph") {
+    return (
+      <WhiteboardScopedDesmosGraphModule
+        context={context}
+        moduleElement={moduleElement}
+        renderModule={renderModule}
+      />
+    );
+  }
+
+  return renderModule(moduleElement.moduleId, context);
 }
 
 type SourceLessonPickerProps = {
@@ -133,18 +492,21 @@ function WhiteboardSourceLessonPicker({
   onChangeModule,
 }: SourceLessonPickerProps) {
   const library = context.library;
+  const initialBinderId = isSyntheticMathLabSource(moduleElement) ? undefined : moduleElement.binderId;
+  const initialLessonId = isSyntheticMathLabSource(moduleElement) ? undefined : moduleElement.lessonId;
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(() => {
     if (!library) {
       return null;
     }
 
     return (
-      library.folderBinders.find((link) => link.binder_id === moduleElement.binderId)?.folder_id ??
+      library.folderBinders.find((link) => link.binder_id === initialBinderId)?.folder_id ??
       library.folders[0]?.id ??
       null
     );
   });
-  const [selectedBinderId, setSelectedBinderId] = useState<string | null>(() => moduleElement.binderId ?? null);
+  const [selectedBinderId, setSelectedBinderId] = useState<string | null>(() => initialBinderId ?? null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(() => initialLessonId ?? null);
 
   if (!library) {
     return null;
@@ -190,13 +552,23 @@ function WhiteboardSourceLessonPicker({
   const activeLessons = activeBinder
     ? sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === activeBinder.id))
     : [];
+  const activeLesson =
+    activeLessons.find((lesson) => lesson.id === selectedLessonId) ??
+    activeLessons.find((lesson) => lesson.id === moduleElement.lessonId) ??
+    activeLessons[0] ??
+    null;
 
-  const updateModuleLesson = (binder: Binder, lesson: BinderLesson | null) => {
+  const confirmModuleLesson = () => {
+    if (!activeBinder) {
+      return;
+    }
+
     onChangeModule({
       ...moduleElement,
-      binderId: binder.id,
-      lessonId: lesson?.id,
-      title: lesson?.title ?? binder.title,
+      binderId: activeBinder.id,
+      lessonId: activeLesson?.id,
+      sourceConfirmed: true,
+      title: activeLesson?.title ?? activeBinder.title,
       updatedAt: new Date().toISOString(),
     });
   };
@@ -232,6 +604,10 @@ function WhiteboardSourceLessonPicker({
                 setSelectedFolderId(folder.id);
                 const firstBinderId = library.folderBinders.find((link) => link.folder_id === folder.id)?.binder_id ?? null;
                 setSelectedBinderId(firstBinderId);
+                const firstLesson = firstBinderId
+                  ? sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === firstBinderId))[0] ?? null
+                  : null;
+                setSelectedLessonId(firstLesson?.id ?? null);
               }}
               type="button"
             >
@@ -258,7 +634,7 @@ function WhiteboardSourceLessonPicker({
               key={binder.id}
               onClick={() => {
                 setSelectedBinderId(binder.id);
-                updateModuleLesson(binder, sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === binder.id))[0] ?? null);
+                setSelectedLessonId(sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === binder.id))[0]?.id ?? null);
               }}
               type="button"
             >
@@ -278,12 +654,12 @@ function WhiteboardSourceLessonPicker({
             <button
               className={cn(
                 "rounded-md px-2 py-1.5 text-left text-xs transition",
-                lesson.id === moduleElement.lessonId
+                lesson.id === activeLesson?.id
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
               key={lesson.id}
-              onClick={() => updateModuleLesson(activeBinder!, lesson)}
+              onClick={() => setSelectedLessonId(lesson.id)}
               type="button"
             >
               {lesson.title}
@@ -295,7 +671,76 @@ function WhiteboardSourceLessonPicker({
           This binder has no lessons yet.
         </p>
       ) : null}
+
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+        <p className="min-w-0 truncate text-[11px] text-muted-foreground">
+          {activeBinder ? activeBinder.title : "Choose a binder"}
+          {activeLesson ? ` / ${activeLesson.title}` : ""}
+        </p>
+        <button
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+          disabled={!activeBinder}
+          onClick={confirmModuleLesson}
+          type="button"
+        >
+          Use this lesson
+        </button>
+      </div>
     </div>
+  );
+}
+
+function WhiteboardSourceSummary({
+  binder,
+  lesson,
+  onEdit,
+}: {
+  binder: Binder;
+  lesson: BinderLesson;
+  onEdit: () => void;
+}) {
+  return (
+    <div
+      className="whiteboard-source-summary mb-2 flex items-center justify-between gap-2 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs text-secondary-foreground"
+      data-testid="whiteboard-source-summary"
+    >
+      <span className="min-w-0 truncate">
+        <span className="font-semibold">{lesson.title}</span>
+        <span className="text-muted-foreground"> / {binder.title}</span>
+      </span>
+      <button className="shrink-0 font-semibold text-primary hover:underline" onClick={onEdit} type="button">
+        Change
+      </button>
+    </div>
+  );
+}
+
+function WhiteboardFormulaSheetLauncher({
+  lesson,
+  onOpen,
+}: {
+  lesson: BinderLesson;
+  onOpen: () => void;
+}) {
+  const mathBlocks = lesson.math_blocks ?? [];
+  if (mathBlocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <button
+      className="whiteboard-formula-sheet-button mt-2 flex w-full items-center justify-between gap-3 rounded-md border border-primary/35 bg-primary/10 px-3 py-2 text-left text-xs text-foreground transition hover:border-primary hover:bg-primary/15"
+      onClick={onOpen}
+      type="button"
+    >
+      <span>
+        <span className="block font-semibold">Formula Sheet</span>
+        <span className="block text-muted-foreground">{mathBlocks.length} math blocks ready</span>
+      </span>
+      <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+        Open
+      </span>
+    </button>
   );
 }
 
@@ -312,8 +757,10 @@ function WhiteboardObjectOverlay({
   getViewportTransform,
   maxZIndex,
   modules,
+  onAddLinkedModule,
   onChangeModule,
   onRemoveModule,
+  onRouteSelectionToNotes,
   renderLayer,
   renderModule,
   testId,
@@ -322,14 +769,28 @@ function WhiteboardObjectOverlay({
   return (
     <div className={className} data-testid={testId}>
       {modules.map((moduleElement) => {
-        const embeddedContext = getSourceLessonModuleContext(context, moduleElement);
+        const embeddedContext = getSourceLessonModuleContext(
+          context,
+          moduleElement,
+          onChangeModule,
+          onRouteSelectionToNotes,
+        );
+        const sourceScoped = lessonScopedWhiteboardModules.has(moduleElement.moduleId);
+        const confirmedSource = sourceScoped ? isSourceConfirmed(moduleElement) : true;
         const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
         const visible = isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
         const presentation = getEmbeddedModulePresentation(moduleElement, viewportTransform, visible);
         const live =
           presentation === "live" &&
           shouldRenderWhiteboardModuleLive(moduleElement, { visible });
-        const liveContent = live ? renderModule(moduleElement.moduleId, embeddedContext) : null;
+        const liveContent =
+          live && confirmedSource ? (
+            <WhiteboardLiveModuleContent
+              context={embeddedContext}
+              moduleElement={moduleElement}
+              renderModule={renderModule}
+            />
+          ) : null;
         const previewDescription =
           presentation === "chip"
             ? "Zoom in to reopen this board tool."
@@ -353,25 +814,85 @@ function WhiteboardObjectOverlay({
                 updatedAt: new Date().toISOString(),
               });
             }}
+            onEditSource={
+              sourceScoped
+                ? () =>
+                    onChangeModule({
+                      ...moduleElement,
+                      sourceConfirmed: false,
+                      updatedAt: new Date().toISOString(),
+                    })
+                : undefined
+            }
+            onOpenFormulaSheet={
+              moduleElement.moduleId === "lesson" && (embeddedContext.selectedLesson?.math_blocks?.length ?? 0) > 0
+                ? () =>
+                    onAddLinkedModule?.({
+                      moduleId: "formula-sheet",
+                      binderId: embeddedContext.binder.id,
+                      lessonId: embeddedContext.selectedLesson.id,
+                      title: `${embeddedContext.selectedLesson.title} formulas`,
+                    })
+                : undefined
+            }
             onRemove={onRemoveModule}
+            onResetSource={
+              sourceScoped
+                ? () =>
+                    onChangeModule({
+                      ...moduleElement,
+                      binderId: undefined,
+                      lessonId: undefined,
+                      sourceConfirmed: false,
+                      title: definition?.label ?? moduleElement.title,
+                      updatedAt: new Date().toISOString(),
+                    })
+                : undefined
+            }
             presentation={presentation}
             renderLayer={renderLayer}
             getViewportTransform={getViewportTransform}
             viewportTransform={viewportTransform}
           >
-            {lessonScopedWhiteboardModules.has(moduleElement.moduleId) ? (
+            {sourceScoped && !confirmedSource ? (
               <WhiteboardSourceLessonPicker
                 context={context}
                 moduleElement={moduleElement}
                 onChangeModule={onChangeModule}
               />
             ) : null}
-            {liveContent ?? (
+            {sourceScoped && confirmedSource && embeddedContext.selectedLesson ? (
+              <WhiteboardSourceSummary
+                binder={embeddedContext.binder}
+                lesson={embeddedContext.selectedLesson}
+                onEdit={() =>
+                  onChangeModule({
+                    ...moduleElement,
+                    sourceConfirmed: false,
+                    updatedAt: new Date().toISOString(),
+                  })
+                }
+              />
+            ) : null}
+            {confirmedSource && liveContent ? liveContent : confirmedSource ? (
               <EmptyState
                 description={previewDescription}
                 title={definition?.label ?? moduleElement.title ?? "BinderNotes module"}
               />
-            )}
+            ) : null}
+            {moduleElement.moduleId === "lesson" && confirmedSource && embeddedContext.selectedLesson ? (
+              <WhiteboardFormulaSheetLauncher
+                lesson={embeddedContext.selectedLesson}
+                onOpen={() =>
+                  onAddLinkedModule?.({
+                    moduleId: "formula-sheet",
+                    binderId: embeddedContext.binder.id,
+                    lessonId: embeddedContext.selectedLesson.id,
+                    title: `${embeddedContext.selectedLesson.title} formulas`,
+                  })
+                }
+              />
+            ) : null}
           </WhiteboardModuleCard>
         );
       })}
@@ -394,9 +915,11 @@ export function WhiteboardPinnedObjectLayer({
   fixed = false,
   getViewportTransform,
   modules,
+  onAddLinkedModule,
   renderModule,
   onChangeModule,
   onRemoveModule,
+  onRouteSelectionToNotes,
   viewportTransform = defaultWhiteboardViewportTransform,
 }: WhiteboardPinnedObjectLayerProps) {
   const maxZIndex = modules.reduce((max, moduleElement) => Math.max(max, moduleElement.zIndex), 0);
@@ -416,7 +939,7 @@ export function WhiteboardPinnedObjectLayer({
 
   return (
     <div
-      className={cn("pointer-events-none inset-0 z-20", fixed ? "fixed" : "absolute")}
+      className={cn("pointer-events-none inset-0 z-[55]", fixed ? "fixed" : "absolute")}
       data-whiteboard-viewport-scroll-x={viewportTransform.scrollX}
       data-whiteboard-viewport-scroll-y={viewportTransform.scrollY}
       data-whiteboard-viewport-zoom={viewportTransform.zoom}
@@ -427,8 +950,10 @@ export function WhiteboardPinnedObjectLayer({
         context={context}
         maxZIndex={maxZIndex}
         modules={boardModules}
+        onAddLinkedModule={onAddLinkedModule}
         onChangeModule={onChangeModule}
         onRemoveModule={onRemoveModule}
+        onRouteSelectionToNotes={onRouteSelectionToNotes}
         renderModule={renderModule}
         renderLayer="board"
         testId="whiteboard-board-object-overlay"
@@ -440,8 +965,10 @@ export function WhiteboardPinnedObjectLayer({
         context={context}
         maxZIndex={maxZIndex}
         modules={viewportModules}
+        onAddLinkedModule={onAddLinkedModule}
         onChangeModule={onChangeModule}
         onRemoveModule={onRemoveModule}
+        onRouteSelectionToNotes={onRouteSelectionToNotes}
         renderModule={renderModule}
         renderLayer="viewport"
         testId="whiteboard-viewport-tool-overlay"

@@ -97,13 +97,32 @@ export function sanitizeWhiteboardModuleElement(
       ? moduleElement.mode
       : "preview";
 
-  return {
+  const sanitized: WhiteboardModuleElement = {
     id: moduleElement.id,
     type: "bindernotes-module",
     moduleId: moduleElement.moduleId,
     binderId: moduleElement.binderId,
     lessonId: moduleElement.lessonId,
     savedGraphId: moduleElement.savedGraphId,
+    graphInstanceId:
+      typeof moduleElement.graphInstanceId === "string" && moduleElement.graphInstanceId.trim().length > 0
+        ? moduleElement.graphInstanceId
+        : moduleElement.moduleId === "desmos-graph"
+          ? `whiteboard-desmos-${moduleElement.id}`
+          : undefined,
+    noteContent: moduleElement.noteContent,
+    noteTitle: moduleElement.noteTitle,
+    whiteboardHighlights: Array.isArray(moduleElement.whiteboardHighlights)
+      ? moduleElement.whiteboardHighlights
+      : undefined,
+    whiteboardComments: Array.isArray(moduleElement.whiteboardComments)
+      ? moduleElement.whiteboardComments
+      : undefined,
+    sourceConfirmed: moduleElement.sourceConfirmed,
+    sourceDisplayMode: moduleElement.sourceDisplayMode,
+    cardDensity: moduleElement.cardDensity,
+    textSize: moduleElement.textSize,
+    showMathInline: moduleElement.showMathInline,
     x: typeof moduleElement.x === "number" && Number.isFinite(moduleElement.x) ? moduleElement.x : 0,
     y: typeof moduleElement.y === "number" && Number.isFinite(moduleElement.y) ? moduleElement.y : 0,
     width:
@@ -125,6 +144,14 @@ export function sanitizeWhiteboardModuleElement(
     createdAt: moduleElement.createdAt,
     updatedAt: moduleElement.updatedAt,
   };
+
+  for (const key of Object.keys(sanitized) as Array<keyof WhiteboardModuleElement>) {
+    if (sanitized[key] === undefined) {
+      delete sanitized[key];
+    }
+  }
+
+  return sanitized;
 }
 
 function pickPersistentSceneState(scene: WhiteboardSceneData) {

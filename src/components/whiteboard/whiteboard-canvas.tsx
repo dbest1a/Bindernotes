@@ -12,18 +12,27 @@ type WhiteboardCanvasProps = {
   board: BinderWhiteboard;
   onSceneChange: (scene: WhiteboardSceneData) => void;
   onViewportChange?: (transform: WhiteboardViewportTransform) => void;
+  onViewportRequestReady?: (requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => void;
   fullscreen?: boolean;
 };
 
 type ExcalidrawCameraApi = {
   getAppState?: () => unknown;
+  updateScene?: (scene: { appState?: Record<string, unknown> }) => void;
+  refresh?: () => void;
 };
 
 type WhiteboardDebugWindow = typeof window & {
   __BINDERNOTES_WHITEBOARD_CAMERA__?: () => unknown;
 };
 
-export function WhiteboardCanvas({ board, onSceneChange, onViewportChange, fullscreen = false }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({
+  board,
+  onSceneChange,
+  onViewportChange,
+  onViewportRequestReady,
+  fullscreen = false,
+}: WhiteboardCanvasProps) {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState<ComponentType<Record<string, unknown>> | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawCameraApi | null>(null);
@@ -85,8 +94,30 @@ export function WhiteboardCanvas({ board, onSceneChange, onViewportChange, fulls
         (window as WhiteboardDebugWindow).__BINDERNOTES_WHITEBOARD_CAMERA__ = () => api.getAppState?.() ?? null;
       }
       emitViewportChange(api.getAppState?.() ?? {});
+      onViewportRequestReady?.((transform: WhiteboardViewportTransform) => {
+        const currentAppState =
+          api.getAppState?.() && typeof api.getAppState?.() === "object"
+            ? (api.getAppState?.() as Record<string, unknown>)
+            : {};
+        const nextAppState = {
+          ...currentAppState,
+          scrollX: transform.scrollX,
+          scrollY: transform.scrollY,
+          zoom: { value: transform.zoom },
+        };
+        api.updateScene?.({ appState: nextAppState });
+        api.refresh?.();
+        emitViewportChange(nextAppState);
+      });
     },
-    [emitViewportChange],
+    [emitViewportChange, onViewportRequestReady],
+  );
+
+  useEffect(
+    () => () => {
+      onViewportRequestReady?.(null);
+    },
+    [onViewportRequestReady],
   );
 
   useEffect(() => {

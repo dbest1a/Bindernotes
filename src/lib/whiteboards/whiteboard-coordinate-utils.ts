@@ -210,20 +210,7 @@ export function convertWhiteboardCardAnchor(
   updatedAt = new Date().toISOString(),
 ): WhiteboardModuleElement {
   const currentScreenRect = getWhiteboardModuleScreenRect(moduleElement, transform);
-  const nextPoint =
-    nextAnchorMode === "viewport"
-      ? {
-          x: currentScreenRect.x,
-          y: currentScreenRect.y,
-        }
-      : screenToBoardPoint(
-          {
-            x: currentScreenRect.x,
-            y: currentScreenRect.y,
-          },
-          transform,
-        );
-  const nextSize =
+  const rawNextSize =
     nextAnchorMode === "board"
       ? screenDeltaToBoardDelta(
           {
@@ -236,6 +223,42 @@ export function convertWhiteboardCardAnchor(
           x: currentScreenRect.width,
           y: currentScreenRect.height,
         };
+  const minimumSize =
+    nextAnchorMode === "board"
+      ? getWhiteboardModuleMinimumSize(moduleElement.moduleId, moduleElement.mode)
+      : { width: 1, height: 1 };
+  const nextSize = {
+    x: Math.max(minimumSize.width, rawNextSize.x),
+    y: Math.max(minimumSize.height, rawNextSize.y),
+  };
+  const nextPoint =
+    nextAnchorMode === "viewport"
+      ? {
+          x: currentScreenRect.x,
+          y: currentScreenRect.y,
+        }
+      : nextAnchorMode === "board"
+        ? (() => {
+            const center = screenToBoardPoint(
+              {
+                x: currentScreenRect.x + currentScreenRect.width / 2,
+                y: currentScreenRect.y + currentScreenRect.height / 2,
+              },
+              transform,
+            );
+
+            return {
+              x: center.x - nextSize.x / 2,
+              y: center.y - nextSize.y / 2,
+            };
+          })()
+        : screenToBoardPoint(
+            {
+              x: currentScreenRect.x,
+              y: currentScreenRect.y,
+            },
+            transform,
+          );
   return {
     ...moduleElement,
     anchorMode: nextAnchorMode,

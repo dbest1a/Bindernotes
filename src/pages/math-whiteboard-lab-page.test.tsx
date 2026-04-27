@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   setGraphExpanded: vi.fn(),
   setGraphVisible: vi.fn(),
   setGraphMode: vi.fn(),
+  mathWorkspaceCalls: [] as Array<{ userId?: string; scopeId?: string }>,
   whiteboardCanvasProps: null as Record<string, unknown> | null,
 }));
 
@@ -45,7 +46,9 @@ vi.mock("@/hooks/use-binders", () => ({
 }));
 
 vi.mock("@/hooks/use-math-workspace", () => ({
-  useMathWorkspace: () => ({
+  useMathWorkspace: (userId?: string, scopeId?: string) => {
+    mocks.mathWorkspaceCalls.push({ userId, scopeId });
+    return {
     state: {
       graphVisible: true,
       graphExpanded: false,
@@ -79,7 +82,8 @@ vi.mock("@/hooks/use-math-workspace", () => ({
     deleteGraphSnapshot: vi.fn(),
     loadGraphSnapshot: vi.fn(),
     saveGraphSnapshot: vi.fn(),
-  }),
+    };
+  },
 }));
 
 vi.mock("@/components/math/math-workspace-modules", () => ({
@@ -133,6 +137,7 @@ function renderLab(options: { seedBoard?: boolean } = {}) {
 describe("MathWhiteboardLabPage", () => {
   afterEach(() => {
     cleanup();
+    mocks.mathWorkspaceCalls = [];
     mocks.whiteboardCanvasProps = null;
     window.localStorage.clear();
   });
@@ -198,6 +203,23 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.queryByText("19 objects")).toBeNull();
   });
 
+  it("offers a two-click delete path for an oversized or broken active board", async () => {
+    renderLab();
+
+    const deleteButton = screen.getByTestId("whiteboard-delete-broken-board");
+    expect(deleteButton.textContent).toContain("Delete broken board");
+
+    fireEvent.click(deleteButton);
+    expect(deleteButton.textContent).toContain("Confirm delete board");
+
+    fireEvent.click(deleteButton);
+    await waitFor(() => expect(screen.getByTestId("whiteboard-start-panel")).toBeTruthy());
+    expect(
+      JSON.parse(window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]")[0]
+        ?.archivedAt,
+    ).toBeTruthy();
+  });
+
   it("shows a lightweight start manager when no whiteboard is selected yet", async () => {
     renderLab({ seedBoard: false });
 
@@ -260,6 +282,77 @@ describe("MathWhiteboardLabPage", () => {
     expect(container.querySelectorAll('[data-whiteboard-module="desmos-graph"]')).toHaveLength(2);
   });
 
+  it("creates a unique math workspace scope for each Desmos whiteboard card", () => {
+    renderLab();
+
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /desmos graph/i }));
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /desmos graph/i }));
+
+    const graphScopeIds = Array.from(
+      new Set(
+        mocks.mathWorkspaceCalls
+          .map((call) => call.scopeId)
+          .filter((scopeId): scopeId is string => Boolean(scopeId) && scopeId !== "math-lab"),
+      ),
+    );
+
+    expect(graphScopeIds).toHaveLength(2);
+    expect(graphScopeIds.every((scopeId) => scopeId.startsWith("whiteboard-desmos-"))).toBe(true);
+  });
+
+  it("limits one whiteboard to three unique Desmos graph cards", () => {
+    const { container } = renderLab();
+
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+      fireEvent.click(screen.getByRole("button", { name: /desmos graph/i }));
+    }
+
+    expect(container.querySelectorAll('[data-whiteboard-module="desmos-graph"]')).toHaveLength(3);
+    expect(screen.getByText(/up to 3 unique Desmos graphs/i)).toBeTruthy();
+  });
+
+  it("warns before creating live modules at unsafe whiteboard zoom levels", async () => {
+    const { container } = renderLab();
+
+    await waitFor(() => expect(mocks.whiteboardCanvasProps).toBeTruthy());
+    act(() => {
+      (
+        mocks.whiteboardCanvasProps?.onViewportChange as (transform: {
+          scrollX: number;
+          scrollY: number;
+          zoom: number;
+          viewportWidth: number;
+          viewportHeight: number;
+          offsetLeft: number;
+          offsetTop: number;
+        }) => void
+      )({
+        scrollX: 0,
+        scrollY: 0,
+        zoom: 0.5,
+        viewportWidth: 1200,
+        viewportHeight: 800,
+        offsetLeft: 0,
+        offsetTop: 0,
+      });
+    });
+
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /desmos graph/i }));
+
+    expect(screen.getByTestId("whiteboard-zoom-safety-prompt")).toBeTruthy();
+    expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /zoom to 100% and open/i }));
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
+    });
+  });
+
   it("adds an annotations card from the lab drawer", () => {
     const { container } = renderLab();
 
@@ -288,7 +381,7 @@ describe("MathWhiteboardLabPage", () => {
       )({
         scrollX: 100,
         scrollY: -80,
-        zoom: 2,
+        zoom: 1.25,
         viewportWidth: 1200,
         viewportHeight: 800,
         offsetLeft: 0,
@@ -302,10 +395,28 @@ describe("MathWhiteboardLabPage", () => {
     await waitFor(() => {
       const card = container.querySelector('[data-whiteboard-module="lesson"]');
       expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
-      expect(card?.getAttribute("style")).toContain("left: 40px");
-      expect(card?.getAttribute("style")).toContain("top: -20px");
+      expect(card?.getAttribute("style")).toContain("left: 250px");
+      expect(card?.getAttribute("style")).toContain("top: 137.5px");
       expect(card?.getAttribute("style")).toContain("width: 560px");
       expect(card?.getAttribute("style")).toContain("height: 420px");
+    });
+  });
+
+  it("adds source lesson cards as choose-source modules instead of locking them to the synthetic lab source", async () => {
+    renderLab();
+
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /source lesson/i }));
+
+    await waitFor(() => {
+      const savedBoards = JSON.parse(
+        window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]",
+      ) as Array<{ modules: Array<{ moduleId: string; binderId?: string; lessonId?: string; sourceConfirmed?: boolean }> }>;
+      const sourceModule = savedBoards[0]?.modules.find((moduleElement) => moduleElement.moduleId === "lesson");
+      expect(sourceModule).toBeTruthy();
+      expect(sourceModule?.sourceConfirmed).toBe(false);
+      expect(sourceModule?.binderId).toBeUndefined();
+      expect(sourceModule?.lessonId).toBeUndefined();
     });
   });
 
@@ -327,7 +438,7 @@ describe("MathWhiteboardLabPage", () => {
       )({
         scrollX: 100,
         scrollY: -80,
-        zoom: 2,
+        zoom: 1.25,
         viewportWidth: 1200,
         viewportHeight: 800,
         offsetLeft: 0,
@@ -351,14 +462,14 @@ describe("MathWhiteboardLabPage", () => {
       const card = container.querySelector('[data-whiteboard-module="lesson"]');
       expect(card?.getAttribute("data-card-anchor")).toBe("board");
       expect(card?.getAttribute("data-card-render-layer")).toBe("board");
-      expect(card?.getAttribute("data-card-scene-x")).toBe("-80");
-      expect(card?.getAttribute("data-card-scene-y")).toBe("70");
-      expect(card?.getAttribute("data-card-scene-width")).toBe("280");
-      expect(card?.getAttribute("data-card-scene-height")).toBe("210");
-      expect(card?.getAttribute("data-card-render-x")).toBe("40");
-      expect(card?.getAttribute("data-card-render-y")).toBe("-20");
-      expect(card?.getAttribute("data-card-render-zoom")).toBe("2");
-      expect(card?.getAttribute("style")).toContain("transform: translate3d(40px, -20px, 0) scale(2)");
+      expect(card?.getAttribute("data-card-scene-x")).toBe("100");
+      expect(card?.getAttribute("data-card-scene-y")).toBe("190");
+      expect(card?.getAttribute("data-card-scene-width")).toBe("448");
+      expect(card?.getAttribute("data-card-scene-height")).toBe("336");
+      expect(card?.getAttribute("data-card-render-x")).toBe("250");
+      expect(card?.getAttribute("data-card-render-y")).toBe("137.5");
+      expect(card?.getAttribute("data-card-render-zoom")).toBe("1.25");
+      expect(card?.getAttribute("style")).toContain("transform: translate3d(250px, 137.5px, 0) scale(1.25)");
     });
 
     act(() => {
@@ -387,14 +498,14 @@ describe("MathWhiteboardLabPage", () => {
       const card = container.querySelector('[data-whiteboard-module="lesson"]');
       expect(card?.getAttribute("data-card-anchor")).toBe("board");
       expect(card?.getAttribute("data-card-render-layer")).toBe("board");
-      expect(card?.getAttribute("data-card-scene-x")).toBe("-80");
-      expect(card?.getAttribute("data-card-scene-y")).toBe("70");
-      expect(card?.getAttribute("data-card-scene-width")).toBe("280");
-      expect(card?.getAttribute("data-card-scene-height")).toBe("210");
-      expect(card?.getAttribute("data-card-render-x")).toBe("110");
-      expect(card?.getAttribute("data-card-render-y")).toBe("-25");
+      expect(card?.getAttribute("data-card-scene-x")).toBe("100");
+      expect(card?.getAttribute("data-card-scene-y")).toBe("190");
+      expect(card?.getAttribute("data-card-scene-width")).toBe("448");
+      expect(card?.getAttribute("data-card-scene-height")).toBe("336");
+      expect(card?.getAttribute("data-card-render-x")).toBe("200");
+      expect(card?.getAttribute("data-card-render-y")).toBe("35");
       expect(card?.getAttribute("data-card-render-zoom")).toBe("0.5");
-      expect(card?.getAttribute("style")).toContain("transform: translate3d(110px, -25px, 0) scale(0.5)");
+      expect(card?.getAttribute("style")).toContain("transform: translate3d(200px, 35px, 0) scale(0.5)");
     });
   });
 
@@ -416,7 +527,7 @@ describe("MathWhiteboardLabPage", () => {
       )({
         scrollX: 100,
         scrollY: -80,
-        zoom: 2,
+        zoom: 1.25,
         viewportWidth: 1200,
         viewportHeight: 800,
         offsetLeft: 0,

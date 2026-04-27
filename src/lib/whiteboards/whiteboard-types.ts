@@ -1,4 +1,5 @@
-import type { WorkspaceModuleId } from "@/types";
+import type { JSONContent } from "@tiptap/react";
+import type { Comment, Highlight, WorkspaceModuleId } from "@/types";
 
 export type WhiteboardModuleMode = "live" | "preview" | "collapsed";
 export type WhiteboardModuleAnchorMode = "board" | "board-fixed-size" | "viewport";
@@ -10,6 +11,16 @@ export type WhiteboardModuleElement = {
   binderId?: string;
   lessonId?: string;
   savedGraphId?: string;
+  graphInstanceId?: string;
+  noteContent?: JSONContent;
+  noteTitle?: string;
+  whiteboardHighlights?: Highlight[];
+  whiteboardComments?: Comment[];
+  sourceConfirmed?: boolean;
+  sourceDisplayMode?: "compact" | "full" | "summary" | "header-hidden";
+  cardDensity?: "compact" | "comfortable";
+  textSize?: "small" | "normal" | "large";
+  showMathInline?: boolean;
   x: number;
   y: number;
   width: number;

@@ -1,5 +1,5 @@
-import { Home, Maximize2, Minimize2, PanelLeftOpen, Save, Settings2, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { Home, Maximize2, Minimize2, PanelLeftOpen, Save, Settings2, Trash2, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
@@ -54,12 +54,17 @@ export function WhiteboardFloatingUiLayer({
   warning,
 }: WhiteboardFloatingUiLayerProps) {
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
   const statusLabel = saveMessage || fallbackSaveLabels[saveStatus];
   const visibleStatusLabel = saveStatus === "offline-draft" ? "Local draft" : statusLabel;
   const showSecondaryWarning = Boolean(warning && saveStatus === "error" && warning !== statusLabel);
 
+  useEffect(() => {
+    setDeleteConfirming(false);
+  }, [activeBoard.id]);
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-40" data-testid="whiteboard-floating-ui-layer">
+    <div className="pointer-events-none fixed inset-0 z-[70]" data-testid="whiteboard-floating-ui-layer">
       <div
         className="pointer-events-none absolute right-4 top-24 flex justify-end"
         data-testid="whiteboard-lab-dock"
@@ -150,6 +155,25 @@ export function WhiteboardFloatingUiLayer({
           <Button className="whiteboard-action-button justify-start" onClick={onSaveNow} size="sm" type="button" variant="secondary">
             <Save data-icon="inline-start" />
             Save
+          </Button>
+          <Button
+            className="whiteboard-action-button justify-start"
+            data-testid="whiteboard-delete-broken-board"
+            onClick={() => {
+              if (!deleteConfirming) {
+                setDeleteConfirming(true);
+                return;
+              }
+
+              setDeleteConfirming(false);
+              onArchiveBoard(activeBoard.id);
+            }}
+            size="sm"
+            type="button"
+            variant={deleteConfirming ? "destructive" : "outline"}
+          >
+            <Trash2 data-icon="inline-start" />
+            {deleteConfirming ? "Confirm delete board" : "Delete broken board"}
           </Button>
           <div className="grid grid-cols-2 gap-2" data-testid="whiteboard-corner-controls">
             <Button

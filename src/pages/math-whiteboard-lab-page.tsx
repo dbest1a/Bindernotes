@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Navigate, useNavigate } from "react-router-dom";
 import type {
@@ -18,10 +18,19 @@ import { emptyDoc } from "@/lib/utils";
 import type {
   Binder,
   BinderLesson,
+  Comment,
+  Highlight,
+  HighlightColor,
+  LessonTextSelection,
   MathBlock,
   SaveStatusSnapshot,
   WorkspaceModuleId,
 } from "@/types";
+
+type ScopedLessonTextSelection = LessonTextSelection & {
+  binderId?: string;
+  lessonId?: string;
+};
 
 const mathLabTimestamp = new Date(0).toISOString();
 
@@ -62,6 +71,31 @@ const savedStatus: SaveStatusSnapshot = {
   error: null,
 };
 
+function appendParagraph(content: JSONContent, text: string): JSONContent {
+  const cleanText = text.trim();
+  if (!cleanText) {
+    return content;
+  }
+
+  return {
+    type: "doc",
+    content: [
+      ...((content.content as JSONContent[] | undefined) ?? []),
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: cleanText }],
+      },
+    ],
+  };
+}
+
+function getSelectionSourceScope(selection: ScopedLessonTextSelection) {
+  return {
+    binderId: selection.binderId ?? mathLabBinder.id,
+    lessonId: selection.lessonId ?? mathLabLesson.id,
+  };
+}
+
 export function MathWhiteboardLabPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -79,6 +113,11 @@ export function MathWhiteboardLabPage() {
   const [noteTitle, setNoteTitle] = useState("Math Lab scratch notes");
   const [noteContent, setNoteContent] = useState<JSONContent>(() => emptyDoc());
   const [noteMath, setNoteMath] = useState<MathBlock[]>([]);
+  const [hasUnsavedNoteChanges, setHasUnsavedNoteChanges] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentAnchor, setCommentAnchor] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
   const dashboardQuery = useDashboard(profile, {
     enabled: Boolean(profile),
     includeSystemStatus: false,
@@ -121,6 +160,115 @@ export function MathWhiteboardLabPage() {
     },
   };
 
+  const updateNoteContent = useCallback((value: JSONContent) => {
+    setNoteContent(value);
+    setHasUnsavedNoteChanges(true);
+  }, []);
+
+  const createComment = useCallback(
+    (anchorText: string | null, body?: string) => {
+      const timestamp = new Date().toISOString();
+      const nextBody = body?.trim() || (anchorText ? `Comment on: ${anchorText}` : "Whiteboard note");
+      setComments((current) => [
+        {
+          id: `whiteboard-comment-${crypto.randomUUID()}`,
+          owner_id: profile.id,
+          binder_id: mathLabBinder.id,
+          lesson_id: mathLabLesson.id,
+          anchor_text: anchorText,
+          body: nextBody,
+          parent_id: null,
+          resolved_at: null,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+        ...current,
+      ]);
+    },
+    [profile.id],
+  );
+
+  const handlePrepareComment = useCallback(
+    (anchorText?: string | null) => {
+      const anchor = anchorText?.trim() || null;
+      setCommentAnchor(anchor);
+      setCommentDraft(anchor ? `Comment on: ${anchor}` : "Whiteboard note");
+      createComment(anchor);
+    },
+    [createComment],
+  );
+
+  const handleAddComment = useCallback(() => {
+    createComment(commentAnchor, commentDraft);
+    setCommentDraft("");
+    setCommentAnchor(null);
+  }, [commentAnchor, commentDraft, createComment]);
+
+  const handleAddHighlight = useCallback(
+    (selection: LessonTextSelection, color: HighlightColor) => {
+      const scopedSelection = selection as ScopedLessonTextSelection;
+      const scope = getSelectionSourceScope(scopedSelection);
+      const timestamp = new Date().toISOString();
+      setHighlights((current) => [
+        {
+          id: `whiteboard-highlight-${crypto.randomUUID()}`,
+          owner_id: profile.id,
+          binder_id: scope.binderId,
+          lesson_id: scope.lessonId,
+          document_id: null,
+          source_version_id: null,
+          anchor_text: selection.text,
+          selected_text: selection.text,
+          prefix_text: selection.prefixText ?? null,
+          suffix_text: selection.suffixText ?? null,
+          selector_json: {
+            selectors: [
+              {
+                type: "TextQuoteSelector",
+                exact: selection.text,
+                prefix: selection.prefixText,
+                suffix: selection.suffixText,
+              },
+              {
+                type: "TextPositionSelector",
+                start: selection.startOffset,
+                end: selection.endOffset,
+              },
+            ],
+          },
+          color,
+          note_id: null,
+          start_offset: selection.startOffset,
+          end_offset: selection.endOffset,
+          status: "active",
+          reanchor_confidence: 1,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+        ...current,
+      ]);
+    },
+    [profile.id],
+  );
+
+  const handleRemoveHighlight = useCallback((_selection: LessonTextSelection, highlightIds: string[]) => {
+    setHighlights((current) => current.filter((highlight) => !highlightIds.includes(highlight.id)));
+  }, []);
+
+  const appendSelectionToNotes = useCallback((anchorText?: string, prefix = "Source quote") => {
+    const text = anchorText?.trim();
+    if (!text) {
+      return;
+    }
+    setNoteContent((current) => appendParagraph(current, `${prefix}: ${text}`));
+    setHasUnsavedNoteChanges(true);
+  }, []);
+
+  const appendToolBlockToNotes = useCallback((text: string) => {
+    setNoteContent((current) => appendParagraph(current, text));
+    setHasUnsavedNoteChanges(true);
+  }, []);
+
   const whiteboardContext: WorkspaceModuleContext = {
     ownerId: profile.id,
     binder: mathLabBinder,
@@ -142,10 +290,10 @@ export function MathWhiteboardLabPage() {
     noteTitle,
     noteContent,
     noteMath,
-    commentDraft: "",
-    commentAnchor: null,
-    comments: [],
-    highlights: [],
+    commentDraft,
+    commentAnchor,
+    comments,
+    highlights,
     defaultHighlightColor: "yellow",
     conceptNodes: [],
     conceptEdges: [],
@@ -162,7 +310,7 @@ export function MathWhiteboardLabPage() {
     noteInsertRequest: null,
     mathModules: bindings,
     stickyManagerVisible: false,
-    hasUnsavedNoteChanges: false,
+    hasUnsavedNoteChanges,
     history: {
       enabled: false,
       seedHealthMessage: null,
@@ -190,38 +338,58 @@ export function MathWhiteboardLabPage() {
     onSelectLesson: () => {},
     onQueryChange: () => {},
     onNoteTitleChange: setNoteTitle,
-    onNoteContentChange: setNoteContent,
-    onNoteMathChange: setNoteMath,
-    onCommentDraftChange: () => {},
-    onSaveNoteNow: () => {},
+    onNoteContentChange: updateNoteContent,
+    onNoteMathChange: (value) => {
+      setNoteMath(value);
+      setHasUnsavedNoteChanges(true);
+    },
+    onCommentDraftChange: setCommentDraft,
+    onSaveNoteNow: () => setHasUnsavedNoteChanges(false),
     onRetryNoteSave: () => {},
-    onPrepareComment: () => {},
-    onClearPreparedComment: () => {},
-    onAddComment: () => {},
-    onCreateLooseSticky: () => {},
+    onPrepareComment: handlePrepareComment,
+    onClearPreparedComment: () => {
+      setCommentAnchor(null);
+      setCommentDraft("");
+    },
+    onAddComment: handleAddComment,
+    onCreateLooseSticky: () => createComment(null, "Whiteboard note"),
     onToggleStickyManager: () => {},
-    onDeleteComment: () => {},
-    onUpdateComment: () => {},
-    onAddHighlight: () => {},
-    onRemoveHighlight: () => {},
+    onDeleteComment: (commentId) => {
+      setComments((current) => current.filter((comment) => comment.id !== commentId));
+    },
+    onUpdateComment: (commentId, body) => {
+      setComments((current) =>
+        current.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                body,
+                updated_at: new Date().toISOString(),
+              }
+            : comment,
+        ),
+      );
+    },
+    onAddHighlight: handleAddHighlight,
+    onRemoveHighlight: handleRemoveHighlight,
     onSaveSelectionAsEvidence: () => {},
     onStickyMove: () => {},
-    onSendStickyToNotes: () => {},
+    onSendStickyToNotes: (comment) => appendSelectionToNotes(comment.anchor_text ?? comment.body, "Sticky note"),
     onAcceptMathSuggestion: () => {},
     onGraphMathSuggestion: () => {},
     onDismissMathSuggestion: () => {},
-    onSendSelectionToNotes: () => {},
-    onCreateQuoteExcerpt: () => {},
-    onInsertCallout: () => {},
-    onInsertChecklist: () => {},
-    onInsertDefinition: () => {},
-    onInsertTheorem: () => {},
-    onInsertProof: () => {},
-    onInsertFormulaReference: () => {},
-    onInsertGraphNote: () => {},
-    onInsertWorkedExample: () => {},
-    onInsertMathBlock: () => {},
-    onInsertGraphBlock: () => {},
+    onSendSelectionToNotes: (anchorText) => appendSelectionToNotes(anchorText, "Source quote"),
+    onCreateQuoteExcerpt: (anchorText) => appendSelectionToNotes(anchorText, "Quote block"),
+    onInsertCallout: () => appendToolBlockToNotes("Callout: "),
+    onInsertChecklist: () => appendToolBlockToNotes("Checklist:\n- "),
+    onInsertDefinition: () => appendToolBlockToNotes("Definition: "),
+    onInsertTheorem: () => appendToolBlockToNotes("Theorem: "),
+    onInsertProof: () => appendToolBlockToNotes("Proof: "),
+    onInsertFormulaReference: () => appendToolBlockToNotes("Formula reference: "),
+    onInsertGraphNote: () => appendToolBlockToNotes("Graph observation: "),
+    onInsertWorkedExample: () => appendToolBlockToNotes("Worked example: "),
+    onInsertMathBlock: () => appendToolBlockToNotes("Math block: "),
+    onInsertGraphBlock: () => appendToolBlockToNotes("Graph block: "),
     onNoteInsertApplied: () => {},
     onJumpToHighlight: () => {},
     onJumpToMathSource: () => {},

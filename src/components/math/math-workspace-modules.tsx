@@ -152,6 +152,7 @@ export function ScientificCalculatorModule({
   title?: string;
 }) {
   const { controller, pushExpressionToGraph } = bindings;
+  const calculatorHeight = surface === "whiteboard" ? "100%" : "clamp(520px, 68vh, 720px)";
   const fallback = (
     <ScientificCalculator
       angleMode={controller.state.angleMode}
@@ -182,7 +183,7 @@ export function ScientificCalculatorModule({
   return (
     <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"} description={description} title={title}>
       <div className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[460px]"}>
-        <DesmosScientificCalculator fallback={fallback} />
+        <DesmosScientificCalculator fallback={fallback} height={calculatorHeight} />
       </div>
     </WorkspacePanel>
   );

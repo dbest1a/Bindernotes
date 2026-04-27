@@ -114,11 +114,16 @@ function loadState(userId?: string, scopeId = "math-lab") {
   }
 }
 
+function mathWorkspaceStatesEqual(left: MathWorkspaceState, right: MathWorkspaceState) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
   const [state, setState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId));
 
   useEffect(() => {
-    setState(loadState(userId, scopeId));
+    const nextState = loadState(userId, scopeId);
+    setState((current) => (mathWorkspaceStatesEqual(current, nextState) ? current : nextState));
   }, [scopeId, userId]);
 
   useEffect(() => {

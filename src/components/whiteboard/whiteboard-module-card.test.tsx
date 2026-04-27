@@ -43,6 +43,146 @@ beforeAll(() => {
 describe("WhiteboardModuleCard", () => {
   afterEach(() => cleanup());
 
+  it("keeps card chrome above content so pin and options menus stay visible", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const chrome = card.querySelector(".whiteboard-module-card__chrome");
+    const content = card.querySelector(".whiteboard-module-card__content");
+    expect(chrome?.className).toContain("z-30");
+    expect(content?.className).toContain("z-10");
+  });
+
+  it("uses an opaque card content surface so the whiteboard grid does not bleed through", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const content = card.querySelector(".whiteboard-module-card__content");
+    expect(content?.className).toContain("bg-card");
+    expect(content?.className).not.toContain("/60");
+  });
+
+  it("promotes open menus to the foreground so board content cannot cover them", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({ zIndex: 1 })}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    expect(card.getAttribute("style")).toContain("z-index: 1");
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+
+    expect(screen.getByTestId("whiteboard-card-options-menu")).toBeTruthy();
+    expect(card.getAttribute("style")).toContain("z-index: 10001");
+  });
+
+  it("keeps the pin and settings menus mutually exclusive", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+    expect(screen.getByTestId("whiteboard-card-options-menu")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-pin-button"));
+    expect(screen.getByTestId("whiteboard-card-anchor-menu")).toBeTruthy();
+    expect(screen.queryByTestId("whiteboard-card-options-menu")).toBeNull();
+  });
+
+  it("docks open card menus between the header and content instead of overlaying module text", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        <p>Readable module text</p>
+      </WhiteboardModuleCard>,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-options-button"));
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const dock = screen.getByTestId("whiteboard-card-menu-dock");
+    const menu = screen.getByTestId("whiteboard-card-options-menu");
+    const content = card.querySelector(".whiteboard-module-card__content");
+    expect(dock.contains(menu)).toBe(true);
+    expect(menu.className).not.toContain("absolute");
+    expect(Array.from(card.children).indexOf(dock)).toBeLessThan(Array.from(card.children).indexOf(content as Element));
+  });
+
+  it("keeps the green resize handle pinned to the card bottom-right corner", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    const resizeHandle = screen.getByTestId("whiteboard-card-resize-handle");
+    expect(resizeHandle.className).toContain("absolute");
+    expect(resizeHandle.className).toContain("bottom-0");
+    expect(resizeHandle.className).toContain("right-0");
+    expect(resizeHandle.className).toContain("z-50");
+    expect(resizeHandle.className).toContain("size-6");
+    expect(resizeHandle.className).toContain("bg-primary");
+  });
+
   it("dragging at zoom 2 moves board position by half the screen delta", () => {
     const onChange = vi.fn();
     render(

@@ -25,7 +25,20 @@ import {
   whiteboardViewportTransformsEqual,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
-import { AUTOSAVE_DEBOUNCE_MS, MAX_OBJECTS_WARNING } from "@/lib/whiteboards/whiteboard-limits";
+import {
+  computeViewportTransformForNewModule,
+  isUnsafeModuleCreationZoom,
+} from "@/lib/whiteboards/whiteboard-module-focus";
+import {
+  getAnnotationOriginFromModule,
+  resolvePrivateNotesTarget,
+  type PrivateNotesTargetCandidate,
+} from "@/lib/whiteboards/whiteboard-note-targeting";
+import {
+  AUTOSAVE_DEBOUNCE_MS,
+  MAX_OBJECTS_WARNING,
+  MAX_WHITEBOARD_DESMOS_GRAPHS,
+} from "@/lib/whiteboards/whiteboard-limits";
 import {
   WHITEBOARD_LIMIT_MESSAGE,
   archiveWhiteboard,
@@ -50,6 +63,7 @@ import {
   type WhiteboardModuleDefinition,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import { mathWhiteboardTemplates } from "@/lib/whiteboards/whiteboard-templates";
+import type { JSONContent } from "@tiptap/react";
 
 type WhiteboardModuleProps = {
   context: WorkspaceModuleContext;
@@ -60,6 +74,43 @@ type WhiteboardModuleProps = {
   onBack?: () => void;
   variant?: "module" | "lab";
 };
+
+type PendingZoomAction = {
+  title: string;
+  body: string;
+  frame: Pick<WhiteboardModuleElement, "x" | "y" | "width" | "height">;
+  run: () => void;
+};
+
+type PendingNotesInsertion = {
+  text: string;
+  prefix: "Source quote" | "Quote block" | "Sticky note";
+  sourceModuleId: string;
+  candidates?: PrivateNotesTargetCandidate[];
+};
+
+function emptyNoteDoc(): JSONContent {
+  return { type: "doc", content: [] };
+}
+
+function appendParagraph(content: JSONContent | undefined, text: string): JSONContent {
+  const cleanText = text.trim();
+  const current = content ?? emptyNoteDoc();
+  if (!cleanText) {
+    return current;
+  }
+
+  return {
+    type: "doc",
+    content: [
+      ...((current.content as JSONContent[] | undefined) ?? []),
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: cleanText }],
+      },
+    ],
+  };
+}
 
 function getBoardPinnedGeometrySnapshot(modules: WhiteboardModuleElement[]) {
   return modules
@@ -96,6 +147,29 @@ function mapSaveResultStatus(status: "saved" | "local-draft" | "error" | "limit"
   return "offline-draft";
 }
 
+function shouldChooseSourceBeforeOpening(moduleId: WhiteboardModuleElement["moduleId"], labMode: boolean) {
+  if (!labMode) {
+    return false;
+  }
+
+  return (
+    moduleId === "lesson" ||
+    moduleId === "comments" ||
+    moduleId === "recent-highlights" ||
+    moduleId === "related-concepts" ||
+    moduleId === "formula-sheet" ||
+    moduleId === "math-blocks"
+  );
+}
+
+function createDesmosGraphInstanceId(moduleId: WhiteboardModuleElement["moduleId"]) {
+  return moduleId === "desmos-graph" ? `whiteboard-desmos-${crypto.randomUUID()}` : undefined;
+}
+
+function countDesmosGraphModules(modules: WhiteboardModuleElement[]) {
+  return modules.filter((moduleElement) => moduleElement.moduleId === "desmos-graph").length;
+}
+
 export function WhiteboardModule({ context, onBack, renderModule, variant = "module" }: WhiteboardModuleProps) {
   const ownerId = context.ownerId;
   const labMode = variant === "lab";
@@ -117,6 +191,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const [saveStatus, setSaveStatus] = useState<WhiteboardSaveStatus>("offline-draft");
   const [saveMessage, setSaveMessage] = useState("Local draft");
   const [warning, setWarning] = useState<string | null>(null);
+  const [pendingZoomAction, setPendingZoomAction] = useState<PendingZoomAction | null>(null);
+  const [pendingNotesInsertion, setPendingNotesInsertion] = useState<PendingNotesInsertion | null>(null);
   const latestSceneRef = useRef<WhiteboardSceneData | null>(null);
   const boardRef = useRef<BinderWhiteboard | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -124,6 +200,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const boardPinnedGeometrySnapshotRef = useRef("");
   const lastCountUpdateRef = useRef(0);
   const saveStatusRef = useRef(saveStatus);
+  const lastUsedPrivateNotesModuleRef = useRef<string | null>(null);
+  const requestViewportTransformRef = useRef<((transform: WhiteboardViewportTransform) => void) | null>(null);
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
     defaultWhiteboardViewportTransform,
   );
@@ -540,10 +618,197 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     createBoardFromTemplate(mathWhiteboardTemplates[0]);
   }, [createBoardFromTemplate]);
 
+  const runWithModuleCreationZoomSafety = useCallback(
+    (
+      frame: Pick<WhiteboardModuleElement, "x" | "y" | "width" | "height">,
+      run: () => void,
+    ) => {
+      const transform = viewportTransformRef.current;
+      if (!isUnsafeModuleCreationZoom(transform.zoom)) {
+        run();
+        return;
+      }
+
+      setPendingZoomAction({
+        title: "Zoom to 100%?",
+        body: "Live modules may not be usable at this zoom level. Zoom to 100% and open the module?",
+        frame,
+        run,
+      });
+    },
+    [],
+  );
+
+  const confirmPendingZoomAction = useCallback(() => {
+    const pending = pendingZoomAction;
+    if (!pending) {
+      return;
+    }
+
+    const nextTransform = computeViewportTransformForNewModule(
+      pending.frame,
+      viewportTransformRef.current,
+      { desiredZoom: 1 },
+    );
+    requestViewportTransformRef.current?.(nextTransform);
+    handleViewportChange(nextTransform);
+    setPendingZoomAction(null);
+    pending.run();
+  }, [handleViewportChange, pendingZoomAction]);
+
+  const cancelPendingZoomAction = useCallback(() => {
+    setPendingZoomAction(null);
+  }, []);
+
+  const appendTextToPrivateNotesModule = useCallback(
+    (targetModuleId: string, text: string) => {
+      const current = boardRef.current;
+      if (!current) {
+        return;
+      }
+
+      updateBoardModules((modules) =>
+        modules.map((moduleElement) => {
+          if (moduleElement.id !== targetModuleId) {
+            return moduleElement;
+          }
+
+          return {
+            ...moduleElement,
+            mode: "live",
+            noteTitle: moduleElement.noteTitle ?? moduleElement.title ?? "Private Notes",
+            title: moduleElement.title ?? "Private Notes",
+            noteContent: appendParagraph(moduleElement.noteContent, text),
+            updatedAt: new Date().toISOString(),
+          };
+        }),
+      );
+      lastUsedPrivateNotesModuleRef.current = targetModuleId;
+      setSaveMessage("Added to Private Notes");
+    },
+    [updateBoardModules],
+  );
+
+  const createPrivateNotesModuleWithText = useCallback(
+    (pending: PendingNotesInsertion) => {
+      const current = boardRef.current;
+      if (!current) {
+        return;
+      }
+
+      const sourceModule = current.modules.find((moduleElement) => moduleElement.id === pending.sourceModuleId);
+      const definition: WhiteboardModuleDefinition = {
+        moduleId: "private-notes",
+        label: "Private Notes",
+        description: "Whiteboard notes",
+        heavy: false,
+        defaultWidth: 560,
+        defaultHeight: 440,
+        defaultAnchorMode: sourceModule?.anchorMode ?? "board-fixed-size",
+      };
+      const frame = sourceModule
+        ? {
+            x: sourceModule.x + Math.min(96, sourceModule.width / 3),
+            y: sourceModule.y + Math.min(96, sourceModule.height / 3),
+            width: definition.defaultWidth,
+            height: definition.defaultHeight,
+          }
+        : findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current);
+      const timestamp = new Date().toISOString();
+      const targetId = `module-private-notes-${crypto.randomUUID()}`;
+      const noteText = `${pending.prefix}: ${pending.text}`;
+      const moduleElement: WhiteboardModuleElement = {
+        id: targetId,
+        type: "bindernotes-module",
+        moduleId: "private-notes",
+        binderId: context.binder.id,
+        lessonId: context.selectedLesson.id,
+        anchorMode: definition.defaultAnchorMode,
+        pinned: definition.defaultAnchorMode !== "viewport",
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height,
+        zIndex: current.modules.length + 10,
+        mode: "live",
+        title: "Private Notes",
+        noteTitle: "Private Notes",
+        noteContent: appendParagraph(undefined, noteText),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+
+      const createModule = () => {
+        updateBoardModules((modules) => [...modules, moduleElement]);
+        lastUsedPrivateNotesModuleRef.current = targetId;
+        setPendingNotesInsertion(null);
+        setSaveMessage("Opened Private Notes and added the note.");
+      };
+
+      runWithModuleCreationZoomSafety(frame, createModule);
+    },
+    [
+      context.binder.id,
+      context.selectedLesson.id,
+      runWithModuleCreationZoomSafety,
+      updateBoardModules,
+    ],
+  );
+
+  const routeSelectionToPrivateNotes = useCallback(
+    (request: { anchorText?: string; prefix: "Source quote" | "Quote block" | "Sticky note"; sourceModuleId: string }) => {
+      const text = request.anchorText?.trim();
+      const current = boardRef.current;
+      if (!text || !current) {
+        return;
+      }
+
+      const sourceModule = current.modules.find((moduleElement) => moduleElement.id === request.sourceModuleId);
+      const resolution = resolvePrivateNotesTarget({
+        modules: current.modules,
+        origin: sourceModule
+          ? getAnnotationOriginFromModule(sourceModule)
+          : {
+              kind: "screen",
+              point: {
+                x: viewportTransformRef.current.viewportWidth / 2,
+                y: viewportTransformRef.current.viewportHeight / 2,
+              },
+            },
+        viewportTransform: viewportTransformRef.current,
+        lastUsedTargetId: lastUsedPrivateNotesModuleRef.current,
+      });
+
+      if (resolution.status === "target-found") {
+        appendTextToPrivateNotesModule(resolution.moduleId, `${request.prefix}: ${text}`);
+        return;
+      }
+
+      setPendingNotesInsertion({
+        text,
+        prefix: request.prefix,
+        sourceModuleId: request.sourceModuleId,
+        candidates: resolution.status === "ambiguous" ? resolution.candidates : undefined,
+      });
+    },
+    [appendTextToPrivateNotesModule],
+  );
+
   const addModule = useCallback(
     (definition: WhiteboardModuleDefinition) => {
       const current = boardRef.current;
       if (!current) {
+        return;
+      }
+
+      if (
+        definition.moduleId === "desmos-graph" &&
+        countDesmosGraphModules(current.modules) >= MAX_WHITEBOARD_DESMOS_GRAPHS
+      ) {
+        const message = `You can keep up to ${MAX_WHITEBOARD_DESMOS_GRAPHS} unique Desmos graphs on one whiteboard. Delete one before opening another.`;
+        setSaveStatus("limit");
+        setSaveMessage(message);
+        setWarning(message);
         return;
       }
 
@@ -555,12 +820,16 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           : labMode
             ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current)
             : findOpenWhiteboardModuleFrame(current.modules, definition);
+      const chooseSourceFirst = shouldChooseSourceBeforeOpening(definition.moduleId, labMode);
+      const moduleId = `module-${definition.moduleId}-${crypto.randomUUID()}`;
       const moduleElement: WhiteboardModuleElement = {
-        id: `module-${definition.moduleId}-${crypto.randomUUID()}`,
+        id: moduleId,
         type: "bindernotes-module",
         moduleId: definition.moduleId,
-        binderId: context.binder.id,
-        lessonId: context.selectedLesson.id,
+        binderId: chooseSourceFirst ? undefined : context.binder.id,
+        lessonId: chooseSourceFirst ? undefined : context.selectedLesson.id,
+        graphInstanceId: createDesmosGraphInstanceId(definition.moduleId),
+        sourceConfirmed: chooseSourceFirst ? false : undefined,
         anchorMode,
         pinned: anchorMode !== "viewport",
         x: frame.x,
@@ -574,9 +843,64 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         updatedAt: timestamp,
       };
 
-      updateBoardModules((modules) => [...modules, moduleElement]);
+      runWithModuleCreationZoomSafety(frame, () => updateBoardModules((modules) => [...modules, moduleElement]));
     },
-    [context.binder.id, context.selectedLesson.id, labMode, updateBoardModules],
+    [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
+  );
+
+  const addLinkedModule = useCallback(
+    (patch: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">) => {
+      const current = boardRef.current;
+      if (!current) {
+        return;
+      }
+
+      if (patch.moduleId === "desmos-graph" && countDesmosGraphModules(current.modules) >= MAX_WHITEBOARD_DESMOS_GRAPHS) {
+        const message = `You can keep up to ${MAX_WHITEBOARD_DESMOS_GRAPHS} unique Desmos graphs on one whiteboard. Delete one before opening another.`;
+        setSaveStatus("limit");
+        setSaveMessage(message);
+        setWarning(message);
+        return;
+      }
+
+      const definition = {
+        moduleId: patch.moduleId,
+        defaultWidth: patch.width ?? 360,
+        defaultHeight: patch.height ?? 320,
+      } as WhiteboardModuleDefinition;
+      const timestamp = new Date().toISOString();
+      const anchorMode = patch.anchorMode ?? getDefaultWhiteboardModuleAnchorMode(patch.moduleId);
+      const frame =
+        anchorMode === "viewport"
+          ? findOpenWhiteboardViewportModuleFrame(current.modules, definition, viewportTransformRef.current)
+          : labMode
+            ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current)
+            : findOpenWhiteboardModuleFrame(current.modules, definition);
+
+      const moduleId = `module-${patch.moduleId}-${crypto.randomUUID()}`;
+      const moduleElement: WhiteboardModuleElement = {
+        id: moduleId,
+        type: "bindernotes-module",
+        moduleId: patch.moduleId,
+        binderId: patch.binderId ?? context.binder.id,
+        lessonId: patch.lessonId ?? context.selectedLesson.id,
+        sourceConfirmed: true,
+        graphInstanceId: createDesmosGraphInstanceId(patch.moduleId),
+        anchorMode,
+        pinned: anchorMode !== "viewport",
+        x: frame.x,
+        y: frame.y,
+        width: patch.width ?? frame.width,
+        height: patch.height ?? frame.height,
+        zIndex: current.modules.length + 10,
+        mode: patch.mode ?? "live",
+        title: patch.title ?? patch.moduleId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      runWithModuleCreationZoomSafety(frame, () => updateBoardModules((modules) => [...modules, moduleElement]));
+    },
+    [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );
 
   const renameActiveBoard = useCallback(
@@ -622,12 +946,16 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               fullscreen
               onSceneChange={handleSceneChange}
               onViewportChange={handleViewportChange}
+              onViewportRequestReady={(requestViewport) => {
+                requestViewportTransformRef.current = requestViewport;
+              }}
             />
             <WhiteboardPinnedObjectLayer
               context={context}
               fixed
               getViewportTransform={getLatestViewportTransform}
               modules={activeBoard.modules}
+              onAddLinkedModule={addLinkedModule}
               onChangeModule={(moduleElement) =>
                 updateBoardModules((modules) =>
                   modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
@@ -636,6 +964,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               onRemoveModule={(moduleId) =>
                 updateBoardModules((modules) => modules.filter((moduleElement) => moduleElement.id !== moduleId))
               }
+              onRouteSelectionToNotes={routeSelectionToPrivateNotes}
               renderModule={renderModule}
               viewportTransform={viewportTransform}
             />
@@ -658,6 +987,82 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               saveStatus={saveStatus}
               warning={warning}
             />
+            {pendingNotesInsertion ? (
+              <div
+                className="pointer-events-auto fixed left-1/2 top-24 z-[90] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-xl"
+                data-testid="whiteboard-no-private-notes-prompt"
+              >
+                <p className="text-sm font-semibold">
+                  {pendingNotesInsertion.candidates?.length
+                    ? "Choose Private Notes destination"
+                    : "No Private Notes module is open"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {pendingNotesInsertion.candidates?.length
+                    ? "Pick where this note should go."
+                    : "Open a Private Notes module and add this there?"}
+                </p>
+                {pendingNotesInsertion.candidates?.length ? (
+                  <div className="mt-3 grid gap-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Choose destination
+                    </p>
+                    {pendingNotesInsertion.candidates.slice(0, 4).map((candidate) => (
+                      <button
+                        className="rounded-md border border-border bg-card px-3 py-2 text-left text-xs font-semibold hover:bg-secondary"
+                        key={candidate.moduleId}
+                        onClick={() => {
+                          appendTextToPrivateNotesModule(
+                            candidate.moduleId,
+                            `${pendingNotesInsertion.prefix}: ${pendingNotesInsertion.text}`,
+                          );
+                          setPendingNotesInsertion(null);
+                        }}
+                        type="button"
+                      >
+                        {candidate.title}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <Button
+                    onClick={() => setPendingNotesInsertion(null)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    Cancel
+                  </Button>
+                  {!pendingNotesInsertion.candidates?.length ? (
+                    <Button
+                      onClick={() => createPrivateNotesModuleWithText(pendingNotesInsertion)}
+                      size="sm"
+                      type="button"
+                    >
+                      Yes, open Private Notes
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {pendingZoomAction ? (
+              <div
+                className="pointer-events-auto fixed left-1/2 top-24 z-[95] w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-xl"
+                data-testid="whiteboard-zoom-safety-prompt"
+              >
+                <p className="text-sm font-semibold">{pendingZoomAction.title}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{pendingZoomAction.body}</p>
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <Button onClick={cancelPendingZoomAction} size="sm" type="button" variant="ghost">
+                    Cancel
+                  </Button>
+                  <Button onClick={confirmPendingZoomAction} size="sm" type="button">
+                    Zoom to 100% and open
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="grid h-full w-full place-items-center bg-[#10131a] p-6">
@@ -741,11 +1146,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 board={activeBoard}
                 onSceneChange={handleSceneChange}
                 onViewportChange={handleViewportChange}
+                onViewportRequestReady={(requestViewport) => {
+                  requestViewportTransformRef.current = requestViewport;
+                }}
               />
               <WhiteboardPinnedObjectLayer
                 context={context}
                 getViewportTransform={getLatestViewportTransform}
                 modules={activeBoard.modules}
+                onAddLinkedModule={addLinkedModule}
                 onChangeModule={(moduleElement) =>
                   updateBoardModules((modules) =>
                     modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
@@ -754,6 +1163,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 onRemoveModule={(moduleId) =>
                   updateBoardModules((modules) => modules.filter((moduleElement) => moduleElement.id !== moduleId))
                 }
+                onRouteSelectionToNotes={routeSelectionToPrivateNotes}
                 renderModule={renderModule}
                 viewportTransform={viewportTransform}
               />

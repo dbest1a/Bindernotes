@@ -57,6 +57,10 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   onOpenGraphBlock,
   onSendToGraph,
   surface = "workspace",
+  whiteboardDensity = "compact",
+  whiteboardDisplayMode = "compact",
+  whiteboardShowMathInline = false,
+  whiteboardTextSize = "normal",
   onStickyNote,
 }: {
   binder: Binder;
@@ -73,9 +77,19 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   onSendToNotes: (anchorText?: string) => void;
   onSendToGraph?: (expression: string) => void;
   surface?: "workspace" | "whiteboard";
+  whiteboardDensity?: "compact" | "comfortable";
+  whiteboardDisplayMode?: "compact" | "full" | "summary" | "header-hidden";
+  whiteboardShowMathInline?: boolean;
+  whiteboardTextSize?: "small" | "normal" | "large";
   onStickyNote: (anchorText?: string | null) => void;
 }) {
   const readingStats = createReadingStats(lesson.content);
+  const lessonMathBlocks = lesson.math_blocks ?? [];
+  const whiteboard = surface === "whiteboard";
+  const compactWhiteboard = whiteboard && whiteboardDisplayMode !== "full";
+  const showHero = !whiteboard || whiteboardDisplayMode === "full" || whiteboardDisplayMode === "summary";
+  const showStats = !whiteboard || whiteboardDisplayMode === "full";
+  const showInlineMathBlocks = lessonMathBlocks.length > 0 && (!whiteboard || whiteboardShowMathInline);
 
   return (
     <WorkspacePanel
@@ -84,48 +98,81 @@ export const SourceLessonModule = memo(function SourceLessonModule({
       title={lesson.title}
     >
       <div
-        className="source-lesson-content mx-auto flex max-w-[80ch] flex-col gap-5"
+        className={cn(
+          "source-lesson-content flex flex-col",
+          whiteboard
+            ? "h-full min-h-0 max-w-none gap-3 overflow-y-auto px-3 py-3"
+            : "mx-auto max-w-[80ch] gap-5",
+          whiteboardDensity === "compact" && "text-sm",
+          whiteboardTextSize === "small" && "text-[0.82rem]",
+          whiteboardTextSize === "large" && "text-base",
+        )}
+        data-source-display-mode={whiteboardDisplayMode}
+        data-source-density={whiteboardDensity}
+        data-source-text-size={whiteboardTextSize}
         data-maximize-module-space-target="source-shell"
       >
-        <div
-          className="source-lesson-hero rounded-[22px] border border-border/70 bg-background/72 p-4 shadow-sm"
-          data-compact-module-header="source-lesson"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Source lesson
-              </p>
-              <h4 className="mt-2 text-xl font-semibold tracking-tight">{lesson.title}</h4>
-              <p className="mt-2 max-w-xl text-xs leading-6 text-muted-foreground sm:text-sm">
-                Read here, highlight what matters, and send it into notes or stickies without losing the lesson thread.
-              </p>
+        {showHero ? (
+          <div
+            className={cn(
+              "source-lesson-hero rounded-[18px] border border-border bg-card p-3 shadow-sm",
+              !whiteboard && "rounded-[22px] bg-background/72 p-4",
+            )}
+            data-compact-module-header="source-lesson"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Source lesson
+                </p>
+                {whiteboardDisplayMode !== "header-hidden" ? (
+                  <h4 className={cn("mt-1 font-semibold tracking-tight", whiteboard ? "text-base" : "mt-2 text-xl")}>
+                    {lesson.title}
+                  </h4>
+                ) : null}
+                {whiteboardDisplayMode === "summary" || !whiteboard ? (
+                  <p className="mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm">
+                    Read here, highlight what matters, and send it into notes or stickies without losing the lesson thread.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{binder.subject}</Badge>
+                <Badge variant="secondary">{binder.level}</Badge>
+                {lesson.is_preview ? <Badge variant="secondary">Preview lesson</Badge> : null}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{binder.subject}</Badge>
-              <Badge variant="secondary">{binder.level}</Badge>
-              {lesson.is_preview ? <Badge variant="secondary">Preview lesson</Badge> : null}
-            </div>
+
+            {highlightStatus.state !== "idle" ? (
+              <div className="mt-3 rounded-lg border border-border bg-background px-3 py-2">
+                <SaveStatusPill snapshot={highlightStatus} />
+                {highlightStatus.error ? (
+                  <p className="mt-2 text-xs leading-5 text-destructive">{highlightStatus.error}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showStats ? (
+              <div className="source-lesson-stats mt-3 grid gap-2 sm:grid-cols-3" data-compact-module-detail="source-stats">
+                <StatTile label="Reading time" value={`${readingStats.minutes} min`} />
+                <StatTile label="Words" value={String(readingStats.words)} />
+                <StatTile label="Highlights" value={String(highlights.length)} />
+              </div>
+            ) : null}
           </div>
+        ) : null}
 
-          {highlightStatus.state !== "idle" ? (
-            <div className="mt-4 rounded-lg border border-border/70 bg-background/78 px-3 py-2">
-              <SaveStatusPill snapshot={highlightStatus} />
-              {highlightStatus.error ? (
-                <p className="mt-2 text-xs leading-5 text-destructive">{highlightStatus.error}</p>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="source-lesson-stats mt-3 grid gap-2 sm:grid-cols-3" data-compact-module-detail="source-stats">
-            <StatTile label="Reading time" value={`${readingStats.minutes} min`} />
-            <StatTile label="Words" value={String(readingStats.words)} />
-            <StatTile label="Highlights" value={String(highlights.length)} />
+        {compactWhiteboard && whiteboardDisplayMode === "summary" ? (
+          <div className="rounded-lg border border-border bg-secondary px-3 py-2 text-xs leading-5 text-secondary-foreground">
+            Highlight, quote, or turn a passage into a sticky note while you sketch beside it.
           </div>
-        </div>
+        ) : null}
 
         <div
-          className="source-lesson-body-card relative rounded-[26px] border border-border/70 bg-card/92 px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7"
+          className={cn(
+            "source-lesson-body-card relative rounded-[18px] border border-border bg-card text-card-foreground shadow-sm",
+            whiteboard ? "min-h-0 flex-1 overflow-visible px-3 py-3" : "rounded-[26px] px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7",
+          )}
           data-maximize-module-space-target="source-body"
         >
           <div className="absolute inset-y-0 left-0 hidden w-1 rounded-l-[26px] bg-primary/70 lg:block" />
@@ -143,8 +190,18 @@ export const SourceLessonModule = memo(function SourceLessonModule({
           />
         </div>
 
-        {lesson.math_blocks.length > 0 ? (
-          <div className="rounded-[22px] border border-border/70 bg-background/70 p-5 shadow-sm">
+        {lessonMathBlocks.length > 0 && whiteboard && !whiteboardShowMathInline ? (
+          <div className="source-lesson-formula-chip flex items-center justify-between gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-secondary-foreground">
+            <div>
+              <p className="font-semibold">Formula Sheet</p>
+              <p className="text-muted-foreground">{lessonMathBlocks.length} math blocks available</p>
+            </div>
+            <Badge variant="outline">{lessonMathBlocks.length} blocks</Badge>
+          </div>
+        ) : null}
+
+        {showInlineMathBlocks ? (
+          <div className="rounded-[18px] border border-border bg-card p-3 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Lesson math and study blocks</p>
@@ -152,11 +209,11 @@ export const SourceLessonModule = memo(function SourceLessonModule({
                   Graph sets now route through live Desmos instead of fake inline charts.
                 </p>
               </div>
-              <Badge variant="outline">{lesson.math_blocks.length} blocks</Badge>
+              <Badge variant="outline">{lessonMathBlocks.length} blocks</Badge>
             </div>
             <div className="mt-4">
               <MathBlocks
-                blocks={lesson.math_blocks}
+                blocks={lessonMathBlocks}
                 onJumpToSource={onJumpToMathSource}
                 onOpenGraphBlock={onOpenGraphBlock}
                 onSendToGraph={onSendToGraph}

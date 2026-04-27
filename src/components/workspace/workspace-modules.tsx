@@ -102,6 +102,10 @@ export type WorkspaceModuleContext = {
   canRetryNoteSave: boolean;
   noteInsertRequest: NoteInsertRequest | null;
   mathModules?: MathWorkspaceModuleBindings;
+  whiteboardSourceDisplayMode?: "compact" | "full" | "summary" | "header-hidden";
+  whiteboardCardDensity?: "compact" | "comfortable";
+  whiteboardTextSize?: "small" | "normal" | "large";
+  whiteboardShowMathInline?: boolean;
   stickyManagerVisible: boolean;
   hasUnsavedNoteChanges: boolean;
   history: {
@@ -212,6 +216,10 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         onSendToNotes={context.onSendSelectionToNotes}
         surface={context.surface ?? "workspace"}
+        whiteboardDensity={context.whiteboardCardDensity}
+        whiteboardDisplayMode={context.whiteboardSourceDisplayMode}
+        whiteboardShowMathInline={context.whiteboardShowMathInline}
+        whiteboardTextSize={context.whiteboardTextSize}
         onStickyNote={context.onPrepareComment}
       />
     ),

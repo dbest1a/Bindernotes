@@ -460,6 +460,35 @@
     z-index: 3;
   }
 
+  .whiteboard-module-card__chrome {
+    z-index: 30;
+  }
+
+  .whiteboard-module-card__content {
+    z-index: 10;
+  }
+
+  .whiteboard-card-menu-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    border-radius: 0.45rem;
+    padding: 0.45rem 0.55rem;
+    color: hsl(var(--popover-foreground));
+    text-align: left;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .whiteboard-card-menu-item:hover {
+    background: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    transform: translateX(1px);
+  }
+
   .bindernotes-whiteboard-lab .excalidraw,
   .whiteboard-excalidraw-host .excalidraw {
     --color-primary: hsl(var(--primary));
