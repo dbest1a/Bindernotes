@@ -121,6 +121,7 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
             <Route element={<AppShell />}>
@@ -144,7 +145,6 @@ function AppRoutes() {
               />
               <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
               <Route path="/admin" element={<AdminStudioPage />} />
-              <Route path="/pricing" element={<PricingPage />} />
               <Route path="/tutorial" element={<TutorialPage />} />
             </Route>
           </Route>
