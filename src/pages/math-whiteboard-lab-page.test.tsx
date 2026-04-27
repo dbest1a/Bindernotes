@@ -31,6 +31,19 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: null,
 }));
 
+vi.mock("@/hooks/use-binders", () => ({
+  useDashboard: () => ({
+    data: {
+      folders: [],
+      folderBinders: [],
+      binders: [],
+      lessons: [],
+    },
+    error: null,
+    isLoading: false,
+  }),
+}));
+
 vi.mock("@/hooks/use-math-workspace", () => ({
   useMathWorkspace: () => ({
     state: {
@@ -245,6 +258,16 @@ describe("MathWhiteboardLabPage", () => {
 
     expect(screen.getAllByText("Desmos graph")).toHaveLength(2);
     expect(container.querySelectorAll('[data-whiteboard-module="desmos-graph"]')).toHaveLength(2);
+  });
+
+  it("adds an annotations card from the lab drawer", () => {
+    const { container } = renderLab();
+
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /annotations/i }));
+
+    expect(container.querySelector('[data-whiteboard-module="comments"]')).toBeTruthy();
+    expect(screen.getAllByText("Annotations").length).toBeGreaterThan(0);
   });
 
   it("adds fixed-size board modules near the latest panned and zoomed viewport center", async () => {

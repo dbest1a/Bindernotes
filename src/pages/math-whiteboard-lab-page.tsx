@@ -11,6 +11,7 @@ import {
   workspaceModuleRegistry,
 } from "@/components/workspace/workspace-modules";
 import { useAuth } from "@/hooks/use-auth";
+import { useDashboard } from "@/hooks/use-binders";
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { emptyDoc } from "@/lib/utils";
@@ -78,6 +79,10 @@ export function MathWhiteboardLabPage() {
   const [noteTitle, setNoteTitle] = useState("Math Lab scratch notes");
   const [noteContent, setNoteContent] = useState<JSONContent>(() => emptyDoc());
   const [noteMath, setNoteMath] = useState<MathBlock[]>([]);
+  const dashboardQuery = useDashboard(profile, {
+    enabled: Boolean(profile),
+    includeSystemStatus: false,
+  });
 
   if (!profile) {
     return <Navigate replace to="/auth?next=%2Fmath%2Flab%2Fwhiteboard" />;
@@ -125,6 +130,14 @@ export function MathWhiteboardLabPage() {
     binderNotebookEntries: [],
     binderNotebookSections: [],
     currentNotebookSection: null,
+    library: {
+      folders: dashboardQuery.data?.folders ?? [],
+      folderBinders: dashboardQuery.data?.folderBinders ?? [],
+      binders: dashboardQuery.data?.binders ?? [],
+      lessons: dashboardQuery.data?.lessons ?? [],
+      loading: dashboardQuery.isLoading,
+      error: dashboardQuery.error instanceof Error ? dashboardQuery.error.message : null,
+    },
     query: "",
     noteTitle,
     noteContent,

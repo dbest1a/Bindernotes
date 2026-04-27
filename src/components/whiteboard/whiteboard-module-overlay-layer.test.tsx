@@ -366,4 +366,240 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(after.getAttribute("style")).toContain("width: 720px");
     expect(after.getAttribute("style")).toContain("height: 560px");
   });
+
+  it("lets source lesson cards choose a folder, binder, and lesson by name", () => {
+    const onChangeModule = vi.fn();
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>
+        Loaded {embeddedContext.binder.title}: {embeddedContext.selectedLesson.title}
+      </div>
+    ));
+    const sourceCard = moduleElement({
+      moduleId: "lesson",
+      binderId: "math-lab",
+      lessonId: "math-lab-whiteboard",
+      anchorMode: "board-fixed-size",
+    });
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      library: {
+        folders: [
+          { id: "folder-history", name: "History" },
+          { id: "folder-math", name: "Math" },
+        ],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+          { id: "history-rome", folder_id: "folder-history", binder_id: "binder-rise-of-rome" },
+          { id: "math-lab", folder_id: "folder-math", binder_id: "math-lab" },
+        ],
+        binders: [
+          { id: "binder-russian-revolution", title: "The Russian Revolution" },
+          { id: "binder-rise-of-rome", title: "Rise of Rome" },
+          { id: "math-lab", title: "Math Lab" },
+        ],
+        lessons: [
+          { id: "lesson-russian-overview", binder_id: "binder-russian-revolution", title: "Overview" },
+          { id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline" },
+          { id: "lesson-rome-kings", binder_id: "binder-rise-of-rome", title: "Mythic Origins" },
+          { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+        ],
+        loading: false,
+        error: null,
+      },
+    } as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[sourceCard]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.getByText("History")).toBeTruthy();
+    expect(screen.getByText("Math")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "The Russian Revolution" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+
+    expect(onChangeModule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        binderId: "binder-russian-revolution",
+        lessonId: "lesson-russian-timeline",
+        title: "Timeline",
+      }),
+    );
+  });
+
+  it("renders selected source lesson cards with the chosen binder and lesson context", () => {
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>
+        Loaded {embeddedContext.binder.title}: {embeddedContext.selectedLesson.title}
+      </div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      library: {
+        folders: [{ id: "folder-history", name: "History" }],
+        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
+        lessons: [
+          { id: "lesson-russian-overview", binder_id: "binder-russian-revolution", title: "Overview" },
+          { id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline" },
+        ],
+        loading: false,
+        error: null,
+      },
+    } as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "lesson",
+            binderId: "binder-russian-revolution",
+            lessonId: "lesson-russian-timeline",
+            anchorMode: "board-fixed-size",
+          }),
+        ]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.getByText("Loaded The Russian Revolution: Timeline")).toBeTruthy();
+  });
+
+  it("lets multiple source lesson cards stay pointed at different note sets", () => {
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>
+        Loaded {embeddedContext.binder.title}: {embeddedContext.selectedLesson.title}
+      </div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      library: {
+        folders: [{ id: "folder-history", name: "History" }],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+          { id: "history-rome", folder_id: "folder-history", binder_id: "binder-rise-of-rome" },
+        ],
+        binders: [
+          { id: "binder-russian-revolution", title: "The Russian Revolution" },
+          { id: "binder-rise-of-rome", title: "Rise of Rome" },
+        ],
+        lessons: [
+          { id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline" },
+          { id: "lesson-rome-kings", binder_id: "binder-rise-of-rome", title: "Mythic Origins" },
+        ],
+        loading: false,
+        error: null,
+      },
+    } as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            id: "russian-source",
+            moduleId: "lesson",
+            binderId: "binder-russian-revolution",
+            lessonId: "lesson-russian-timeline",
+            anchorMode: "board-fixed-size",
+          }),
+          moduleElement({
+            id: "rome-source",
+            moduleId: "lesson",
+            binderId: "binder-rise-of-rome",
+            lessonId: "lesson-rome-kings",
+            anchorMode: "board-fixed-size",
+          }),
+        ]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.getByText("Loaded The Russian Revolution: Timeline")).toBeTruthy();
+    expect(screen.getByText("Loaded Rise of Rome: Mythic Origins")).toBeTruthy();
+  });
+
+  it("lets annotation cards choose the binder and lesson they are attached to", () => {
+    const onChangeModule = vi.fn();
+    const renderModule = vi.fn((_moduleId, embeddedContext: WorkspaceModuleContext) => (
+      <div>
+        Annotations for {embeddedContext.binder.title}: {embeddedContext.selectedLesson.title}
+      </div>
+    ));
+    const libraryContext = {
+      ...context,
+      binder: { id: "math-lab", title: "Math Lab" },
+      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" },
+      lessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
+      library: {
+        folders: [{ id: "folder-history", name: "History" }],
+        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
+        lessons: [
+          { id: "lesson-russian-overview", binder_id: "binder-russian-revolution", title: "Overview" },
+          { id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline" },
+        ],
+        loading: false,
+        error: null,
+      },
+    } as WorkspaceModuleContext;
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={libraryContext}
+        modules={[
+          moduleElement({
+            moduleId: "comments",
+            binderId: "math-lab",
+            lessonId: "math-lab-whiteboard",
+            anchorMode: "board-fixed-size",
+          }),
+        ]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={viewport}
+      />,
+    );
+
+    expect(screen.getAllByText("Annotations").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "History" }));
+    fireEvent.click(screen.getByRole("button", { name: "The Russian Revolution" }));
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+
+    expect(onChangeModule).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        binderId: "binder-russian-revolution",
+        lessonId: "lesson-russian-timeline",
+        title: "Timeline",
+      }),
+    );
+  });
 });

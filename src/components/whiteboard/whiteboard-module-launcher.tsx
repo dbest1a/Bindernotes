@@ -37,7 +37,12 @@ export function WhiteboardModuleLauncher({ onAddModule, onClose, placement = "fl
     },
     {
       label: "Notes",
-      modules: modules.filter((module) => module.moduleId === "private-notes"),
+      modules: modules.filter(
+        (module) =>
+          module.moduleId === "private-notes" ||
+          module.moduleId === "comments" ||
+          module.moduleId === "recent-highlights",
+      ),
     },
   ].filter((group) => group.modules.length > 0);
 

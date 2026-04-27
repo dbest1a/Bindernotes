@@ -35,6 +35,8 @@ import type {
   Comment,
   ConceptEdge,
   ConceptNode,
+  Folder,
+  FolderBinderLink,
   HistoryArgumentChain,
   HistoryArgumentEdge,
   HistoryArgumentNode,
@@ -56,9 +58,19 @@ import type {
   WorkspaceStyle,
 } from "@/types";
 
+export type WorkspaceLibraryContext = {
+  folders: Folder[];
+  folderBinders: FolderBinderLink[];
+  binders: Binder[];
+  lessons: BinderLesson[];
+  loading?: boolean;
+  error?: string | null;
+};
+
 export type WorkspaceModuleContext = {
   surface?: "workspace" | "whiteboard";
   ownerId?: string | null;
+  library?: WorkspaceLibraryContext;
   binder: Binder;
   lessons: BinderLesson[];
   selectedLesson: BinderLesson;
