@@ -24,6 +24,19 @@ describe("PricingPage", () => {
     expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth");
   });
 
+  it("uses compact comparison icons for simple included and missing states", () => {
+    render(
+      <MemoryRouter>
+        <PricingPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByLabelText("Included").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Not included").length).toBeGreaterThan(0);
+    expect(screen.getByText("3 boards")).toBeTruthy();
+    expect(screen.getByText("Full controls")).toBeTruthy();
+  });
+
   it("answers pricing questions interactively", () => {
     render(
       <MemoryRouter>

@@ -14,6 +14,7 @@ import {
   PenLine,
   Sparkles,
   Wand2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/ui/logo-mark";
@@ -110,6 +111,26 @@ const comparisonRows = [
   ["Publish your own notes", "Not included", "Not included", "Included", "Included"],
   ["Upload and annotate PDFs", "Not included", "Not included", "Included", "Included"],
 ];
+
+function renderComparisonValue(value: string) {
+  if (value === "Included") {
+    return (
+      <span aria-label="Included" className="pricing-comparison-table__icon pricing-comparison-table__icon--included">
+        <Check aria-hidden="true" />
+      </span>
+    );
+  }
+
+  if (value === "Not included") {
+    return (
+      <span aria-label="Not included" className="pricing-comparison-table__icon pricing-comparison-table__icon--missing">
+        <X aria-hidden="true" />
+      </span>
+    );
+  }
+
+  return value;
+}
 
 const workflowCards = [
   {
@@ -326,10 +347,10 @@ export function PricingPage() {
           {comparisonRows.map(([feature, free, plus, studio, everything]) => (
             <div className="pricing-comparison-table__row" key={feature} role="row">
               <span role="cell">{feature}</span>
-              <span role="cell">{free}</span>
-              <span role="cell">{plus}</span>
-              <span role="cell">{studio}</span>
-              <span role="cell">{everything}</span>
+              <span role="cell">{renderComparisonValue(free)}</span>
+              <span role="cell">{renderComparisonValue(plus)}</span>
+              <span role="cell">{renderComparisonValue(studio)}</span>
+              <span role="cell">{renderComparisonValue(everything)}</span>
             </div>
           ))}
         </div>
