@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Profile } from "@/types";
 
 const mocks = vi.hoisted(() => {
@@ -43,6 +43,10 @@ vi.mock("@/hooks/use-auth", () => ({
 import { AuthPage } from "@/pages/auth-page";
 
 describe("AuthPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     mocks.signIn.mockReset();
     mocks.signInWithGoogle.mockReset();
@@ -98,5 +102,32 @@ describe("AuthPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
 
     expect(mocks.signInWithGoogle).toHaveBeenCalledWith("/binders/binder-1/documents/lesson-1");
+  });
+
+  it("uses password-manager friendly login field metadata", () => {
+    mocks.authState.isConfigured = true;
+
+    render(
+      <MemoryRouter initialEntries={["/auth?next=%2Ftutorial"]}>
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const emailInput = screen.getByLabelText("Email");
+    const passwordInput = screen.getByLabelText("Password");
+    const form = emailInput.closest("form");
+
+    expect(form?.getAttribute("autocomplete")).toBe("on");
+    expect(form?.getAttribute("data-form-type")).toBe("login");
+    expect(emailInput.getAttribute("id")).toBe("auth-email");
+    expect(emailInput.getAttribute("name")).toBe("email");
+    expect(emailInput.getAttribute("type")).toBe("email");
+    expect(emailInput.getAttribute("autocomplete")).toBe("username");
+    expect(passwordInput.getAttribute("id")).toBe("auth-password");
+    expect(passwordInput.getAttribute("name")).toBe("password");
+    expect(passwordInput.getAttribute("type")).toBe("password");
+    expect(passwordInput.getAttribute("autocomplete")).toBe("current-password");
   });
 });

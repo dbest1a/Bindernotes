@@ -151,21 +151,51 @@ export function AuthPage() {
               </TabsTrigger>
             </TabsList>
 
-            <form className="flex flex-col gap-4" onSubmit={submit}>
+            <form
+              autoComplete="on"
+              className="flex flex-col gap-4"
+              data-form-type={mode === "login" ? "login" : "register"}
+              id="bindernotes-auth-form"
+              method="post"
+              onSubmit={submit}
+            >
               {mode === "signup" ? (
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  Full name
-                  <Input disabled={!isConfigured} name="fullName" placeholder="Ada Lovelace" />
-                </label>
+                <div className="flex flex-col gap-2 text-sm font-medium">
+                  <label htmlFor="auth-full-name">Full name</label>
+                  <Input
+                    autoComplete="name"
+                    disabled={!isConfigured}
+                    id="auth-full-name"
+                    name="fullName"
+                    placeholder="Ada Lovelace"
+                  />
+                </div>
               ) : null}
-              <label className="flex flex-col gap-2 text-sm font-medium">
-                Email
-                <Input disabled={!isConfigured} name="email" placeholder="you@example.com" type="email" />
-              </label>
-              <label className="flex flex-col gap-2 text-sm font-medium">
-                Password
-                <Input disabled={!isConfigured} name="password" placeholder="Enter your password" type="password" />
-              </label>
+              <div className="flex flex-col gap-2 text-sm font-medium">
+                <label htmlFor="auth-email">Email</label>
+                <Input
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  disabled={!isConfigured}
+                  id="auth-email"
+                  inputMode="email"
+                  name="email"
+                  placeholder="you@example.com"
+                  spellCheck={false}
+                  type="email"
+                />
+              </div>
+              <div className="flex flex-col gap-2 text-sm font-medium">
+                <label htmlFor="auth-password">Password</label>
+                <Input
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  disabled={!isConfigured}
+                  id="auth-password"
+                  name="password"
+                  placeholder="Enter your password"
+                  type="password"
+                />
+              </div>
 
               {mode === "signup" && isConfigured ? (
                 <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
