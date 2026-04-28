@@ -98,14 +98,14 @@ export function WorkspaceWindow({
     [],
   );
 
-  const scheduleFrameRender = () => {
+  const scheduleFrameRender = (mode: ResizeMode | null = null, startFrame: WorkspaceWindowFrame | null = null) => {
     if (rafRef.current !== null) {
       return;
     }
 
     rafRef.current = window.requestAnimationFrame(() => {
       rafRef.current = null;
-      applyFrameToElement(windowRef.current, frameRef.current);
+      applyInteractionFrameToElement(windowRef.current, frameRef.current, mode, startFrame);
     });
   };
 
@@ -145,38 +145,28 @@ export function WorkspaceWindow({
     const minHeight = minimum.height;
     const shell = event.currentTarget.closest(".workspace-canvas-shell");
     let interactionCanvasHeight = canvasHeight;
+    const safePadding = safeEdgePadding ? 8 : 0;
+    const effectiveCanvasWidth = Math.max(
+      canvasWidth,
+      boundsWidth,
+      shell instanceof HTMLElement ? shell.scrollWidth : 0,
+      shell instanceof HTMLElement ? shell.clientWidth : 0,
+    );
     setActiveMode(mode);
     setSnapPreview(null);
     lastSnapUiUpdateAtRef.current = Number.NEGATIVE_INFINITY;
     interactionActiveRef.current = true;
+    applyFrameToElement(windowRef.current, startFrame);
     source.setPointerCapture?.(pointerId);
 
     const getViewportBounds = () => {
-      const padding = safeEdgePadding ? 8 : 0;
-      const effectiveCanvasWidth = Math.max(
-        canvasWidth,
-        boundsWidth,
-        shell instanceof HTMLElement ? shell.scrollWidth : 0,
-        shell instanceof HTMLElement ? shell.clientWidth : 0,
-      );
-      if (shell instanceof HTMLElement) {
-        const minX = padding;
-        const minY = padding;
-        return {
-          minX,
-          maxX: Math.max(minX + minWidth, effectiveCanvasWidth - padding),
-          minY,
-          maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
-        };
-      }
-
-      const minX = padding;
-      const minY = padding;
+      const minX = safePadding;
+      const minY = safePadding;
       return {
         minX,
-        maxX: Math.max(minX + minWidth, effectiveCanvasWidth - padding),
+        maxX: Math.max(minX + minWidth, effectiveCanvasWidth - safePadding),
         minY,
-        maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
+        maxY: Math.max(minY + minHeight, interactionCanvasHeight - safePadding),
       };
     };
 
@@ -239,7 +229,7 @@ export function WorkspaceWindow({
         onSnapGuidesChange?.(moduleId, nextPreview?.guides ?? []);
         setSnapPreview(nextPreview);
       }
-      scheduleFrameRender();
+      scheduleFrameRender(mode, startFrame);
     };
 
     const onUp = () => {
@@ -271,6 +261,7 @@ export function WorkspaceWindow({
       onCommit(moduleId, resolvedFrame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
@@ -279,6 +270,7 @@ export function WorkspaceWindow({
     document.body.style.cursor = mode === "move" ? "grabbing" : "nwse-resize";
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener("pointercancel", onUp, { once: true });
   };
 
   useEffect(() => {
@@ -439,11 +431,35 @@ function applyFrameToElement(node: HTMLDivElement | null, frame: WorkspaceWindow
     return;
   }
 
+  node.style.transform = "";
   node.style.left = `${frame.x}px`;
   node.style.top = `${frame.y}px`;
   node.style.width = `${frame.w}px`;
   node.style.height = `${frame.h}px`;
   node.style.zIndex = `${frame.z}`;
+}
+
+function applyInteractionFrameToElement(
+  node: HTMLDivElement | null,
+  frame: WorkspaceWindowFrame,
+  mode: ResizeMode | null,
+  startFrame: WorkspaceWindowFrame | null,
+) {
+  if (!node) {
+    return;
+  }
+
+  if (mode === "move" && startFrame) {
+    node.style.left = `${startFrame.x}px`;
+    node.style.top = `${startFrame.y}px`;
+    node.style.width = `${startFrame.w}px`;
+    node.style.height = `${startFrame.h}px`;
+    node.style.zIndex = `${frame.z}`;
+    node.style.transform = `translate3d(${frame.x - startFrame.x}px, ${frame.y - startFrame.y}px, 0)`;
+    return;
+  }
+
+  applyFrameToElement(node, frame);
 }
 
 function resolveSnapPreview({

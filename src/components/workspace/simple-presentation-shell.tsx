@@ -82,11 +82,19 @@ export function SimplePresentationShell({
     [context.history.mythChecks, context.history.templateMythChecks],
   );
   const mathBlocks = context.selectedLesson.math_blocks;
-  const formulaBlocks = mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> =>
-    block.type === "latex",
+  const formulaBlocks = useMemo(
+    () =>
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> =>
+        block.type === "latex",
+      ),
+    [mathBlocks],
   );
-  const graphBlocks = mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> =>
-    block.type === "graph",
+  const graphBlocks = useMemo(
+    () =>
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> =>
+        block.type === "graph",
+      ),
+    [mathBlocks],
   );
 
   const setSimple = (patch: Partial<WorkspacePreferences["simple"]>) => {

@@ -1,4 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Link } from "react-router-dom";
 import {
   closestCenter,
@@ -96,6 +104,7 @@ export function AdminDashboardMakeover({
   profile,
   query,
 }: AdminDashboardMakeoverProps) {
+  const dashboardRef = useRef<HTMLElement | null>(null);
   const [draft, setDraft] = useState<DashboardOrganizationDraft>(() =>
     loadDashboardOrganizationDraft(profile.id, data),
   );
@@ -117,6 +126,32 @@ export function AdminDashboardMakeover({
     setDraft(nextDraft);
     setSavedDraft(nextDraft);
   }, [data, profile.id]);
+
+  useEffect(() => {
+    let scrollEndTimer: number | undefined;
+
+    const markScrolling = () => {
+      const dashboard = dashboardRef.current;
+      if (!dashboard) {
+        return;
+      }
+      dashboard.dataset.adminScrolling = "active";
+      if (scrollEndTimer) {
+        window.clearTimeout(scrollEndTimer);
+      }
+      scrollEndTimer = window.setTimeout(() => {
+        dashboard.dataset.adminScrolling = "idle";
+      }, 180);
+    };
+
+    window.addEventListener("scroll", markScrolling, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", markScrolling);
+      if (scrollEndTimer) {
+        window.clearTimeout(scrollEndTimer);
+      }
+    };
+  }, []);
 
   const lessonsByBinderId = useMemo(
     () => {
@@ -321,7 +356,9 @@ export function AdminDashboardMakeover({
     <main
       className="admin-dashboard-makeover"
       data-admin-dragging={activeDragId ? "active" : isEditing ? "ready" : "off"}
+      data-admin-scrolling="idle"
       data-testid="admin-dashboard-makeover"
+      ref={dashboardRef}
     >
       <div className="admin-dashboard-glow admin-dashboard-glow--a" aria-hidden="true" />
       <div className="admin-dashboard-glow admin-dashboard-glow--b" aria-hidden="true" />

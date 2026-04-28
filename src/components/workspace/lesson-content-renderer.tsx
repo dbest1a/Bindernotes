@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
-import { Fragment, useMemo, type JSX, type ReactNode } from "react";
+import { Fragment, memo, useMemo, type JSX, type ReactNode } from "react";
 import { buildHighlightSegments, extractRenderablePlainText, type HighlightSegment } from "@/lib/highlights";
 import { buildLessonSectionAnchorId, normalizeReferenceText } from "@/lib/study-references";
 import type { Highlight, HighlightColor } from "@/types";
@@ -14,7 +14,7 @@ export function buildLessonContentSelector(lessonId?: string, whiteboardModuleId
     : selector;
 }
 
-export function LessonContentRenderer({
+export const LessonContentRenderer = memo(function LessonContentRenderer({
   content,
   highlights,
   lessonId,
@@ -47,7 +47,7 @@ export function LessonContentRenderer({
       {renderNode(content, segments, cursor, lessonId, headingOccurrences)}
     </div>
   );
-}
+});
 
 function escapeSelectorAttribute(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

@@ -138,6 +138,60 @@ describe("WorkspaceWindow", () => {
     expect(windowElement?.style.top).toBe("116px");
   });
 
+  it("renders drag movement with transform until pointerup commits the stored frame", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    const onCommit = vi.fn();
+
+    const { container } = render(
+      <WorkspaceWindow
+        boundsHeight={1200}
+        boundsWidth={1200}
+        canvasHeight={1200}
+        canvasWidth={1200}
+        frame={frame}
+        locked={false}
+        moduleId="lesson"
+        onCommit={onCommit}
+        onToggleCollapsed={vi.fn()}
+        peerFrames={[]}
+        safeEdgePadding={false}
+        snapBehavior="off"
+        snapEnabled={false}
+        topZ={8}
+        workspaceStyle="full-studio"
+      >
+        <section>
+          <header data-window-drag-handle="true">Lesson</header>
+          <p>Body</p>
+        </section>
+      </WorkspaceWindow>,
+    );
+
+    const windowElement = container.querySelector<HTMLElement>('[data-window-module-id="lesson"]');
+    const handle = screen.getAllByText("Lesson")[0];
+    fireEvent.pointerDown(handle, { clientX: 80, clientY: 80 });
+    fireEvent.pointerMove(window, { clientX: 180, clientY: 160 });
+
+    expect(windowElement?.style.left).toBe("24px");
+    expect(windowElement?.style.top).toBe("36px");
+    expect(windowElement?.style.transform).toBe("translate3d(100px, 80px, 0)");
+
+    fireEvent.pointerUp(window);
+
+    expect(onCommit.mock.calls.at(-1)?.[1]).toMatchObject({
+      x: 124,
+      y: 116,
+      w: 640,
+      h: 480,
+    });
+    expect(windowElement?.style.left).toBe("124px");
+    expect(windowElement?.style.top).toBe("116px");
+    expect(windowElement?.style.transform).toBe("");
+  });
+
   it("snaps a dragged window to the right canvas edge without resizing it", () => {
     const onCommit = vi.fn();
 

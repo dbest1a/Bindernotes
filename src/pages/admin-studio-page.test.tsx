@@ -263,7 +263,12 @@ vi.mock("@/components/ui/seed-health-panel", () => ({
   },
 }));
 
-import { AdminStudioPage } from "@/pages/admin-studio-page";
+import {
+  AdminDiagnosticsFallback,
+  AdminEditorFallback,
+  AdminMathBlocksFallback,
+  AdminStudioPage,
+} from "@/pages/admin-studio-page";
 
 describe("AdminStudioPage", () => {
   beforeEach(() => {
@@ -274,6 +279,9 @@ describe("AdminStudioPage", () => {
       lessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
       recentLessons: [{ ...mocks.baseLessonA }, { ...mocks.baseLessonB }],
     };
+    mocks.dashboardBaseState.isLoading = false;
+    mocks.dashboardBaseState.error = null;
+    mocks.dashboardBaseState.isFetching = false;
     mocks.dashboardDiagnosticsState.data = {
       ...mocks.dashboardDiagnosticsTemplate,
       binders: [{ ...mocks.baseBinder }],
@@ -283,6 +291,9 @@ describe("AdminStudioPage", () => {
       diagnostics: [...mocks.baseDiagnostics],
       seedHealth: [...mocks.baseSeedHealth],
     };
+    mocks.dashboardDiagnosticsState.isLoading = false;
+    mocks.dashboardDiagnosticsState.error = null;
+    mocks.dashboardDiagnosticsState.isFetching = false;
     mocks.mutations.binder.mutateAsync.mockClear();
     mocks.mutations.binder.mutateAsync.mockResolvedValue({ ...mocks.baseBinder });
     mocks.mutations.lesson.mutateAsync.mockClear();
@@ -308,6 +319,21 @@ describe("AdminStudioPage", () => {
     expect(screen.getByText("Publishing queue")).toBeTruthy();
     expect(screen.getByText("Overview")).toBeTruthy();
     expect(screen.queryByText("Workspace diagnostics")).toBeNull();
+  });
+
+  it("keeps an admin-themed loading shell visible while dashboard data loads", () => {
+    mocks.dashboardBaseState.isLoading = true;
+    mocks.dashboardBaseState.data = undefined as unknown as DashboardData;
+
+    const { container } = render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("admin-studio-loading-shell")).toBeTruthy();
+    expect(screen.getByText("Publishing queue")).toBeTruthy();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
   });
 
   it("does not eagerly render content editor, math blocks, or diagnostics panels", () => {
@@ -355,6 +381,82 @@ describe("AdminStudioPage", () => {
     expect(screen.getAllByText("Math blocks").length).toBeGreaterThan(0);
     expect(mocks.richTextEditorRender).toHaveBeenCalled();
     expect(mocks.mathBlocksRender).toHaveBeenCalled();
+  });
+
+  it("keeps the active binder stable when sidebar search filters the list", async () => {
+    mocks.dashboardBaseState.data = {
+      ...mocks.dashboardBaseState.data,
+      binders: [
+        { ...mocks.baseBinder },
+        {
+          ...mocks.baseBinder,
+          id: "binder-algebra-admin",
+          title: "Algebra Admin",
+          slug: "algebra-admin",
+          subject: "Mathematics",
+        },
+      ],
+    };
+
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Rise of Rome" })).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText("Search binders"), {
+      target: { value: "Algebra" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Algebra")).toBeTruthy();
+    });
+    expect(screen.getByRole("heading", { name: "Rise of Rome" })).toBeTruthy();
+  });
+
+  it("does not rerender the mounted content editor when sidebar search changes", async () => {
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByLabelText("Open Content tab")[0]);
+    expect(await screen.findByLabelText("Rich editor")).toBeTruthy();
+    mocks.richTextEditorRender.mockClear();
+
+    fireEvent.change(screen.getByPlaceholderText("Search binders"), {
+      target: { value: "History" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("History")).toBeTruthy();
+    });
+    expect(mocks.richTextEditorRender).not.toHaveBeenCalled();
+  });
+
+  it("uses admin-themed loading panels for Content tab chunks", () => {
+    const { container } = render(
+      <>
+        <AdminEditorFallback />
+        <AdminMathBlocksFallback />
+      </>,
+    );
+
+    expect(screen.getByTestId("admin-editor-loading")).toBeTruthy();
+    expect(screen.getByTestId("admin-math-loading")).toBeTruthy();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+  });
+
+  it("uses an admin-themed loading panel for diagnostics chunks", () => {
+    const { container } = render(
+      <AdminDiagnosticsFallback />,
+    );
+
+    expect(screen.getByTestId("admin-diagnostics-loading")).toBeTruthy();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
   });
 
   it("saves binder metadata from the Overview tab", async () => {

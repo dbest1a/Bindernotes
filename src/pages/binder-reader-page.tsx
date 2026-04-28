@@ -2060,6 +2060,53 @@ export function BinderReaderPage() {
     await annotations.resetHighlights.mutateAsync({ binderId });
   }, [annotations.resetHighlights, binderId]);
 
+  const handleWorkspaceCanvasHeightChange = useCallback(
+    (canvasHeight: number) =>
+      updateWorkspace((current) => ({
+        ...current,
+        canvas: {
+          ...current.canvas,
+          canvasHeight,
+        },
+      })),
+    [updateWorkspace],
+  );
+  const handleWorkspaceFrameCommit = useCallback(
+    (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
+      updateWorkspace((current) => ({
+        ...current,
+        canvas:
+          current.activeMode === "canvas"
+            ? {
+                ...current.canvas,
+                canvasHeight: Math.max(
+                  current.canvas.canvasHeight,
+                  frame.y + frame.h + 320,
+                ),
+                panelPositions: {
+                  ...current.canvas.panelPositions,
+                  [moduleId]: frame,
+                },
+              }
+            : current.canvas,
+        windowLayout: {
+          ...current.windowLayout,
+          [moduleId]: frame,
+        },
+      })),
+    [updateWorkspace],
+  );
+  const handleWorkspaceFitViewport = useCallback(
+    (viewport: { width: number; height: number }) => {
+      if (isLayoutEditingRef.current) {
+        return;
+      }
+
+      updateWorkspace((current) => fitWorkspaceToViewport(current, viewport));
+    },
+    [updateWorkspace],
+  );
+
   if (!profile) {
     return <Navigate replace to="/auth" />;
   }
@@ -2892,45 +2939,9 @@ export function BinderReaderPage() {
               <WindowedWorkspace
                 context={context}
                 mode={isLayoutEditing ? "setup" : "study"}
-                onCanvasHeightChange={(canvasHeight) =>
-                  updateWorkspace((current) => ({
-                    ...current,
-                    canvas: {
-                      ...current.canvas,
-                      canvasHeight,
-                    },
-                  }))
-                }
-                onCommitFrame={(moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
-                  updateWorkspace((current) => ({
-                    ...current,
-                    canvas:
-                      current.activeMode === "canvas"
-                        ? {
-                            ...current.canvas,
-                            canvasHeight: Math.max(
-                              current.canvas.canvasHeight,
-                              frame.y + frame.h + 320,
-                            ),
-                            panelPositions: {
-                              ...current.canvas.panelPositions,
-                              [moduleId]: frame,
-                            },
-                          }
-                        : current.canvas,
-                    windowLayout: {
-                      ...current.windowLayout,
-                      [moduleId]: frame,
-                    },
-                  }))
-                }
-                onFitViewport={(viewport) => {
-                  if (isLayoutEditingRef.current) {
-                    return;
-                  }
-
-                  updateWorkspace((current) => fitWorkspaceToViewport(current, viewport));
-                }}
+                onCanvasHeightChange={handleWorkspaceCanvasHeightChange}
+                onCommitFrame={handleWorkspaceFrameCommit}
+                onFitViewport={handleWorkspaceFitViewport}
                 onOpenModule={openWorkspaceModule}
                 onToggleCollapsed={toggleWorkspaceModuleCollapsed}
                 preferences={active}

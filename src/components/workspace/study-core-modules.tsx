@@ -87,7 +87,7 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
   onStickyNote: (anchorText?: string | null) => void;
 }) {
-  const readingStats = createReadingStats(lesson.content);
+  const readingStats = useMemo(() => createReadingStats(lesson.content), [lesson.content]);
   const lessonMathBlocks = lesson.math_blocks ?? [];
   const whiteboard = surface === "whiteboard";
   const compactWhiteboard = whiteboard && whiteboardDisplayMode !== "full";
@@ -321,10 +321,13 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   const [commandValue, setCommandValue] = useState("");
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
 
-  const noteLooksBlank =
-    noteMath.length === 0 &&
-    noteTitle.trim().length === 0 &&
-    extractPlainText(noteContent).trim().length === 0;
+  const noteLooksBlank = useMemo(() => {
+    if (noteMath.length > 0 || noteTitle.trim().length > 0) {
+      return false;
+    }
+
+    return extractPlainText(noteContent).trim().length === 0;
+  }, [noteContent, noteMath.length, noteTitle]);
 
   useEffect(() => {
     setShowGuide(noteLooksBlank);

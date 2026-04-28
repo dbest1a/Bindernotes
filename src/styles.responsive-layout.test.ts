@@ -22,4 +22,14 @@ describe("phone and tablet responsive layout styles", () => {
     expect(css).toMatch(/\.responsive-mobile-module\s*{[\s\S]*min-width:\s*0/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.workspace-canvas-shell[\s\S]*min-height:\s*min\(72svh,\s*720px\)/s);
   });
+
+  it("scopes the landing hero product preview fit fix to phone widths only", () => {
+    expect(css).toMatch(
+      /@media \(max-width: 767px\)[\s\S]*\.marketing-product-scene\s*{[\s\S]*width:\s*min\(100%,\s*calc\(100svw - 1\.5rem\)\)/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 767px\)[\s\S]*\.marketing-product-scene__depth\[data-depth="front"\]\s*{[\s\S]*--depth-transform:\s*translateZ\(0\) translateX\(0\) scale\(0\.88\) rotate\(-1deg\)/s,
+    );
+    expect(css).not.toMatch(/@media \(min-width: 768px\)[\s\S]*\.marketing-product-scene__depth\[data-depth="front"\]/s);
+  });
 });
