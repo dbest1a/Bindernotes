@@ -65,6 +65,7 @@ import {
   deriveLessonTitle,
   getDisplayTitle,
 } from "@/lib/workspace-records";
+import { markDevPerformance } from "@/lib/performance-marks";
 import { cn } from "@/lib/utils";
 
 type AdminDashboardMakeoverProps = {
@@ -115,11 +116,12 @@ export function AdminDashboardMakeover({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const deferredQuery = useDeferredValue(query);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const debouncedQuery = useDebouncedValue(query);
+  const deferredQuery = useDeferredValue(debouncedQuery);
+
+  useEffect(() => {
+    markDevPerformance(isEditing ? "admin-dashboard-organize-render" : "admin-dashboard-render");
+  });
 
   useEffect(() => {
     const nextDraft = loadDashboardOrganizationDraft(profile.id, data);
@@ -218,7 +220,7 @@ export function AdminDashboardMakeover({
       new Map(
         data.recentLessons.map((lesson) => [
           lesson.id,
-          `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase(),
+          deriveLessonTitle(lesson).toLowerCase(),
         ]),
       ),
     [data.recentLessons],
@@ -445,145 +447,336 @@ export function AdminDashboardMakeover({
         </div>
       ) : null}
 
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragCancel={clearDragState}
-        onDragEnd={onDragEnd}
-        onDragOver={onDragOver}
-        onDragStart={onDragStart}
-        sensors={sensors}
-      >
-        <section className="admin-dashboard-section">
-          <div className="admin-dashboard-section__header">
-            <div>
-              <span className="admin-dashboard-kicker">Quick Access</span>
-              <h2>Recent documents</h2>
-            </div>
-          </div>
-          <div className="admin-dashboard-recent">
-            {recentDocuments.map((lesson, index) => (
-              <Link
-                className="admin-doc-card"
-                key={lesson.id}
-                style={{ "--stagger-index": index } as CSSProperties}
-                to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
-              >
-                <span>Document</span>
-                <strong>{deriveLessonTitle(lesson)}</strong>
-                <ChevronRight />
-              </Link>
-            ))}
-            {recentDocuments.length === 0 ? (
-              <EmptyState description="Try a different search term." title="No recent documents match" />
-            ) : null}
-          </div>
-        </section>
+      {isEditing ? (
+        <AdminDashboardEditableSections
+          activeBinder={activeBinder}
+          activeBinderId={activeBinderId}
+          activeFolder={activeFolder}
+          binderById={binderById}
+          clearDragState={clearDragState}
+          documentCountByFolderId={documentCountByFolderId}
+          draft={draft}
+          filteredBinders={filteredBinders}
+          filteredFolders={filteredFolders}
+          folderById={folderById}
+          lessonsByBinderId={lessonsByBinderId}
+          noteCountByFolderId={noteCountByFolderId}
+          onDragEnd={onDragEnd}
+          onDragOver={onDragOver}
+          onDragStart={onDragStart}
+          orderedBinders={orderedBinders}
+          orderedFolders={orderedFolders}
+          overDragId={overDragId}
+          recentDocuments={recentDocuments}
+        />
+      ) : (
+        <AdminDashboardReadOnlySections
+          binderById={binderById}
+          documentCountByFolderId={documentCountByFolderId}
+          draft={draft}
+          filteredBinders={filteredBinders}
+          filteredFolders={filteredFolders}
+          folderById={folderById}
+          lessonsByBinderId={lessonsByBinderId}
+          noteCountByFolderId={noteCountByFolderId}
+          orderedBinders={orderedBinders}
+          orderedFolders={orderedFolders}
+          recentDocuments={recentDocuments}
+        />
+      )}
+    </main>
+  );
+}
 
-        <section className="admin-dashboard-section">
-          <div className="admin-dashboard-section__header">
-            <div>
-              <span className="admin-dashboard-kicker">Folders</span>
-              <h2>Drive-style spaces</h2>
-            </div>
-          </div>
-          <SortableContext
-            disabled={!isEditing}
-            items={filteredFolders.map((folder) => folderSortableId(folder.id))}
-            strategy={rectSortingStrategy}
-          >
-            <div className="admin-folder-grid">
-              {filteredFolders.map((folder, index) => (
-                <AdminFolderCard
-                  binderById={binderById}
-                  documentCount={documentCountByFolderId[folder.id] ?? 0}
-                  draft={draft}
-                  folder={folder}
-                  index={index}
-                  isEditing={isEditing}
-                  key={folder.id}
-                  lessonsByBinderId={lessonsByBinderId}
-                  noteCount={noteCountByFolderId[folder.id] ?? 0}
-                  showDropTarget={Boolean(activeBinderId && overDragId === folderSortableId(folder.id))}
-                />
-              ))}
-              {filteredFolders.length === 0 ? (
-                <EmptyState description="Try another search term." title="No folders match" />
-              ) : null}
-            </div>
-          </SortableContext>
-        </section>
+type AdminDashboardSectionsProps = {
+  binderById: Map<string, Binder>;
+  documentCountByFolderId: Record<string, number>;
+  draft: DashboardOrganizationDraft;
+  filteredBinders: Binder[];
+  filteredFolders: Folder[];
+  folderById: Map<string, Folder>;
+  lessonsByBinderId: Record<string, BinderLesson[]>;
+  noteCountByFolderId: Record<string, number>;
+  orderedBinders: Binder[];
+  orderedFolders: Folder[];
+  recentDocuments: BinderLesson[];
+};
 
-        <section className="admin-dashboard-section">
-          <div className="admin-dashboard-section__header">
-            <div>
-              <span className="admin-dashboard-kicker">Binders</span>
-              <h2>Organized study objects</h2>
-            </div>
-          </div>
-          <SortableContext
-            disabled={!isEditing}
-            items={filteredBinders.map((binder) => binderSortableId(binder.id))}
-            strategy={rectSortingStrategy}
-          >
-            <div className="admin-binder-grid">
-              {filteredBinders.map((binder, index) => (
-                <AdminBinderCard
-                  binder={binder}
-                  folder={folderById.get(draft.binderFolderIdByBinderId[binder.id] ?? "") ?? null}
-                  index={index}
-                  isEditing={isEditing}
-                  key={binder.id}
-                  lessons={lessonsByBinderId[binder.id] ?? []}
-                />
-              ))}
-              {filteredBinders.length === 0 ? (
-                <EmptyState description="Try another search term." title="No binders match" />
-              ) : null}
-            </div>
-          </SortableContext>
-        </section>
+type AdminDashboardEditableSectionsProps = AdminDashboardSectionsProps & {
+  activeBinder: Binder | null;
+  activeBinderId: string | null;
+  activeFolder: Folder | null;
+  clearDragState: () => void;
+  onDragEnd: (event: DragEndEvent) => void;
+  onDragOver: (event: DragOverEvent) => void;
+  onDragStart: (event: DragStartEvent) => void;
+  overDragId: string | null;
+};
 
-        <section className="admin-dashboard-section">
-          <div className="admin-dashboard-section__header">
-            <div>
-              <span className="admin-dashboard-kicker">Workspace Map</span>
-              <h2>Drop binders into folders</h2>
-            </div>
-            <p>Folder targets pulse while you organize, and binder placement is saved in the admin layout draft.</p>
+function AdminDashboardReadOnlySections({
+  binderById,
+  documentCountByFolderId,
+  draft,
+  filteredBinders,
+  filteredFolders,
+  folderById,
+  lessonsByBinderId,
+  noteCountByFolderId,
+  orderedBinders,
+  orderedFolders,
+  recentDocuments,
+}: AdminDashboardSectionsProps) {
+  return (
+    <>
+      <RecentDocumentsSection recentDocuments={recentDocuments} />
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Folders</span>
+            <h2>Drive-style spaces</h2>
           </div>
-          <div className="admin-workspace-map">
-            {orderedFolders.map((folder) => (
-              <FolderDropZone
-                binderById={binderById}
-                draft={draft}
-                folder={folder}
-                isEditing={isEditing}
-                key={folder.id}
-                lessonsByBinderId={lessonsByBinderId}
-              />
-            ))}
-            <UnfiledDropZone
-              binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
-              isEditing={isEditing}
+        </div>
+        <div className="admin-folder-grid">
+          {filteredFolders.map((folder, index) => (
+            <StaticAdminFolderCard
+              binderById={binderById}
+              documentCount={documentCountByFolderId[folder.id] ?? 0}
+              draft={draft}
+              folder={folder}
+              index={index}
+              key={folder.id}
+              lessonsByBinderId={lessonsByBinderId}
+              noteCount={noteCountByFolderId[folder.id] ?? 0}
+            />
+          ))}
+          {filteredFolders.length === 0 ? (
+            <EmptyState description="Try another search term." title="No folders match" />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Binders</span>
+            <h2>Organized study objects</h2>
+          </div>
+        </div>
+        <div className="admin-binder-grid">
+          {filteredBinders.map((binder, index) => (
+            <StaticAdminBinderCard
+              binder={binder}
+              folder={folderById.get(draft.binderFolderIdByBinderId[binder.id] ?? "") ?? null}
+              index={index}
+              key={binder.id}
+              lessons={lessonsByBinderId[binder.id] ?? []}
+            />
+          ))}
+          {filteredBinders.length === 0 ? (
+            <EmptyState description="Try another search term." title="No binders match" />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Workspace Map</span>
+            <h2>Drop binders into folders</h2>
+          </div>
+          <p>Folder targets pulse while you organize, and binder placement is saved in the admin layout draft.</p>
+        </div>
+        <div className="admin-workspace-map">
+          {orderedFolders.map((folder) => (
+            <StaticFolderDropZone
+              binderById={binderById}
+              draft={draft}
+              folder={folder}
+              key={folder.id}
               lessonsByBinderId={lessonsByBinderId}
             />
+          ))}
+          <StaticUnfiledDropZone
+            binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
+            lessonsByBinderId={lessonsByBinderId}
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function AdminDashboardEditableSections({
+  activeBinder,
+  activeBinderId,
+  activeFolder,
+  binderById,
+  clearDragState,
+  documentCountByFolderId,
+  draft,
+  filteredBinders,
+  filteredFolders,
+  folderById,
+  lessonsByBinderId,
+  noteCountByFolderId,
+  onDragEnd,
+  onDragOver,
+  onDragStart,
+  orderedBinders,
+  orderedFolders,
+  overDragId,
+  recentDocuments,
+}: AdminDashboardEditableSectionsProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  return (
+    <DndContext
+      collisionDetection={closestCenter}
+      onDragCancel={clearDragState}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragStart={onDragStart}
+      sensors={sensors}
+    >
+      <RecentDocumentsSection recentDocuments={recentDocuments} />
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Folders</span>
+            <h2>Drive-style spaces</h2>
           </div>
-        </section>
-        <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-          {activeFolder ? (
-            <div className="admin-drag-preview admin-drag-preview--folder">
-              <FolderOpen />
-              <span>{getDisplayTitle(activeFolder.name, "Recovered Folder")}</span>
-            </div>
-          ) : activeBinder ? (
-            <div className="admin-drag-preview admin-drag-preview--binder">
-              <LibraryBig />
-              <span>{deriveBinderTitle(activeBinder, lessonsByBinderId[activeBinder.id] ?? [])}</span>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </main>
+        </div>
+        <SortableContext
+          items={filteredFolders.map((folder) => folderSortableId(folder.id))}
+          strategy={rectSortingStrategy}
+        >
+          <div className="admin-folder-grid">
+            {filteredFolders.map((folder, index) => (
+              <AdminFolderCard
+                binderById={binderById}
+                documentCount={documentCountByFolderId[folder.id] ?? 0}
+                draft={draft}
+                folder={folder}
+                index={index}
+                isEditing
+                key={folder.id}
+                lessonsByBinderId={lessonsByBinderId}
+                noteCount={noteCountByFolderId[folder.id] ?? 0}
+                showDropTarget={Boolean(activeBinderId && overDragId === folderSortableId(folder.id))}
+              />
+            ))}
+            {filteredFolders.length === 0 ? (
+              <EmptyState description="Try another search term." title="No folders match" />
+            ) : null}
+          </div>
+        </SortableContext>
+      </section>
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Binders</span>
+            <h2>Organized study objects</h2>
+          </div>
+        </div>
+        <SortableContext
+          items={filteredBinders.map((binder) => binderSortableId(binder.id))}
+          strategy={rectSortingStrategy}
+        >
+          <div className="admin-binder-grid">
+            {filteredBinders.map((binder, index) => (
+              <AdminBinderCard
+                binder={binder}
+                folder={folderById.get(draft.binderFolderIdByBinderId[binder.id] ?? "") ?? null}
+                index={index}
+                isEditing
+                key={binder.id}
+                lessons={lessonsByBinderId[binder.id] ?? []}
+              />
+            ))}
+            {filteredBinders.length === 0 ? (
+              <EmptyState description="Try another search term." title="No binders match" />
+            ) : null}
+          </div>
+        </SortableContext>
+      </section>
+
+      <section className="admin-dashboard-section">
+        <div className="admin-dashboard-section__header">
+          <div>
+            <span className="admin-dashboard-kicker">Workspace Map</span>
+            <h2>Drop binders into folders</h2>
+          </div>
+          <p>Folder targets pulse while you organize, and binder placement is saved in the admin layout draft.</p>
+        </div>
+        <div className="admin-workspace-map">
+          {orderedFolders.map((folder) => (
+            <FolderDropZone
+              binderById={binderById}
+              draft={draft}
+              folder={folder}
+              isEditing
+              key={folder.id}
+              lessonsByBinderId={lessonsByBinderId}
+            />
+          ))}
+          <UnfiledDropZone
+            binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
+            isEditing
+            lessonsByBinderId={lessonsByBinderId}
+          />
+        </div>
+      </section>
+
+      <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+        {activeFolder ? (
+          <div className="admin-drag-preview admin-drag-preview--folder">
+            <FolderOpen />
+            <span>{getDisplayTitle(activeFolder.name, "Recovered Folder")}</span>
+          </div>
+        ) : activeBinder ? (
+          <div className="admin-drag-preview admin-drag-preview--binder">
+            <LibraryBig />
+            <span>{deriveBinderTitle(activeBinder, lessonsByBinderId[activeBinder.id] ?? [])}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
+
+function RecentDocumentsSection({ recentDocuments }: { recentDocuments: BinderLesson[] }) {
+  return (
+    <section className="admin-dashboard-section">
+      <div className="admin-dashboard-section__header">
+        <div>
+          <span className="admin-dashboard-kicker">Quick Access</span>
+          <h2>Recent documents</h2>
+        </div>
+      </div>
+      <div className="admin-dashboard-recent">
+        {recentDocuments.map((lesson, index) => (
+          <Link
+            className="admin-doc-card"
+            key={lesson.id}
+            style={{ "--stagger-index": index } as CSSProperties}
+            to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
+          >
+            <span>Document</span>
+            <strong>{deriveLessonTitle(lesson)}</strong>
+            <ChevronRight />
+          </Link>
+        ))}
+        {recentDocuments.length === 0 ? (
+          <EmptyState description="Try a different search term." title="No recent documents match" />
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -688,6 +881,56 @@ function AdminFolderCard({
   );
 }
 
+function StaticAdminFolderCard({
+  binderById,
+  documentCount,
+  draft,
+  folder,
+  index,
+  lessonsByBinderId,
+  noteCount,
+}: {
+  binderById: Map<string, Binder>;
+  documentCount: number;
+  draft: DashboardOrganizationDraft;
+  folder: Folder;
+  index: number;
+  lessonsByBinderId: Record<string, BinderLesson[]>;
+  noteCount: number;
+}) {
+  const binderIds = draft.folderBinderOrderByFolderId[folder.id] ?? [];
+
+  return (
+    <Link
+      className="admin-folder-card"
+      style={{ "--stagger-index": index } as CSSProperties}
+      to={`/folders/${folder.id}`}
+    >
+      <div className="admin-folder-card__top">
+        <span className="admin-folder-card__icon">
+          <FolderOpen />
+        </span>
+        <ChevronRight className="admin-card-arrow" />
+      </div>
+      <h3>{getDisplayTitle(folder.name, "Recovered Folder")}</h3>
+      <p>
+        {binderIds.length} binders / {documentCount} documents / {noteCount} notes
+      </p>
+      <div className="admin-folder-card__preview">
+        {binderIds.slice(0, 3).map((binderId) => {
+          const binder = binderById.get(binderId);
+          return binder ? (
+            <span key={binder.id}>
+              {deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}
+            </span>
+          ) : null;
+        })}
+        {binderIds.length === 0 ? <span>No binders yet</span> : null}
+      </div>
+    </Link>
+  );
+}
+
 function AdminBinderCard({
   binder,
   folder,
@@ -756,6 +999,40 @@ function AdminBinderCard({
   );
 }
 
+function StaticAdminBinderCard({
+  binder,
+  folder,
+  index,
+  lessons,
+}: {
+  binder: Binder;
+  folder: Folder | null;
+  index: number;
+  lessons: BinderLesson[];
+}) {
+  const title = deriveBinderTitle(binder, lessons);
+
+  return (
+    <Link
+      className="admin-binder-card"
+      style={{ "--stagger-index": index } as CSSProperties}
+      to={`/binders/${binder.id}`}
+    >
+      <div className="admin-binder-card__cover">
+        {binder.cover_url ? <img alt="" src={binder.cover_url} /> : <LibraryBig />}
+      </div>
+      <div className="admin-binder-card__body">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{binder.subject}</Badge>
+          {folder ? <Badge variant="outline">{getDisplayTitle(folder.name, "Recovered Folder")}</Badge> : null}
+        </div>
+        <h3>{title}</h3>
+        <p>{binder.description}</p>
+      </div>
+    </Link>
+  );
+}
+
 function FolderDropZone({
   binderById,
   draft,
@@ -812,6 +1089,43 @@ function FolderDropZone({
   );
 }
 
+function StaticFolderDropZone({
+  binderById,
+  draft,
+  folder,
+  lessonsByBinderId,
+}: {
+  binderById: Map<string, Binder>;
+  draft: DashboardOrganizationDraft;
+  folder: Folder;
+  lessonsByBinderId: Record<string, BinderLesson[]>;
+}) {
+  const binderIds = draft.folderBinderOrderByFolderId[folder.id] ?? [];
+
+  return (
+    <article className="admin-folder-drop-zone">
+      <div className="admin-folder-drop-zone__header">
+        <FolderOpen />
+        <div>
+          <h3>{getDisplayTitle(folder.name, "Recovered Folder")}</h3>
+          <p>{binderIds.length} binders</p>
+        </div>
+      </div>
+      <div className="admin-folder-drop-zone__list">
+        {binderIds.map((binderId) => {
+          const binder = binderById.get(binderId);
+          return binder ? (
+            <div className="admin-folder-binder-chip" key={binder.id}>
+              <span>{deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}</span>
+            </div>
+          ) : null;
+        })}
+        {binderIds.length === 0 ? <p className="admin-drop-empty">No binders in this folder.</p> : null}
+      </div>
+    </article>
+  );
+}
+
 function FolderBinderChip({
   binder,
   folderId,
@@ -854,6 +1168,34 @@ function FolderBinderChip({
   );
 }
 
+function StaticUnfiledDropZone({
+  binders,
+  lessonsByBinderId,
+}: {
+  binders: Binder[];
+  lessonsByBinderId: Record<string, BinderLesson[]>;
+}) {
+  return (
+    <article className="admin-folder-drop-zone admin-folder-drop-zone--unfiled">
+      <div className="admin-folder-drop-zone__header">
+        <LibraryBig />
+        <div>
+          <h3>Unfiled binders</h3>
+          <p>{binders.length} binders</p>
+        </div>
+      </div>
+      <div className="admin-folder-drop-zone__list">
+        {binders.map((binder) => (
+          <div className="admin-folder-binder-chip" key={binder.id}>
+            <span>{deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}</span>
+          </div>
+        ))}
+        {binders.length === 0 ? <p className="admin-drop-empty">Everything is filed.</p> : null}
+      </div>
+    </article>
+  );
+}
+
 function UnfiledDropZone({
   binders,
   isEditing,
@@ -890,4 +1232,15 @@ function UnfiledDropZone({
       </div>
     </article>
   );
+}
+
+function useDebouncedValue<T>(value: T, delayMs = 120) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [delayMs, value]);
+
+  return debouncedValue;
 }

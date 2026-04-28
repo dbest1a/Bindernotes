@@ -7,7 +7,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { Suspense, lazy, useDeferredValue, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,6 +27,7 @@ import {
 import { isMissingSeedError } from "@/lib/seed-health";
 import { buildLearnerWorkspaceMessage, classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { createFolderSummary, getPrimaryFolder } from "@/lib/workspace-structure";
+import { markDevPerformance, measureDevPerformance } from "@/lib/performance-marks";
 
 const LazyAdminDashboardMakeover = lazy(() =>
   import("@/components/dashboard/admin-dashboard-makeover").then((module) => ({
@@ -40,17 +41,21 @@ export function DashboardPage() {
   const { data, isLoading, error } = useDashboard(profile);
   const dashboardExperience = useDashboardExperience(profile?.role === "admin");
   const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
+  const debouncedQuery = useDebouncedValue(query);
+  const deferredQuery = useDeferredValue(debouncedQuery);
   const showSystemDiagnostics =
     (profile?.role === "admin" || import.meta.env.DEV) &&
     searchParams.get("debug") === "system";
 
-  const filtered = useMemo(() => {
+  useEffect(() => {
+    markDevPerformance("dashboard-render");
+  });
+
+  const dashboardSearchIndex = useMemo(() => {
     if (!data) {
       return null;
     }
 
-    const normalized = deferredQuery.trim().toLowerCase();
     const lessonsByBinderId = data.lessons.reduce<Record<string, typeof data.lessons>>((groups, lesson) => {
       groups[lesson.binder_id] = groups[lesson.binder_id] ?? [];
       groups[lesson.binder_id].push(lesson);
@@ -62,28 +67,15 @@ export function DashboardPage() {
     const recentDocumentSearchTextById = new Map(
       data.recentLessons.map((lesson) => [
         lesson.id,
-        `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase(),
+        deriveLessonTitle(lesson).toLowerCase(),
       ]),
     );
-
-    const folderSummaries = data.folders
-      .map((folder) =>
-        createFolderSummary(folder, data.binders, data.folderBinders, data.notes, data.lessons),
-      )
-      .filter((summary) =>
-        `${getDisplayTitle(summary.folder.name, "Recovered Folder")} ${summary.binders
-          .map((binder) => deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? []))
-          .join(" ")}`
-          .toLowerCase()
-          .includes(normalized),
-      );
-
-    const studyReadyBinders = data.binders.filter((binder) =>
-      `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description}`
-        .toLowerCase()
-        .includes(normalized),
+    const binderSearchTextById = new Map(
+      data.binders.map((binder) => [
+        binder.id,
+        `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description}`.toLowerCase(),
+      ]),
     );
-
     const folderNamesByBinderId = Object.fromEntries(
       data.binders.map((binder) => [
         binder.id,
@@ -91,12 +83,53 @@ export function DashboardPage() {
       ]),
     ) as Record<string, string | null>;
 
-    const recentDocuments = data.recentLessons
-      .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalized))
-      .slice(0, 6);
+    return {
+      binderSearchTextById,
+      folderNamesByBinderId,
+      lessonsByBinderId,
+      recentDocumentSearchTextById,
+    };
+  }, [data]);
 
-    return { folderSummaries, studyReadyBinders, recentDocuments, lessonsByBinderId, folderNamesByBinderId };
-  }, [data, deferredQuery]);
+  const filtered = useMemo(
+    () =>
+      measureDevPerformance("dashboard-search", () => {
+        if (!data || !dashboardSearchIndex) {
+          return null;
+        }
+
+        const normalized = deferredQuery.trim().toLowerCase();
+        const {
+          binderSearchTextById,
+          folderNamesByBinderId,
+          lessonsByBinderId,
+          recentDocumentSearchTextById,
+        } = dashboardSearchIndex;
+
+        const folderSummaries = data.folders
+          .map((folder) =>
+            createFolderSummary(folder, data.binders, data.folderBinders, data.notes, data.lessons),
+          )
+          .filter((summary) =>
+            `${getDisplayTitle(summary.folder.name, "Recovered Folder")} ${summary.binders
+              .map((binder) => deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? []))
+              .join(" ")}`
+              .toLowerCase()
+              .includes(normalized),
+          );
+
+        const studyReadyBinders = data.binders.filter((binder) =>
+          (binderSearchTextById.get(binder.id) ?? "").includes(normalized),
+        );
+
+        const recentDocuments = data.recentLessons
+          .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalized))
+          .slice(0, 6);
+
+        return { folderSummaries, studyReadyBinders, recentDocuments, lessonsByBinderId, folderNamesByBinderId };
+      }),
+    [dashboardSearchIndex, data, deferredQuery],
+  );
 
   const actionableDiagnostics = filterActionableDiagnostics(data?.diagnostics ?? []);
   const learnerDiagnosticsMessage = actionableDiagnostics.length
@@ -431,4 +464,15 @@ function folderColor(color: string) {
     default:
       return "rgb(13 148 136)";
   }
+}
+
+function useDebouncedValue<T>(value: T, delayMs = 120) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeoutId);
+  }, [delayMs, value]);
+
+  return debouncedValue;
 }

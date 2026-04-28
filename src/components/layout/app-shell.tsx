@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
+import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { useTheme } from "@/hooks/use-theme";
 import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
 import { cn, initials } from "@/lib/utils";
@@ -29,7 +30,12 @@ export function AppShell() {
   const isAdmin = profile?.role === "admin";
   const dashboardExperience = useDashboardExperience(isAdmin);
   const tutorialPrompts = useTutorialPrompts(profile);
-  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(isAdmin);
+  const performanceMode = usePerformanceMode();
+  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(
+    isAdmin,
+    performanceMode.effectivePerformanceMode,
+  );
+  const effectivePerformanceMode = performanceMode.effectivePerformanceMode || prefersReducedMotion;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -73,11 +79,12 @@ export function AppShell() {
     <div
       className="min-h-screen bg-background"
       data-admin-dashboard={dashboardExperience.isAdminMakeoverActive ? "makeover" : "normal"}
-      data-admin-motion={isAdmin && settings.enabled ? "on" : "off"}
+      data-admin-motion={isAdmin && settings.enabled && !effectivePerformanceMode ? "on" : "off"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
-      data-page-transition={isAdmin && settings.enabled ? settings.pageTransition : "off"}
-      data-premium-color-mode={isAdmin && settings.enabled ? settings.colorMode : "off"}
+      data-page-transition={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.pageTransition : "off"}
+      data-performance-mode={effectivePerformanceMode ? "on" : "off"}
+      data-premium-color-mode={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"}
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
     >
       <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
@@ -221,6 +228,43 @@ export function AppShell() {
                       {tutorialPrompts.promptsEnabled
                         ? "Tutorial prompts can appear once per page until skipped or watched."
                         : "Tutorial prompts are off. The full Tutorial library stays available from the nav."}
+                    </p>
+                  </section>
+                  <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="performance-mode-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <Sparkles className="size-4 text-cyan-300" />
+                          Enhanced Mode
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Default is Performance Mode for faster dashboard, admin, and tutorial scrolling.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Performance Mode"
+                        aria-pressed={performanceMode.performanceModeEnabled}
+                        className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="performance-mode-toggle"
+                        onClick={() =>
+                          performanceMode.setPerformanceModeEnabled(!performanceMode.performanceModeEnabled)
+                        }
+                        type="button"
+                      >
+                        <span
+                          className={
+                            performanceMode.performanceModeEnabled
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Toggle Performance Mode</span>
+                      </button>
+                    </div>
+                    <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {effectivePerformanceMode
+                        ? "Performance Mode is active. Dashboard, admin, and tutorial pages trim motion, glow, blur, and hover lift for smoother scrolling."
+                        : "Enhanced view is active. Admin Studio, Admin Makeover, and Motion Lab visuals stay as designed."}
                     </p>
                   </section>
                   {isAdmin ? (

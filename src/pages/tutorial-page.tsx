@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -35,15 +35,27 @@ import {
   listUploadedTutorials,
   sanitizeTutorialId,
 } from "@/services/tutorial-service";
+import { markDevPerformance } from "@/lib/performance-marks";
 
 type TutorialCategoryFilter = TutorialCategory | "All";
+const initialTutorialCardLimit = 12;
+const tutorialCardLimitStep = 12;
+const initialAdminShellLimit = 12;
+const adminShellLimitStep = 12;
+const initialUploadedTutorialLimit = 8;
+const uploadedTutorialLimitStep = 8;
 
 export function TutorialPage() {
   const { profile } = useAuth();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<TutorialCategoryFilter>("All");
   const [activeTutorial, setActiveTutorial] = useState<TutorialEntry | null>(null);
+  const [visibleTutorialCount, setVisibleTutorialCount] = useState(initialTutorialCardLimit);
   const isAdmin = profile?.role === "admin";
+
+  useEffect(() => {
+    markDevPerformance("tutorial-page-render");
+  });
 
   const uploadedTutorialsQuery = useQuery({
     queryKey: ["tutorial-entries", isAdmin ? "admin" : "published"],
@@ -64,7 +76,16 @@ export function TutorialPage() {
     () => tutorialLibrary.filter((tutorial) => tutorial.videoSrc).slice(0, 4),
     [tutorialLibrary],
   );
+  const visibleFilteredTutorials = useMemo(
+    () => filteredTutorials.slice(0, visibleTutorialCount),
+    [filteredTutorials, visibleTutorialCount],
+  );
+  const hasMoreTutorials = filteredTutorials.length > visibleTutorialCount;
   const visibleCategories: TutorialCategoryFilter[] = useMemo(() => ["All", ...tutorialCategories], []);
+
+  useEffect(() => {
+    setVisibleTutorialCount(initialTutorialCardLimit);
+  }, [category, query]);
 
   return (
     <main className="app-page gap-6">
@@ -188,7 +209,7 @@ export function TutorialPage() {
 
         {filteredTutorials.length ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTutorials.map((tutorial) => (
+            {visibleFilteredTutorials.map((tutorial) => (
               <TutorialCard
                 key={tutorial.id}
                 onOpen={() => setActiveTutorial(tutorial)}
@@ -214,6 +235,17 @@ export function TutorialPage() {
             </CardHeader>
           </Card>
         )}
+        {hasMoreTutorials ? (
+          <div className="flex justify-center">
+            <Button
+              onClick={() => setVisibleTutorialCount((count) => count + tutorialCardLimitStep)}
+              type="button"
+              variant="outline"
+            >
+              Load more tutorials
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <TutorialVideoModal
@@ -270,11 +302,31 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
   const [metadataError, setMetadataError] = useState("");
+  const [visibleShellCount, setVisibleShellCount] = useState(initialAdminShellLimit);
+  const [visibleUploadedCount, setVisibleUploadedCount] = useState(initialUploadedTutorialLimit);
   const detectedDuration = formatTutorialDuration(videoDurationSeconds);
   const availableDraftShells = useMemo(() => {
     const uploadedIds = new Set(uploadedTutorials.map((tutorial) => tutorial.id));
     return draftShells.filter((shell) => !uploadedIds.has(shell.id));
   }, [draftShells, uploadedTutorials]);
+  const visibleDraftShells = useMemo(
+    () => availableDraftShells.slice(0, visibleShellCount),
+    [availableDraftShells, visibleShellCount],
+  );
+  const visibleUploadedTutorials = useMemo(
+    () => uploadedTutorials.slice(0, visibleUploadedCount),
+    [uploadedTutorials, visibleUploadedCount],
+  );
+  const hasMoreDraftShells = availableDraftShells.length > visibleShellCount;
+  const hasMoreUploadedTutorials = uploadedTutorials.length > visibleUploadedCount;
+
+  useEffect(() => {
+    setVisibleShellCount(initialAdminShellLimit);
+  }, [draftShells]);
+
+  useEffect(() => {
+    setVisibleUploadedCount(initialUploadedTutorialLimit);
+  }, [uploadedTutorials]);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -448,12 +500,23 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {availableDraftShells.length ? (
-              availableDraftShells.map((shell) => (
+              visibleDraftShells.map((shell) => (
                 <DraftShellCard key={shell.id} onUpload={() => loadShell(shell)} shell={shell} />
               ))
             ) : (
               <p className="text-sm text-muted-foreground">No draft shells match this search.</p>
             )}
+            {hasMoreDraftShells ? (
+              <div className="md:col-span-2 xl:col-span-3">
+                <Button
+                  onClick={() => setVisibleShellCount((count) => count + adminShellLimitStep)}
+                  type="button"
+                  variant="outline"
+                >
+                  Load more draft shells
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -466,7 +529,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
           </CardHeader>
           <CardContent className="grid gap-2">
             {uploadedTutorials.length ? (
-              uploadedTutorials.slice(0, 8).map((tutorial) => (
+              visibleUploadedTutorials.map((tutorial) => (
                 <button
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/72 px-3 py-2 text-left transition hover:bg-secondary"
                   key={tutorial.id}
@@ -489,6 +552,16 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
                 No real tutorial videos have been uploaded yet.
               </p>
             )}
+            {hasMoreUploadedTutorials ? (
+              <Button
+                className="justify-self-start"
+                onClick={() => setVisibleUploadedCount((count) => count + uploadedTutorialLimitStep)}
+                type="button"
+                variant="outline"
+              >
+                Load more uploaded tutorials
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -676,7 +749,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
   );
 }
 
-function DraftShellCard({
+const DraftShellCard = memo(function DraftShellCard({
   onUpload,
   shell,
 }: {
@@ -684,7 +757,7 @@ function DraftShellCard({
   shell: TutorialEntry;
 }) {
   return (
-    <Card className="overflow-hidden border-dashed">
+    <Card className="tutorial-card tutorial-card--draft overflow-hidden border-dashed">
       <div className="relative border-b border-border/70 bg-background">
         <img
           alt={`${shell.title} draft poster`}
@@ -722,9 +795,9 @@ function DraftShellCard({
       </CardContent>
     </Card>
   );
-}
+});
 
-function TutorialCard({
+const TutorialCard = memo(function TutorialCard({
   onOpen,
   tutorial,
 }: {
@@ -734,7 +807,7 @@ function TutorialCard({
   const hasRealDuration = Boolean(tutorial.videoSrc && tutorial.duration);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="tutorial-card overflow-hidden">
       <div className="relative border-b border-border/70 bg-background">
         <img
           alt={`${tutorial.title} poster`}
@@ -778,7 +851,7 @@ function TutorialCard({
       </CardContent>
     </Card>
   );
-}
+});
 
 function splitList(value: string) {
   return value

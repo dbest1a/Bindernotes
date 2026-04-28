@@ -61,10 +61,13 @@ describe("AppShell profile settings", () => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");
     document.documentElement.removeAttribute("data-admin-dashboard");
+    document.documentElement.removeAttribute("data-performance-mode");
     document.documentElement.removeAttribute("data-motion-intensity");
     document.documentElement.removeAttribute("data-motion-speed");
     document.documentElement.removeAttribute("data-premium-color-mode");
     document.documentElement.removeAttribute("data-page-transition");
+    // @ts-expect-error jsdom matchMedia is test-controlled here.
+    delete window.matchMedia;
     authMock.profile = {
       id: "user-1",
       email: "kai@example.com",
@@ -174,10 +177,36 @@ describe("AppShell profile settings", () => {
     );
   });
 
+  it("defaults to Performance Mode and mirrors the switch to root data attributes", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("performance-mode-section")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /performance mode/i })).toBeTruthy();
+    expect(screen.getByText("Enhanced Mode")).toBeTruthy();
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
+    expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
+      '"enabled":false',
+    );
+
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
+      '"enabled":true',
+    );
+  });
+
   it("persists admin motion settings and mirrors them to root data attributes", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
     fireEvent.click(screen.getByTestId("admin-motion-toggle"));
     fireEvent.change(screen.getByTestId("admin-motion-intensity"), { target: { value: "party" } });
     fireEvent.change(screen.getByTestId("admin-motion-speed"), { target: { value: "quick" } });
@@ -186,6 +215,32 @@ describe("AppShell profile settings", () => {
     expect(document.documentElement.getAttribute("data-motion-intensity")).toBe("party");
     expect(document.documentElement.getAttribute("data-motion-speed")).toBe("quick");
     expect(window.localStorage.getItem("bindernotes:admin-motion:v1")).toContain('"enabled":true');
+  });
+
+  it("keeps Performance Mode stronger than Admin Motion Lab", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("admin-motion-toggle"));
+    fireEvent.change(screen.getByTestId("admin-page-transition"), { target: { value: "slide-pop" } });
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-admin-motion")).toBe("off");
+    expect(document.documentElement.getAttribute("data-page-transition")).toBe("off");
+  });
+
+  it("respects reduced-motion by enabling effective Performance Mode", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    renderShell();
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-reduced-motion")).toBe("system");
   });
 
   it("closes the profile settings popover with Escape", async () => {

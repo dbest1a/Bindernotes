@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, Profile, WorkspaceDiagnostic } from "@/types";
 
@@ -118,6 +119,21 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+const dndMocks = vi.hoisted(() => ({
+  dndContextRender: vi.fn(),
+  useDroppable: vi.fn(() => ({ isOver: false, setNodeRef: vi.fn() })),
+  useSensor: vi.fn(() => ({})),
+  useSensors: vi.fn(() => []),
+  useSortable: vi.fn(() => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: undefined,
+    isDragging: false,
+  })),
+}));
+
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     profile: mocks.profile,
@@ -126,6 +142,36 @@ vi.mock("@/hooks/use-auth", () => ({
 
 vi.mock("@/hooks/use-binders", () => ({
   useDashboard: () => mocks.dashboardState,
+}));
+
+vi.mock("@dnd-kit/core", () => ({
+  closestCenter: vi.fn(),
+  DndContext: ({ children }: { children: ReactNode }) => {
+    dndMocks.dndContextRender();
+    return <div data-testid="admin-dnd-context">{children}</div>;
+  },
+  DragOverlay: ({ children }: { children: ReactNode }) => <div data-testid="admin-drag-overlay">{children}</div>,
+  KeyboardSensor: vi.fn(),
+  PointerSensor: vi.fn(),
+  useDroppable: dndMocks.useDroppable,
+  useSensor: dndMocks.useSensor,
+  useSensors: dndMocks.useSensors,
+}));
+
+vi.mock("@dnd-kit/sortable", () => ({
+  SortableContext: ({ children }: { children: ReactNode }) => <div data-testid="admin-sortable-context">{children}</div>,
+  rectSortingStrategy: vi.fn(),
+  sortableKeyboardCoordinates: vi.fn(),
+  useSortable: dndMocks.useSortable,
+  verticalListSortingStrategy: vi.fn(),
+}));
+
+vi.mock("@dnd-kit/utilities", () => ({
+  CSS: {
+    Transform: {
+      toString: vi.fn(() => undefined),
+    },
+  },
 }));
 
 import { DashboardPage } from "@/pages/dashboard-page";
@@ -139,6 +185,11 @@ describe("DashboardPage", () => {
     mocks.dashboardState.error = null;
     mocks.dashboardState.isLoading = false;
     mocks.profile.role = "admin";
+    dndMocks.dndContextRender.mockClear();
+    dndMocks.useDroppable.mockClear();
+    dndMocks.useSensor.mockClear();
+    dndMocks.useSensors.mockClear();
+    dndMocks.useSortable.mockClear();
     window.localStorage.clear();
   });
 
@@ -219,5 +270,48 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: /save order/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
     expect(screen.getAllByLabelText(/drag .* to reorder/i).length).toBeGreaterThan(0);
+  });
+
+  it("does not mount admin drag infrastructure until Organize is clicked", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+    expect(screen.queryByTestId("admin-dnd-context")).toBeNull();
+    expect(dndMocks.dndContextRender).not.toHaveBeenCalled();
+    expect(dndMocks.useSortable).not.toHaveBeenCalled();
+    expect(dndMocks.useDroppable).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /organize/i }));
+
+    expect(await screen.findByTestId("admin-dnd-context")).toBeTruthy();
+    expect(dndMocks.dndContextRender).toHaveBeenCalled();
+    expect(dndMocks.useSortable).toHaveBeenCalled();
+    expect(dndMocks.useDroppable).toHaveBeenCalled();
+  });
+
+  it("does not stringify full lesson content during dashboard search", () => {
+    const stringifySpy = vi.spyOn(JSON, "stringify");
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search folders, binders, documents"), {
+      target: { value: "founding" },
+    });
+
+    expect(stringifySpy).not.toHaveBeenCalledWith(mocks.dashboardState.data.lessons[0].content);
+    stringifySpy.mockRestore();
   });
 });

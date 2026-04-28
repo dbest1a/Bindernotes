@@ -45,7 +45,7 @@ export function TutorialVideoModal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-[90] grid place-items-center bg-background/82 px-3 py-4 backdrop-blur-sm"
+      className="tutorial-video-modal fixed inset-0 z-[90] grid place-items-center bg-background/90 px-3 py-4"
       data-testid="tutorial-video-modal"
       role="dialog"
     >

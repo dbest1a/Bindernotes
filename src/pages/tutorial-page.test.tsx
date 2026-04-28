@@ -156,6 +156,33 @@ describe("TutorialPage", () => {
     expect(within(dialog).getByRole("link", { name: /open this feature/i })).toBeTruthy();
   });
 
+  it("renders tutorial lists as thumbnails and caps long result sets until Load more is clicked", async () => {
+    mocks.profile.role = "learner";
+    mocks.uploadedTutorials = Array.from({ length: 18 }, (_, index) => ({
+      ...uploadedDashboardTutorial,
+      id: `uploaded-dashboard-${index}`,
+      title: `Bulk Dashboard Tutorial ${index + 1}`,
+      transcript: `bulk transcript ${index + 1}`,
+    }));
+    renderTutorialPage();
+
+    await screen.findAllByText("Bulk Dashboard Tutorial 1");
+    fireEvent.change(screen.getByLabelText("Search tutorials"), {
+      target: { value: "bulk" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /open tutorial/i })).toHaveLength(12);
+    });
+    expect(document.querySelectorAll("video")).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /load more tutorials/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /open tutorial/i })).toHaveLength(18);
+    });
+  });
+
   it("searches uploaded tutorials by transcript and feature names", async () => {
     mocks.uploadedTutorials = [uploadedDashboardTutorial];
     renderTutorialPage();

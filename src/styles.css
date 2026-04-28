@@ -6249,6 +6249,71 @@
   }
 }
 
+:root[data-performance-mode="on"] .app-route-transition-shell,
+:root[data-performance-mode="on"] .admin-motion-popover,
+:root[data-performance-mode="on"] .page-shell,
+:root[data-performance-mode="on"] .hero-aside,
+:root[data-performance-mode="on"] .utility-panel,
+:root[data-performance-mode="on"] .tutorial-card,
+:root[data-performance-mode="on"] .admin-dashboard-makeover,
+:root[data-performance-mode="on"] .admin-dashboard-makeover::before,
+:root[data-performance-mode="on"] .admin-dashboard-makeover::after,
+:root[data-performance-mode="on"] .admin-dashboard-hero__copy,
+:root[data-performance-mode="on"] .admin-dashboard-hero__panel,
+:root[data-performance-mode="on"] .admin-dashboard-editbar,
+:root[data-performance-mode="on"] .admin-dashboard-section,
+:root[data-performance-mode="on"] .admin-doc-card,
+:root[data-performance-mode="on"] .admin-folder-card,
+:root[data-performance-mode="on"] .admin-binder-card,
+:root[data-performance-mode="on"] .admin-folder-drop-zone,
+:root[data-performance-mode="on"] .ui-click-tile,
+:root[data-performance-mode="on"] .dashboard-card,
+:root[data-performance-mode="on"] .binder-card,
+:root[data-performance-mode="on"] .ui-button-motion {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+
+:root[data-performance-mode="on"] .page-shell,
+:root[data-performance-mode="on"] .hero-aside,
+:root[data-performance-mode="on"] .utility-panel,
+:root[data-performance-mode="on"] .tutorial-card,
+:root[data-performance-mode="on"] .admin-motion-popover,
+:root[data-performance-mode="on"] .admin-dashboard-hero__copy,
+:root[data-performance-mode="on"] .admin-dashboard-hero__panel,
+:root[data-performance-mode="on"] .admin-dashboard-editbar,
+:root[data-performance-mode="on"] .admin-dashboard-section,
+:root[data-performance-mode="on"] .admin-doc-card,
+:root[data-performance-mode="on"] .admin-folder-card,
+:root[data-performance-mode="on"] .admin-binder-card,
+:root[data-performance-mode="on"] .admin-folder-drop-zone {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.06) inset !important;
+}
+
+:root[data-performance-mode="on"] .admin-dashboard-glow {
+  display: none !important;
+}
+
+:root[data-performance-mode="on"] .admin-dashboard-makeover::after,
+:root[data-performance-mode="on"] .admin-binder-card__cover::after,
+:root[data-performance-mode="on"] .admin-folder-card::after {
+  opacity: 0 !important;
+}
+
+:root[data-performance-mode="on"] .admin-doc-card:hover,
+:root[data-performance-mode="on"] .admin-folder-card:hover,
+:root[data-performance-mode="on"] .admin-binder-card:hover,
+:root[data-performance-mode="on"] .tutorial-card:hover,
+:root[data-performance-mode="on"] .ui-click-tile:hover,
+:root[data-performance-mode="on"] .dashboard-card:hover,
+:root[data-performance-mode="on"] .binder-card:hover,
+:root[data-performance-mode="on"] .ui-button-motion:hover {
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.06) inset !important;
+  transform: none !important;
+}
+
 .responsive-mobile-tabs {
   overflow-x: auto;
   scrollbar-width: thin;

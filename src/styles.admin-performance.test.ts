@@ -33,4 +33,12 @@ describe("admin perceived performance styles", () => {
     );
     expect(css).toMatch(/\.admin-dashboard-hero__copy,[\s\S]*backdrop-filter:\s*none/s);
   });
+
+  it("adds Performance Mode overrides for menu/dashboard/admin/tutorial pages", () => {
+    expect(css).toContain(':root[data-performance-mode="on"]');
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.app-route-transition-shell[\s\S]*animation:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.page-shell[\s\S]*backdrop-filter:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-dashboard-glow[\s\S]*display:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-doc-card:hover[\s\S]*transform:\s*none\s*!important/s);
+  });
 });
