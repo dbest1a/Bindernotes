@@ -36,7 +36,7 @@ export function AppShell() {
     performanceMode.effectivePerformanceMode,
   );
   const effectivePerformanceMode = performanceMode.effectivePerformanceMode || prefersReducedMotion;
-  const enhancedModeRequested = !performanceMode.performanceModeEnabled;
+  const enhancedModeRequested = performanceMode.enhancedModeEnabled;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -247,9 +247,7 @@ export function AppShell() {
                         aria-pressed={enhancedModeRequested}
                         className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                         data-testid="performance-mode-toggle"
-                        onClick={() =>
-                          performanceMode.setPerformanceModeEnabled(!performanceMode.performanceModeEnabled)
-                        }
+                        onClick={() => performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)}
                         type="button"
                       >
                         <span

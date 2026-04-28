@@ -37,7 +37,7 @@ export function usePerformanceMode() {
   const [preference, setPreference] = useState<PerformanceModePreference>(() =>
     loadPerformanceModePreference(getStorage()),
   );
-  const effectivePerformanceMode = preference.enabled || prefersReducedMotion;
+  const effectivePerformanceMode = !preference.enabled || prefersReducedMotion;
 
   useEffect(() => {
     if (!hasWindow() || !window.matchMedia) {
@@ -97,7 +97,7 @@ export function usePerformanceMode() {
     }
   }, []);
 
-  const setPerformanceModeEnabled = useCallback(
+  const setEnhancedModeEnabled = useCallback(
     (enabled: boolean) => {
       const nextPreference = sanitizePerformanceModePreference({ enabled });
       setPreference(nextPreference);
@@ -105,14 +105,28 @@ export function usePerformanceMode() {
     },
     [publish],
   );
+  const setPerformanceModeEnabled = useCallback(
+    (enabled: boolean) => {
+      setEnhancedModeEnabled(!enabled);
+    },
+    [setEnhancedModeEnabled],
+  );
 
   return useMemo(
     () => ({
       effectivePerformanceMode,
-      performanceModeEnabled: preference.enabled,
+      enhancedModeEnabled: preference.enabled,
+      performanceModeEnabled: effectivePerformanceMode,
       prefersReducedMotion,
+      setEnhancedModeEnabled,
       setPerformanceModeEnabled,
     }),
-    [effectivePerformanceMode, preference.enabled, prefersReducedMotion, setPerformanceModeEnabled],
+    [
+      effectivePerformanceMode,
+      preference.enabled,
+      prefersReducedMotion,
+      setEnhancedModeEnabled,
+      setPerformanceModeEnabled,
+    ],
   );
 }

@@ -2,11 +2,12 @@ export type PerformanceModePreference = {
   enabled: boolean;
 };
 
-export const performanceModeStorageKey = "bindernotes:performance-mode:v1";
-export const performanceModePreferenceChangeEvent = "bindernotes:performance-mode";
+export const performanceModeStorageKey = "bindernotes:enhanced-mode:v1";
+export const legacyPerformanceModeStorageKey = "bindernotes:performance-mode:v1";
+export const performanceModePreferenceChangeEvent = "bindernotes:enhanced-mode";
 
 export const defaultPerformanceModePreference: PerformanceModePreference = {
-  enabled: true,
+  enabled: false,
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;

@@ -178,6 +178,8 @@ describe("AppShell profile settings", () => {
   });
 
   it("defaults to Performance Mode while the Enhanced Mode switch controls enhanced visuals", async () => {
+    window.localStorage.setItem("bindernotes:performance-mode:v1", '{"enabled":false}');
+
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
@@ -188,6 +190,7 @@ describe("AppShell profile settings", () => {
     );
     expect(screen.getByText("Enhanced Mode")).toBeTruthy();
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toBeNull();
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
@@ -195,8 +198,8 @@ describe("AppShell profile settings", () => {
       "true",
     );
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
-    expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
-      '"enabled":false',
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
+      '"enabled":true',
     );
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
@@ -205,8 +208,8 @@ describe("AppShell profile settings", () => {
       "false",
     );
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
-    expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
-      '"enabled":true',
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
+      '"enabled":false',
     );
   });
 
