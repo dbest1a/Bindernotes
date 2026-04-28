@@ -36,6 +36,7 @@ export function AppShell() {
     performanceMode.effectivePerformanceMode,
   );
   const effectivePerformanceMode = performanceMode.effectivePerformanceMode || prefersReducedMotion;
+  const enhancedModeRequested = !performanceMode.performanceModeEnabled;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -242,8 +243,8 @@ export function AppShell() {
                         </p>
                       </div>
                       <button
-                        aria-label="Performance Mode"
-                        aria-pressed={performanceMode.performanceModeEnabled}
+                        aria-label="Enhanced Mode"
+                        aria-pressed={enhancedModeRequested}
                         className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                         data-testid="performance-mode-toggle"
                         onClick={() =>
@@ -253,12 +254,12 @@ export function AppShell() {
                       >
                         <span
                           className={
-                            performanceMode.performanceModeEnabled
+                            enhancedModeRequested
                               ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
                               : "admin-motion-toggle__knob"
                           }
                         />
-                        <span className="sr-only">Toggle Performance Mode</span>
+                        <span className="sr-only">Toggle Enhanced Mode</span>
                       </button>
                     </div>
                     <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">

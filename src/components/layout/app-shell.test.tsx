@@ -177,18 +177,23 @@ describe("AppShell profile settings", () => {
     );
   });
 
-  it("defaults to Performance Mode and mirrors the switch to root data attributes", async () => {
+  it("defaults to Performance Mode while the Enhanced Mode switch controls enhanced visuals", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
 
     expect(screen.getByTestId("performance-mode-section")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /performance mode/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
     expect(screen.getByText("Enhanced Mode")).toBeTruthy();
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
     expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
       '"enabled":false',
@@ -196,6 +201,9 @@ describe("AppShell profile settings", () => {
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
     expect(window.localStorage.getItem("bindernotes:performance-mode:v1")).toContain(
       '"enabled":true',
