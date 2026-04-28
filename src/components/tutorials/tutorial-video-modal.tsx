@@ -80,10 +80,23 @@ export function TutorialVideoModal({
                 >
                   <div>
                     <Play className="mx-auto size-10 text-primary" />
-                    <h3 className="mt-4 text-lg font-semibold">No tutorial video has been uploaded yet.</h3>
+                    <h3 className="mt-4 text-lg font-semibold">
+                      {tutorial.videoSrc
+                        ? "This tutorial video could not be played here."
+                        : "No tutorial video has been uploaded yet."}
+                    </h3>
                     <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                      This slot is ready for the real tutorial upload. The steps, transcript, and feature link are still available.
+                      {tutorial.videoSrc
+                        ? "The uploaded file exists, but the browser could not load it in the player. Try opening the video directly or upload an H.264 MP4/WebM file."
+                        : "This slot is ready for the real tutorial upload. The steps, transcript, and feature link are still available."}
                     </p>
+                    {tutorial.videoSrc ? (
+                      <Button asChild className="mt-4" type="button" variant="outline">
+                        <a href={tutorial.videoSrc} rel="noreferrer" target="_blank">
+                          Open video file
+                        </a>
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               ) : (
