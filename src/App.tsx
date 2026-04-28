@@ -14,6 +14,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AdminMotionRootSync } from "@/hooks/use-admin-motion";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { TutorialPromptHost } from "@/components/tutorials/tutorial-prompt";
 import { UserAppearanceSync } from "@/components/theme/user-appearance-sync";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -308,7 +309,12 @@ function ProtectedRoute({ children }: { children?: ReactNode }) {
     return <Navigate replace to={`/auth${nextTarget}`} />;
   }
 
-  return children ? <>{children}</> : <Outlet />;
+  return (
+    <>
+      <TutorialPromptHost />
+      {children ? <>{children}</> : <Outlet />}
+    </>
+  );
 }
 
 function LegacyBinderRoute() {

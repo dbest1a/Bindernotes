@@ -4,13 +4,24 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
+import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
 
 const authMock = vi.hoisted(() => ({
   profile: {
     id: "user-1",
+    email: "kai@example.com",
     full_name: "Kai Chen",
     role: "admin",
-  } as { id: string; full_name: string | null; role: string | null } | null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as {
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null,
   signOut: vi.fn(),
 }));
 
@@ -56,8 +67,11 @@ describe("AppShell profile settings", () => {
     document.documentElement.removeAttribute("data-page-transition");
     authMock.profile = {
       id: "user-1",
+      email: "kai@example.com",
       full_name: "Kai Chen",
       role: "admin",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
   });
 
@@ -71,8 +85,11 @@ describe("AppShell profile settings", () => {
     cleanup();
     authMock.profile = {
       id: "user-2",
+      email: "learner@example.com",
       full_name: "Learner Person",
       role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     renderShell();
@@ -92,8 +109,11 @@ describe("AppShell profile settings", () => {
     cleanup();
     authMock.profile = {
       id: "user-2",
+      email: "learner@example.com",
       full_name: "Learner Person",
       role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     renderShell();
@@ -113,6 +133,44 @@ describe("AppShell profile settings", () => {
     expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
     expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
       "admin-makeover",
+    );
+  });
+
+  it("shows tutorial prompt controls in the profile menu for admins and learners", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.getByTestId("tutorial-prompts-toggle")).toBeTruthy();
+
+    cleanup();
+    authMock.profile = {
+      id: "user-2",
+      email: "learner@example.com",
+      full_name: "Learner Person",
+      role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
+  });
+
+  it("persists tutorial prompt preference from the profile menu", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("tutorial-prompts-toggle"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.getByTestId("tutorial-prompts-toggle")).toBeTruthy();
+    expect(window.localStorage.getItem(tutorialPromptPreferenceStorageKey("user-1"))).toContain(
+      '"promptsEnabled":false',
     );
   });
 

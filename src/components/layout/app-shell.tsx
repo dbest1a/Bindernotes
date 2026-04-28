@@ -16,6 +16,7 @@ import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import { useTheme } from "@/hooks/use-theme";
+import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
@@ -27,6 +28,7 @@ export function AppShell() {
   const location = useLocation();
   const isAdmin = profile?.role === "admin";
   const dashboardExperience = useDashboardExperience(isAdmin);
+  const tutorialPrompts = useTutorialPrompts(profile);
   const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(isAdmin);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
@@ -157,7 +159,6 @@ export function AppShell() {
                     </div>
                   </div>
                   {isAdmin ? (
-                    <>
                     <section
                       className="mt-3 rounded-lg border border-border/80 p-3"
                       data-testid="admin-dashboard-appearance"
@@ -186,6 +187,43 @@ export function AppShell() {
                         </select>
                       </label>
                     </section>
+                  ) : null}
+                  <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="tutorial-prompts-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <BookOpenCheck className="size-4 text-cyan-300" />
+                          Tutorials
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          First-time page prompts are on by default only for accounts created recently.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Toggle tutorial prompts"
+                        aria-pressed={tutorialPrompts.promptsEnabled}
+                        className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="tutorial-prompts-toggle"
+                        onClick={() => tutorialPrompts.setPromptsEnabled(!tutorialPrompts.promptsEnabled)}
+                        type="button"
+                      >
+                        <span
+                          className={
+                            tutorialPrompts.promptsEnabled
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Enable first-time tutorial prompts</span>
+                      </button>
+                    </div>
+                    <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {tutorialPrompts.promptsEnabled
+                        ? "Tutorial prompts can appear once per page until skipped or watched."
+                        : "Tutorial prompts are off. The full Tutorial library stays available from the nav."}
+                    </p>
+                  </section>
+                  {isAdmin ? (
                     <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -264,7 +302,6 @@ export function AppShell() {
                         Reset motion settings
                       </Button>
                     </section>
-                    </>
                   ) : null}
                 </div>
               ) : null}

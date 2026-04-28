@@ -1,343 +1,806 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BookOpenCheck,
-  Calculator,
-  Columns2,
-  FileSearch,
-  Highlighter,
-  History,
-  LayoutDashboard,
-  Maximize2,
-  NotebookPen,
-  PanelTop,
-  PenTool,
+  Clock,
+  ExternalLink,
+  Filter,
+  Play,
+  Plus,
   Search,
-  Settings2,
-  Smartphone,
   Sparkles,
-  StickyNote,
-  WandSparkles,
+  Upload,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { TutorialVideoModal } from "@/components/tutorials/tutorial-video-modal";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  formatTutorialDuration,
+  searchTutorials,
+  tutorialCategories,
+  tutorials,
+  type TutorialCategory,
+  type TutorialEntry,
+  type TutorialStatus,
+} from "@/lib/tutorials/tutorial-registry";
+import { cn } from "@/lib/utils";
+import {
+  createUploadedTutorial,
+  listUploadedTutorials,
+  sanitizeTutorialId,
+} from "@/services/tutorial-service";
 
-type StartStep = {
-  id: string;
-  title: string;
-  detail: string;
-  click: string;
-};
-
-type FeatureGuide = {
-  id: string;
-  title: string;
-  icon: typeof Highlighter;
-  use: string;
-  click: string;
-  know: string;
-};
-
-type ButtonGuide = {
-  id: string;
-  title: string;
-  icon: typeof Settings2;
-  simple: string;
-};
-
-const startSteps: StartStep[] = [
-  {
-    id: "dashboard",
-    title: "1. Start at your dashboard",
-    detail: "Your dashboard is home base. It shows folders, binders, and the lessons inside them.",
-    click: "Click Dashboard, then Click a folder, then Click a binder, then Click a lesson.",
-  },
-  {
-    id: "view",
-    title: "2. Pick the view that feels easiest",
-    detail: "Simple View is best for reading. Study Panels gives a few boxes. Canvas gives the big movable workspace.",
-    click: "Click Simple View for the easiest path, or Click Canvas when you want the full workspace.",
-  },
-  {
-    id: "split",
-    title: "3. Read on one side and write on the other",
-    detail: "Split Study puts the lesson on the left and private notes on the right.",
-    click: "Click Split Study when you want two clean halves that meet in the middle.",
-  },
-  {
-    id: "settings",
-    title: "4. Search settings instead of hunting",
-    detail: "The settings search finds layout, graph, mobile, header, snap, and theme controls.",
-    click: "Click Settings. Type a word like snap, graph, header, or mobile.",
-  },
-  {
-    id: "save",
-    title: "5. Save your own work",
-    detail: "Your account saves your notes, highlights, stickies, and workspace choices.",
-    click: "Write a note, then click Save now if you want to save right away.",
-  },
-];
-
-const buttonGuides: ButtonGuide[] = [
-  {
-    id: "settings-search",
-    title: "Settings search",
-    icon: Search,
-    simple: "Use this when you cannot find a setting. Search words like safe, fit, graph, mobile, header, or space.",
-  },
-  {
-    id: "maximize",
-    title: "Maximize module space",
-    icon: Maximize2,
-    simple: "Leave it on for more room. Turn it off if you want the bigger old headers, progress cards, and lesson details.",
-  },
-  {
-    id: "focus",
-    title: "Focus canvas",
-    icon: PanelTop,
-    simple: "Use this when you want the workspace to fill the screen and hide extra page clutter.",
-  },
-  {
-    id: "fit-tidy",
-    title: "Fit and Tidy",
-    icon: WandSparkles,
-    simple: "Fit pulls the layout into view. Tidy rebuilds a clean preset layout when things feel messy.",
-  },
-  {
-    id: "edit",
-    title: "Edit layout",
-    icon: Columns2,
-    simple: "Use this to drag and resize modules. Save keeps your changes. Cancel puts the old layout back.",
-  },
-  {
-    id: "phone",
-    title: "Phone view",
-    icon: Smartphone,
-    simple: "On a phone, use the tabs. Do one thing at a time: Lesson, Notes, Graph, Timeline, or Evidence.",
-  },
-];
-
-const featureGuides: FeatureGuide[] = [
-  {
-    id: "simple",
-    title: "Simple View",
-    icon: BookOpenCheck,
-    use: "Use this when you just want to read and learn without moving boxes around.",
-    click: "Click Simple View. Read the lesson. Use the side notes or drawer when you need them.",
-    know: "You should see one main lesson area and simple controls like Workspace, Study surface, Settings, and Focus.",
-  },
-  {
-    id: "notes",
-    title: "Private notes",
-    icon: NotebookPen,
-    use: "Use this when you want to put the lesson into your own words.",
-    click: "Click in the notes area. Type your idea. Click Save now, or wait for autosave.",
-    know: "The note stays tied to the lesson and comes back when you reopen it.",
-  },
-  {
-    id: "highlights",
-    title: "Highlights",
-    icon: Highlighter,
-    use: "Use these when a sentence matters and you want to find it again.",
-    click: "Select lesson text. Pick a highlight color. Keep reading.",
-    know: "The colored text should still be there after you refresh.",
-  },
-  {
-    id: "stickies",
-    title: "Sticky notes",
-    icon: StickyNote,
-    use: "Use these for tiny thoughts that should float near the lesson.",
-    click: "Click New sticky, or send selected text to a sticky.",
-    know: "You can move the sticky and hide the sticky manager when you do not need it.",
-  },
-  {
-    id: "math",
-    title: "Math tools",
-    icon: Calculator,
-    use: "Use these for formulas, graphs, calculators, and saved graph work.",
-    click: "Open a math preset like Math Graph Lab, Math Guided Study, or Math Practice Mode.",
-    know: "Graph presets should give the graph real room. Formula and calculator tools should not be tiny boxes.",
-  },
-  {
-    id: "history",
-    title: "History tools",
-    icon: History,
-    use: "Use these for timelines, evidence, arguments, and myth checks.",
-    click: "Open a history preset like Timeline Focus, Source Evidence, or Argument Builder.",
-    know: "The most important history tool should be biggest, and extra tools should stay out of the way.",
-  },
-];
-
-const safeRules = [
-  "If the screen looks crowded, click Fit.",
-  "If the layout feels messy, click Tidy.",
-  "If you want more room, keep Maximize module space on.",
-  "If you want the larger old header view, turn Maximize module space off.",
-  "If you are on a phone, use tabs instead of trying to drag windows.",
-];
+type TutorialCategoryFilter = TutorialCategory | "All";
 
 export function TutorialPage() {
   const { profile } = useAuth();
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<TutorialCategoryFilter>("All");
+  const [activeTutorial, setActiveTutorial] = useState<TutorialEntry | null>(null);
+  const isAdmin = profile?.role === "admin";
+
+  const uploadedTutorialsQuery = useQuery({
+    queryKey: ["tutorial-entries", isAdmin ? "admin" : "published"],
+    queryFn: () => listUploadedTutorials(isAdmin),
+    staleTime: 60_000,
+  });
+
+  const tutorialLibrary = useMemo(
+    () => (uploadedTutorialsQuery.data ?? []).filter((tutorial) => tutorial.videoSrc),
+    [uploadedTutorialsQuery.data],
+  );
+  const filteredTutorials = useMemo(
+    () => searchTutorials(query, category, tutorialLibrary),
+    [category, query, tutorialLibrary],
+  );
+  const draftShells = useMemo(() => searchTutorials(query, category, tutorials), [category, query]);
+  const featuredTutorials = useMemo(
+    () => tutorialLibrary.filter((tutorial) => tutorial.videoSrc).slice(0, 4),
+    [tutorialLibrary],
+  );
+  const visibleCategories: TutorialCategoryFilter[] = useMemo(() => ["All", ...tutorialCategories], []);
 
   return (
     <main className="app-page gap-6">
       <section className="page-shell overflow-hidden p-6 sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)]">
           <div>
-            <Badge variant="outline">Tutorial</Badge>
+            <Badge variant="outline">Tutorial library</Badge>
             <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">
-              Learn Binder Notes one small step at a time
+              Learn BinderNotes with quick video walkthroughs
             </h1>
             <p className="mt-4 max-w-3xl page-copy">
-              This guide is written for anyone. If you can click a button, read a sentence,
-              and type a note, you can use Binder Notes.
-            </p>
-            <p className="mt-3 max-w-2xl text-sm font-medium text-primary">
-              Scroll down for more tips after the first buttons.
+              Search every page and major tool, watch the tutorial, then jump straight back to the matching feature.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button asChild type="button">
                 <Link to="/dashboard">
-                  <LayoutDashboard data-icon="inline-start" />
+                  <BookOpenCheck data-icon="inline-start" />
                   Start in workspace
                 </Link>
               </Button>
               <Button asChild type="button" variant="outline">
-                <Link to="/math">
-                  <Calculator data-icon="inline-start" />
+                <Link to="/math/lab">
+                  <Sparkles data-icon="inline-start" />
                   Open Math lab
                 </Link>
               </Button>
               {profile?.role === "admin" ? (
                 <Button asChild type="button" variant="outline">
                   <Link to="/admin">
-                    <PenTool data-icon="inline-start" />
+                    <ExternalLink data-icon="inline-start" />
                     Open Admin studio
                   </Link>
                 </Button>
               ) : null}
             </div>
           </div>
-          <div className="rounded-lg border border-border/70 bg-background/72 p-4">
+
+          <aside className="rounded-lg border border-border/70 bg-background/72 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-              <Sparkles className="size-4" />
-              Remember this
+              <Play className="size-4" />
+              First-time help
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Binder Notes has three jobs: read the source, keep your thinking, and open tools
-              only when they help.
+              BinderNotes can prompt a new user once per page. Skipping a tutorial stores that choice on this browser only.
             </p>
-          </div>
+          </aside>
         </div>
       </section>
 
-      <section className="grid gap-4">
-        <div>
-          <span className="page-kicker">Start here</span>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">The first five clicks</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {startSteps.map((step) => (
-            <Card key={step.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">{step.title}</CardTitle>
-                <CardDescription>{step.detail}</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="rounded-lg border border-border/70 bg-background/75 p-3 text-sm leading-6">
-                  {step.click}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+      {isAdmin ? (
+        <AdminTutorialCreator draftShells={draftShells} uploadedTutorials={tutorialLibrary} />
+      ) : null}
 
-      <section className="grid gap-4">
-        <div>
-          <span className="page-kicker">What each button is for</span>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">Use the right button at the right time</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {buttonGuides.map((guide) => (
-            <Card key={guide.id}>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <guide.icon className="size-4" />
-                  {guide.title}
-                </div>
-                <CardDescription>{guide.simple}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-4">
-        <div>
-          <span className="page-kicker">Feature guide</span>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">What to use and when</h2>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {featureGuides.map((guide) => (
-            <Card className="h-full" key={guide.id}>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <guide.icon className="size-4" />
-                  {guide.title}
-                </div>
-                <CardDescription>{guide.use}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="rounded-lg border border-border/70 bg-background/75 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    What to click
-                  </p>
-                  <p className="mt-2 text-sm leading-6">{guide.click}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/75 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    How you know it worked
-                  </p>
-                  <p className="mt-2 text-sm leading-6">{guide.know}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="page-shell p-6 sm:p-8">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(260px,0.38fr)]">
-          <div className="flex items-start gap-3">
-            <FileSearch className="mt-1 size-5 text-primary" />
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">If you feel lost</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Nothing is permanent unless you save a layout or write account data. You can switch
-                presets, search settings, click Fit, or go back to Simple View.
-              </p>
-            </div>
-          </div>
-          <ul className="space-y-2 text-sm leading-6 text-muted-foreground">
-            {safeRules.map((rule) => (
-              <li className="rounded-lg border border-border/70 bg-background/72 px-3 py-2" key={rule}>
-                {rule}
-              </li>
+      <section className="page-shell p-4 sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <label className="grid gap-2 text-sm font-medium">
+            Search tutorials
+            <span className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Search tutorials"
+                className="pl-9"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search graph, notes, admin, transcript, route..."
+                value={query}
+              />
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2" role="list" aria-label="Tutorial categories">
+            {visibleCategories.map((categoryOption) => (
+              <button
+                aria-pressed={category === categoryOption}
+                className={cn(
+                  "inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition",
+                  category === categoryOption
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 bg-background/75 text-muted-foreground hover:bg-secondary hover:text-foreground",
+                )}
+                key={categoryOption}
+                onClick={() => setCategory(categoryOption)}
+                type="button"
+              >
+                <Filter className="size-3.5" />
+                {categoryOption}
+              </button>
             ))}
-          </ul>
-        </div>
-        <div className="mt-6">
-          <Button asChild size="sm" type="button" variant="outline">
-            <Link to="/dashboard">
-              Open your dashboard
-              <ArrowRight data-icon="inline-end" />
-            </Link>
-          </Button>
+          </div>
         </div>
       </section>
+
+      {!query && category === "All" && featuredTutorials.length ? (
+        <section className="grid gap-4">
+          <div>
+            <span className="page-kicker">Start here</span>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">Featured walkthroughs</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {featuredTutorials.map((tutorial) => (
+              <TutorialCard
+                key={tutorial.id}
+                onOpen={() => setActiveTutorial(tutorial)}
+                tutorial={tutorial}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span className="page-kicker">All tutorials</span>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight">
+              {filteredTutorials.length} tutorial{filteredTutorials.length === 1 ? "" : "s"}
+            </h2>
+          </div>
+          <p className="max-w-lg text-sm leading-6 text-muted-foreground">
+            Search matches title, category, tags, route, summary, steps, and transcript text.
+          </p>
+        </div>
+
+        {filteredTutorials.length ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTutorials.map((tutorial) => (
+              <TutorialCard
+                key={tutorial.id}
+                onOpen={() => setActiveTutorial(tutorial)}
+                tutorial={tutorial}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {query || category !== "All"
+                  ? "No tutorials found"
+                  : "No tutorial videos have been published yet."}
+              </CardTitle>
+              <CardDescription>
+                {query || category !== "All"
+                  ? "Try a page name, tool name, route, or transcript word like graph, notes, admin, whiteboard, or publish."
+                  : isAdmin
+                    ? "Use a draft shell above to upload the first real tutorial video and publish it."
+                    : "The library is ready. Published admin uploads will appear here as soon as real tutorial videos are added."}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+      </section>
+
+      <TutorialVideoModal
+        onClose={() => setActiveTutorial(null)}
+        open={Boolean(activeTutorial)}
+        tutorial={activeTutorial}
+      />
     </main>
   );
+}
+
+type TutorialCreatorForm = {
+  audience: NonNullable<TutorialEntry["audience"]>;
+  category: TutorialCategory;
+  id: string;
+  promptRoutePatterns: string;
+  relatedFeatureLink: string;
+  routePatterns: string;
+  status: TutorialStatus;
+  steps: string;
+  summary: string;
+  tags: string;
+  title: string;
+  transcript: string;
+};
+
+const defaultCreatorForm: TutorialCreatorForm = {
+  audience: "all",
+  category: "Getting Started",
+  id: "",
+  promptRoutePatterns: "",
+  relatedFeatureLink: "/dashboard",
+  routePatterns: "/dashboard",
+  status: "published",
+  steps: "",
+  summary: "",
+  tags: "",
+  title: "",
+  transcript: "",
+};
+
+type AdminTutorialCreatorProps = {
+  draftShells: TutorialEntry[];
+  uploadedTutorials: TutorialEntry[];
+};
+
+function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialCreatorProps) {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const studioFormRef = useRef<HTMLFormElement | null>(null);
+  const [form, setForm] = useState<TutorialCreatorForm>(defaultCreatorForm);
+  const [editingTutorial, setEditingTutorial] = useState<TutorialEntry | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
+  const [metadataError, setMetadataError] = useState("");
+  const detectedDuration = formatTutorialDuration(videoDurationSeconds);
+  const availableDraftShells = useMemo(() => {
+    const uploadedIds = new Set(uploadedTutorials.map((tutorial) => tutorial.id));
+    return draftShells.filter((shell) => !uploadedIds.has(shell.id));
+  }, [draftShells, uploadedTutorials]);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!profile?.id) {
+        throw new Error("You must be signed in as an admin to create tutorials.");
+      }
+      if (!videoFile && !editingTutorial?.videoSrc) {
+        throw new Error("Choose a tutorial video before creating the tutorial.");
+      }
+
+      const title = form.title.trim();
+      const tutorialId = sanitizeTutorialId(form.id || title);
+      if (!tutorialId) {
+        throw new Error("Add a tutorial title or ID.");
+      }
+
+      const durationSeconds =
+        videoFile && videoDurationSeconds <= 0
+          ? await readVideoDuration(videoFile).catch(() => 0)
+          : videoDurationSeconds;
+
+      return createUploadedTutorial(
+        {
+          id: tutorialId,
+          title,
+          audience: form.audience,
+          category: form.category,
+          routePatterns: splitList(form.routePatterns),
+          promptRoutePatterns: splitList(form.promptRoutePatterns),
+          tags: splitList(form.tags),
+          summary: form.summary,
+          durationSeconds,
+          steps: splitList(form.steps),
+          transcript: form.transcript,
+          relatedFeatureLink: form.relatedFeatureLink,
+          status: form.status,
+        },
+        videoFile,
+        posterFile,
+        profile.id,
+        editingTutorial,
+      );
+    },
+    onSuccess: async () => {
+      setForm(defaultCreatorForm);
+      setEditingTutorial(null);
+      setVideoFile(null);
+      setPosterFile(null);
+      setVideoDurationSeconds(0);
+      setMetadataError("");
+      await queryClient.invalidateQueries({ queryKey: ["tutorial-entries"] });
+    },
+  });
+  const submitLabel =
+    createMutation.isPending
+      ? "Uploading..."
+      : form.status === "published"
+        ? editingTutorial
+          ? "Save and publish"
+          : "Upload and publish"
+        : editingTutorial
+          ? "Save draft"
+          : "Upload as draft";
+
+  const updateField =
+    <Key extends keyof TutorialCreatorForm>(field: Key) =>
+    (value: TutorialCreatorForm[Key]) => {
+      setForm((current) => ({ ...current, [field]: value }));
+    };
+
+  const handleVideoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setVideoFile(file);
+    setVideoDurationSeconds(0);
+    setMetadataError("");
+
+    if (!file) {
+      return;
+    }
+
+    readVideoDuration(file)
+      .then(setVideoDurationSeconds)
+      .catch(() => {
+        setMetadataError("Duration will be empty until the video metadata can be read.");
+      });
+  };
+
+  const loadShell = (shell: TutorialEntry) => {
+    setEditingTutorial(null);
+    setVideoFile(null);
+    setPosterFile(null);
+    setVideoDurationSeconds(0);
+    setMetadataError("");
+    setForm({
+      audience: shell.audience ?? "all",
+      category: shell.category,
+      id: shell.id,
+      promptRoutePatterns: (shell.promptRoutePatterns ?? []).join("\n"),
+      relatedFeatureLink: shell.relatedFeatureLink,
+      routePatterns: shell.routePatterns.join("\n"),
+      status: "published",
+      steps: shell.steps.join("\n"),
+      summary: shell.summary,
+      tags: shell.tags.join(", "),
+      title: shell.title,
+      transcript: shell.transcript,
+    });
+    window.requestAnimationFrame(() => {
+      studioFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const loadUploadedTutorial = (tutorial: TutorialEntry) => {
+    setEditingTutorial(tutorial);
+    setVideoFile(null);
+    setPosterFile(null);
+    setVideoDurationSeconds(tutorial.durationSeconds ?? 0);
+    setMetadataError("");
+    setForm({
+      audience: tutorial.audience ?? "all",
+      category: tutorial.category,
+      id: tutorial.id,
+      promptRoutePatterns: (tutorial.promptRoutePatterns ?? []).join("\n"),
+      relatedFeatureLink: tutorial.relatedFeatureLink,
+      routePatterns: tutorial.routePatterns.join("\n"),
+      status: tutorial.status ?? "published",
+      steps: tutorial.steps.join("\n"),
+      summary: tutorial.summary,
+      tags: tutorial.tags.join(", "),
+      title: tutorial.title,
+      transcript: tutorial.transcript,
+    });
+  };
+
+  const clearForm = () => {
+    setForm(defaultCreatorForm);
+    setEditingTutorial(null);
+    setVideoFile(null);
+    setPosterFile(null);
+    setVideoDurationSeconds(0);
+    setMetadataError("");
+  };
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    createMutation.mutate();
+  };
+
+  return (
+    <section className="page-shell p-4 sm:p-5" data-testid="admin-tutorial-creator">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="page-kicker">Admin tutorial studio</span>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+            {editingTutorial ? "Edit tutorial video" : "Upload a tutorial video"}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            Create tutorials from the live site. Draft shells stay private until a real video is uploaded and the entry is published.
+          </p>
+        </div>
+        <Badge variant="outline">Admin only</Badge>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        <Card data-testid="admin-tutorial-draft-shells">
+          <CardHeader>
+            <CardTitle>Draft upload shells</CardTitle>
+            <CardDescription>
+              These are templates only. Pick one, upload the real video, then publish it into the global tutorial library.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {availableDraftShells.length ? (
+              availableDraftShells.map((shell) => (
+                <DraftShellCard key={shell.id} onUpload={() => loadShell(shell)} shell={shell} />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No draft shells match this search.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Uploaded tutorials</CardTitle>
+            <CardDescription>
+              Edit details, publish, unpublish, or test entries that already have real uploaded media.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {uploadedTutorials.length ? (
+              uploadedTutorials.slice(0, 8).map((tutorial) => (
+                <button
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-background/72 px-3 py-2 text-left transition hover:bg-secondary"
+                  key={tutorial.id}
+                  onClick={() => loadUploadedTutorial(tutorial)}
+                  type="button"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold">{tutorial.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {tutorial.duration || "No duration"} - {tutorial.category}
+                    </span>
+                  </span>
+                  <Badge variant={tutorial.status === "published" ? "secondary" : "outline"}>
+                    {tutorial.status ?? "published"}
+                  </Badge>
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No real tutorial videos have been uploaded yet.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <form className="mt-5 grid gap-4" onSubmit={submit} ref={studioFormRef}>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="grid gap-2 text-sm font-medium">
+            Tutorial title
+            <Input
+              onChange={(event) => updateField("title")(event.target.value)}
+              placeholder="Dashboard basics"
+              required
+              value={form.title}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Tutorial ID
+            <Input
+              onChange={(event) => updateField("id")(event.target.value)}
+              placeholder={sanitizeTutorialId(form.title) || "dashboard-basics"}
+              value={form.id}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-4">
+          <label className="grid gap-2 text-sm font-medium">
+            Category
+            <select
+              className="appearance-select h-11 rounded-lg border border-input/85 bg-background/92 px-3.5 text-sm font-semibold outline-none"
+              onChange={(event) => updateField("category")(event.target.value as TutorialCategory)}
+              value={form.category}
+            >
+              {tutorialCategories.map((categoryOption) => (
+                <option key={categoryOption} value={categoryOption}>
+                  {categoryOption}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Audience
+            <select
+              className="appearance-select h-11 rounded-lg border border-input/85 bg-background/92 px-3.5 text-sm font-semibold outline-none"
+              onChange={(event) =>
+                updateField("audience")(event.target.value as TutorialCreatorForm["audience"])
+              }
+              value={form.audience}
+            >
+              <option value="all">All users</option>
+              <option value="learner">Learners</option>
+              <option value="admin">Admins</option>
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Status
+            <select
+              className="appearance-select h-11 rounded-lg border border-input/85 bg-background/92 px-3.5 text-sm font-semibold outline-none"
+              onChange={(event) => updateField("status")(event.target.value as TutorialStatus)}
+              value={form.status}
+            >
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Feature link
+            <Input
+              onChange={(event) => updateField("relatedFeatureLink")(event.target.value)}
+              placeholder="/dashboard"
+              value={form.relatedFeatureLink}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="grid gap-2 text-sm font-medium">
+            Video file
+            <Input
+              accept="video/mp4,video/webm,video/quicktime"
+              onChange={handleVideoChange}
+              required={!editingTutorial?.videoSrc}
+              type="file"
+            />
+            <span className="text-xs text-muted-foreground">
+              {detectedDuration
+                ? `Detected duration: ${detectedDuration}`
+                : metadataError || "The card time appears only after a real video duration is detected."}
+            </span>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Poster image
+            <Input accept="image/jpeg,image/png,image/webp" onChange={(event) => setPosterFile(event.target.files?.[0] ?? null)} type="file" />
+            <span className="text-xs text-muted-foreground">
+              Optional. BinderNotes uses the default tutorial poster if this is empty.
+            </span>
+          </label>
+        </div>
+
+        <label className="grid gap-2 text-sm font-medium">
+          Summary
+          <Textarea
+            onChange={(event) => updateField("summary")(event.target.value)}
+            placeholder="What this tutorial teaches in one or two lines."
+            required
+            value={form.summary}
+          />
+        </label>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="grid gap-2 text-sm font-medium">
+            Tags
+            <Textarea
+              onChange={(event) => updateField("tags")(event.target.value)}
+              placeholder="dashboard, folders, getting started"
+              value={form.tags}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Routes
+            <Textarea
+              onChange={(event) => updateField("routePatterns")(event.target.value)}
+              placeholder="/dashboard, /admin, /math/lab"
+              value={form.routePatterns}
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <label className="grid gap-2 text-sm font-medium">
+            First-time prompt routes
+            <Textarea
+              onChange={(event) => updateField("promptRoutePatterns")(event.target.value)}
+              placeholder="/dashboard"
+              value={form.promptRoutePatterns}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Steps
+            <Textarea
+              onChange={(event) => updateField("steps")(event.target.value)}
+              placeholder="Open Dashboard&#10;Choose a folder&#10;Open a binder"
+              value={form.steps}
+            />
+          </label>
+        </div>
+
+        <label className="grid gap-2 text-sm font-medium">
+          Transcript
+          <Textarea
+            onChange={(event) => updateField("transcript")(event.target.value)}
+            placeholder="Paste the caption/script text for search and accessibility."
+            value={form.transcript}
+          />
+        </label>
+
+        {createMutation.error ? (
+          <p className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {createMutation.error instanceof Error ? createMutation.error.message : "Could not create tutorial."}
+          </p>
+        ) : null}
+        {createMutation.isSuccess ? (
+          <p className="rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
+            Tutorial uploaded. It is now available in the tutorial library.
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={createMutation.isPending} type="submit">
+            <Upload data-icon="inline-start" />
+            {submitLabel}
+          </Button>
+          <Button
+            onClick={clearForm}
+            type="button"
+            variant="outline"
+          >
+            <Plus data-icon="inline-start" />
+            Clear form
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function DraftShellCard({
+  onUpload,
+  shell,
+}: {
+  onUpload: () => void;
+  shell: TutorialEntry;
+}) {
+  return (
+    <Card className="overflow-hidden border-dashed">
+      <div className="relative border-b border-border/70 bg-background">
+        <img
+          alt={`${shell.title} draft poster`}
+          className="aspect-video w-full object-cover opacity-70"
+          loading="lazy"
+          src={shell.posterSrc}
+        />
+        <span className="absolute bottom-3 left-3 rounded-md border border-border/70 bg-background/90 px-2 py-1 text-xs font-semibold shadow-sm">
+          Draft shell
+        </span>
+      </div>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{shell.category}</Badge>
+          {shell.tags.slice(0, 2).map((tag) => (
+            <span className="text-xs font-medium text-muted-foreground" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+        <CardTitle className="text-xl">{shell.title}</CardTitle>
+        <CardDescription>{shell.summary}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2 pt-0">
+        <Button onClick={onUpload} type="button">
+          <Upload data-icon="inline-start" />
+          Upload video
+        </Button>
+        <Button asChild type="button" variant="outline">
+          <Link to={shell.relatedFeatureLink}>
+            Open this feature
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TutorialCard({
+  onOpen,
+  tutorial,
+}: {
+  onOpen: () => void;
+  tutorial: TutorialEntry;
+}) {
+  const hasRealDuration = Boolean(tutorial.videoSrc && tutorial.duration);
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="relative border-b border-border/70 bg-background">
+        <img
+          alt={`${tutorial.title} poster`}
+          className="aspect-video w-full object-cover"
+          loading="lazy"
+          src={tutorial.posterSrc}
+        />
+        {hasRealDuration ? (
+          <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/90 px-2 py-1 text-xs font-semibold shadow-sm">
+            <Clock className="size-3.5 text-primary" />
+            {tutorial.duration}
+          </span>
+        ) : null}
+      </div>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{tutorial.category}</Badge>
+          {tutorial.status && tutorial.status !== "published" ? (
+            <Badge variant="outline">{tutorial.status}</Badge>
+          ) : null}
+          {tutorial.tags.slice(0, 2).map((tag) => (
+            <span className="text-xs font-medium text-muted-foreground" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+        <CardTitle className="text-xl">{tutorial.title}</CardTitle>
+        <CardDescription>{tutorial.summary}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2 pt-0">
+        <Button onClick={onOpen} type="button">
+          <Play data-icon="inline-start" />
+          Open tutorial
+        </Button>
+        <Button asChild type="button" variant="outline">
+          <Link to={tutorial.relatedFeatureLink}>
+            Open this feature
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function splitList(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function readVideoDuration(file: File) {
+  return new Promise<number>((resolve, reject) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(Number.isFinite(video.duration) ? video.duration : 0);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read video metadata."));
+    };
+    video.src = objectUrl;
+  });
 }
