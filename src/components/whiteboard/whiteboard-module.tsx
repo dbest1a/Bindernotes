@@ -622,9 +622,10 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     (
       frame: Pick<WhiteboardModuleElement, "x" | "y" | "width" | "height">,
       run: () => void,
+      options?: { skipZoomPrompt?: boolean },
     ) => {
       const transform = viewportTransformRef.current;
-      if (!isUnsafeModuleCreationZoom(transform.zoom)) {
+      if (options?.skipZoomPrompt || !isUnsafeModuleCreationZoom(transform.zoom)) {
         run();
         return;
       }
@@ -843,7 +844,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         updatedAt: timestamp,
       };
 
-      runWithModuleCreationZoomSafety(frame, () => updateBoardModules((modules) => [...modules, moduleElement]));
+      runWithModuleCreationZoomSafety(
+        frame,
+        () => updateBoardModules((modules) => [...modules, moduleElement]),
+        { skipZoomPrompt: anchorMode === "viewport" },
+      );
     },
     [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );
@@ -898,7 +903,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         createdAt: timestamp,
         updatedAt: timestamp,
       };
-      runWithModuleCreationZoomSafety(frame, () => updateBoardModules((modules) => [...modules, moduleElement]));
+      runWithModuleCreationZoomSafety(
+        frame,
+        () => updateBoardModules((modules) => [...modules, moduleElement]),
+        { skipZoomPrompt: anchorMode === "viewport" },
+      );
     },
     [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );

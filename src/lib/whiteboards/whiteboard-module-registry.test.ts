@@ -41,10 +41,12 @@ describe("whiteboard module registry", () => {
     expect(getWhiteboardModuleDefinition("whiteboard")).toBeNull();
   });
 
-  it("keeps heavy math tools unmounted unless their card is live and visible", () => {
-    expect(shouldRenderWhiteboardModuleLive(element("desmos-graph", "preview"), { visible: true })).toBe(false);
+  it("keeps always-live tools mounted unless collapsed while regular modules still honor visibility", () => {
+    expect(shouldRenderWhiteboardModuleLive(element("desmos-graph", "preview"), { visible: true })).toBe(true);
+    expect(shouldRenderWhiteboardModuleLive(element("scientific-calculator", "preview"), { visible: false })).toBe(true);
     expect(shouldRenderWhiteboardModuleLive(element("scientific-calculator", "collapsed"), { visible: true })).toBe(false);
-    expect(shouldRenderWhiteboardModuleLive(element("desmos-graph", "live"), { visible: false })).toBe(false);
+    expect(shouldRenderWhiteboardModuleLive(element("saved-graphs", "live"), { visible: false })).toBe(false);
+    expect(shouldRenderWhiteboardModuleLive(element("saved-graphs", "preview"), { visible: true })).toBe(false);
     expect(shouldRenderWhiteboardModuleLive(element("desmos-graph", "live"), { visible: true })).toBe(true);
   });
 });

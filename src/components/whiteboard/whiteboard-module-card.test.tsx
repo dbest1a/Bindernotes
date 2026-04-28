@@ -133,6 +133,48 @@ describe("WhiteboardModuleCard", () => {
     expect(screen.queryByTestId("whiteboard-card-options-menu")).toBeNull();
   });
 
+  it("offers Desmos normal board, fixed-size board, and screen pin choices", () => {
+    const onChange = vi.fn();
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          moduleId: "desmos-graph",
+          anchorMode: "viewport",
+          pinned: false,
+          width: 720,
+          height: 560,
+        })}
+        onBringToFront={vi.fn()}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        presentation="live"
+        renderLayer="viewport"
+        viewportTransform={viewportTransform}
+      >
+        Live graph
+      </WhiteboardModuleCard>,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-pin-button"));
+
+    expect(screen.getByTestId("whiteboard-card-anchor-menu")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-card-anchor-board")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-card-anchor-board-fixed")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-card-anchor-viewport")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-anchor-board"));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchorMode: "board",
+        pinned: true,
+        width: 420,
+        height: 320,
+      }),
+    );
+  });
+
   it("docks open card menus between the header and content instead of overlaying module text", () => {
     render(
       <WhiteboardModuleCard

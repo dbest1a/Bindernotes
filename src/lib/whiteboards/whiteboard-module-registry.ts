@@ -73,7 +73,7 @@ const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
     heavy: true,
     defaultWidth: 720,
     defaultHeight: 560,
-    defaultAnchorMode: "viewport",
+    defaultAnchorMode: "board-fixed-size",
   },
   {
     moduleId: "scientific-calculator",
@@ -112,10 +112,32 @@ export function getWhiteboardModuleDefinition(moduleId: WorkspaceModuleId) {
   return embeddableWhiteboardModules.find((definition) => definition.moduleId === moduleId) ?? null;
 }
 
+export const alwaysLiveWhiteboardModules = new Set<WorkspaceModuleId>([
+  "desmos-graph",
+  "private-notes",
+  "scientific-calculator",
+]);
+
+export const viewportFloatingWhiteboardModules = new Set<WorkspaceModuleId>([
+  "desmos-graph",
+]);
+
+export function isAlwaysLiveWhiteboardModule(moduleId: WorkspaceModuleId) {
+  return alwaysLiveWhiteboardModules.has(moduleId);
+}
+
+export function isViewportFloatingWhiteboardModule(moduleId: WorkspaceModuleId) {
+  return viewportFloatingWhiteboardModules.has(moduleId);
+}
+
 export function shouldRenderWhiteboardModuleLive(
   moduleElement: WhiteboardModuleElement,
   options: { visible: boolean },
 ) {
+  if (isAlwaysLiveWhiteboardModule(moduleElement.moduleId)) {
+    return moduleElement.mode !== "collapsed";
+  }
+
   if (moduleElement.mode !== "live" || !options.visible) {
     return false;
   }

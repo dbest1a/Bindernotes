@@ -267,7 +267,7 @@ describe("MathWhiteboardLabPage", () => {
 
     expect(screen.getByText("Desmos graph")).toBeTruthy();
     expect(screen.queryByText(/preview/i)).toBeNull();
-    expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')?.getAttribute("data-whiteboard-module-anchor")).toBe("viewport");
+    expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
   });
 
   it("adds multiple independent Desmos cards from the toolbox", () => {
@@ -350,6 +350,45 @@ describe("MathWhiteboardLabPage", () => {
 
     await waitFor(() => {
       expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
+    });
+  });
+
+  it("opens the screen-pinned scientific calculator without a zoom reset prompt", async () => {
+    const { container } = renderLab();
+
+    await waitFor(() => expect(mocks.whiteboardCanvasProps).toBeTruthy());
+    act(() => {
+      (
+        mocks.whiteboardCanvasProps?.onViewportChange as (transform: {
+          scrollX: number;
+          scrollY: number;
+          zoom: number;
+          viewportWidth: number;
+          viewportHeight: number;
+          offsetLeft: number;
+          offsetTop: number;
+        }) => void
+      )({
+        scrollX: 0,
+        scrollY: 0,
+        zoom: 0.4,
+        viewportWidth: 1200,
+        viewportHeight: 800,
+        offsetLeft: 0,
+        offsetTop: 0,
+      });
+    });
+
+    fireEvent.click(screen.getByTestId("whiteboard-module-drawer-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: /scientific calculator/i }));
+
+    expect(screen.queryByTestId("whiteboard-zoom-safety-prompt")).toBeNull();
+    await waitFor(() => {
+      const card = container.querySelector('[data-whiteboard-module="scientific-calculator"]');
+      expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("viewport");
+      expect(card?.getAttribute("data-whiteboard-module-presentation")).toBe("live");
+      expect(card?.textContent).not.toMatch(/zoom in or enlarge/i);
+      expect(screen.getByText("Scientific calculator")).toBeTruthy();
     });
   });
 
@@ -509,7 +548,7 @@ describe("MathWhiteboardLabPage", () => {
     });
   });
 
-  it("adds viewport modules near the current screen center without camera scaling", async () => {
+  it("adds Desmos as a fixed-size board-pinned module near the current board viewport", async () => {
     const { container } = renderLab();
 
     await waitFor(() => expect(mocks.whiteboardCanvasProps).toBeTruthy());
@@ -540,11 +579,13 @@ describe("MathWhiteboardLabPage", () => {
 
     await waitFor(() => {
       const card = container.querySelector('[data-whiteboard-module="desmos-graph"]');
-      expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("viewport");
-      expect(card?.getAttribute("style")).toContain("left: 240px");
-      expect(card?.getAttribute("style")).toContain("top: 120px");
+      expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
+      expect(card?.getAttribute("data-card-render-layer")).toBe("board");
+      expect(card?.getAttribute("style")).toContain("left: 150px");
+      expect(card?.getAttribute("style")).toContain("top: 50px");
       expect(card?.getAttribute("style")).toContain("width: 720px");
       expect(card?.getAttribute("style")).toContain("height: 560px");
+      expect(card?.getAttribute("style")).not.toContain("scale(");
     });
   });
 

@@ -10,6 +10,10 @@ import {
   getViewportCenterBoardPoint,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
+import {
+  alwaysLiveWhiteboardModules,
+  viewportFloatingWhiteboardModules,
+} from "@/lib/whiteboards/whiteboard-module-registry";
 import type { WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 
 const baseTransform: WhiteboardViewportTransform = {
@@ -135,16 +139,62 @@ describe("whiteboard coordinate utilities", () => {
     expect(getEmbeddedModulePresentation(moduleElement({ mode: "collapsed" }), baseTransform, true)).toBe("chip");
   });
 
-  it("keeps Desmos out of live mode when zoom would make the graph skinny", () => {
-    const graph = moduleElement({
-      moduleId: "desmos-graph",
+  it("keeps the scientific calculator live when zoom would otherwise make it too small", () => {
+    const calculator = moduleElement({
+      moduleId: "scientific-calculator",
       width: 840,
       height: 640,
       mode: "live",
     });
 
-    expect(getEmbeddedModulePresentation(graph, { ...baseTransform, zoom: 0.54 }, true)).toBe("preview");
-    expect(getEmbeddedModulePresentation(graph, { ...baseTransform, zoom: 0.56 }, true)).toBe("live");
+    expect(getEmbeddedModulePresentation(calculator, { ...baseTransform, zoom: 0.2 }, true)).toBe("live");
+    expect(getEmbeddedModulePresentation(calculator, { ...baseTransform, zoom: 0.2 }, false)).toBe("live");
+  });
+
+  it("keeps Desmos, Private Notes, and Scientific Calculator live even when zoomed out or offscreen", () => {
+    expect(alwaysLiveWhiteboardModules.has("desmos-graph")).toBe(true);
+    expect(alwaysLiveWhiteboardModules.has("private-notes")).toBe(true);
+    expect(alwaysLiveWhiteboardModules.has("scientific-calculator")).toBe(true);
+    expect(viewportFloatingWhiteboardModules.has("desmos-graph")).toBe(true);
+
+    const lowZoom = { ...baseTransform, zoom: 0.2 };
+    const desmos = moduleElement({ moduleId: "desmos-graph", anchorMode: "board" });
+    const notes = moduleElement({ moduleId: "private-notes", anchorMode: "board" });
+    const calculator = moduleElement({ moduleId: "scientific-calculator", anchorMode: "board" });
+
+    expect(getEmbeddedModulePresentation(desmos, lowZoom, true)).toBe("live");
+    expect(getEmbeddedModulePresentation(desmos, lowZoom, false)).toBe("live");
+    expect(getEmbeddedModulePresentation(notes, lowZoom, true)).toBe("live");
+    expect(getEmbeddedModulePresentation(notes, lowZoom, false)).toBe("live");
+    expect(getEmbeddedModulePresentation(calculator, lowZoom, true)).toBe("live");
+    expect(getEmbeddedModulePresentation(calculator, lowZoom, false)).toBe("live");
+    expect(getEmbeddedModulePresentation(desmos, lowZoom, true)).not.toBe("preview");
+    expect(getEmbeddedModulePresentation(notes, lowZoom, true)).not.toBe("preview");
+    expect(getEmbeddedModulePresentation(calculator, lowZoom, true)).not.toBe("preview");
+  });
+
+  it("does not mount collapsed always-live modules as live content", () => {
+    expect(
+      getEmbeddedModulePresentation(
+        moduleElement({ moduleId: "desmos-graph", mode: "collapsed" }),
+        baseTransform,
+        true,
+      ),
+    ).toBe("chip");
+    expect(
+      getEmbeddedModulePresentation(
+        moduleElement({ moduleId: "private-notes", mode: "collapsed" }),
+        baseTransform,
+        true,
+      ),
+    ).toBe("chip");
+    expect(
+      getEmbeddedModulePresentation(
+        moduleElement({ moduleId: "scientific-calculator", mode: "collapsed" }),
+        baseTransform,
+        true,
+      ),
+    ).toBe("chip");
   });
 
   it("converts viewport cards to board-fixed-size while preserving visual position and size", () => {

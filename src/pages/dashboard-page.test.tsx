@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, Profile, WorkspaceDiagnostic } from "@/types";
 
 const mocks = vi.hoisted(() => {
@@ -131,9 +131,15 @@ vi.mock("@/hooks/use-binders", () => ({
 import { DashboardPage } from "@/pages/dashboard-page";
 
 describe("DashboardPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     mocks.dashboardState.error = null;
     mocks.dashboardState.isLoading = false;
+    mocks.profile.role = "admin";
+    window.localStorage.clear();
   });
 
   it("renders real binders near the top and hides untitled placeholder binders", () => {
@@ -159,5 +165,59 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("Workspace diagnostics")).toBeNull();
     expect(screen.queryByText("Folder warning")).toBeNull();
     expect(screen.queryByText("Environment warning")).toBeNull();
+  });
+
+  it("renders the admin makeover dashboard only when an admin chooses it", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Your BinderNotes Workspace")).toBeTruthy();
+    expect(screen.getByTestId("admin-dashboard-makeover")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /organize/i })).toBeTruthy();
+  });
+
+  it("keeps learners on the normal dashboard even if makeover preference exists", () => {
+    mocks.profile.role = "learner";
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("admin-dashboard-makeover")).toBeNull();
+    expect(screen.getByText("A real study hierarchy: folders, binders, then documents.")).toBeTruthy();
+  });
+
+  it("shows admin-only organization controls and drag handles in makeover edit mode", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /organize/i }));
+
+    expect(screen.getAllByText("Organizing workspace").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /save order/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
+    expect(screen.getAllByLabelText(/drag .* to reorder/i).length).toBeGreaterThan(0);
   });
 });

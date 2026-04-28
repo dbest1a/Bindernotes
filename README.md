@@ -1,39 +1,89 @@
 # Binder Notes
 
-Binder Notes is a Phase 1 MVP for a student-first learning workspace:
+Last updated: 2026-04-27
 
+Binder Notes is a student-first learning workspace for reading course material, taking private notes, graphing math, building study layouts, and testing the product through a Vercel-ready public site.
+
+The app has grown past the first Phase 1 MVP. It now includes:
+
+- Public landing and pricing pages for `bindernotes.com`
 - Supabase Auth with email/password sessions
-- Admin/learner roles
-- Published binders and lessons
-- Learner-owned private notes
-- Comments and highlights tied to lessons
-- Tiptap rich text editing
-- LaTeX rendering and function graph blocks
-- Desmos-powered math lab with graph state persistence
-- Built-in scientific calculator with history
-- Tailwind + shadcn-style UI components
-- Stripe pricing/checkout scaffolding
-- User workspace presets, modules, themes, and locked setup mode
+- Admin and learner roles
+- Published binders, folders, lessons, and system-seeded course content
+- Learner-owned private notes, comments, highlights, and workspace preferences
+- Tiptap rich text editing with LaTeX rendering
+- Desmos-powered 2D and 3D graph modules
+- Scientific calculator, saved graph states, and graph history
+- Math learning routes for courses, modules, question authoring, quizzes, attempts, and results
+- Jacob Math Notes coverage from Geometry through Real Analysis
+- History learning content, including Roman history and a Russian Revolution showcase
+- Supabase-backed whiteboards with templates, pinned objects, annotations, standalone lab support, and beta limits
+- Workspace presets, simple presentation mode, canvas/study panels, focus mode, theme controls, and admin motion controls
+- Admin-only premium dashboard makeover with Google Drive-style organize mode for folders and binders
+- Stripe pricing and checkout service scaffolding
+- Deployment hardening, client environment guards, seed repair scripts, and live auth verification helpers
+
+## What Changed Recently
+
+The previous README was last touched on 2026-04-21. Since then, the repo has added several major areas:
+
+- Math learning infrastructure: routes under `/math`, seeded calculus/Jacob modules, manual question banks, quiz sets, attempts, scoring, and Supabase tables in `0011_math_learning_infrastructure.sql`.
+- Full Jacob Math Notes coverage: 27 published modules, 54 linked practice questions, formula cards, graph/demo cards, related concepts, and a coverage ledger in `docs/jacob-math-notes-coverage.md`.
+- Whiteboard system: Supabase persistence, standalone math whiteboard lab, module cards, toolbar/launcher/template picker, pinned object layers, annotation targeting, serialization, layout helpers, and migrations `0012` through `0015`.
+- Workspace and preset improvements: layout engine, preset validation, subject-aware module support, compact module spacing, richer settings, focus fixes, and panel sizing tests.
+- Public marketing work: redesigned landing page and pricing page, plus a polished pricing comparison table.
+- Admin dashboard preview: profile-gated Normal/Admin Makeover toggle, premium motion/color controls, glassy workspace redesign, dnd-kit folder/binder drag ordering, local admin order drafts, and migration-ready sort columns.
+- History content expansion: Russian Revolution seed data and services alongside the existing history suite.
+- Production readiness: `scripts/build-client.mjs`, `scripts/client-env-guard.mjs`, `scripts/verify-live-auth.mjs`, Vercel headers/rewrites, and additional seed/repair/verification scripts.
 
 ## Architecture
 
-The app is a React + TypeScript + Vite SPA. Supabase is the source of truth once configured. The app includes a small in-memory demo fallback only so the interface can be reviewed before environment variables are present; it does not use `localStorage` for product data.
+Binder Notes is a React + TypeScript + Vite SPA. Supabase is the source of truth once configured. The app still includes small demo fallbacks so UI flows can be reviewed without full backend data, but user product data should live in Supabase.
 
 Key layers:
 
-- `src/lib` contains Supabase setup, seed demo data, and utilities.
-- `src/services` contains data access and payment service boundaries.
-- `src/hooks` contains auth, React Query, and autosave helpers.
-- `src/components` contains reusable UI, editor, math, and layout components.
+- `src/App.tsx` defines public, protected, legacy, math, admin, tutorial, and pricing routes.
 - `src/pages` contains route-level screens.
-- `supabase/migrations` contains normalized tables and RLS policies.
+- `src/components` contains reusable UI, editor, math, whiteboard, workspace, history, and layout components.
+- `src/hooks` contains auth, React Query, autosave, math workspace, admin motion, and workspace preference hooks.
+- `src/lib` contains Supabase setup, demo/system seeds, scoring, diagnostics, workspace engines, dashboard organization helpers, math coverage, whiteboard utilities, and production guards.
+- `src/services` contains data access boundaries for binders, math learning, history, appearance, workspace presets, system seeds, and Stripe.
+- `supabase/migrations` contains normalized tables, seed/support tables, RLS policies, math learning tables, appearance settings, and whiteboard storage.
+- `docs` contains math infrastructure notes, Jacob coverage, and planning handoff notes.
+- `scripts` contains seed, repair, verification, live auth, and client build safety scripts.
 
-Workspace customization is intentionally isolated:
+## Routes
 
-- `src/lib/workspace-preferences.ts` defines presets, modules, themes, and persistence helpers.
-- `src/hooks/use-workspace-preferences.ts` loads/saves per-user, per-binder workspace state.
-- `src/components/workspace` contains the panel registry, setup controls, and reusable panel chrome.
-- Current runtime persistence uses `localStorage` for UI preferences only. The migration also includes `workspace_preferences` for backend sync.
+Public:
+
+- `/` public landing page
+- `/pricing` pricing and plan comparison
+- `/auth` signup/sign-in
+
+Protected app:
+
+- `/dashboard`
+- `/folders/:folderId`
+- `/binders/:binderId`
+- `/binders/:binderId/documents/:lessonId`
+- `/binder/:binderId` legacy redirect route
+- `/admin`
+- `/tutorial`
+
+Math:
+
+- `/math`
+- `/math/lab`
+- `/math/lab/whiteboard`
+- `/math/courses/:courseSlug`
+- `/math/modules`
+- `/math/modules/:moduleSlug`
+- `/math/questions`
+- `/math/questions/new`
+- `/math/questions/:questionId/edit`
+- `/math/quizzes/:quizId`
+- `/math/quizzes/:quizId/attempt`
+- `/math/quizzes/:quizId/results/:attemptId`
 
 ## Setup
 
@@ -49,21 +99,23 @@ Workspace customization is intentionally isolated:
    cp .env.example .env
    ```
 
-3. Add Supabase values:
+3. Add local environment values:
 
    ```env
    VITE_SUPABASE_URL="https://your-project.supabase.co"
    VITE_SUPABASE_ANON_KEY="your-supabase-anon-key"
    VITE_DESMOS_API_KEY="your-desmos-api-key"
+   VITE_STRIPE_PUBLISHABLE_KEY="optional-stripe-publishable-key"
+   VITE_STRIPE_PRO_PRICE_ID="optional-stripe-price-id"
    ```
 
-4. Apply the Supabase migration:
+4. Apply migrations:
 
    ```bash
    supabase db push
    ```
 
-   Or paste `supabase/migrations/0001_binder_notes_phase1.sql` into the Supabase SQL editor.
+   Or apply the files in `supabase/migrations` through the Supabase SQL editor.
 
 5. Create a user through the app signup screen. To make that user an admin:
 
@@ -73,9 +125,14 @@ Workspace customization is intentionally isolated:
    where email = 'you@example.com';
    ```
 
-6. Optional seed:
+6. Optional seed and repair commands:
 
-   Edit `supabase/seed.sql` and replace `admin@example.com`, then run it in the Supabase SQL editor.
+   ```bash
+   npm run seed:system
+   npm run verify:system
+   npm run seed:math
+   npm run verify:math-seed
+   ```
 
 7. Start the app:
 
@@ -83,21 +140,40 @@ Workspace customization is intentionally isolated:
    npm run dev
    ```
 
-## Deploy
+## Scripts
+
+- `npm run dev` starts Vite on `127.0.0.1`.
+- `npm run build` runs the guarded client build through `scripts/build-client.mjs`.
+- `npm run preview` previews the production build locally.
+- `npm run test` runs Vitest.
+- `npm run typecheck` runs TypeScript project checks.
+- `npm run seed:system` seeds system content.
+- `npm run repair:system` audits system content repair.
+- `npm run repair:system:apply` applies system content repair.
+- `npm run verify:system` verifies system content.
+- `npm run verify:system-seed` verifies system seed state.
+- `npm run seed:math` seeds math learning content.
+- `npm run verify:math-seed` verifies math learning seed state.
+- `npm run cleanup:placeholders` removes workspace placeholder artifacts.
+- `npm run verify:auth:live` checks the production auth page.
+- `npm run verify:client-env` checks built client output for environment leakage.
+
+## Deployment
 
 The app is Vercel-ready.
 
-Add these environment variables in Vercel:
+Required Vercel environment variables:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_DESMOS_API_KEY`
-- `VITE_STRIPE_PUBLISHABLE_KEY` optional for the placeholder pricing page
-- `VITE_STRIPE_PRO_PRICE_ID` optional until Checkout is wired
 
-Important: `.env.local` only affects local development. Shared Vercel previews and production builds need
-their own project environment variables set in Vercel before deployment. After adding or changing
-`VITE_DESMOS_API_KEY`, trigger a fresh deploy so the client bundle is rebuilt with the updated value.
+Optional Vercel environment variables:
+
+- `VITE_STRIPE_PUBLISHABLE_KEY`
+- `VITE_STRIPE_PRO_PRICE_ID`
+
+Important: `.env.local` only affects local development. Shared Vercel previews and production builds need their own project environment variables set in Vercel. After adding or changing `VITE_DESMOS_API_KEY`, trigger a fresh deploy so the client bundle is rebuilt with the updated value.
 
 Build command:
 
@@ -113,37 +189,44 @@ dist
 
 ## Production Hardening
 
-The repo includes a `vercel.json` with lightweight deployment protections that are safe for tonight's friend testing:
+The repo includes `vercel.json` protections for public testing:
 
-- SPA rewrites for deep BinderNotes routes
-- Content Security Policy that allows the current app, Supabase calls, and Desmos embeds
+- SPA rewrites for deep Binder Notes routes
+- Content Security Policy for the app, Supabase calls, Stripe, and Desmos embeds
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Strict-Transport-Security` for HTTPS deployments
-- conservative `Permissions-Policy`
+- Conservative `Permissions-Policy`
 
-Recommended Vercel-side settings for a public test:
+Recommended Vercel-side settings:
 
-- enable Vercel WAF managed rules
-- keep Deployment Protection off only for the environment you intentionally want friends to use
-- add Preview and Production copies of `VITE_DESMOS_API_KEY` if both preview links and the custom domain should load Desmos
-- if you expose Supabase-backed auth publicly, enable rate limits / bot protection on auth endpoints at the provider layer as well
+- Enable Vercel WAF managed rules.
+- Keep Deployment Protection off only for environments intentionally shared with testers.
+- Add Preview and Production copies of `VITE_DESMOS_API_KEY` if both preview links and the custom domain should load Desmos.
+- If Supabase-backed auth is public, enable rate limits and bot protection at the provider layer.
 
-## Stripe Plan
+## Data And Migrations
 
-Phase 1 includes a pricing page and a checkout service boundary in `src/services/stripe-service.ts`. The production path should add:
+The migration stack currently covers:
 
-- `api/create-checkout-session` serverless route
-- Stripe secret key stored server-side only
-- Checkout Sessions for Pro subscriptions
-- Webhook endpoint for `checkout.session.completed`
-- Updates to `purchases` and role/entitlement records
+- Phase 1 binder notes, profiles, folders, binders, lessons, notes, comments, highlights, and RLS
+- Highlight color and offset improvements
+- Private user data policies and route-aligned content IDs
+- History suite foundations and system suite folders
+- Seed version read policies and removal of default user folders
+- Profile appearance settings
+- Math learning courses, topics, modules, graph states, questions, choices, quizzes, attempts, and scoring records
+- Whiteboard foundation tables, launch readiness, beta limits, ownership, and standalone lab support
+- Dashboard ordering columns for future backend persistence: `folders.sort_order`, `binders.dashboard_sort_order`, and `folder_binders.sort_order`
 
-## Current MVP Limits
+Whiteboard storage is implemented through `src/lib/whiteboards/whiteboard-storage.ts` with Supabase and local/demo paths covered by tests.
 
-- Collaboration is architected through normalized comments/highlights, but realtime presence and threaded UI are future work.
-- Rich text is Tiptap-based; math blocks are separate structured blocks stored beside editor JSON.
-- The math lab persists graph states and calculator history locally per user right now; backend sync can come later through Supabase UI preference storage.
-- Concept nodes and edges are in the database and demo data, but the full visual graph UI can be expanded after the reader/admin flows stabilize.
-- The first build intentionally prioritizes product foundation over feature sprawl.
+## Current Limits
+
+- Collaboration has normalized comments, highlights, annotations, and whiteboard persistence, but realtime multi-user presence is still future work.
+- Stripe has public pricing and client-side service boundaries, but production Checkout still needs serverless session creation, server-side secrets, webhooks, and entitlement updates.
+- Free response quiz answers are stored but not AI-graded.
+- Jacob Math Notes has broad structured coverage; deeper custom interactives such as row-reduction steppers, richer proof editors, and theorem-specific diagrams remain future depth work.
+- Some workspace/preset polish is still active work, especially around advanced layout tools, drawers, and cramped secondary panels.
+- Admin dashboard organization currently saves admin layout drafts locally while the new backend ordering columns are staged for a safer Supabase persistence pass.

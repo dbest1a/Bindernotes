@@ -24,7 +24,7 @@ const desmosDefinition: WhiteboardModuleDefinition = {
   heavy: true,
   defaultWidth: 720,
   defaultHeight: 560,
-  defaultAnchorMode: "viewport",
+  defaultAnchorMode: "board-fixed-size",
 };
 
 function moduleElement(overrides: Partial<WhiteboardModuleElement>): WhiteboardModuleElement {
@@ -108,7 +108,7 @@ describe("whiteboard module layout", () => {
     ]);
 
     expect(normalized.map((module) => ({ id: module.id, anchorMode: module.anchorMode, pinned: module.pinned }))).toEqual([
-      { id: "graph", anchorMode: "viewport", pinned: false },
+      { id: "graph", anchorMode: "board-fixed-size", pinned: true },
       { id: "calculator", anchorMode: "viewport", pinned: false },
       { id: "lesson", anchorMode: "board-fixed-size", pinned: true },
       { id: "notes", anchorMode: "board-fixed-size", pinned: true },

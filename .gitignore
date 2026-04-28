@@ -8,7 +8,11 @@ build/
 .env.production.local
 .env.test.local
 .codex-tools/
+.tmp/
 .vercel/
+playwright-report/
+test-results/
+supabase/.temp/
 *.log
 *.tsbuildinfo
 vite.config.d.ts

@@ -1,19 +1,23 @@
-import { BookOpenText, Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, Sigma, Trash2 } from "lucide-react";
+import { BookOpenText, Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, RotateCcw, Sigma, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   getWhiteboardModuleDefinition,
+  isAlwaysLiveWhiteboardModule,
   isHeavyWhiteboardModule,
+  isViewportFloatingWhiteboardModule,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import {
   convertWhiteboardCardAnchor,
   defaultWhiteboardViewportTransform,
   getWhiteboardModuleAnchorMode,
   getWhiteboardModuleMinimumSize,
+  getWhiteboardViewportToolResetFrame,
   getWhiteboardModuleScreenRect,
   isWhiteboardModuleBoardPositioned,
   isWhiteboardModuleZoomScaled,
   screenDeltaToBoardDelta,
+  screenToBoardPoint,
   type EmbeddedModulePresentation,
   type WhiteboardScreenRect,
   type WhiteboardViewportTransform,
@@ -149,7 +153,9 @@ export function WhiteboardModuleCard({
   const [selected, setSelected] = useState(false);
   const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
   const heavy = isHeavyWhiteboardModule(moduleElement.moduleId);
+  const alwaysLive = isAlwaysLiveWhiteboardModule(moduleElement.moduleId);
   const anchorMode = getWhiteboardModuleAnchorMode(moduleElement);
+  const floatingTool = anchorMode === "viewport" && isViewportFloatingWhiteboardModule(moduleElement.moduleId);
   const pinned = anchorMode !== "viewport";
   const boardPositioned = isWhiteboardModuleBoardPositioned(moduleElement);
   const zoomScaled = isWhiteboardModuleZoomScaled(moduleElement);
@@ -248,6 +254,37 @@ export function WhiteboardModuleCard({
     onChange({
       ...moduleElement,
       ...patch,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const resetFloatingToolPosition = () => {
+    const transform = latestViewportTransform();
+    const frame = getWhiteboardViewportToolResetFrame(moduleElement, transform);
+    setSelected(true);
+    if (anchorMode !== "viewport") {
+      const boardPoint = screenToBoardPoint({ x: frame.x, y: frame.y }, transform);
+      onChange({
+        ...moduleElement,
+        anchorMode: "board-fixed-size",
+        pinned: true,
+        x: boardPoint.x,
+        y: boardPoint.y,
+        width: frame.width,
+        height: frame.height,
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    onChange({
+      ...moduleElement,
+      anchorMode: "viewport",
+      pinned: false,
+      x: frame.x,
+      y: frame.y,
+      width: frame.width,
+      height: frame.height,
       updatedAt: new Date().toISOString(),
     });
   };
@@ -497,6 +534,7 @@ export function WhiteboardModuleCard({
       data-card-render-layer={renderLayer}
       data-whiteboard-card="true"
       data-whiteboard-board-object="true"
+      data-whiteboard-floating-tool={floatingTool ? moduleElement.moduleId : undefined}
       data-whiteboard-module-anchor={anchorMode}
       data-whiteboard-module={moduleElement.moduleId}
       data-whiteboard-module-pinned={String(pinned)}
@@ -535,7 +573,7 @@ export function WhiteboardModuleCard({
               chip
             </span>
           ) : null}
-          {heavy && moduleElement.mode !== "live" ? (
+          {heavy && moduleElement.mode !== "live" && !alwaysLive ? (
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               preview
             </span>
@@ -577,6 +615,14 @@ export function WhiteboardModuleCard({
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
+              if (alwaysLive) {
+                onChange({
+                  ...moduleElement,
+                  mode: "live",
+                  updatedAt: new Date().toISOString(),
+                });
+                return;
+              }
               onChange({
                 ...moduleElement,
                 mode: moduleElement.mode === "live" ? "preview" : "live",
@@ -590,6 +636,23 @@ export function WhiteboardModuleCard({
           >
             <PanelTopOpen className="size-4" />
           </Button>
+          {floatingTool ? (
+            <Button
+              aria-label="Reset graph position"
+              data-testid="whiteboard-card-reset-position"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                resetFloatingToolPosition();
+              }}
+              size="icon"
+              title="Reset position"
+              type="button"
+              variant="ghost"
+            >
+              <RotateCcw className="size-4" />
+            </Button>
+          ) : null}
           <Button
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {

@@ -49,6 +49,7 @@ describe("AppShell profile settings", () => {
     cleanup();
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");
+    document.documentElement.removeAttribute("data-admin-dashboard");
     document.documentElement.removeAttribute("data-motion-intensity");
     document.documentElement.removeAttribute("data-motion-speed");
     document.documentElement.removeAttribute("data-premium-color-mode");
@@ -78,6 +79,41 @@ describe("AppShell profile settings", () => {
     fireEvent.click(screen.getByTestId("profile-menu-button"));
 
     expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
+  });
+
+  it("shows dashboard appearance controls only for admins", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("admin-dashboard-appearance")).toBeTruthy();
+    expect(screen.getByTestId("admin-dashboard-view-mode")).toBeTruthy();
+
+    cleanup();
+    authMock.profile = {
+      id: "user-2",
+      full_name: "Learner Person",
+      role: "learner",
+    };
+
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.queryByTestId("admin-dashboard-appearance")).toBeNull();
+  });
+
+  it("persists admin dashboard view mode and mirrors it to root data attributes", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.change(screen.getByTestId("admin-dashboard-view-mode"), {
+      target: { value: "admin-makeover" },
+    });
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
+      "admin-makeover",
+    );
   });
 
   it("persists admin motion settings and mirrors them to root data attributes", async () => {

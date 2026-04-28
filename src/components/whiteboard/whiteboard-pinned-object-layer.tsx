@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type ReactElement } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
@@ -7,12 +7,17 @@ import type {
 } from "@/components/math/math-workspace-modules";
 import {
   getWhiteboardModuleDefinition,
+  isAlwaysLiveWhiteboardModule,
+  isViewportFloatingWhiteboardModule,
   shouldRenderWhiteboardModuleLive,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import {
+  clampWhiteboardViewportToolFrame,
   defaultWhiteboardViewportTransform,
   getEmbeddedModulePresentation,
+  getWhiteboardModuleMinimumSize,
   getWhiteboardModuleAnchorMode,
+  getWhiteboardModuleScreenRect,
   isWhiteboardModuleVisibleInViewport,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
@@ -180,6 +185,63 @@ function getFloatingTransform(transform: WhiteboardViewportTransform): Whiteboar
     viewportHeight: transform.viewportHeight,
     offsetLeft: 0,
     offsetTop: 0,
+  };
+}
+
+function moduleFrameSignature(moduleElement: WhiteboardModuleElement) {
+  return [
+    moduleElement.id,
+    getWhiteboardModuleAnchorMode(moduleElement),
+    moduleElement.x,
+    moduleElement.y,
+    moduleElement.width,
+    moduleElement.height,
+    moduleElement.mode,
+  ].join(":");
+}
+
+function normalizeFloatingToolModule(
+  moduleElement: WhiteboardModuleElement,
+  floatingTransform: WhiteboardViewportTransform,
+) {
+  if (!isViewportFloatingWhiteboardModule(moduleElement.moduleId)) {
+    return { moduleElement, needsCommit: false };
+  }
+
+  const anchorMode = getWhiteboardModuleAnchorMode(moduleElement);
+  const minSize = getWhiteboardModuleMinimumSize(moduleElement.moduleId, moduleElement.mode);
+
+  if (anchorMode !== "viewport") {
+    return { moduleElement, needsCommit: false };
+  }
+
+  const currentScreenFrame = getWhiteboardModuleScreenRect(moduleElement, floatingTransform);
+  const preferredFrame = {
+    x: currentScreenFrame.x,
+    y: currentScreenFrame.y,
+    width: Math.max(moduleElement.width, currentScreenFrame.width, minSize.width),
+    height: Math.max(moduleElement.height, currentScreenFrame.height, minSize.height),
+  };
+  const clampedFrame = clampWhiteboardViewportToolFrame(preferredFrame, floatingTransform);
+  const normalizedModule: WhiteboardModuleElement = {
+    ...moduleElement,
+    anchorMode: "viewport",
+    pinned: false,
+    x: clampedFrame.x,
+    y: clampedFrame.y,
+    width: clampedFrame.width,
+    height: clampedFrame.height,
+  };
+  const needsCommit =
+    moduleElement.pinned !== false ||
+    moduleElement.x !== normalizedModule.x ||
+    moduleElement.y !== normalizedModule.y ||
+    moduleElement.width !== normalizedModule.width ||
+    moduleElement.height !== normalizedModule.height;
+
+  return {
+    moduleElement: normalizedModule,
+    needsCommit,
   };
 }
 
@@ -794,7 +856,8 @@ function WhiteboardObjectOverlay({
         const sourceScoped = lessonScopedWhiteboardModules.has(moduleElement.moduleId);
         const confirmedSource = sourceScoped ? isSourceConfirmed(moduleElement) : true;
         const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
-        const visible = isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
+        const alwaysLive = isAlwaysLiveWhiteboardModule(moduleElement.moduleId);
+        const visible = alwaysLive ? true : isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
         const presentation = getEmbeddedModulePresentation(moduleElement, viewportTransform, visible);
         const live =
           presentation === "live" &&
@@ -938,20 +1001,52 @@ export function WhiteboardPinnedObjectLayer({
   onRouteSelectionToNotes,
   viewportTransform = defaultWhiteboardViewportTransform,
 }: WhiteboardPinnedObjectLayerProps) {
+  const normalizedFloatingCommitRef = useRef(new Set<string>());
   const maxZIndex = modules.reduce((max, moduleElement) => Math.max(max, moduleElement.zIndex), 0);
   const pinnedTransform = getLayerTransform(viewportTransform, fixed);
   const floatingTransform = useMemo(
     () => getFloatingTransform(viewportTransform),
     [viewportTransform.viewportWidth, viewportTransform.viewportHeight],
   );
+  const floatingNormalizationResults = useMemo(
+    () =>
+      modules.map((moduleElement) => normalizeFloatingToolModule(moduleElement, floatingTransform)),
+    [floatingTransform, modules],
+  );
+  const normalizedModules = useMemo(
+    () => floatingNormalizationResults.map((result) => result.moduleElement),
+    [floatingNormalizationResults],
+  );
   const boardModules = useMemo(
-    () => modules.filter((moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) !== "viewport"),
-    [modules],
+    () =>
+      normalizedModules.filter(
+        (moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) !== "viewport",
+      ),
+    [normalizedModules],
   );
   const viewportModules = useMemo(
-    () => modules.filter((moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) === "viewport"),
-    [modules],
+    () =>
+      normalizedModules.filter((moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) === "viewport"),
+    [normalizedModules],
   );
+  const pendingFloatingNormalizations = useMemo(
+    () => floatingNormalizationResults.filter((result) => result.needsCommit),
+    [floatingNormalizationResults],
+  );
+
+  useEffect(() => {
+    pendingFloatingNormalizations.forEach((result) => {
+      const signature = moduleFrameSignature(result.moduleElement);
+      if (normalizedFloatingCommitRef.current.has(signature)) {
+        return;
+      }
+      normalizedFloatingCommitRef.current.add(signature);
+      onChangeModule({
+        ...result.moduleElement,
+        updatedAt: new Date().toISOString(),
+      });
+    });
+  }, [onChangeModule, pendingFloatingNormalizations]);
 
   return (
     <div
@@ -973,6 +1068,21 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="board"
         testId="whiteboard-board-object-overlay"
+        getViewportTransform={getViewportTransform}
+        viewportTransform={pinnedTransform}
+      />
+      <WhiteboardViewportToolOverlay
+        className="pointer-events-none absolute inset-0"
+        context={context}
+        maxZIndex={maxZIndex}
+        modules={[]}
+        onAddLinkedModule={onAddLinkedModule}
+        onChangeModule={onChangeModule}
+        onRemoveModule={onRemoveModule}
+        onRouteSelectionToNotes={onRouteSelectionToNotes}
+        renderModule={renderModule}
+        renderLayer="viewport"
+        testId="whiteboard-floating-board-tool-overlay"
         getViewportTransform={getViewportTransform}
         viewportTransform={pinnedTransform}
       />

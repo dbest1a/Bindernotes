@@ -26,6 +26,7 @@ export type Binder = {
   price_cents: number;
   cover_url: string | null;
   pinned: boolean;
+  dashboard_sort_order?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,6 +36,7 @@ export type FolderBinderLink = {
   owner_id: string;
   folder_id: string;
   binder_id: string;
+  sort_order?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +60,7 @@ export type Folder = {
   color: string;
   source?: "user" | "system";
   suite_template_id?: string | null;
+  sort_order?: number | null;
   created_at: string;
   updated_at: string;
 };

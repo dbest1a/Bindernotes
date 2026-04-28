@@ -1,4 +1,5 @@
 import type { WorkspaceModuleId } from "@/types";
+import { isAlwaysLiveWhiteboardModule } from "@/lib/whiteboards/whiteboard-module-registry";
 import type {
   WhiteboardModuleAnchorMode,
   WhiteboardModuleElement,
@@ -33,6 +34,9 @@ export const defaultWhiteboardViewportTransform: WhiteboardViewportTransform = {
   viewportHeight: 900,
 };
 
+export const WHITEBOARD_FLOATING_TOOL_SAFE_TOP_INSET = 104;
+export const WHITEBOARD_FLOATING_TOOL_VIEWPORT_PADDING = 8;
+
 const compactChipZoom = 0.35;
 const previewZoom = 0.55;
 
@@ -54,6 +58,14 @@ const liveScreenMinimumSizes: Partial<Record<WorkspaceModuleId, { width: number;
 
 function finiteNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function clampValue(value: number, min: number, max: number) {
+  if (max < min) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
 }
 
 export function getWindowWhiteboardViewportSize() {
@@ -333,13 +345,57 @@ export function getWhiteboardModuleMinimumSize(moduleId: WorkspaceModuleId, mode
   return moduleMinimumSizes[moduleId] ?? { width: 260, height: 180 };
 }
 
+export function clampWhiteboardViewportToolFrame(
+  frame: WhiteboardFrame,
+  transform: Pick<WhiteboardViewportTransform, "viewportWidth" | "viewportHeight">,
+  {
+    padding = WHITEBOARD_FLOATING_TOOL_VIEWPORT_PADDING,
+    safeTopInset = WHITEBOARD_FLOATING_TOOL_SAFE_TOP_INSET,
+  }: { padding?: number; safeTopInset?: number } = {},
+): WhiteboardFrame {
+  const maxWidth = Math.max(1, transform.viewportWidth - padding * 2);
+  const maxHeight = Math.max(1, transform.viewportHeight - safeTopInset - padding);
+  const width = Math.min(Math.max(1, frame.width), maxWidth);
+  const height = Math.min(Math.max(1, frame.height), maxHeight);
+
+  return {
+    x: clampValue(frame.x, padding, transform.viewportWidth - width - padding),
+    y: clampValue(frame.y, safeTopInset, transform.viewportHeight - height - padding),
+    width,
+    height,
+  };
+}
+
+export function getWhiteboardViewportToolResetFrame(
+  moduleElement: WhiteboardModuleElement,
+  transform: Pick<WhiteboardViewportTransform, "viewportWidth" | "viewportHeight">,
+): WhiteboardFrame {
+  const minSize = getWhiteboardModuleMinimumSize(moduleElement.moduleId, moduleElement.mode);
+  const preferredFrame = {
+    x: WHITEBOARD_FLOATING_TOOL_VIEWPORT_PADDING,
+    y: WHITEBOARD_FLOATING_TOOL_SAFE_TOP_INSET,
+    width: Math.max(moduleElement.width, minSize.width),
+    height: Math.max(moduleElement.height, minSize.height),
+  };
+
+  return clampWhiteboardViewportToolFrame(preferredFrame, transform);
+}
+
 export function getEmbeddedModulePresentation(
   moduleElement: WhiteboardModuleElement,
   transform: WhiteboardViewportTransform,
   visible: boolean,
 ): EmbeddedModulePresentation {
+  if (moduleElement.mode === "collapsed") {
+    return "chip";
+  }
+
+  if (isAlwaysLiveWhiteboardModule(moduleElement.moduleId)) {
+    return "live";
+  }
+
   const anchorMode = getWhiteboardModuleAnchorMode(moduleElement);
-  if (moduleElement.mode === "collapsed" || (anchorMode === "board" && transform.zoom < compactChipZoom)) {
+  if (anchorMode === "board" && transform.zoom < compactChipZoom) {
     return "chip";
   }
 

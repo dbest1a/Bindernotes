@@ -11,7 +11,8 @@ export type AdminMotionSettings = {
   pageTransition: PageTransitionStyle;
 };
 
-export const adminMotionStorageKey = "bindernotes:admin-motion:v1";
+export const adminMotionStorageKey = "binder-notes:admin-motion-settings";
+const legacyAdminMotionStorageKey = "bindernotes:admin-motion:v1";
 
 export const defaultAdminMotionSettings: AdminMotionSettings = {
   enabled: false,
@@ -65,7 +66,7 @@ export function loadAdminMotionSettings(storage: Storage | undefined): AdminMoti
   }
 
   try {
-    const raw = storage.getItem(adminMotionStorageKey);
+    const raw = storage.getItem(adminMotionStorageKey) ?? storage.getItem(legacyAdminMotionStorageKey);
     return raw ? sanitizeAdminMotionSettings(JSON.parse(raw)) : defaultAdminMotionSettings;
   } catch {
     return defaultAdminMotionSettings;
@@ -78,7 +79,9 @@ export function saveAdminMotionSettings(settings: AdminMotionSettings, storage: 
   }
 
   try {
-    storage.setItem(adminMotionStorageKey, JSON.stringify(settings));
+    const serialized = JSON.stringify(settings);
+    storage.setItem(adminMotionStorageKey, serialized);
+    storage.setItem(legacyAdminMotionStorageKey, serialized);
   } catch {
     // Cosmetic settings should never break the app if storage is unavailable.
   }

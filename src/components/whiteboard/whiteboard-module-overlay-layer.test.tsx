@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useEffect, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WhiteboardModuleOverlayLayer } from "@/components/whiteboard/whiteboard-module-overlay-layer";
 import { WhiteboardPinnedObjectLayer } from "@/components/whiteboard/whiteboard-pinned-object-layer";
@@ -44,7 +45,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
     render(
       <WhiteboardModuleOverlayLayer
         context={context}
-        modules={[moduleElement()]}
+        modules={[moduleElement({ moduleId: "saved-graphs" })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={() => <div>Live graph</div>}
@@ -76,7 +77,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
   });
 
   it("camera changes do not convert or save board-pinned module coordinates", () => {
-    const module = moduleElement({ anchorMode: "board", x: 100, y: 120, width: 420, height: 320 });
+    const module = moduleElement({ moduleId: "scientific-calculator", anchorMode: "board", x: 100, y: 120, width: 420, height: 320 });
     const onChangeModule = vi.fn();
     const { rerender } = render(
       <WhiteboardPinnedObjectLayer
@@ -118,13 +119,13 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(card.getAttribute("style")).toContain("transform: translate3d(75px, 55px, 0) scale(0.5)");
   });
 
-  it("does not mount heavy live content when low zoom forces preview mode", () => {
+  it("does not mount regular live content when low zoom forces preview mode", () => {
     const renderModule = vi.fn(() => <div>Live graph</div>);
 
     render(
       <WhiteboardModuleOverlayLayer
         context={context}
-        modules={[moduleElement()]}
+        modules={[moduleElement({ moduleId: "saved-graphs" })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={renderModule}
@@ -136,13 +137,13 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("preview");
   });
 
-  it("does not mount heavy live content when the board card is offscreen", () => {
+  it("does not mount regular live content when the board card is offscreen", () => {
     const renderModule = vi.fn(() => <div>Live graph</div>);
 
     render(
       <WhiteboardModuleOverlayLayer
         context={context}
-        modules={[moduleElement({ x: 6000, y: 6000 })]}
+        modules={[moduleElement({ moduleId: "saved-graphs", x: 6000, y: 6000 })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={renderModule}
@@ -154,13 +155,33 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("preview");
   });
 
+  it("keeps board-pinned scientific calculator live through preview-scale zoom", () => {
+    const renderModule = vi.fn(() => <div>Live calculator</div>);
+
+    render(
+      <WhiteboardModuleOverlayLayer
+        context={context}
+        modules={[moduleElement({ moduleId: "scientific-calculator" })]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={{ ...viewport, zoom: 0.2 }}
+      />,
+    );
+
+    expect(renderModule).toHaveBeenCalledWith("scientific-calculator", expect.any(Object));
+    expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("live");
+    expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
+    expect(screen.getByText("Live calculator")).toBeTruthy();
+  });
+
   it("keeps the card anchored to board coordinates when zoomed far out", () => {
     const renderModule = vi.fn(() => <div>Live graph</div>);
 
     render(
       <WhiteboardModuleOverlayLayer
         context={context}
-        modules={[moduleElement()]}
+        modules={[moduleElement({ moduleId: "saved-graphs" })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={renderModule}
@@ -187,7 +208,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
       <WhiteboardPinnedObjectLayer
         context={context}
         fixed
-        modules={[moduleElement()]}
+        modules={[moduleElement({ moduleId: "scientific-calculator" })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={() => <div>Live graph</div>}
@@ -207,8 +228,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
       <WhiteboardPinnedObjectLayer
         context={context}
         modules={[
-          moduleElement({ id: "pinned", anchorMode: "board", pinned: true, x: 100, y: 100 }),
-          moduleElement({ id: "floating", anchorMode: "viewport", pinned: false, x: 100, y: 100, width: 420, height: 320 }),
+          moduleElement({ id: "pinned", moduleId: "scientific-calculator", anchorMode: "board", pinned: true, x: 100, y: 100 }),
+          moduleElement({ id: "floating", moduleId: "scientific-calculator", anchorMode: "viewport", pinned: false, x: 100, y: 100, width: 420, height: 320 }),
         ]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
@@ -285,11 +306,291 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(mounted).toHaveLength(1);
   });
 
-  it("keeps board-fixed-size cards in the board overlay while preserving CSS size", () => {
+  it("does not remount board-pinned Desmos content when Excalidraw pans or zooms", () => {
+    let mounts = 0;
+    let unmounts = 0;
+    function LiveGraph() {
+      useEffect(() => {
+        mounts += 1;
+        return () => {
+          unmounts += 1;
+        };
+      }, []);
+      return <div>Live graph</div>;
+    }
+    const modules = [
+      moduleElement({
+        anchorMode: "board-fixed-size",
+        pinned: true,
+        x: 1000,
+        y: 600,
+        width: 720,
+        height: 560,
+      }),
+    ];
+    const renderModule = vi.fn(() => <LiveGraph />);
+    const { rerender } = render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={modules}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={{ ...viewport, scrollX: 0, scrollY: 0, zoom: 0.4 }}
+      />,
+    );
+
+    rerender(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={modules}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={{ ...viewport, scrollX: 300, scrollY: -100, zoom: 0.2 }}
+      />,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    expect(card.getAttribute("data-card-anchor")).toBe("board-fixed-size");
+    expect(card.getAttribute("data-card-render-layer")).toBe("board");
+    expect(card.getAttribute("style")).not.toContain("scale(");
+    expect(screen.getByText("Live graph")).toBeTruthy();
+    expect(mounts).toBe(1);
+    expect(unmounts).toBe(0);
+  });
+
+  it("keeps normal board-pinned Desmos live as a scaled whiteboard object", () => {
+    const onChangeModule = vi.fn();
+    const boardPinnedDesmos = moduleElement({
+      anchorMode: "board",
+      pinned: true,
+      x: 1000,
+      y: 600,
+      width: 420,
+      height: 320,
+    });
+    const { rerender } = render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[boardPinnedDesmos]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div data-testid="live-desmos-graph">Live graph</div>}
+        viewportTransform={{ ...viewport, scrollX: 0, scrollY: 0, zoom: 0.2 }}
+      />,
+    );
+
+    const boardOverlay = screen.getByTestId("whiteboard-board-object-overlay");
+    const floatingBoardOverlay = screen.getByTestId("whiteboard-floating-board-tool-overlay");
+    const viewportOverlay = screen.getByTestId("whiteboard-viewport-tool-overlay");
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+
+    expect(boardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
+    expect(floatingBoardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
+    expect(viewportOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
+    expect(card.getAttribute("data-whiteboard-module-presentation")).toBe("live");
+    expect(card.getAttribute("data-card-anchor")).toBe("board");
+    expect(card.getAttribute("data-card-render-layer")).toBe("board");
+    expect(card.getAttribute("data-whiteboard-floating-tool")).toBeNull();
+    expect(card.getAttribute("data-whiteboard-module-pinned")).toBe("true");
+    expect(card.getAttribute("data-card-scene-x")).toBe("1000");
+    expect(card.getAttribute("data-card-scene-y")).toBe("600");
+    expect(card.getAttribute("style")).toContain("left: 0px");
+    expect(card.getAttribute("style")).toContain("top: 0px");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(200px, 120px, 0) scale(0.2)");
+    expect(screen.getByTestId("live-desmos-graph")).toBeTruthy();
+    expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
+    expect(onChangeModule).not.toHaveBeenCalled();
+
+    const normalizedDesmos = {
+      ...boardPinnedDesmos,
+      anchorMode: "board" as const,
+      pinned: true,
+    };
+    rerender(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[normalizedDesmos]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div data-testid="live-desmos-graph">Live graph</div>}
+        viewportTransform={{ ...viewport, scrollX: 200, scrollY: 0, zoom: 0.2 }}
+      />,
+    );
+
+    const movedCard = screen.getByTestId("whiteboard-module-card-module-1");
+    expect(movedCard.getAttribute("style")).toContain("left: 0px");
+    expect(movedCard.getAttribute("style")).toContain("top: 0px");
+    expect(movedCard.getAttribute("style")).toContain("translate3d(240px, 120px, 0)");
+    expect(movedCard.getAttribute("style")).toContain("scale(0.2)");
+    expect(movedCard.getAttribute("style")).toContain("width: 420px");
+    expect(movedCard.getAttribute("style")).toContain("height: 320px");
+  });
+
+  it("keeps fixed-size board-pinned Desmos live at the same CSS size across zoom changes", () => {
+    const fixedSizeDesmos = moduleElement({
+      anchorMode: "board-fixed-size",
+      pinned: true,
+      x: 1000,
+      y: 600,
+      width: 420,
+      height: 320,
+    });
+    const { rerender } = render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[fixedSizeDesmos]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div data-testid="live-desmos-graph">Live graph</div>}
+        viewportTransform={{ ...viewport, scrollX: 0, scrollY: 0, zoom: 0.2 }}
+      />,
+    );
+
+    const lowZoomCard = screen.getByTestId("whiteboard-module-card-module-1");
+    expect(lowZoomCard.getAttribute("data-card-anchor")).toBe("board-fixed-size");
+    expect(lowZoomCard.getAttribute("style")).toContain("left: 200px");
+    expect(lowZoomCard.getAttribute("style")).toContain("top: 120px");
+    expect(lowZoomCard.getAttribute("style")).toContain("width: 420px");
+    expect(lowZoomCard.getAttribute("style")).toContain("height: 320px");
+    expect(lowZoomCard.getAttribute("style")).not.toContain("scale(");
+    expect(screen.getByTestId("live-desmos-graph")).toBeTruthy();
+
+    rerender(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[fixedSizeDesmos]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div data-testid="live-desmos-graph">Live graph</div>}
+        viewportTransform={{ ...viewport, scrollX: 200, scrollY: 0, zoom: 3 }}
+      />,
+    );
+
+    const highZoomCard = screen.getByTestId("whiteboard-module-card-module-1");
+    expect(highZoomCard.getAttribute("data-card-anchor")).toBe("board-fixed-size");
+    expect(highZoomCard.getAttribute("style")).toContain("width: 420px");
+    expect(highZoomCard.getAttribute("style")).toContain("height: 320px");
+    expect(highZoomCard.getAttribute("style")).not.toContain("scale(");
+  });
+
+  it("keeps screen-pinned Desmos in the viewport overlay and clamps it below the toolbar", () => {
+    const onChangeModule = vi.fn();
     render(
       <WhiteboardPinnedObjectLayer
         context={context}
-        modules={[moduleElement({ anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })]}
+        modules={[
+          moduleElement({
+            anchorMode: "viewport",
+            pinned: false,
+            x: -200,
+            y: -50,
+            width: 720,
+            height: 560,
+          }),
+        ]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={vi.fn()}
+        renderModule={() => <div data-testid="live-desmos-graph">Live graph</div>}
+        viewportTransform={viewport}
+      />,
+    );
+
+    const boardOverlay = screen.getByTestId("whiteboard-board-object-overlay");
+    const viewportOverlay = screen.getByTestId("whiteboard-viewport-tool-overlay");
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+
+    expect(boardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
+    expect(viewportOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
+    expect(card.getAttribute("data-card-anchor")).toBe("viewport");
+    expect(card.getAttribute("data-card-render-layer")).toBe("viewport");
+    expect(card.getAttribute("data-whiteboard-floating-tool")).toBe("desmos-graph");
+    expect(card.getAttribute("style")).toContain("left: 8px");
+    expect(card.getAttribute("style")).toContain("top: 104px");
+    expect(card.getAttribute("style")).toContain("width: 720px");
+    expect(card.getAttribute("style")).toContain("height: 560px");
+    expect(card.getAttribute("style")).not.toContain("scale(");
+    expect(screen.getByTestId("whiteboard-card-reset-position")).toBeTruthy();
+    expect(screen.getByTestId("live-desmos-graph")).toBeTruthy();
+    expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
+    expect(onChangeModule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchorMode: "viewport",
+        pinned: false,
+        x: 8,
+        y: 104,
+        width: 720,
+        height: 560,
+      }),
+    );
+  });
+
+  it("keeps Private Notes live and mounted while the board pans and zooms", () => {
+    let mounts = 0;
+    let unmounts = 0;
+    function LiveNotes() {
+      const [value, setValue] = useState("first draft");
+      useEffect(() => {
+        mounts += 1;
+        return () => {
+          unmounts += 1;
+        };
+      }, []);
+      return (
+        <textarea
+          aria-label="Private note editor"
+          onChange={(event) => setValue(event.currentTarget.value)}
+          value={value}
+        />
+      );
+    }
+    const notesModule = moduleElement({
+      moduleId: "private-notes",
+      binderId: "binder-math",
+      lessonId: "lesson-limits",
+      anchorMode: "board",
+      pinned: true,
+      width: 560,
+      height: 440,
+    });
+    const renderModule = vi.fn(() => <LiveNotes />);
+    const { rerender } = render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[notesModule]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={{ ...viewport, zoom: 0.2 }}
+      />,
+    );
+
+    const editor = screen.getByLabelText("Private note editor") as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: "survives pan and zoom" } });
+
+    rerender(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[notesModule]}
+        onChangeModule={vi.fn()}
+        onRemoveModule={vi.fn()}
+        renderModule={renderModule}
+        viewportTransform={{ ...viewport, scrollX: 3000, scrollY: -1200, zoom: 0.1 }}
+      />,
+    );
+
+    expect((screen.getByLabelText("Private note editor") as HTMLTextAreaElement).value).toBe("survives pan and zoom");
+    expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
+    expect(mounts).toBe(1);
+    expect(unmounts).toBe(0);
+  });
+
+  it("keeps board-fixed-size non-floating cards in the board overlay while preserving CSS size", () => {
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[moduleElement({ moduleId: "scientific-calculator", anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={() => <div>Fixed graph</div>}
@@ -300,8 +601,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const boardOverlay = screen.getByTestId("whiteboard-board-object-overlay");
     const viewportOverlay = screen.getByTestId("whiteboard-viewport-tool-overlay");
     const card = screen.getByTestId("whiteboard-module-card-module-1");
-    expect(boardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
-    expect(viewportOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
+    expect(boardOverlay.querySelector('[data-whiteboard-module="scientific-calculator"]')).toBeTruthy();
+    expect(viewportOverlay.querySelector('[data-whiteboard-module="scientific-calculator"]')).toBeNull();
     expect(card.getAttribute("style")).toContain("left: 240px");
     expect(card.getAttribute("style")).toContain("top: 180px");
     expect(card.getAttribute("style")).toContain("width: 420px");
@@ -312,6 +613,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
   it("keeps a card visible at the same screen spot when pinning it from screen to board-fixed-size", () => {
     const onChangeModule = vi.fn();
     const viewportCard = moduleElement({
+      moduleId: "scientific-calculator",
       anchorMode: "viewport",
       pinned: false,
       x: 240,
@@ -353,7 +655,7 @@ describe("WhiteboardModuleOverlayLayer", () => {
 
     const boardOverlay = screen.getByTestId("whiteboard-board-object-overlay");
     const after = screen.getByTestId("whiteboard-module-card-module-1");
-    expect(boardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
+    expect(boardOverlay.querySelector('[data-whiteboard-module="scientific-calculator"]')).toBeTruthy();
     expect(pinnedCard).toMatchObject({
       anchorMode: "board-fixed-size",
       pinned: true,

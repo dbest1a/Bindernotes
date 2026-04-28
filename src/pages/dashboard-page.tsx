@@ -15,8 +15,10 @@ import { Input } from "@/components/ui/input";
 import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
+import { AdminDashboardMakeover } from "@/components/dashboard/admin-dashboard-makeover";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/hooks/use-binders";
+import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import {
   deriveBinderTitle,
   deriveLessonTitle,
@@ -31,6 +33,7 @@ export function DashboardPage() {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const { data, isLoading, error } = useDashboard(profile);
+  const dashboardExperience = useDashboardExperience(profile?.role === "admin");
   const [query, setQuery] = useState("");
   const showSystemDiagnostics =
     (profile?.role === "admin" || import.meta.env.DEV) &&
@@ -103,6 +106,25 @@ export function DashboardPage() {
     resolvedFiltered.studyReadyBinders.length > 0 ||
     resolvedFiltered.recentDocuments.length > 0;
 
+  if (
+    profile?.role === "admin" &&
+    dashboardExperience.isAdminMakeoverActive &&
+    data &&
+    filtered &&
+    !isLoading &&
+    !error
+  ) {
+    return (
+      <AdminDashboardMakeover
+        data={data}
+        onQueryChange={setQuery}
+        onSwitchNormal={() => dashboardExperience.setViewMode("normal")}
+        profile={profile}
+        query={query}
+      />
+    );
+  }
+
   return (
     <main className="app-page">
       <section className="hero-grid">
@@ -151,6 +173,17 @@ export function DashboardPage() {
                   <ChevronRight data-icon="inline-start" />
                 </Link>
               </Button>
+              {profile?.role === "admin" ? (
+                <Button
+                  className="mt-3"
+                  onClick={() => dashboardExperience.setViewMode("admin-makeover")}
+                  size="sm"
+                  type="button"
+                >
+                  <Sparkles data-icon="inline-start" />
+                  Open Admin Makeover
+                </Button>
+              ) : null}
             </div>
           </div>
         </aside>

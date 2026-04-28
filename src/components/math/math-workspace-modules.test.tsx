@@ -71,9 +71,17 @@ function bindings(): MathWorkspaceModuleBindings {
 describe("ScientificCalculatorModule", () => {
   afterEach(() => cleanup());
 
-  it("fills the whiteboard card instead of using the oversized workspace calculator height", () => {
+  it("uses the local calculator directly on whiteboards instead of waiting on the Desmos embed", () => {
     render(<ScientificCalculatorModule bindings={bindings()} surface="whiteboard" />);
 
-    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe("100%");
+    expect(screen.queryByTestId("desmos-scientific-calculator")).toBeNull();
+    expect(screen.getByPlaceholderText(/try x\^2\+1/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /evaluate/i })).toBeTruthy();
+  });
+
+  it("keeps the Desmos scientific surface available in the full workspace", () => {
+    render(<ScientificCalculatorModule bindings={bindings()} />);
+
+    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe("clamp(520px, 68vh, 720px)");
   });
 });

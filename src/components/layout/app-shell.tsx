@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import { useTheme } from "@/hooks/use-theme";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
@@ -25,6 +26,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = profile?.role === "admin";
+  const dashboardExperience = useDashboardExperience(isAdmin);
   const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(isAdmin);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
@@ -68,6 +70,7 @@ export function AppShell() {
   return (
     <div
       className="min-h-screen bg-background"
+      data-admin-dashboard={dashboardExperience.isAdminMakeoverActive ? "makeover" : "normal"}
       data-admin-motion={isAdmin && settings.enabled ? "on" : "off"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
@@ -77,14 +80,12 @@ export function AppShell() {
     >
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1540px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link className="flex items-center gap-3 font-semibold tracking-tight" to="/dashboard">
-            <LogoMark />
-            <div className="leading-none">
-              <span className="block text-sm font-semibold tracking-tight">Binder Notes</span>
-              <span className="hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground sm:block">
-                Study workspace
-              </span>
-            </div>
+          <Link
+            aria-label="BinderNotes dashboard"
+            className="flex items-center rounded-xl transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            to="/dashboard"
+          >
+            <LogoMark className="size-10" />
           </Link>
 
           <nav className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
@@ -156,8 +157,37 @@ export function AppShell() {
                     </div>
                   </div>
                   {isAdmin ? (
+                    <>
+                    <section
+                      className="mt-3 rounded-lg border border-border/80 p-3"
+                      data-testid="admin-dashboard-appearance"
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        <LayoutDashboard className="size-4 text-cyan-300" />
+                        Dashboard appearance
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Admin-only preview controls. Learners keep the normal dashboard.
+                      </p>
+                      <label className="mt-3 grid gap-1 text-xs font-medium text-muted-foreground">
+                        Dashboard view
+                        <select
+                          className="appearance-select h-9 rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none"
+                          data-testid="admin-dashboard-view-mode"
+                          onChange={(event) =>
+                            dashboardExperience.setViewMode(
+                              event.target.value as typeof dashboardExperience.preference.viewMode,
+                            )
+                          }
+                          value={dashboardExperience.effectiveViewMode}
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="admin-makeover">Admin Makeover</option>
+                        </select>
+                      </label>
+                    </section>
                     <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
                             <Sparkles className="size-4 text-cyan-300" />
@@ -167,8 +197,17 @@ export function AppShell() {
                             Premium motion and color polish for admin eyes only.
                           </p>
                         </div>
+                      </div>
+                      <div className="admin-motion-toggle-row mt-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold">Admin animations</p>
+                          <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                            Off disables card sweeps, page motion, and drag sparkle.
+                          </p>
+                        </div>
                         <button
                           aria-pressed={settings.enabled}
+                          aria-label="Toggle admin animations"
                           className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                           data-testid="admin-motion-toggle"
                           onClick={() => updateSettings({ enabled: !settings.enabled })}
@@ -225,6 +264,7 @@ export function AppShell() {
                         Reset motion settings
                       </Button>
                     </section>
+                    </>
                   ) : null}
                 </div>
               ) : null}
