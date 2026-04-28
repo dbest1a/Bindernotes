@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   closestCenter,
@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import type { Binder, BinderLesson, DashboardData, Folder, LearnerNote, Profile } from "@/types";
+import type { Binder, BinderLesson, DashboardData, Folder, Profile } from "@/types";
 import {
   createDashboardOrganizationDraft,
   loadDashboardOrganizationDraft,
@@ -106,6 +106,7 @@ export function AdminDashboardMakeover({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const deferredQuery = useDeferredValue(query);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -118,24 +119,18 @@ export function AdminDashboardMakeover({
   }, [data, profile.id]);
 
   const lessonsByBinderId = useMemo(
-    () =>
-      Object.fromEntries(
-        data.binders.map((binder) => [
-          binder.id,
-          data.lessons.filter((lesson) => lesson.binder_id === binder.id),
-        ]),
-      ) as Record<string, BinderLesson[]>,
+    () => {
+      const groups = data.lessons.reduce<Record<string, BinderLesson[]>>((nextGroups, lesson) => {
+        nextGroups[lesson.binder_id] = nextGroups[lesson.binder_id] ?? [];
+        nextGroups[lesson.binder_id].push(lesson);
+        return nextGroups;
+      }, {});
+      for (const binder of data.binders) {
+        groups[binder.id] = groups[binder.id] ?? [];
+      }
+      return groups;
+    },
     [data.binders, data.lessons],
-  );
-  const notesByBinderId = useMemo(
-    () =>
-      Object.fromEntries(
-        data.binders.map((binder) => [
-          binder.id,
-          data.notes.filter((note) => note.binder_id === binder.id),
-        ]),
-      ) as Record<string, LearnerNote[]>,
-    [data.binders, data.notes],
   );
   const binderById = useMemo(
     () => new Map(data.binders.map((binder) => [binder.id, binder])),
@@ -146,13 +141,15 @@ export function AdminDashboardMakeover({
     [data.folders],
   );
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const orderedFolders = draft.folderOrder
-    .map((folderId) => folderById.get(folderId))
-    .filter(Boolean) as Folder[];
-  const orderedBinders = draft.binderOrder
-    .map((binderId) => binderById.get(binderId))
-    .filter(Boolean) as Binder[];
+  const normalizedQuery = useMemo(() => deferredQuery.trim().toLowerCase(), [deferredQuery]);
+  const orderedFolders = useMemo(
+    () => draft.folderOrder.map((folderId) => folderById.get(folderId)).filter(Boolean) as Folder[],
+    [draft.folderOrder, folderById],
+  );
+  const orderedBinders = useMemo(
+    () => draft.binderOrder.map((binderId) => binderById.get(binderId)).filter(Boolean) as Binder[],
+    [binderById, draft.binderOrder],
+  );
   const activeFolderBinder = activeDragId ? parseFolderBinderSortableId(activeDragId) : null;
   const activeBinderId = activeDragId
     ? stripPrefix(activeDragId, "binder:") ?? activeFolderBinder?.binderId ?? null
@@ -160,42 +157,71 @@ export function AdminDashboardMakeover({
   const activeFolderId = activeDragId ? stripPrefix(activeDragId, "folder:") : null;
   const activeBinder = activeBinderId ? binderById.get(activeBinderId) ?? null : null;
   const activeFolder = activeFolderId ? folderById.get(activeFolderId) ?? null : null;
-  const filteredFolders = orderedFolders.filter((folder) =>
-    `${folder.name} ${(draft.folderBinderOrderByFolderId[folder.id] ?? [])
-      .map((binderId) => {
-        const binder = binderById.get(binderId);
-        return binder ? deriveBinderTitle(binder, lessonsByBinderId[binderId] ?? []) : "";
-      })
-      .join(" ")}`.toLowerCase().includes(normalizedQuery),
+  const filteredFolders = useMemo(
+    () =>
+      orderedFolders.filter((folder) =>
+        `${folder.name} ${(draft.folderBinderOrderByFolderId[folder.id] ?? [])
+          .map((binderId) => {
+            const binder = binderById.get(binderId);
+            return binder ? deriveBinderTitle(binder, lessonsByBinderId[binderId] ?? []) : "";
+          })
+          .join(" ")}`.toLowerCase().includes(normalizedQuery),
+      ),
+    [binderById, draft.folderBinderOrderByFolderId, lessonsByBinderId, normalizedQuery, orderedFolders],
   );
-  const filteredBinders = orderedBinders.filter((binder) =>
-    `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description}`
-      .toLowerCase()
-      .includes(normalizedQuery),
+  const filteredBinders = useMemo(
+    () =>
+      orderedBinders.filter((binder) =>
+        `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description}`
+          .toLowerCase()
+          .includes(normalizedQuery),
+      ),
+    [lessonsByBinderId, normalizedQuery, orderedBinders],
   );
-  const recentDocuments = data.recentLessons
-    .filter((lesson) =>
-      `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase().includes(normalizedQuery),
-    )
-    .slice(0, 6);
-  const documentCountByFolderId = Object.fromEntries(
-    orderedFolders.map((folder) => {
-      const binderIds = new Set(draft.folderBinderOrderByFolderId[folder.id] ?? []);
-      return [
-        folder.id,
-        data.lessons.filter((lesson) => binderIds.has(lesson.binder_id)).length,
-      ];
-    }),
-  ) as Record<string, number>;
-  const noteCountByFolderId = Object.fromEntries(
-    orderedFolders.map((folder) => {
-      const binderIds = new Set(draft.folderBinderOrderByFolderId[folder.id] ?? []);
-      return [
-        folder.id,
-        data.notes.filter((note) => note.folder_id === folder.id || binderIds.has(note.binder_id)).length,
-      ];
-    }),
-  ) as Record<string, number>;
+  const recentDocumentSearchTextById = useMemo(
+    () =>
+      new Map(
+        data.recentLessons.map((lesson) => [
+          lesson.id,
+          `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase(),
+        ]),
+      ),
+    [data.recentLessons],
+  );
+  const recentDocuments = useMemo(
+    () =>
+      data.recentLessons
+        .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalizedQuery))
+        .slice(0, 6),
+    [data.recentLessons, normalizedQuery, recentDocumentSearchTextById],
+  );
+  const documentCountByFolderId = useMemo(
+    () =>
+      Object.fromEntries(
+        orderedFolders.map((folder) => {
+          const binderIds = new Set(draft.folderBinderOrderByFolderId[folder.id] ?? []);
+          let documentCount = 0;
+          for (const binderId of binderIds) {
+            documentCount += lessonsByBinderId[binderId]?.length ?? 0;
+          }
+          return [folder.id, documentCount];
+        }),
+      ) as Record<string, number>,
+    [draft.folderBinderOrderByFolderId, lessonsByBinderId, orderedFolders],
+  );
+  const noteCountByFolderId = useMemo(
+    () =>
+      Object.fromEntries(
+        orderedFolders.map((folder) => {
+          const binderIds = new Set(draft.folderBinderOrderByFolderId[folder.id] ?? []);
+          const folderNoteCount = data.notes.filter(
+            (note) => note.folder_id === folder.id || binderIds.has(note.binder_id),
+          ).length;
+          return [folder.id, folderNoteCount];
+        }),
+      ) as Record<string, number>,
+    [data.notes, draft.folderBinderOrderByFolderId, orderedFolders],
+  );
 
   const onDragStart = (event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
@@ -203,7 +229,8 @@ export function AdminDashboardMakeover({
   };
 
   const onDragOver = (event: DragOverEvent) => {
-    setOverDragId(event.over?.id ? String(event.over.id) : null);
+    const nextOverId = event.over?.id ? String(event.over.id) : null;
+    setOverDragId((currentOverId) => (currentOverId === nextOverId ? currentOverId : nextOverId));
   };
 
   const clearDragState = () => {

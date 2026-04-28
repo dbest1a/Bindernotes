@@ -1044,12 +1044,7 @@ function resolveViewportBounds(
 ): ViewportBounds {
   const padding = safeEdgePadding ? WORKSPACE_SAFE_EDGE_PADDING : 0;
   if (bounds) {
-    return {
-      minX: bounds.minX + padding,
-      maxX: Math.max(bounds.minX + padding, bounds.maxX - padding),
-      minY: bounds.minY + padding,
-      maxY: Math.max(bounds.minY + padding, bounds.maxY - padding),
-    };
+    return bounds;
   }
 
   return {

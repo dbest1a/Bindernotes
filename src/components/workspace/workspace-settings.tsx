@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   accentOptions,
   animationLevelOptions,
@@ -79,16 +79,29 @@ const verticalSpaceLabels = {
 
 const settingsSearchAliases = {
   snap: ["snap", "alignment", "magnet", "grid"],
-  safeEdgePadding: ["safe", "padding", "bezel", "edge", "corner", "margin"],
+  safeEdgePadding: ["safe", "padding", "bezel", "edge", "corner", "margin", "edge margin"],
   fit: ["fit", "fit visible", "fit to screen", "viewport", "screen"],
-  tidy: ["tidy", "layout", "arrange", "clean"],
-  preset: ["preset", "layout", "mode", "composition"],
+  tidy: ["tidy", "tidy layout", "layout", "arrange", "clean"],
+  preset: ["preset", "layout", "mode", "composition", "fit", "tidy", "reset"],
   theme: ["theme", "appearance", "color", "surface", "study surface"],
-  graph: ["graph", "desmos", "calculator", "math"],
-  mobile: ["phone", "mobile", "responsive", "small screen"],
+  graph: ["graph", "desmos", "calculator", "scientific calculator", "math"],
+  mobile: ["phone", "mobile", "tablet", "responsive", "small screen", "touch"],
   header: ["header", "space", "compact", "maximize", "chrome", "module", "source", "lesson", "notes"],
   whiteboard: ["whiteboard", "board", "canvas", "drawing", "sketch", "module", "math board"],
+  launcher: ["launcher", "module launcher", "canvas launcher", "side menu", "selected module", "inspector", "builder", "launch"],
 } as const;
+
+type SettingsFolderId =
+  | "layout-presets"
+  | "edit-layout"
+  | "snapping-canvas"
+  | "module-display"
+  | "colors-study-surface"
+  | "motion-performance"
+  | "tools-modules"
+  | "advanced";
+
+const settingsFolderStoragePrefix = "bindernotes.workspace-settings.folders";
 
 export function WorkspaceSettings({
   mode = "layout",
@@ -105,19 +118,106 @@ export function WorkspaceSettings({
 }: WorkspaceSettingsProps) {
   const [showAdvancedCustomization, setShowAdvancedCustomization] = useState(mode === "layout");
   const [settingsQuery, setSettingsQuery] = useState("");
+  const deferredSettingsQuery = useDeferredValue(settingsQuery);
   const isLayoutMode = mode === "layout";
   const isCanvas = preferences.activeMode === "canvas";
   const isModular = preferences.activeMode === "modular";
   const isFullStudio = isCanvas || preferences.workspaceStyle === "full-studio";
   const isGuided = preferences.workspaceStyle === "guided";
-  const normalizedSettingsQuery = useMemo(() => normalizeSearch(settingsQuery), [settingsQuery]);
-  const visiblePresets = getVisibleWorkspacePresets(preferences, {
-    binderSubject,
-    historyEnabled,
-    includeAdvanced: showAdvancedCustomization,
-  });
+  const hasAdvancedCustomization = showAdvancedCustomization || isLayoutMode;
+  const normalizedSettingsQuery = useMemo(() => normalizeSearch(deferredSettingsQuery), [deferredSettingsQuery]);
+  const isSearchingSettings = normalizedSettingsQuery.length > 0;
+  const defaultExpandedFolders = useMemo<Record<SettingsFolderId, boolean>>(
+    () => ({
+      "layout-presets": true,
+      "edit-layout": isLayoutMode,
+      "snapping-canvas": isLayoutMode && isCanvas,
+      "module-display": true,
+      "colors-study-surface": true,
+      "motion-performance": false,
+      "tools-modules": false,
+      advanced: false,
+    }),
+    [isCanvas, isLayoutMode],
+  );
+  const folderStorageKey = `${settingsFolderStoragePrefix}:${mode}`;
+  const [expandedFolders, setExpandedFolders] = useState<Record<SettingsFolderId, boolean>>(() =>
+    loadSettingsFolderState(folderStorageKey, defaultExpandedFolders),
+  );
+
+  useEffect(() => {
+    setExpandedFolders((current) => ({
+      ...defaultExpandedFolders,
+      ...current,
+    }));
+  }, [defaultExpandedFolders]);
+
+  useEffect(() => {
+    saveSettingsFolderState(folderStorageKey, expandedFolders);
+  }, [expandedFolders, folderStorageKey]);
+
+  const visiblePresets = useMemo(
+    () =>
+      getVisibleWorkspacePresets(preferences, {
+        binderSubject,
+        historyEnabled,
+        includeAdvanced: hasAdvancedCustomization,
+      }),
+    [binderSubject, hasAdvancedCustomization, historyEnabled, preferences],
+  );
   const matchesSetting = (terms: Array<string | undefined | null>) =>
     matchesSettingsSearch(normalizedSettingsQuery, terms);
+  const folderMatches = (
+    title: string,
+    description: string,
+    aliasKeys: Array<keyof typeof settingsSearchAliases> = [],
+  ) =>
+    isSearchingSettings &&
+    matchesSetting([
+      title,
+      description,
+      ...aliasKeys.flatMap((key) => aliases(key)),
+    ]);
+  const layoutPresetsFolderMatch = folderMatches(
+    "Layout & Presets",
+    "Workspace mode, presets, fit, tidy, and reset to preset controls.",
+    ["preset", "fit", "tidy"],
+  );
+  const editLayoutFolderMatch = folderMatches(
+    "Edit Layout",
+    "Edit layout mode controls, module inspector, save layout, cancel, add module, and add space below.",
+    ["preset", "header", "launcher"],
+  );
+  const snappingCanvasFolderMatch = folderMatches(
+    "Snapping & Canvas",
+    "Snap Mode, Safe Edge Padding, grid, alignment, and canvas height controls.",
+    ["snap", "safeEdgePadding", "fit", "whiteboard"],
+  );
+  const moduleDisplayFolderMatch = folderMatches(
+    "Module Display",
+    "Maximize module space, compact headers, panel density, chrome, source lesson, and notes display.",
+    ["header", "mobile"],
+  );
+  const colorsFolderMatch = folderMatches(
+    "Colors & Study Surface",
+    "Theme, study surface, color scheme, app theme matching, and surface presets.",
+    ["theme"],
+  );
+  const motionFolderMatch = folderMatches(
+    "Motion & Performance",
+    "Animation controls, reduced motion, performance, and responsive phone, mobile, and tablet behavior.",
+    ["mobile"],
+  );
+  const toolsFolderMatch = folderMatches(
+    "Tools & Modules",
+    "Desmos graph, calculator, notes tools, history, math, and module toggles.",
+    ["graph", "header", "whiteboard"],
+  );
+  const advancedFolderMatch = folderMatches(
+    "Advanced",
+    "Power-user customization and diagnostics-like workspace settings.",
+    ["header"],
+  );
   const showStudyModeSettings = matchesSetting([
     "Study mode",
     "workspace control",
@@ -148,25 +248,40 @@ export function WorkspaceSettings({
     "responsive",
     ...aliases("mobile", "header"),
   ]);
-  const showAppearanceSettings = matchesSetting([
-    "Appearance",
+  const showColorSettings = matchesSetting([
+    "Colors & Study Surface",
     "Workspace colors",
     "App Theme",
     "Accent",
+    "Custom colors",
+    "study surface",
+    ...aliases("theme"),
+  ]);
+  const showModuleDisplaySettings = matchesSetting([
+    "Module Display",
     "Density",
     "Maximize module space",
     "Compact module headers",
     "Roundness",
     "Shadow",
     "Font",
-    ...aliases("theme", "header"),
+    ...aliases("header", "mobile"),
   ]);
   const showMotionSettings = matchesSetting([
+    "Motion & Performance",
     "Motion",
     "Animation level",
     "Hover motion",
+    "reduced motion",
+    "performance",
+  ]);
+  const showResponsiveSettings = matchesSetting([
+    "Responsive layout",
+    "Phone and tablet layouts adapt automatically so settings stay touch-friendly.",
+    ...aliases("mobile"),
   ]);
   const showCanvasSettings = isCanvas && matchesSetting([
+    "Snapping & Canvas",
     "Canvas / workspace",
     "Background",
     "Vertical workspace",
@@ -179,50 +294,88 @@ export function WorkspaceSettings({
     ...aliases("snap", "safeEdgePadding", "fit", "tidy", "mobile", "whiteboard"),
   ]);
   const showGraphSettings = matchesSetting([
+    "Tools & Modules",
     "Graphs",
     "Graph appearance",
     "Graph chrome",
     ...aliases("graph"),
   ]);
   const showHighlightSettings = matchesSetting([
+    "Tools & Modules",
     "Highlights",
     "Default highlight meaning",
     "Reset highlights",
   ]);
-  const showAdvancedSettings = showAdvancedCustomization && matchesSetting([
+  const showAdvancedSettings = hasAdvancedCustomization && matchesSetting([
     "Advanced",
     "Sticky notes",
     "Reduced chrome",
     "Utility UI",
+    "Canvas launcher",
     "header",
     "space",
-    ...aliases("header"),
+    ...aliases("header", "launcher"),
   ]);
   const showLayoutSettings =
-    showAdvancedCustomization &&
+    hasAdvancedCustomization &&
     isLayoutMode &&
     !isGuided &&
     matchesSetting([
+      "Edit Layout",
       "Layout",
       "Show or hide windows",
       "collapse",
       "hide",
       "module",
+      "Canvas launcher",
+      "Module launcher",
+      "Selected module",
+      "Launch modules from the side menu or the wide canvas launcher.",
+      ...aliases("launcher"),
       ...workspaceModules.flatMap((module) => [module.name, module.description]),
     ]);
-  const visibleSettingsSections = [
-    showStudyModeSettings,
-    showPresetSettings,
-    showCustomizationDepthSettings,
-    showStudyPanelSettings,
-    showAppearanceSettings,
-    showMotionSettings,
-    showCanvasSettings,
-    showGraphSettings,
-    showHighlightSettings,
-    showAdvancedSettings,
-    showLayoutSettings,
+  const renderStudyModeSettings = showStudyModeSettings || layoutPresetsFolderMatch;
+  const renderPresetSettings = showPresetSettings || layoutPresetsFolderMatch;
+  const renderCustomizationDepthSettings =
+    showCustomizationDepthSettings || layoutPresetsFolderMatch;
+  const renderStudyPanelSettings = showStudyPanelSettings || moduleDisplayFolderMatch;
+  const renderColorSettings = showColorSettings || colorsFolderMatch;
+  const renderModuleDisplaySettings = showModuleDisplaySettings || moduleDisplayFolderMatch;
+  const renderMotionSettings = showMotionSettings || motionFolderMatch;
+  const renderResponsiveSettings = showResponsiveSettings || motionFolderMatch;
+  const renderCanvasSettings = showCanvasSettings || snappingCanvasFolderMatch;
+  const renderGraphSettings = showGraphSettings || toolsFolderMatch;
+  const renderHighlightSettings = showHighlightSettings || toolsFolderMatch;
+  const renderAdvancedSettings = showAdvancedSettings || (hasAdvancedCustomization && advancedFolderMatch);
+  const renderLayoutSettings = showLayoutSettings || editLayoutFolderMatch;
+  const layoutPresetsFolderVisible =
+    renderStudyModeSettings || renderPresetSettings || renderCustomizationDepthSettings;
+  const editLayoutFolderVisible = isLayoutMode && renderLayoutSettings;
+  const snappingCanvasFolderVisible = renderCanvasSettings;
+  const moduleDisplayFolderVisible = renderStudyPanelSettings || renderModuleDisplaySettings;
+  const colorsFolderVisible = renderColorSettings;
+  const motionFolderVisible = renderMotionSettings || renderResponsiveSettings;
+  const toolsFolderVisible = renderGraphSettings || renderHighlightSettings;
+  const advancedFolderVisible = renderAdvancedSettings;
+  const visibleSettingsFolders = [
+    layoutPresetsFolderVisible,
+    editLayoutFolderVisible,
+    snappingCanvasFolderVisible,
+    moduleDisplayFolderVisible,
+    colorsFolderVisible,
+    motionFolderVisible,
+    toolsFolderVisible,
+    advancedFolderVisible,
   ].filter(Boolean).length;
+
+  const isFolderExpanded = (folderId: SettingsFolderId) =>
+    isSearchingSettings ? true : expandedFolders[folderId] ?? defaultExpandedFolders[folderId];
+  const toggleFolder = (folderId: SettingsFolderId) => {
+    setExpandedFolders((current) => ({
+      ...current,
+      [folderId]: !(current[folderId] ?? defaultExpandedFolders[folderId]),
+    }));
+  };
 
   const setNext = (next: WorkspacePreferences) =>
     onChange({
@@ -380,13 +533,21 @@ export function WorkspaceSettings({
         className="workspace-settings__scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4 pr-3"
         data-workspace-settings-scroll="true"
       >
-        {visibleSettingsSections === 0 ? (
+        {visibleSettingsFolders === 0 ? (
           <div className="rounded-xl border border-dashed border-border/70 bg-background/55 p-4 text-sm text-muted-foreground">
             No settings found.
           </div>
         ) : null}
 
-        {showStudyModeSettings ? (
+        {layoutPresetsFolderVisible ? (
+          <SettingsFolder
+            description="Workspace modes, presets, and the controls that decide how much layout power is visible."
+            expanded={isFolderExpanded("layout-presets")}
+            id="layout-presets"
+            onToggle={toggleFolder}
+            title="Layout & Presets"
+          >
+        {renderStudyModeSettings ? (
         <Section
           description="Choose how much workspace control BinderNotes should expose."
           title="Study mode"
@@ -414,7 +575,7 @@ export function WorkspaceSettings({
         </Section>
         ) : null}
 
-        {showPresetSettings ? (
+        {renderPresetSettings ? (
         <Section
           description={
             isLayoutMode
@@ -448,7 +609,7 @@ export function WorkspaceSettings({
         </Section>
         ) : null}
 
-        {showCustomizationDepthSettings ? (
+        {renderCustomizationDepthSettings ? (
         <div className="mt-6 rounded-xl border border-border/70 bg-background/55 p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -461,15 +622,25 @@ export function WorkspaceSettings({
               onClick={() => setShowAdvancedCustomization((current) => !current)}
               size="sm"
               type="button"
-              variant={showAdvancedCustomization ? "default" : "outline"}
+              variant={hasAdvancedCustomization ? "default" : "outline"}
             >
-              {showAdvancedCustomization ? "Expanded" : "Customize"}
+              {hasAdvancedCustomization ? "Expanded" : "Customize"}
             </Button>
           </div>
         </div>
         ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showStudyPanelSettings ? (
+        {moduleDisplayFolderVisible ? (
+          <SettingsFolder
+            description="Panel density, compact headers, module chrome, and source/notes display comfort."
+            expanded={isFolderExpanded("module-display")}
+            id="module-display"
+            onToggle={toggleFolder}
+            title="Module Display"
+          >
+        {renderStudyPanelSettings ? (
           <Section
             description="Keep study panels orderly without opening the full canvas controls."
             title="Study panels"
@@ -535,86 +706,12 @@ export function WorkspaceSettings({
           </Section>
         ) : null}
 
-        {showAppearanceSettings ? (
+        {renderModuleDisplaySettings ? (
         <Section
-          description="Theme, density, roundness, and color stay consistent across the app."
-          title="Appearance"
+          description="Keep module chrome readable without crowding lesson, notes, or tool surfaces."
+          title="Module chrome"
         >
           <div className="grid gap-4">
-            <ControlGroup title="Workspace colors">
-              <ToggleChoice
-                active={preferences.appearance.saveLocalAppearance}
-                description={
-                  preferences.appearance.saveLocalAppearance
-                    ? "Remember this workspace's color choices."
-                    : "Use the current app theme when this workspace opens."
-                }
-                label="Save color scheme for this workspace"
-                onClick={() =>
-                  setNext({
-                    ...preferences,
-                    appearance: {
-                      ...preferences.appearance,
-                      saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
-                    },
-                  })
-                }
-              />
-            </ControlGroup>
-
-            <ControlGroup title="App Theme">
-              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
-                {workspaceThemes.map((theme) => (
-                  <button
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
-                      preferences.appearance.appTheme === theme.id
-                        ? "border-primary bg-accent/70"
-                        : "border-border/70 bg-background/55",
-                    )}
-                    key={theme.id}
-                    onClick={() => updateAppTheme(theme.id as WorkspaceThemeId)}
-                    type="button"
-                  >
-                    <span className="mb-3 flex gap-2">
-                      {[theme.vars.primary, theme.vars.accent, theme.vars.secondary].map((value) => (
-                        <span
-                          className="size-5 rounded-full border border-border/60"
-                          key={value}
-                          style={{ background: `hsl(${value})` }}
-                        />
-                      ))}
-                    </span>
-                    <span className="block text-sm font-medium">{theme.name}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {theme.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </ControlGroup>
-
-            <ControlGroup title="Accent">
-              {accentOptions.map((accent) => (
-                <ThemeChoice
-                  active={preferences.appearance.accent === accent.id}
-                  key={accent.id}
-                  onClick={() => updateAccent(accent.id)}
-                >
-                  {accent.name}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
-
-            {preferences.appearance.appTheme === "custom" ? (
-              <ControlGroup title="Custom colors">
-                <CustomPaletteControls
-                  onChange={updateCustomColor}
-                  palette={preferences.appearance.customPalette}
-                />
-              </ControlGroup>
-            ) : null}
-
             <div className="grid gap-4">
               <ControlGroup title="Density">
                 {densityOptions.map((density) => (
@@ -701,8 +798,111 @@ export function WorkspaceSettings({
           </div>
         </Section>
         ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showMotionSettings ? (
+        {colorsFolderVisible ? (
+          <SettingsFolder
+            description="Theme, study surface, app color scheme, and custom palette controls."
+            expanded={isFolderExpanded("colors-study-surface")}
+            id="colors-study-surface"
+            onToggle={toggleFolder}
+            title="Colors & Study Surface"
+          >
+        {renderColorSettings ? (
+        <Section
+          description="Theme, density, roundness, and color stay consistent across the app."
+          title="Color Settings"
+        >
+          <div className="grid gap-4">
+            <ControlGroup title="Workspace colors">
+              <ToggleChoice
+                active={preferences.appearance.saveLocalAppearance}
+                description={
+                  preferences.appearance.saveLocalAppearance
+                    ? "Remember this workspace's color choices."
+                    : "Use the current app theme when this workspace opens."
+                }
+                label="Save color scheme for this workspace"
+                onClick={() =>
+                  setNext({
+                    ...preferences,
+                    appearance: {
+                      ...preferences.appearance,
+                      saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
+                    },
+                  })
+                }
+              />
+            </ControlGroup>
+
+            <ControlGroup title="App Theme">
+              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
+                {workspaceThemes.map((theme) => (
+                  <button
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
+                      preferences.appearance.appTheme === theme.id
+                        ? "border-primary bg-accent/70"
+                        : "border-border/70 bg-background/55",
+                    )}
+                    key={theme.id}
+                    onClick={() => updateAppTheme(theme.id as WorkspaceThemeId)}
+                    type="button"
+                  >
+                    <span className="mb-3 flex gap-2">
+                      {[theme.vars.primary, theme.vars.accent, theme.vars.secondary].map((value) => (
+                        <span
+                          className="size-5 rounded-full border border-border/60"
+                          key={value}
+                          style={{ background: `hsl(${value})` }}
+                        />
+                      ))}
+                    </span>
+                    <span className="block text-sm font-medium">{theme.name}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {theme.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </ControlGroup>
+
+            <ControlGroup title="Accent">
+              {accentOptions.map((accent) => (
+                <ThemeChoice
+                  active={preferences.appearance.accent === accent.id}
+                  key={accent.id}
+                  onClick={() => updateAccent(accent.id)}
+                >
+                  {accent.name}
+                </ThemeChoice>
+              ))}
+            </ControlGroup>
+
+            {preferences.appearance.appTheme === "custom" ? (
+              <ControlGroup title="Custom colors">
+                <CustomPaletteControls
+                  onChange={updateCustomColor}
+                  palette={preferences.appearance.customPalette}
+                />
+              </ControlGroup>
+            ) : null}
+          </div>
+        </Section>
+        ) : null}
+          </SettingsFolder>
+        ) : null}
+
+        {motionFolderVisible ? (
+          <SettingsFolder
+            description="Animation settings plus automatic phone, tablet, and reduced-motion behavior."
+            expanded={isFolderExpanded("motion-performance")}
+            id="motion-performance"
+            onToggle={toggleFolder}
+            title="Motion & Performance"
+          >
+        {renderMotionSettings ? (
         <Section
           description="Dial motion up only when you actually want it."
           title="Motion"
@@ -748,8 +948,28 @@ export function WorkspaceSettings({
           </div>
         </Section>
         ) : null}
+        {renderResponsiveSettings ? (
+          <Section
+            description="Phone and tablet layouts adapt automatically while desktop keeps the full canvas experience."
+            title="Responsive layout"
+          >
+            <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+              BinderNotes uses viewport size, touch input, and reduced-motion preferences to keep settings usable on phone, tablet, and desktop.
+            </div>
+          </Section>
+        ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showCanvasSettings ? (
+        {snappingCanvasFolderVisible ? (
+          <SettingsFolder
+            description="Snapping, edge spacing, canvas background, and vertical workspace behavior."
+            expanded={isFolderExpanded("snapping-canvas")}
+            id="snapping-canvas"
+            onToggle={toggleFolder}
+            title="Snapping & Canvas"
+          >
+        {renderCanvasSettings ? (
           <Section
             description="Adjust the study atmosphere and how much room the canvas gives you vertically."
             title="Canvas / workspace"
@@ -819,9 +1039,10 @@ export function WorkspaceSettings({
                 ))}
               </ControlGroup>
 
-              <ControlGroup title="Safe edge padding">
+              <ControlGroup title="Safe Edge Padding">
                 <ToggleChoice
                   active={preferences.canvas.safeEdgePadding}
+                  ariaLabel={`Safe Edge Padding ${preferences.canvas.safeEdgePadding ? "On" : "Off"}`}
                   description={
                     preferences.canvas.safeEdgePadding
                       ? "Keep an 8px edge margin while editing."
@@ -862,8 +1083,18 @@ export function WorkspaceSettings({
             </div>
           </Section>
         ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showGraphSettings ? (
+        {toolsFolderVisible ? (
+          <SettingsFolder
+            description="Graph, calculator, note, history, math, and highlight tools."
+            expanded={isFolderExpanded("tools-modules")}
+            id="tools-modules"
+            onToggle={toggleFolder}
+            title="Tools & Modules"
+          >
+        {renderGraphSettings ? (
         <Section
           description="Keep graphs readable without having to enter layout mode."
           title="Graphs"
@@ -908,7 +1139,7 @@ export function WorkspaceSettings({
         </Section>
         ) : null}
 
-        {showHighlightSettings ? (
+        {renderHighlightSettings ? (
         <Section
           description="Keep highlight capture consistent with the way you study."
           title="Highlights"
@@ -976,11 +1207,21 @@ export function WorkspaceSettings({
           </div>
         </Section>
         ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showAdvancedSettings ? (
+        {advancedFolderVisible ? (
+          <SettingsFolder
+            description="Power-user switches that keep the main settings list calmer until you need them."
+            expanded={isFolderExpanded("advanced")}
+            id="advanced"
+            onToggle={toggleFolder}
+            title="Advanced"
+          >
+        {renderAdvancedSettings ? (
           <Section
             description="Keep normal study mode minimal, and hide extra helper UI unless you want it."
-            title="Advanced"
+            title="Power-user settings"
           >
             <div className="grid gap-4">
               <ControlGroup title="Sticky notes">
@@ -1009,7 +1250,7 @@ export function WorkspaceSettings({
               <ControlGroup title="Utility UI">
                 <ToggleChoice
                   active={preferences.theme.showUtilityUi}
-                  description="Preset chips and extra status controls"
+                  description="Wide edit-layout launcher, selected-module controls, preset chips, and extra status controls"
                   label={preferences.theme.showUtilityUi ? "Shown" : "Minimal"}
                   onClick={() =>
                     updateTheme((current) => ({
@@ -1022,8 +1263,18 @@ export function WorkspaceSettings({
             </div>
           </Section>
         ) : null}
+          </SettingsFolder>
+        ) : null}
 
-        {showLayoutSettings ? (
+        {editLayoutFolderVisible ? (
+          <SettingsFolder
+            description="Edit-layout module visibility and collapse controls."
+            expanded={isFolderExpanded("edit-layout")}
+            id="edit-layout"
+            onToggle={toggleFolder}
+            title="Edit Layout"
+          >
+        {renderLayoutSettings ? (
           <Section
             description={
               isFullStudio
@@ -1032,6 +1283,25 @@ export function WorkspaceSettings({
             }
             title="Layout"
           >
+            <ControlGroup title="Canvas launcher">
+              <ToggleChoice
+                active={preferences.theme.showUtilityUi}
+                ariaLabel={`Canvas launcher ${preferences.theme.showUtilityUi ? "Shown" : "Hidden"}`}
+                description={
+                  preferences.theme.showUtilityUi
+                    ? "Show the wide module launcher and selected-module controls above the canvas."
+                    : "Hide the wide launcher and use this side menu to add or restore modules."
+                }
+                label={preferences.theme.showUtilityUi ? "Shown" : "Hidden"}
+                onClick={() =>
+                  updateTheme((current) => ({
+                    ...current,
+                    showUtilityUi: !current.showUtilityUi,
+                  }))
+                }
+              />
+            </ControlGroup>
+
             <div className="grid gap-2">
               {workspaceModules
                 .filter((module) =>
@@ -1083,8 +1353,58 @@ export function WorkspaceSettings({
             </div>
           </Section>
         ) : null}
+          </SettingsFolder>
+        ) : null}
       </div>
     </aside>
+  );
+}
+
+function SettingsFolder({
+  children,
+  description,
+  expanded,
+  id,
+  onToggle,
+  title,
+}: {
+  children: ReactNode;
+  description: string;
+  expanded: boolean;
+  id: SettingsFolderId;
+  onToggle: (id: SettingsFolderId) => void;
+  title: string;
+}) {
+  const contentId = `workspace-settings-folder-${id}`;
+
+  return (
+    <section
+      className="workspace-settings-folder"
+      data-settings-folder={id}
+    >
+      <button
+        aria-controls={contentId}
+        aria-expanded={expanded}
+        className="workspace-settings-folder__trigger"
+        onClick={() => onToggle(id)}
+        type="button"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">{title}</span>
+          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+            {description}
+          </span>
+        </span>
+        <span className="workspace-settings-folder__chevron" aria-hidden="true">
+          {expanded ? "−" : "+"}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="workspace-settings-folder__content" id={contentId}>
+          {children}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -1190,17 +1510,20 @@ function ThemeChoice({
 
 function ToggleChoice({
   active,
+  ariaLabel,
   description,
   label,
   onClick,
 }: {
   active: boolean;
+  ariaLabel?: string;
   description?: string;
   label: string;
   onClick: () => void;
 }) {
   return (
     <button
+      aria-label={ariaLabel}
       className={cn(
         "workspace-settings__choice rounded-xl border px-3 py-2.5 text-left transition",
         active ? "border-primary bg-accent/70" : "border-border/70 bg-background/55",
@@ -1239,6 +1562,44 @@ function getWorkspaceSettingsViewport() {
 
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
+}
+
+function loadSettingsFolderState(
+  storageKey: string,
+  defaults: Record<SettingsFolderId, boolean>,
+) {
+  if (typeof window === "undefined") {
+    return defaults;
+  }
+
+  try {
+    const stored = window.sessionStorage.getItem(storageKey);
+    if (!stored) {
+      return defaults;
+    }
+
+    return {
+      ...defaults,
+      ...(JSON.parse(stored) as Partial<Record<SettingsFolderId, boolean>>),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveSettingsFolderState(
+  storageKey: string,
+  expandedFolders: Record<SettingsFolderId, boolean>,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(storageKey, JSON.stringify(expandedFolders));
+  } catch {
+    // Session persistence is a convenience; settings behavior should never depend on it.
+  }
 }
 
 function aliases(...keys: Array<keyof typeof settingsSearchAliases>) {

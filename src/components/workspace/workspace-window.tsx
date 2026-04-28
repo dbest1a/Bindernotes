@@ -28,6 +28,7 @@ type WorkspaceWindowProps = {
   workspaceStyle: "guided" | "flexible" | "full-studio";
   onCanvasHeightRequest?: (frame: WorkspaceWindowFrame) => void;
   onCommit: (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => void;
+  onSelect?: (moduleId: WorkspaceModuleId) => void;
   onSnapGuidesChange?: (moduleId: WorkspaceModuleId, guides: WorkspaceSnapGuide[]) => void;
   onToggleCollapsed: (moduleId: WorkspaceModuleId, collapsed: boolean) => void;
   topZ: number;
@@ -61,6 +62,7 @@ export function WorkspaceWindow({
   moduleId,
   onCanvasHeightRequest,
   onSnapGuidesChange,
+  onSelect,
   onToggleCollapsed,
   peerFrames,
   safeEdgePadding,
@@ -108,6 +110,8 @@ export function WorkspaceWindow({
   };
 
   const focusWindow = () => {
+    onSelect?.(moduleId);
+
     if (locked) {
       return;
     }
@@ -149,12 +153,18 @@ export function WorkspaceWindow({
 
     const getViewportBounds = () => {
       const padding = safeEdgePadding ? 8 : 0;
+      const effectiveCanvasWidth = Math.max(
+        canvasWidth,
+        boundsWidth,
+        shell instanceof HTMLElement ? shell.scrollWidth : 0,
+        shell instanceof HTMLElement ? shell.clientWidth : 0,
+      );
       if (shell instanceof HTMLElement) {
-        const minX = shell.scrollLeft + padding;
+        const minX = padding;
         const minY = padding;
         return {
           minX,
-          maxX: minX + Math.max(minWidth, shell.clientWidth - padding * 2),
+          maxX: Math.max(minX + minWidth, effectiveCanvasWidth - padding),
           minY,
           maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
         };
@@ -164,7 +174,7 @@ export function WorkspaceWindow({
       const minY = padding;
       return {
         minX,
-        maxX: minX + Math.max(minWidth, boundsWidth - padding * 2),
+        maxX: Math.max(minX + minWidth, effectiveCanvasWidth - padding),
         minY,
         maxY: Math.max(minY + minHeight, interactionCanvasHeight - padding),
       };
@@ -177,26 +187,31 @@ export function WorkspaceWindow({
 
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
+      const rawFrame =
+        mode === "move"
+          ? {
+              ...startFrame,
+              x: startFrame.x + dx,
+              y: startFrame.y + dy,
+            }
+          : {
+              ...startFrame,
+              w: Math.max(minWidth, snapToFrame(startFrame.w + dx, 8)),
+              h: Math.max(minHeight, snapToFrame(startFrame.h + dy, 8)),
+            };
+
+      if (rawFrame.y + rawFrame.h > interactionCanvasHeight - WORKSPACE_CANVAS_EXPAND_THRESHOLD) {
+        interactionCanvasHeight = Math.max(
+          interactionCanvasHeight + WORKSPACE_CANVAS_EXPAND_STEP,
+          rawFrame.y + rawFrame.h + WORKSPACE_CANVAS_BOTTOM_PADDING,
+        );
+      }
+
       const viewportBounds = getViewportBounds();
       const movedFrame =
         mode === "move"
-          ? clampMovedFrame(
-              {
-                ...startFrame,
-                x: startFrame.x + dx,
-                y: startFrame.y + dy,
-              },
-              viewportBounds,
-            )
-          : clampResizedFrame(
-              {
-                ...startFrame,
-                w: Math.max(minWidth, snapToFrame(startFrame.w + dx, 8)),
-                h: Math.max(minHeight, snapToFrame(startFrame.h + dy, 8)),
-              },
-              viewportBounds,
-              { minWidth, minHeight },
-            );
+          ? clampMovedFrame(rawFrame, viewportBounds)
+          : clampResizedFrame(rawFrame, viewportBounds, { minWidth, minHeight });
 
       const nextPreview =
         snapEnabled
@@ -210,14 +225,6 @@ export function WorkspaceWindow({
             })
           : null;
       const next = nextPreview?.frame ?? movedFrame;
-      if (next.y + next.h > interactionCanvasHeight - WORKSPACE_CANVAS_EXPAND_THRESHOLD) {
-        interactionCanvasHeight = Math.max(
-          interactionCanvasHeight + WORKSPACE_CANVAS_EXPAND_STEP,
-          next.y + next.h + WORKSPACE_CANVAS_BOTTOM_PADDING,
-        );
-        onCanvasHeightRequest?.(next);
-      }
-
       frameRef.current = next;
       const previousPreview = snapPreviewRef.current;
       snapPreviewRef.current = nextPreview;
@@ -246,6 +253,7 @@ export function WorkspaceWindow({
         peerFrames,
         canvasWidth,
         canvasHeight,
+        interaction: mode === "move" ? "move" : "resize",
         viewportBounds: getViewportBounds(),
       });
       if (rafRef.current !== null) {
@@ -259,6 +267,7 @@ export function WorkspaceWindow({
       snapPreviewRef.current = null;
       setSnapPreview(null);
       onSnapGuidesChange?.(moduleId, []);
+      onCanvasHeightRequest?.(resolvedFrame);
       onCommit(moduleId, resolvedFrame);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -347,7 +356,7 @@ export function WorkspaceWindow({
     >
       {!locked ? (
         <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-between px-3">
-          <div className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/92 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm backdrop-blur">
+          <div className="workspace-window__edit-hint inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/92 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm backdrop-blur">
             <Grip className="size-3" />
             {activeMode === "move"
               ? snapPreview?.label ?? "Move window"
@@ -524,6 +533,7 @@ function resolveCommittedFrame(input: {
   snapEnabled: boolean;
   canvasWidth: number;
   canvasHeight: number;
+  interaction: "move" | "resize";
   viewportBounds: { minX: number; maxX: number; minY: number; maxY: number };
 }) {
   const minimums = getWorkspaceModuleMinimumSize(input.moduleId);
@@ -543,7 +553,7 @@ function resolveCommittedFrame(input: {
 
   const snapped = snapWindowFrame({
     frame: bounded,
-    interaction: "move",
+    interaction: input.interaction,
     moduleId: input.moduleId,
     peerFrames: input.peerFrames,
     safeEdgePadding: input.safeEdgePadding,

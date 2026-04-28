@@ -1,25 +1,12 @@
 import { Clock3, FlaskConical, ListChecks, Search, Sparkles, StickyNote } from "lucide-react";
-import { useMemo, type ReactElement } from "react";
+import { Suspense, lazy, useMemo, type ReactElement, type ReactNode } from "react";
 import type { JSONContent } from "@tiptap/react";
-import {
-  DesmosGraphModule,
-  SavedGraphsModule,
-  ScientificCalculatorModule,
-  type MathWorkspaceModuleBindings,
-} from "@/components/math/math-workspace-modules";
-import {
-  ArgumentBuilderModule,
-  HistoryTimelineModule,
-  MythHistoryModule,
-  SourceEvidenceModule,
-} from "@/components/history/history-suite-modules";
-import { MathBlocks } from "@/components/math/math-blocks";
+import type { MathWorkspaceModuleBindings } from "@/components/math/math-workspace-modules";
 import {
   BinderNotebookModule,
   PrivateNotesModule,
   SourceLessonModule,
 } from "@/components/workspace/study-core-modules";
-import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +44,42 @@ import type {
   WorkspacePresetId,
   WorkspaceStyle,
 } from "@/types";
+
+const LazyDesmosGraphModule = lazy(() =>
+  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.DesmosGraphModule })),
+);
+const LazySavedGraphsModule = lazy(() =>
+  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.SavedGraphsModule })),
+);
+const LazyScientificCalculatorModule = lazy(() =>
+  import("@/components/math/math-workspace-modules").then((module) => ({
+    default: module.ScientificCalculatorModule,
+  })),
+);
+const LazyHistoryTimelineModule = lazy(() =>
+  import("@/components/history/history-suite-modules").then((module) => ({
+    default: module.HistoryTimelineModule,
+  })),
+);
+const LazySourceEvidenceModule = lazy(() =>
+  import("@/components/history/history-suite-modules").then((module) => ({
+    default: module.SourceEvidenceModule,
+  })),
+);
+const LazyArgumentBuilderModule = lazy(() =>
+  import("@/components/history/history-suite-modules").then((module) => ({
+    default: module.ArgumentBuilderModule,
+  })),
+);
+const LazyMythHistoryModule = lazy(() =>
+  import("@/components/history/history-suite-modules").then((module) => ({ default: module.MythHistoryModule })),
+);
+const LazyMathBlocks = lazy(() =>
+  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
+);
+const LazyWhiteboardModule = lazy(() =>
+  import("@/components/whiteboard/whiteboard-module").then((module) => ({ default: module.WhiteboardModule })),
+);
 
 export type WorkspaceLibraryContext = {
   folders: Folder[];
@@ -197,6 +220,22 @@ type WorkspaceModuleDefinition = {
   render: (context: WorkspaceModuleContext) => ReactElement;
 };
 
+function LazyModuleBoundary({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <Suspense
+      fallback={
+        <WorkspacePanel description="Loading this workspace module." title={title}>
+          <div className="grid min-h-[180px] place-items-center text-sm text-muted-foreground">
+            Loading module...
+          </div>
+        </WorkspacePanel>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
+
 export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleDefinition> = {
   lesson: {
     id: "lesson",
@@ -295,7 +334,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Chronology, location, and turning points",
     render: (context) =>
       context.history.enabled ? (
-        <HistoryTimelineModule
+        <LazyModuleBoundary title="History timeline">
+          <LazyHistoryTimelineModule
           activeEventId={context.history.activeEventId}
           evidenceCards={context.history.evidenceCards}
           events={context.history.events}
@@ -304,7 +344,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           onSelectEvent={context.onSelectHistoryEvent}
           status={context.history.status.timeline}
           templateEvents={context.history.templateEvents}
-        />
+          />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="History timeline">
           <EmptyState
@@ -320,7 +361,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Evidence locker and source investigation",
     render: (context) =>
       context.history.enabled ? (
-        <SourceEvidenceModule
+        <LazyModuleBoundary title="Source evidence">
+          <LazySourceEvidenceModule
           activeSourceId={context.history.activeSourceId}
           evidenceCards={context.history.evidenceCards}
           onCreateEvidenceFromActiveSource={context.onCreateHistoryEvidenceFromSource}
@@ -329,7 +371,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           sources={context.history.sources}
           status={context.history.status.evidence}
           templateSources={context.history.templateSources}
-        />
+          />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Source evidence">
           <EmptyState
@@ -345,7 +388,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Cause and effect chains",
     render: (context) =>
       context.history.enabled ? (
-        <ArgumentBuilderModule
+        <LazyModuleBoundary title="Argument builder">
+          <LazyArgumentBuilderModule
           activeChain={context.history.argumentChains[0] ?? null}
           edges={context.history.argumentEdges}
           nodes={context.history.argumentNodes}
@@ -360,7 +404,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
                 : "french"
           }
           status={context.history.status.argument}
-        />
+          />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Argument builder">
           <EmptyState
@@ -376,12 +421,14 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Evaluate claims against evidence",
     render: (context) =>
       context.history.enabled ? (
-        <MythHistoryModule
+        <LazyModuleBoundary title="Myth vs history">
+          <LazyMythHistoryModule
           mythChecks={context.history.mythChecks}
           onCreateStarterMythCheck={context.onCreateHistoryMythCheck}
           status={context.history.status.myth}
           templateMythChecks={context.history.templateMythChecks}
-        />
+          />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Myth vs history">
           <EmptyState
@@ -502,7 +549,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       return (
         <WorkspacePanel description="Reusable equations" title="Formula sheet">
           <div className="formula-sheet-readable">
-            <MathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+            <LazyModuleBoundary title="Formula sheet">
+              <LazyMathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+            </LazyModuleBoundary>
           </div>
           {formulaBlocks.length === 0 ? (
             <p className="text-sm text-muted-foreground">Add LaTeX blocks to build a formula sheet.</p>
@@ -517,12 +566,14 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Lesson equations and graph sets",
     render: (context) => (
       <WorkspacePanel description="Published lesson math" title="Math blocks">
-        <MathBlocks
-          blocks={context.selectedLesson.math_blocks}
-          onJumpToSource={context.onJumpToMathSource}
-          onOpenGraphBlock={context.onOpenGraphBlock}
-          onSendToGraph={context.mathModules ? context.mathModules.pushExpressionToGraph : undefined}
-        />
+        <LazyModuleBoundary title="Math blocks">
+          <LazyMathBlocks
+            blocks={context.selectedLesson.math_blocks}
+            onJumpToSource={context.onJumpToMathSource}
+            onOpenGraphBlock={context.onOpenGraphBlock}
+            onSendToGraph={context.mathModules ? context.mathModules.pushExpressionToGraph : undefined}
+          />
+        </LazyModuleBoundary>
         {context.selectedLesson.math_blocks.length === 0 ? (
           <p className="text-sm text-muted-foreground">This lesson has no math blocks yet.</p>
         ) : null}
@@ -535,12 +586,14 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Live Desmos graphing",
     render: (context) =>
       context.mathModules ? (
-        <DesmosGraphModule
-          bindings={context.mathModules}
-          description="Legacy graph cards now route through a real Desmos graphing surface."
-          surface={context.surface ?? "workspace"}
-          title="Interactive graph"
-        />
+        <LazyModuleBoundary title="Interactive graph">
+          <LazyDesmosGraphModule
+            bindings={context.mathModules}
+            description="Legacy graph cards now route through a real Desmos graphing surface."
+            surface={context.surface ?? "workspace"}
+            title="Interactive graph"
+          />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Interactive graph">
           <EmptyState
@@ -556,7 +609,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Live graphing calculator",
     render: (context) =>
       context.mathModules ? (
-        <DesmosGraphModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        <LazyModuleBoundary title="Desmos graph">
+          <LazyDesmosGraphModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Desmos graph">
           <EmptyState
@@ -572,7 +627,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Numeric work and reusable function input",
     render: (context) =>
       context.mathModules ? (
-        <ScientificCalculatorModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        <LazyModuleBoundary title="Scientific calculator">
+          <LazyScientificCalculatorModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Scientific calculator">
           <EmptyState
@@ -588,7 +645,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     description: "Reusable graph states",
     render: (context) =>
       context.mathModules ? (
-        <SavedGraphsModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        <LazyModuleBoundary title="Saved graphs">
+          <LazySavedGraphsModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+        </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Saved graphs">
           <EmptyState
@@ -603,16 +662,18 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     title: "Whiteboard",
     description: "Graph-paper study board with live BinderNotes modules",
     render: (context) => (
-      <WhiteboardModule
-        context={context}
-        renderModule={(moduleId, embeddedContext) => {
-          if (moduleId === "whiteboard") {
-            return null;
-          }
+      <LazyModuleBoundary title="Whiteboard">
+        <LazyWhiteboardModule
+          context={context}
+          renderModule={(moduleId, embeddedContext) => {
+            if (moduleId === "whiteboard") {
+              return null;
+            }
 
-          return workspaceModuleRegistry[moduleId]?.render(embeddedContext) ?? null;
-        }}
-      />
+            return workspaceModuleRegistry[moduleId]?.render(embeddedContext) ?? null;
+          }}
+        />
+      </LazyModuleBoundary>
     ),
   },
   "recent-highlights": {

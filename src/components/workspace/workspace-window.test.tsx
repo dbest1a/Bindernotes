@@ -255,4 +255,98 @@ describe("WorkspaceWindow", () => {
       y: 24,
     });
   });
+
+  it("resizes against the full canvas width instead of shrinking to the visible viewport", () => {
+    const onCommit = vi.fn();
+
+    const { container } = render(
+      <div className="workspace-canvas-shell">
+        <WorkspaceWindow
+          boundsHeight={720}
+          boundsWidth={900}
+          canvasHeight={1200}
+          canvasWidth={1600}
+          frame={frame}
+          locked={false}
+          moduleId="lesson"
+          onCommit={onCommit}
+          onToggleCollapsed={vi.fn()}
+          peerFrames={[]}
+          safeEdgePadding={false}
+          snapBehavior="off"
+          snapEnabled={false}
+          topZ={1}
+          workspaceStyle="full-studio"
+        >
+          <section>
+            <header data-window-drag-handle="true">Lesson</header>
+            <p>Body</p>
+          </section>
+        </WorkspaceWindow>
+      </div>,
+    );
+
+    const shell = container.querySelector(".workspace-canvas-shell") as HTMLDivElement;
+    Object.defineProperty(shell, "clientWidth", { configurable: true, value: 900 });
+    Object.defineProperty(shell, "clientHeight", { configurable: true, value: 720 });
+    Object.defineProperty(shell, "scrollWidth", { configurable: true, value: 1600 });
+    Object.defineProperty(shell, "scrollLeft", { configurable: true, value: 0 });
+
+    const resizeHandle = container.querySelector<HTMLElement>('[data-window-resize="corner"]');
+    expect(resizeHandle).toBeTruthy();
+    fireEvent.pointerDown(resizeHandle!, { clientX: 680, clientY: 520 });
+    fireEvent.pointerMove(window, { clientX: 1160, clientY: 600 });
+    fireEvent.pointerUp(window);
+
+    expect(onCommit.mock.calls.at(-1)?.[1]).toMatchObject({
+      x: 24,
+      y: 36,
+      w: 1120,
+      h: 560,
+    });
+  });
+
+  it("defers canvas height expansion until the pointer interaction commits", () => {
+    const onCanvasHeightRequest = vi.fn();
+    const onCommit = vi.fn();
+
+    render(
+      <WorkspaceWindow
+        boundsHeight={720}
+        boundsWidth={1200}
+        canvasHeight={900}
+        canvasWidth={1200}
+        frame={{ ...frame, y: 300, h: 320 }}
+        locked={false}
+        moduleId="lesson"
+        onCanvasHeightRequest={onCanvasHeightRequest}
+        onCommit={onCommit}
+        onToggleCollapsed={vi.fn()}
+        peerFrames={[]}
+        safeEdgePadding={false}
+        snapBehavior="off"
+        snapEnabled={false}
+        topZ={1}
+        workspaceStyle="full-studio"
+      >
+        <section>
+          <header data-window-drag-handle="true">Lesson</header>
+          <p>Body</p>
+        </section>
+      </WorkspaceWindow>,
+    );
+
+    const handle = screen.getAllByText("Lesson")[0];
+    fireEvent.pointerDown(handle, { clientX: 80, clientY: 80 });
+    fireEvent.pointerMove(window, { clientX: 80, clientY: 640 });
+
+    expect(onCanvasHeightRequest).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(window);
+
+    expect(onCanvasHeightRequest).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls.at(-1)?.[1]).toMatchObject({
+      y: 860,
+    });
+  });
 });

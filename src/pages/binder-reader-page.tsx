@@ -6,11 +6,13 @@ import {
   Home,
   Maximize2,
   Minimize2,
+  Magnet,
   LayoutPanelLeft,
   Lock,
   Plus,
   RotateCcw,
   Save,
+  ShieldCheck,
   SlidersHorizontal,
   StickyNote,
   Unlock,
@@ -37,6 +39,7 @@ import {
 } from "@/hooks/use-binders";
 import { useHistoryMutations, useHistorySuite } from "@/hooks/use-history-suite";
 import { useMathWorkspace, type GraphMode } from "@/hooks/use-math-workspace";
+import { useResponsiveDevice } from "@/hooks/use-responsive-device";
 import { useSaveStatus } from "@/hooks/use-save-status";
 import { useTheme } from "@/hooks/use-theme";
 import { useWorkspacePreferences } from "@/hooks/use-workspace-preferences";
@@ -80,6 +83,10 @@ import {
   workspaceModeOptions,
 } from "@/lib/workspace-preferences";
 import { getWorkspaceMobileModuleTabs } from "@/lib/workspace-preset-designs";
+import {
+  getWorkspaceModuleMinimumSize,
+  WORKSPACE_MAX_CANVAS_HEIGHT,
+} from "@/lib/workspace-layout-engine";
 import { emptyDoc } from "@/lib/utils";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
@@ -112,6 +119,13 @@ type PendingNoteSave = {
     mathBlocks: MathBlock[];
   };
   scopeKey: string;
+};
+
+type WorkspaceCanvasView = {
+  height: number;
+  scrollLeft: number;
+  scrollTop: number;
+  width: number;
 };
 
 export function BinderReaderPage() {
@@ -187,7 +201,8 @@ export function BinderReaderPage() {
   const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
   const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
 
-  const isCompact = useCompactWorkspace();
+  const responsiveDevice = useResponsiveDevice();
+  const isCompact = !responsiveDevice.isDesktop;
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
   const isSimpleMode = active?.activeMode === "simple";
@@ -372,7 +387,9 @@ export function BinderReaderPage() {
         return;
       }
 
-      if (!isLayoutEditing) {
+      const editingLayoutNow = isLayoutEditingRef.current || isLayoutEditing;
+
+      if (!editingLayoutNow) {
         const next = ensureWindowFramesForEnabledModules(updater(active));
         commitWorkspacePreferences(next);
         return;
@@ -428,6 +445,7 @@ export function BinderReaderPage() {
       return;
     }
 
+    isLayoutEditingRef.current = true;
     setLayoutMode("setup");
     workspace.updateDraft((current) => ({
       ...current,
@@ -437,6 +455,7 @@ export function BinderReaderPage() {
   }, [active, workspace]);
 
   const saveUnlockedLayout = useCallback(() => {
+    isLayoutEditingRef.current = true;
     workspace.saveUnlocked();
     setLayoutMode("setup");
   }, [workspace]);
@@ -447,31 +466,49 @@ export function BinderReaderPage() {
       return;
     }
 
+    const viewport = readWorkspaceViewport(workspaceRootRef.current);
+    const updatedAt = new Date().toISOString();
+    isLayoutEditingRef.current = false;
     commitWorkspacePreferences({
       ...current,
       locked: true,
-      updatedAt: new Date().toISOString(),
+      viewportFit: {
+        width: viewport.width,
+        height: viewport.height,
+        updatedAt,
+      },
+      updatedAt,
     });
     setLayoutMode("study");
   }, [active, commitWorkspacePreferences, workspace]);
 
   const cancelLayoutEditing = useCallback(() => {
+    const shouldRemainInSetup = workspace.saved?.activeMode === "canvas" && workspace.saved?.locked === false;
+    isLayoutEditingRef.current = shouldRemainInSetup;
     workspace.cancel();
-    setLayoutMode(workspace.saved?.activeMode === "canvas" && workspace.saved?.locked === false ? "setup" : "study");
+    setLayoutMode(shouldRemainInSetup ? "setup" : "study");
   }, [workspace]);
 
   const getWorkspaceViewport = useCallback(() => {
+    return readWorkspaceViewport(workspaceRootRef.current);
+  }, []);
+
+  const getWorkspaceCanvasView = useCallback((): WorkspaceCanvasView => {
     const shell = workspaceRootRef.current?.querySelector(".workspace-canvas-shell");
     if (shell instanceof HTMLElement && shell.clientWidth > 0 && shell.clientHeight > 0) {
       return {
         width: shell.clientWidth,
         height: shell.clientHeight,
+        scrollLeft: shell.scrollLeft,
+        scrollTop: shell.scrollTop,
       };
     }
 
     return {
       width: window.innerWidth,
       height: Math.max(360, window.innerHeight - 168),
+      scrollLeft: 0,
+      scrollTop: 0,
     };
   }, []);
 
@@ -567,6 +604,105 @@ export function BinderReaderPage() {
       };
     });
   }, [active, getWorkspaceViewport, updateWorkspace]);
+
+  const toggleCanvasSnapMode = useCallback(() => {
+    if (!active || active.activeMode !== "canvas") {
+      return;
+    }
+
+    updateWorkspace((current) => {
+      const nextSnapBehavior = current.canvas.snapBehavior === "off" ? "modules" : "off";
+      return {
+        ...current,
+        canvas: {
+          ...current.canvas,
+          snapBehavior: nextSnapBehavior,
+        },
+        theme: {
+          ...current.theme,
+          snapMode: nextSnapBehavior !== "off",
+        },
+      };
+    });
+  }, [active, updateWorkspace]);
+
+  const toggleSafeEdgePadding = useCallback(() => {
+    if (!active || active.activeMode !== "canvas") {
+      return;
+    }
+
+    updateWorkspace((current) => ({
+      ...current,
+      canvas: {
+        ...current.canvas,
+        safeEdgePadding: !current.canvas.safeEdgePadding,
+      },
+    }));
+  }, [active, updateWorkspace]);
+
+  const openWorkspaceModule = useCallback(
+    (moduleId: WorkspaceModuleId) => {
+      if (!active || active.activeMode !== "canvas") {
+        return;
+      }
+
+      const view = getWorkspaceCanvasView();
+      updateWorkspace((current) => {
+        const enabledModules = current.enabledModules.includes(moduleId)
+          ? current.enabledModules
+          : [...current.enabledModules, moduleId];
+        const next = ensureWorkspaceModuleVisibleOnCanvas(
+          {
+            ...current,
+            enabledModules,
+            canvas: {
+              ...current.canvas,
+              customModules: current.canvas.customModules.includes(moduleId)
+                ? current.canvas.customModules
+                : [...current.canvas.customModules, moduleId],
+            },
+            moduleLayout: {
+              ...current.moduleLayout,
+              [moduleId]: {
+                ...current.moduleLayout[moduleId],
+                span: current.moduleLayout[moduleId]?.span ?? "auto",
+                collapsed: false,
+              },
+            },
+          },
+          moduleId,
+          view,
+        );
+
+        return next;
+      });
+    },
+    [active, getWorkspaceCanvasView, updateWorkspace],
+  );
+
+  const toggleWorkspaceModuleCollapsed = useCallback(
+    (moduleId: WorkspaceModuleId, collapsed: boolean) => {
+      const view = getWorkspaceCanvasView();
+      updateWorkspace((current) => {
+        const next: WorkspacePreferences = {
+          ...current,
+          moduleLayout: {
+            ...current.moduleLayout,
+            [moduleId]: {
+              ...current.moduleLayout[moduleId],
+              span: current.moduleLayout[moduleId]?.span ?? "auto",
+              collapsed,
+            },
+          },
+        };
+
+        return collapsed
+          ? next
+          : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
+      });
+    },
+    [getWorkspaceCanvasView, updateWorkspace],
+  );
 
   const ensureModulesVisible = useCallback(
     (
@@ -2389,6 +2525,7 @@ export function BinderReaderPage() {
     <main
       className="workspace-page"
       data-maximize-module-space={active.theme.compactMode ? "true" : "false"}
+      data-viewport-category={responsiveDevice.category}
       data-workspace-active-focus={activeFocusMode ? "true" : "false"}
       data-workspace-preset={active.preset}
       ref={workspaceRootRef}
@@ -2523,6 +2660,24 @@ export function BinderReaderPage() {
                     <Plus data-icon="inline-start" />
                     Add space below
                   </Button>
+                  <Button
+                    onClick={toggleCanvasSnapMode}
+                    size="sm"
+                    type="button"
+                    variant={active.canvas.snapBehavior !== "off" ? "default" : "outline"}
+                  >
+                    <Magnet data-icon="inline-start" />
+                    Snap {active.canvas.snapBehavior !== "off" ? "on" : "off"}
+                  </Button>
+                  <Button
+                    onClick={toggleSafeEdgePadding}
+                    size="sm"
+                    type="button"
+                    variant={active.canvas.safeEdgePadding ? "default" : "outline"}
+                  >
+                    <ShieldCheck data-icon="inline-start" />
+                    Safe edge {active.canvas.safeEdgePadding ? "on" : "off"}
+                  </Button>
                 </>
               )}
               {active.activeMode !== "simple" ? (
@@ -2625,7 +2780,7 @@ export function BinderReaderPage() {
           </WorkspaceRenderBoundary>
         </section>
       ) : isCompact ? (
-        <section className="grid gap-4">
+        <section className="responsive-mobile-workspace grid gap-4">
           {isLayoutEditing ? (
             <WorkspaceSettings
               binderTitle={binderQuery.data.binder.title}
@@ -2657,7 +2812,7 @@ export function BinderReaderPage() {
             />
           ) : null}
 
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/86 p-3 shadow-sm">
+          <div className="responsive-mobile-tabs flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/86 p-3 shadow-sm">
             {mobileTabs.map((tab) => (
               <Button
                 key={tab.moduleId}
@@ -2676,7 +2831,9 @@ export function BinderReaderPage() {
               resetKey={selectedLesson.id}
               title="This study module could not render"
             >
-              <div className="min-h-0">{mobileActiveModule.render(context)}</div>
+              <div className="responsive-mobile-module min-h-0">
+                {mobileActiveModule.render(context)}
+              </div>
             </WorkspaceRenderBoundary>
           ) : (
             <EmptyState
@@ -2774,19 +2931,8 @@ export function BinderReaderPage() {
 
                   updateWorkspace((current) => fitWorkspaceToViewport(current, viewport));
                 }}
-                onToggleCollapsed={(moduleId: WorkspaceModuleId, collapsed: boolean) =>
-                  updateWorkspace((current) => ({
-                    ...current,
-                    moduleLayout: {
-                      ...current.moduleLayout,
-                      [moduleId]: {
-                        ...current.moduleLayout[moduleId],
-                        span: current.moduleLayout[moduleId]?.span ?? "auto",
-                        collapsed,
-                      },
-                    },
-                  }))
-                }
+                onOpenModule={openWorkspaceModule}
+                onToggleCollapsed={toggleWorkspaceModuleCollapsed}
                 preferences={active}
               />
             </WorkspaceRenderBoundary>
@@ -2795,6 +2941,129 @@ export function BinderReaderPage() {
       )}
     </main>
   );
+}
+
+function readWorkspaceViewport(root: HTMLElement | null) {
+  const shell = root?.querySelector(".workspace-canvas-shell");
+  if (shell instanceof HTMLElement && shell.clientWidth > 0 && shell.clientHeight > 0) {
+    return {
+      width: shell.clientWidth,
+      height: shell.clientHeight,
+    };
+  }
+
+  return {
+    width: window.innerWidth,
+    height: Math.max(360, window.innerHeight - 168),
+  };
+}
+
+function ensureWorkspaceModuleVisibleOnCanvas(
+  preferences: WorkspacePreferences,
+  moduleId: WorkspaceModuleId,
+  view: WorkspaceCanvasView,
+): WorkspacePreferences {
+  const minimum = getWorkspaceModuleMinimumSize(moduleId);
+  const currentFrame = preferences.windowLayout[moduleId] ?? preferences.canvas.panelPositions[moduleId];
+  const topZ = Math.max(
+    1,
+    ...Object.values(preferences.windowLayout).map((frame) => frame?.z ?? 1),
+  );
+  const usableFrame = currentFrame
+    ? {
+        ...currentFrame,
+        w: Math.max(currentFrame.w, minimum.width),
+        h: Math.max(currentFrame.h, minimum.height),
+        z: Math.max(currentFrame.z, topZ + 1),
+      }
+    : null;
+  const frame = usableFrame && isWorkspaceFrameUsablyVisible(usableFrame, view, minimum)
+    ? usableFrame
+    : createRestoredWorkspaceFrame(moduleId, view, minimum, topZ + 1);
+
+  return writeWorkspaceFrame(preferences, moduleId, frame);
+}
+
+function createRestoredWorkspaceFrame(
+  moduleId: WorkspaceModuleId,
+  view: WorkspaceCanvasView,
+  minimum: { width: number; height: number },
+  z: number,
+): WorkspaceWindowFrame {
+  const offset = (z % 5) * 28;
+  const width = Math.max(
+    minimum.width,
+    Math.min(
+      moduleId === "desmos-graph" ? 760 : Math.max(minimum.width + 160, Math.round(view.width * 0.52)),
+      Math.max(minimum.width, view.width - 48),
+    ),
+  );
+  const height = Math.max(
+    minimum.height,
+    Math.min(
+      moduleId === "lesson" || moduleId === "private-notes"
+        ? Math.max(minimum.height, Math.round(view.height * 0.72))
+        : Math.max(minimum.height + 120, Math.round(view.height * 0.56)),
+      Math.max(minimum.height, view.height - 48),
+    ),
+  );
+
+  return {
+    x: Math.max(0, Math.round(view.scrollLeft + 24 + offset)),
+    y: Math.max(0, Math.round(view.scrollTop + 72 + offset)),
+    w: Math.round(width),
+    h: Math.round(height),
+    z,
+  };
+}
+
+function isWorkspaceFrameUsablyVisible(
+  frame: WorkspaceWindowFrame,
+  view: WorkspaceCanvasView,
+  minimum: { width: number; height: number },
+) {
+  if (frame.w < minimum.width || frame.h < minimum.height) {
+    return false;
+  }
+
+  const visibleLeft = view.scrollLeft;
+  const visibleRight = view.scrollLeft + view.width;
+  const visibleTop = view.scrollTop;
+  const visibleBottom = view.scrollTop + view.height;
+  const visibleWidth = Math.min(frame.x + frame.w, visibleRight) - Math.max(frame.x, visibleLeft);
+  const visibleHeight = Math.min(frame.y + frame.h, visibleBottom) - Math.max(frame.y, visibleTop);
+
+  return (
+    visibleWidth >= Math.min(180, frame.w * 0.35) &&
+    visibleHeight >= Math.min(140, frame.h * 0.25)
+  );
+}
+
+function writeWorkspaceFrame(
+  preferences: WorkspacePreferences,
+  moduleId: WorkspaceModuleId,
+  frame: WorkspaceWindowFrame,
+): WorkspacePreferences {
+  const canvasHeight = Math.min(
+    WORKSPACE_MAX_CANVAS_HEIGHT,
+    Math.max(preferences.canvas.canvasHeight, frame.y + frame.h + 320),
+  );
+
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      canvasHeight,
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        [moduleId]: frame,
+      },
+    },
+    windowLayout: {
+      ...preferences.windowLayout,
+      [moduleId]: frame,
+    },
+  };
 }
 
 function appearanceColorsChanged(
@@ -2820,26 +3089,6 @@ function appearanceColorsChanged(
     previous.appearance.customPalette.accent !== next.appearance.customPalette.accent ||
     previous.appearance.customPalette.sourceTheme !== next.appearance.customPalette.sourceTheme
   );
-}
-
-function useCompactWorkspace() {
-  const [compact, setCompact] = useState(() =>
-    typeof window === "undefined" ? false : window.innerWidth < 1100,
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const media = window.matchMedia("(max-width: 1099px)");
-    const update = () => setCompact(media.matches);
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  return compact;
 }
 
 function serializeNoteSnapshot(title: string, content: JSONContent, mathBlocks: MathBlock[]) {

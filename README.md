@@ -1,6 +1,6 @@
 # Binder Notes
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 Binder Notes is a student-first learning workspace for reading course material, taking private notes, graphing math, building study layouts, and testing the product through a Vercel-ready public site.
 
@@ -21,7 +21,7 @@ The app has grown past the first Phase 1 MVP. It now includes:
 - Workspace presets, simple presentation mode, canvas/study panels, focus mode, theme controls, and admin motion controls
 - Admin-only premium dashboard makeover with Google Drive-style organize mode for folders and binders
 - Stripe pricing and checkout service scaffolding
-- Deployment hardening, client environment guards, seed repair scripts, and live auth verification helpers
+- Deployment hardening, client environment guards, seed repair scripts, responsive/layout verification, and live auth verification helpers
 
 ## What Changed Recently
 
@@ -30,7 +30,8 @@ The previous README was last touched on 2026-04-21. Since then, the repo has add
 - Math learning infrastructure: routes under `/math`, seeded calculus/Jacob modules, manual question banks, quiz sets, attempts, scoring, and Supabase tables in `0011_math_learning_infrastructure.sql`.
 - Full Jacob Math Notes coverage: 27 published modules, 54 linked practice questions, formula cards, graph/demo cards, related concepts, and a coverage ledger in `docs/jacob-math-notes-coverage.md`.
 - Whiteboard system: Supabase persistence, standalone math whiteboard lab, module cards, toolbar/launcher/template picker, pinned object layers, annotation targeting, serialization, layout helpers, and migrations `0012` through `0015`.
-- Workspace and preset improvements: layout engine, preset validation, subject-aware module support, compact module spacing, richer settings, focus fixes, and panel sizing tests.
+- Workspace and preset improvements: layout engine, preset validation, subject-aware module support, compact module spacing, accordion-organized settings, edit-layout snapback protection, focus fixes, and panel sizing tests.
+- Responsiveness and performance passes: phone/tablet workspace adaptations, route/code splitting, reduced eager loading for admin/editor/math tooling, and settings search optimizations.
 - Public marketing work: redesigned landing page and pricing page, plus a polished pricing comparison table.
 - Admin dashboard preview: profile-gated Normal/Admin Makeover toggle, premium motion/color controls, glassy workspace redesign, dnd-kit folder/binder drag ordering, local admin order drafts, and migration-ready sort columns.
 - History content expansion: Russian Revolution seed data and services alongside the existing history suite.
@@ -38,7 +39,7 @@ The previous README was last touched on 2026-04-21. Since then, the repo has add
 
 ## Architecture
 
-Binder Notes is a React + TypeScript + Vite SPA. Supabase is the source of truth once configured. The app still includes small demo fallbacks so UI flows can be reviewed without full backend data, but user product data should live in Supabase.
+Binder Notes is a React + TypeScript + Vite SPA. Supabase is the source of truth for account, role, binder, lesson, notes, whiteboard, and workspace data. Production builds should use real Supabase Auth and seeded/system content; demo auth and demo binder shortcuts are intentionally kept out of production paths.
 
 Key layers:
 
@@ -205,6 +206,10 @@ Recommended Vercel-side settings:
 - Keep Deployment Protection off only for environments intentionally shared with testers.
 - Add Preview and Production copies of `VITE_DESMOS_API_KEY` if both preview links and the custom domain should load Desmos.
 - If Supabase-backed auth is public, enable rate limits and bot protection at the provider layer.
+
+## License
+
+Binder Notes is proprietary software. The source code, product design, user interface, documentation, data models, and related materials are all rights reserved. See [LICENSE](LICENSE) for the full proprietary notice.
 
 ## Data And Migrations
 

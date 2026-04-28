@@ -52,6 +52,13 @@ export function RichTextEditor({
     [placeholder],
   );
   const appliedInsertIdRef = useRef<string | null>(null);
+  const onChangeRef = useRef(onChange);
+  const editorSnapshotRef = useRef(JSON.stringify(value));
+  const valueSnapshot = useMemo(() => JSON.stringify(value), [value]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const editor = useEditor({
     extensions,
@@ -71,7 +78,8 @@ export function RichTextEditor({
       }
 
       const next = instance.getJSON();
-      onChange?.(next);
+      editorSnapshotRef.current = JSON.stringify(next);
+      onChangeRef.current?.(next);
     },
   });
 
@@ -114,16 +122,21 @@ export function RichTextEditor({
       return;
     }
 
+    if (editorSnapshotRef.current === valueSnapshot) {
+      return;
+    }
+
     const editorSnapshot = JSON.stringify(editor.getJSON());
-    const valueSnapshot = JSON.stringify(value);
+    editorSnapshotRef.current = editorSnapshot;
     if (editorSnapshot === valueSnapshot) {
       return;
     }
 
     if (!editor.isDestroyed) {
       editor.commands.setContent(value, { emitUpdate: false });
+      editorSnapshotRef.current = valueSnapshot;
     }
-  }, [editor, value]);
+  }, [editor, value, valueSnapshot]);
 
   if (!editor) {
     return null;

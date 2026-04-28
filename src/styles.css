@@ -1597,6 +1597,11 @@
     cursor: grab;
   }
 
+  [data-workspace-edit-hints="off"] .workspace-window__edit-hint {
+    opacity: 0;
+    visibility: hidden;
+  }
+
   .workspace-window--dragging [data-window-drag-handle="true"] {
     cursor: grabbing;
   }
@@ -1660,6 +1665,37 @@
     min-height: calc(100svh - 5.4rem);
   }
 
+  .workspace-layout-builder-panel {
+    @apply grid gap-3 rounded-2xl border border-border/70 p-3 shadow-sm backdrop-blur;
+    background-color: hsl(var(--card) / 0.88);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.42fr);
+    contain: layout paint;
+  }
+
+  .workspace-layout-builder-panel__main,
+  .workspace-layout-builder-panel__inspector {
+    @apply min-w-0 rounded-xl border border-border/60 p-3;
+    background-color: hsl(var(--background) / 0.58);
+  }
+
+  .workspace-layout-builder-panel__modules,
+  .workspace-layout-builder-panel__actions {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .workspace-layout-builder-panel__module-button {
+    max-width: 100%;
+  }
+
+  .workspace-layout-builder-panel__module-button > span:not(.workspace-layout-builder-panel__status) {
+    @apply min-w-0 truncate;
+  }
+
+  .workspace-layout-builder-panel__status {
+    @apply rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
+    background-color: hsl(var(--background) / 0.72);
+  }
+
   .workspace-settings {
     min-width: 0;
     container-type: inline-size;
@@ -1679,6 +1715,42 @@
   }
 
   .workspace-settings__scroll > :first-child {
+    margin-top: 0;
+  }
+
+  .workspace-settings-folder {
+    @apply rounded-xl border border-border/70 bg-background/45;
+    overflow: hidden;
+  }
+
+  .workspace-settings-folder + .workspace-settings-folder {
+    margin-top: 0.75rem;
+  }
+
+  .workspace-settings-folder__trigger {
+    @apply flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition;
+    min-height: 3.25rem;
+    touch-action: manipulation;
+  }
+
+  .workspace-settings-folder__trigger:hover {
+    background-color: hsl(var(--secondary) / 0.62);
+  }
+
+  .workspace-settings-folder__trigger[aria-expanded="true"] {
+    border-bottom: 1px solid hsl(var(--border) / 0.6);
+    background-color: hsl(var(--card) / 0.62);
+  }
+
+  .workspace-settings-folder__chevron {
+    @apply flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card text-lg font-semibold leading-none;
+  }
+
+  .workspace-settings-folder__content {
+    padding: 0.75rem;
+  }
+
+  .workspace-settings-folder__content > :first-child {
     margin-top: 0;
   }
 
@@ -2443,6 +2515,10 @@
     .workspace-preferences-popover .workspace-settings {
       height: auto;
       max-height: min(72svh, 48rem);
+    }
+
+    .workspace-layout-builder-panel {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
@@ -6097,5 +6173,304 @@
   :root[data-admin-motion="on"] .admin-binder-card,
   :root[data-admin-motion="on"] .admin-folder-drop-zone {
     transition-duration: 0.01ms !important;
+  }
+}
+
+.responsive-mobile-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-mobile-tabs > * {
+  flex: 0 0 auto;
+  min-height: 2.75rem;
+}
+
+.responsive-mobile-module {
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1180px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+  }
+
+  .marketing-page,
+  .pricing-page,
+  .app-page,
+  .admin-dashboard-makeover,
+  .workspace-page,
+  .workspace-settings {
+    overflow-x: clip;
+  }
+
+  .app-page {
+    max-width: 100%;
+  }
+
+  .app-primary-nav {
+    max-width: min(58vw, 42rem);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-aside,
+  .page-shell,
+  .utility-panel {
+    min-width: 0;
+  }
+
+  .admin-dashboard-makeover {
+    overflow-y: visible;
+  }
+
+  .admin-dashboard-actions > *,
+  .admin-dashboard-editbar > *,
+  .admin-dashboard-toggle__item {
+    min-width: 0;
+  }
+
+  .admin-dashboard-editbar,
+  .admin-dashboard-section__header,
+  .admin-dashboard-hero__panel {
+    max-width: 100%;
+  }
+
+  .workspace-page {
+    height: auto;
+    min-height: calc(100svh - 4rem);
+    overflow-y: visible;
+  }
+
+  .workspace-topbar,
+  .workspace-topbar[data-layout-editing="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "summary"
+      "presets"
+      "actions";
+  }
+
+  .workspace-topbar__actions,
+  .workspace-topbar__presets,
+  .workspace-topbar[data-layout-editing="true"] .workspace-topbar__actions,
+  .workspace-topbar[data-layout-editing="true"] .workspace-topbar__presets {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: thin;
+  }
+
+  .workspace-canvas-shell {
+    min-height: min(72svh, 720px);
+  }
+
+  .workspace-settings {
+    height: auto;
+    max-height: min(82svh, 840px);
+    width: 100%;
+  }
+
+  .workspace-settings-folder__trigger {
+    min-height: 3.5rem;
+  }
+
+  .workspace-settings-folder__content {
+    min-width: 0;
+  }
+
+  .workspace-settings__header {
+    flex-wrap: wrap;
+  }
+
+  .marketing-nav,
+  .marketing-hero__inner,
+  .marketing-showcase__stage,
+  .marketing-showcase__header,
+  .marketing-product-scene,
+  .marketing-showcase-visual,
+  .marketing-showcase-visual__frame,
+  .pricing-hero__inner,
+  .pricing-story {
+    max-width: 100%;
+  }
+
+  .marketing-showcase__tabs {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-page {
+    gap: 1.25rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .app-header__inner {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 4rem;
+    padding-bottom: 0.55rem;
+    padding-top: 0.55rem;
+  }
+
+  .app-primary-nav {
+    display: flex !important;
+    max-width: 100%;
+    order: 3;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .app-primary-nav a {
+    flex: 0 0 auto;
+    min-height: 2.5rem;
+  }
+
+  .app-header__actions {
+    margin-left: auto;
+  }
+
+  .page-heading {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+    line-height: 1.05;
+  }
+
+  .page-copy {
+    font-size: 0.95rem;
+    line-height: 1.65;
+  }
+
+  .marketing-hero h1 {
+    font-size: clamp(2.35rem, 12vw, 3.6rem);
+    letter-spacing: 0;
+  }
+
+  .marketing-hero__actions,
+  .marketing-final-cta .marketing-hero__actions {
+    align-items: stretch;
+  }
+
+  .marketing-product-scene,
+  .marketing-showcase-visual,
+  .marketing-showcase-visual__frame {
+    min-height: min(520px, 78svh);
+  }
+
+  .marketing-showcase__copy {
+    min-height: 360px;
+    padding: 1.15rem;
+  }
+
+  .marketing-showcase__panel-copy {
+    inset: 1.15rem;
+  }
+
+  .marketing-inline-cta {
+    margin-top: 1rem;
+    position: static;
+  }
+
+  .product-window {
+    max-width: 100%;
+  }
+
+  .product-window__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-dashboard-makeover {
+    padding: 0.75rem;
+  }
+
+  .admin-dashboard-actions .ui-button-motion,
+  .admin-dashboard-editbar .ui-button-motion {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .admin-dashboard-toggle {
+    border-radius: 0.9rem;
+  }
+
+  .admin-dashboard-toggle__item {
+    min-height: 2.75rem;
+    white-space: normal;
+  }
+
+  .workspace-topbar {
+    padding: 0.75rem;
+  }
+
+  .workspace-topbar__title {
+    white-space: normal;
+  }
+
+  .workspace-topbar__actions > *,
+  .workspace-topbar__presets > *,
+  .responsive-mobile-tabs > * {
+    flex: 0 0 auto;
+  }
+
+  .responsive-mobile-tabs {
+    flex-wrap: nowrap;
+    margin-inline: -0.15rem;
+    padding: 0.6rem;
+  }
+
+  .responsive-mobile-module .workspace-panel__header,
+  .responsive-mobile-module [data-compact-module-header] {
+    flex-wrap: wrap;
+  }
+
+  .workspace-settings__header {
+    padding: 0.875rem;
+  }
+
+  .workspace-settings-folder__trigger {
+    align-items: flex-start;
+    padding: 0.875rem;
+  }
+
+  .workspace-settings-folder__content {
+    padding: 0.75rem;
+  }
+
+  .workspace-settings-folder__chevron {
+    margin-top: 0.125rem;
+  }
+
+  .workspace-settings__scroll {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+  }
+
+  .editor-surface .ProseMirror {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  :root[data-admin-motion="on"] .dashboard-card:hover,
+  :root[data-admin-motion="on"] .binder-card:hover,
+  :root[data-admin-motion="on"] .admin-doc-card:hover,
+  :root[data-admin-motion="on"] .admin-folder-card:hover,
+  :root[data-admin-motion="on"] .admin-binder-card:hover,
+  .ui-click-tile:hover {
+    transform: none;
   }
 }

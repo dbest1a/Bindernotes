@@ -7,7 +7,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
-import { AdminDashboardMakeover } from "@/components/dashboard/admin-dashboard-makeover";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/hooks/use-binders";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
@@ -29,12 +28,19 @@ import { isMissingSeedError } from "@/lib/seed-health";
 import { buildLearnerWorkspaceMessage, classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { createFolderSummary, getPrimaryFolder } from "@/lib/workspace-structure";
 
+const LazyAdminDashboardMakeover = lazy(() =>
+  import("@/components/dashboard/admin-dashboard-makeover").then((module) => ({
+    default: module.AdminDashboardMakeover,
+  })),
+);
+
 export function DashboardPage() {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const { data, isLoading, error } = useDashboard(profile);
   const dashboardExperience = useDashboardExperience(profile?.role === "admin");
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const showSystemDiagnostics =
     (profile?.role === "admin" || import.meta.env.DEV) &&
     searchParams.get("debug") === "system";
@@ -44,13 +50,21 @@ export function DashboardPage() {
       return null;
     }
 
-    const normalized = query.trim().toLowerCase();
-    const lessonsByBinderId = Object.fromEntries(
-      data.binders.map((binder) => [
-        binder.id,
-        data.lessons.filter((lesson) => lesson.binder_id === binder.id),
+    const normalized = deferredQuery.trim().toLowerCase();
+    const lessonsByBinderId = data.lessons.reduce<Record<string, typeof data.lessons>>((groups, lesson) => {
+      groups[lesson.binder_id] = groups[lesson.binder_id] ?? [];
+      groups[lesson.binder_id].push(lesson);
+      return groups;
+    }, {});
+    for (const binder of data.binders) {
+      lessonsByBinderId[binder.id] = lessonsByBinderId[binder.id] ?? [];
+    }
+    const recentDocumentSearchTextById = new Map(
+      data.recentLessons.map((lesson) => [
+        lesson.id,
+        `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase(),
       ]),
-    ) as Record<string, typeof data.lessons>;
+    );
 
     const folderSummaries = data.folders
       .map((folder) =>
@@ -78,13 +92,11 @@ export function DashboardPage() {
     ) as Record<string, string | null>;
 
     const recentDocuments = data.recentLessons
-      .filter((lesson) =>
-        `${deriveLessonTitle(lesson)} ${JSON.stringify(lesson.content)}`.toLowerCase().includes(normalized),
-      )
+      .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalized))
       .slice(0, 6);
 
     return { folderSummaries, studyReadyBinders, recentDocuments, lessonsByBinderId, folderNamesByBinderId };
-  }, [data, query]);
+  }, [data, deferredQuery]);
 
   const actionableDiagnostics = filterActionableDiagnostics(data?.diagnostics ?? []);
   const learnerDiagnosticsMessage = actionableDiagnostics.length
@@ -115,13 +127,21 @@ export function DashboardPage() {
     !error
   ) {
     return (
-      <AdminDashboardMakeover
-        data={data}
-        onQueryChange={setQuery}
-        onSwitchNormal={() => dashboardExperience.setViewMode("normal")}
-        profile={profile}
-        query={query}
-      />
+      <Suspense
+        fallback={
+          <main className="app-page">
+            <Skeleton className="h-[420px]" />
+          </main>
+        }
+      >
+        <LazyAdminDashboardMakeover
+          data={data}
+          onQueryChange={setQuery}
+          onSwitchNormal={() => dashboardExperience.setViewMode("normal")}
+          profile={profile}
+          query={query}
+        />
+      </Suspense>
     );
   }
 

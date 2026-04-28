@@ -121,7 +121,7 @@ describe("WhiteboardCanvas", () => {
       ) => void)([], { scrollX: 999, scrollY: 888, zoom: { value: 4 } }, {});
     });
 
-    expect(onSceneChange).toHaveBeenCalled();
+    expect(onSceneChange).not.toHaveBeenCalled();
     expect(onViewportChange).toHaveBeenCalledWith(
       expect.objectContaining({
         scrollX: 999,
@@ -131,28 +131,17 @@ describe("WhiteboardCanvas", () => {
     );
   });
 
-  it("polls Excalidraw API appState so toolbar zoom stays in sync when callbacks are quiet", async () => {
-    const onViewportChange = vi.fn();
-    render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={onViewportChange} />);
+  it("does not start idle camera polling when Excalidraw callbacks are quiet", async () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
 
-    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
-    onViewportChange.mockClear();
+    try {
+      render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={vi.fn()} />);
 
-    excalidrawMock.apiState = {
-      scrollX: 12,
-      scrollY: -24,
-      zoom: { value: 1.5 },
-    };
-
-    await waitFor(() =>
-      expect(onViewportChange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          scrollX: 12,
-          scrollY: -24,
-          zoom: 1.5,
-        }),
-      ),
-    );
+      await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+      expect(setIntervalSpy.mock.calls.some((call) => call[1] === 16)).toBe(false);
+    } finally {
+      setIntervalSpy.mockRestore();
+    }
   });
 
   it("does not spam viewport updates while the camera is unchanged", async () => {

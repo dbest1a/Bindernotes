@@ -164,6 +164,8 @@ vi.mock("@/hooks/use-theme", () => ({
 
 import { BinderReaderPage } from "@/pages/binder-reader-page";
 
+let viewportWidth = 1024;
+
 function renderReaderPage(initialEntry: string) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -183,10 +185,87 @@ function renderReaderPage(initialEntry: string) {
   );
 }
 
+function setTestViewportWidth(width: number) {
+  viewportWidth = width;
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+  });
+}
+
+function matchesResponsiveQuery(query: string) {
+  if (query === "(max-width: 767px)") {
+    return viewportWidth <= 767;
+  }
+
+  if (query === "(min-width: 768px) and (max-width: 1180px)") {
+    return viewportWidth >= 768 && viewportWidth <= 1180;
+  }
+
+  if (query === "(min-width: 1181px)") {
+    return viewportWidth >= 1181;
+  }
+
+  if (query === "(max-width: 1180px)") {
+    return viewportWidth <= 1180;
+  }
+
+  if (query === "(pointer: coarse)" || query === "(prefers-reduced-motion: reduce)") {
+    return false;
+  }
+
+  return false;
+}
+
+function createSingleLessonBundle(
+  binderTitle = "Algebra",
+  lessonTitle = "Like Terms",
+): BinderBundle {
+  return {
+    binder: {
+      id: "binder-1",
+      owner_id: "admin-1",
+      title: binderTitle,
+      slug: binderTitle.toLowerCase().replace(/\s+/g, "-"),
+      subject: "Math",
+      level: "Foundations",
+      description: "A math binder.",
+      status: "published",
+      price_cents: 0,
+      cover_url: null,
+      pinned: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    },
+    folders: [],
+    folderLinks: [],
+    lessons: [
+      {
+        id: "lesson-1",
+        binder_id: "binder-1",
+        title: lessonTitle,
+        order_index: 1,
+        content: emptyDoc("Combine matching terms."),
+        math_blocks: [],
+        is_preview: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+    ],
+    notes: [],
+    comments: [],
+    highlights: [],
+    conceptNodes: [],
+    conceptEdges: [],
+    seedHealth: null,
+  };
+}
+
 describe("BinderReaderPage", () => {
   beforeEach(() => {
+    setTestViewportWidth(1024);
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: false,
+      matches: matchesResponsiveQuery(query),
       media: query,
       onchange: null,
       addEventListener: vi.fn(),
@@ -195,6 +274,14 @@ describe("BinderReaderPage", () => {
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
     }));
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        disconnect = vi.fn();
+        observe = vi.fn();
+        unobserve = vi.fn();
+      },
+    );
   });
 
   afterEach(() => {
@@ -572,6 +659,49 @@ describe("BinderReaderPage", () => {
     expect(topbar?.textContent).toContain("Locked study mode");
     expect(container.querySelector(".workspace-topbar__meta")).toBeNull();
     expect(container.querySelector(".workspace-topbar__presets")).toBeNull();
+  });
+
+  it("uses responsive module tabs on tablet widths instead of tiny desktop windows", () => {
+    setTestViewportWidth(1180);
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: true,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("tablet");
+    expect(container.querySelector(".responsive-mobile-tabs")).not.toBeNull();
+    expect(container.querySelector(".responsive-mobile-module")).not.toBeNull();
+    expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
+  });
+
+  it("keeps the desktop workspace path above the tablet breakpoint", () => {
+    setTestViewportWidth(1181);
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: true,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("desktop");
+    expect(container.querySelector(".responsive-mobile-tabs")).toBeNull();
+    expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
   });
 
   it("applies appearance color changes immediately from edit layout settings", async () => {

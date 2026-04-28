@@ -1,4 +1,4 @@
-import { CSSProperties, PointerEvent, useState } from "react";
+import { CSSProperties, PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -119,7 +119,9 @@ const differentiators = [
 ];
 
 export function LandingPage() {
-  const [heroPointer, setHeroPointer] = useState({
+  const heroRef = useRef<HTMLElement | null>(null);
+  const heroPointerRafRef = useRef<number | null>(null);
+  const pendingHeroPointerRef = useRef({
     x: "0px",
     y: "0px",
     tiltX: "0deg",
@@ -127,11 +129,46 @@ export function LandingPage() {
   });
   const [activeShowcase, setActiveShowcase] = useState<ShowcaseId>("study");
 
+  const applyHeroPointer = useCallback(() => {
+    heroPointerRafRef.current = null;
+    const hero = heroRef.current;
+    if (!hero) {
+      return;
+    }
+
+    const pointer = pendingHeroPointerRef.current;
+    hero.style.setProperty("--hero-x", pointer.x);
+    hero.style.setProperty("--hero-y", pointer.y);
+    hero.style.setProperty("--hero-tilt-x", pointer.tiltX);
+    hero.style.setProperty("--hero-tilt-y", pointer.tiltY);
+  }, []);
+
+  const scheduleHeroPointer = useCallback(
+    (nextPointer: typeof pendingHeroPointerRef.current) => {
+      pendingHeroPointerRef.current = nextPointer;
+      if (heroPointerRafRef.current !== null) {
+        return;
+      }
+
+      heroPointerRafRef.current = window.requestAnimationFrame(applyHeroPointer);
+    },
+    [applyHeroPointer],
+  );
+
+  useEffect(
+    () => () => {
+      if (heroPointerRafRef.current !== null) {
+        window.cancelAnimationFrame(heroPointerRafRef.current);
+      }
+    },
+    [],
+  );
+
   const updateHeroPointer = (event: PointerEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const normalizedX = (event.clientX - rect.left - rect.width / 2) / rect.width;
     const normalizedY = (event.clientY - rect.top - rect.height / 2) / rect.height;
-    setHeroPointer({
+    scheduleHeroPointer({
       x: `${normalizedX * 34}px`,
       y: `${normalizedY * 28}px`,
       tiltX: `${normalizedY * -7}deg`,
@@ -143,16 +180,9 @@ export function LandingPage() {
     <main className="marketing-page">
       <section
         className="marketing-hero"
-        onPointerLeave={() => setHeroPointer({ x: "0px", y: "0px", tiltX: "0deg", tiltY: "0deg" })}
+        onPointerLeave={() => scheduleHeroPointer({ x: "0px", y: "0px", tiltX: "0deg", tiltY: "0deg" })}
         onPointerMove={updateHeroPointer}
-        style={
-          {
-            "--hero-x": heroPointer.x,
-            "--hero-y": heroPointer.y,
-            "--hero-tilt-x": heroPointer.tiltX,
-            "--hero-tilt-y": heroPointer.tiltY,
-          } as CSSProperties
-        }
+        ref={heroRef}
       >
         <MarketingNav />
         <div className="marketing-hero__glow" aria-hidden="true" />

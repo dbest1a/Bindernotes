@@ -41,6 +41,73 @@ describe("WorkspaceSettings appearance scope", () => {
     expect(screen.getByText("Accent")).toBeTruthy();
   });
 
+  it("renders organized settings folders that can expand and collapse", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    const { container } = render(
+      <WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />,
+    );
+
+    expect(screen.getByRole("button", { name: /layout & presets/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /edit layout/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /snapping & canvas/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /module display/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /motion & performance/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /tools & modules/i })).toBeTruthy();
+    const advancedFolder = container.querySelector('[data-settings-folder="advanced"] button');
+    expect(advancedFolder?.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: /colors & study surface/i }));
+
+    expect(screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("App Theme")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /colors & study surface/i }));
+
+    expect(screen.getByText("App Theme")).toBeTruthy();
+  });
+
+  it("auto-expands matching folders and hides non-matching folders while searching", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "hover" },
+    });
+
+    expect(screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Hover motion")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /colors & study surface/i })).toBeNull();
+  });
+
+  it("finds settings by folder labels and setting descriptions", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "colors" },
+    });
+    expect(screen.getByRole("button", { name: /colors & study surface/i })).toBeTruthy();
+    expect(screen.getByText("Workspace colors")).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "edge margin" },
+    });
+    expect(screen.getByText(/Safe Edge Padding/i)).toBeTruthy();
+  });
+
   it("filters settings by label and description while keeping matching controls visible", () => {
     const preferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -85,8 +152,30 @@ describe("WorkspaceSettings appearance scope", () => {
       target: { value: "bezel" },
     });
 
-    expect(screen.getByText("Safe edge padding")).toBeTruthy();
+    expect(screen.getByText(/Safe Edge Padding/i)).toBeTruthy();
     expect(screen.queryByText("Presets")).toBeNull();
+  });
+
+  it("finds graph and responsive settings through required aliases", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "graph" },
+    });
+    expect(screen.getByRole("button", { name: /tools & modules/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Graph appearance")).toBeTruthy();
+
+    for (const query of ["phone", "mobile", "tablet"]) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+      expect(screen.getByText("Responsive layout")).toBeTruthy();
+    }
   });
 
   it("finds whiteboard controls through board and sketch aliases", () => {
@@ -126,6 +215,40 @@ describe("WorkspaceSettings appearance scope", () => {
     expect(screen.getByText("No settings found.")).toBeTruthy();
   });
 
+  it("does not mutate workspace layout or lose unsaved setting changes while searching", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Safe Edge Padding/i }));
+    const changedPreferences = onChange.mock.calls.at(-1)?.[0];
+    const nextSafeEdgePadding = !preferences.canvas.safeEdgePadding;
+    expect(changedPreferences).toEqual(
+      expect.objectContaining({
+        canvas: expect.objectContaining({ safeEdgePadding: nextSafeEdgePadding }),
+      }),
+    );
+
+    onChange.mockClear();
+    rerender(<WorkspaceSettings onChange={onChange} preferences={changedPreferences} mode="layout" />);
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "bezel" },
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", {
+        name: nextSafeEdgePadding ? /Safe Edge Padding On/i : /Safe Edge Padding Off/i,
+      }),
+    ).toBeTruthy();
+    expect(changedPreferences.canvas.panelPositions).toEqual(preferences.canvas.panelPositions);
+  });
+
   it("defaults maximize module space on and lets users restore the richer module headers", () => {
     const preferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -144,6 +267,43 @@ describe("WorkspaceSettings appearance scope", () => {
         theme: expect.objectContaining({ compactMode: false }),
       }),
     );
+  });
+
+  it("keeps the canvas module launcher off by default and exposes a layout setting to show it", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const onChange = vi.fn();
+
+    render(<WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />);
+
+    expect(preferences.theme.showUtilityUi).toBe(false);
+
+    const toggle = screen.getByRole("button", { name: /canvas launcher hidden/i });
+    fireEvent.click(toggle);
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        theme: expect.objectContaining({ showUtilityUi: true }),
+      }),
+    );
+  });
+
+  it("finds the canvas launcher setting through launcher and side menu search", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    for (const query of ["launcher", "side menu"]) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+      expect(screen.getByRole("button", { name: /canvas launcher hidden/i })).toBeTruthy();
+    }
   });
 
   it("finds the maximize module space toggle through source, lesson, notes, header, space, compact, and maximize searches", () => {
@@ -225,4 +385,32 @@ describe("WorkspaceSettings appearance scope", () => {
     expect(screen.queryByRole("button", { name: /show all presets/i })).toBeNull();
     expect(container.querySelectorAll("[data-workspace-preset-option='true']")).toHaveLength(0);
   });
+
+  it("keeps settings folders usable on phone and tablet widths", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    setViewportWidth(390);
+    const { rerender } = render(
+      <WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="preferences" />,
+    );
+
+    expect(screen.getByRole("button", { name: /layout & presets/i })).toBeTruthy();
+    expect(screen.getByPlaceholderText(/search settings/i)).toBeTruthy();
+
+    setViewportWidth(820);
+    rerender(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    expect(screen.getByRole("button", { name: /edit layout/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /snapping & canvas/i })).toBeTruthy();
+  });
 });
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+  });
+}

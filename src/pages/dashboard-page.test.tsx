@@ -167,7 +167,7 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("Environment warning")).toBeNull();
   });
 
-  it("renders the admin makeover dashboard only when an admin chooses it", () => {
+  it("renders the admin makeover dashboard only when an admin chooses it", async () => {
     window.localStorage.setItem(
       "binder-notes:admin-dashboard-view",
       JSON.stringify({ viewMode: "admin-makeover" }),
@@ -179,7 +179,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Your BinderNotes Workspace")).toBeTruthy();
+    expect(await screen.findByText("Your BinderNotes Workspace")).toBeTruthy();
     expect(screen.getByTestId("admin-dashboard-makeover")).toBeTruthy();
     expect(screen.getByRole("button", { name: /organize/i })).toBeTruthy();
   });
@@ -201,7 +201,7 @@ describe("DashboardPage", () => {
     expect(screen.getByText("A real study hierarchy: folders, binders, then documents.")).toBeTruthy();
   });
 
-  it("shows admin-only organization controls and drag handles in makeover edit mode", () => {
+  it("shows admin-only organization controls and drag handles in makeover edit mode", async () => {
     window.localStorage.setItem(
       "binder-notes:admin-dashboard-view",
       JSON.stringify({ viewMode: "admin-makeover" }),
@@ -213,7 +213,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /organize/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /organize/i }));
 
     expect(screen.getAllByText("Organizing workspace").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /save order/i })).toBeTruthy();

@@ -174,6 +174,10 @@ const mocks = vi.hoisted(() => {
     bundleState: {
       data: bundle,
     },
+    richTextEditorRender: vi.fn(),
+    mathBlocksRender: vi.fn(),
+    diagnosticsPanelRender: vi.fn(),
+    seedHealthPanelRender: vi.fn(),
     mutations: {
       binder: {
         mutateAsync: binderMutateAsync,
@@ -219,17 +223,44 @@ vi.mock("@/components/editor/rich-text-editor", () => ({
   }: {
     value: BinderLesson["content"];
     onChange?: (value: BinderLesson["content"]) => void;
-  }) => (
-    <textarea
-      aria-label="Rich editor"
-      onChange={() => onChange?.(value)}
-      value={JSON.stringify(value)}
-    />
-  ),
+  }) => {
+    mocks.richTextEditorRender();
+    return (
+      <textarea
+        aria-label="Rich editor"
+        onChange={() => onChange?.(value)}
+        value={JSON.stringify(value)}
+      />
+    );
+  },
 }));
 
 vi.mock("@/components/math/math-blocks", () => ({
-  MathBlocks: () => <div>Math blocks</div>,
+  MathBlocks: () => {
+    mocks.mathBlocksRender();
+    return <div>Math blocks</div>;
+  },
+}));
+
+vi.mock("@/components/ui/workspace-diagnostics-panel", () => ({
+  WorkspaceDiagnosticsPanel: ({ diagnostics }: { diagnostics: WorkspaceDiagnostic[] }) => {
+    mocks.diagnosticsPanelRender();
+    return (
+      <section>
+        <h2>Workspace diagnostics</h2>
+        {diagnostics.map((diagnostic) => (
+          <p key={diagnostic.code}>{diagnostic.title}</p>
+        ))}
+      </section>
+    );
+  },
+}));
+
+vi.mock("@/components/ui/seed-health-panel", () => ({
+  SeedHealthPanel: ({ title = "Seed status" }: { title?: string }) => {
+    mocks.seedHealthPanelRender();
+    return <section>{title}</section>;
+  },
 }));
 
 import { AdminStudioPage } from "@/pages/admin-studio-page";
@@ -257,6 +288,10 @@ describe("AdminStudioPage", () => {
     mocks.mutations.lesson.mutateAsync.mockClear();
     mocks.mutations.deleteLesson.mutateAsync.mockClear();
     mocks.mutations.seedSystemSuites.mutateAsync.mockClear();
+    mocks.richTextEditorRender.mockClear();
+    mocks.mathBlocksRender.mockClear();
+    mocks.diagnosticsPanelRender.mockClear();
+    mocks.seedHealthPanelRender.mockClear();
   });
 
   afterEach(() => {
@@ -275,7 +310,23 @@ describe("AdminStudioPage", () => {
     expect(screen.queryByText("Workspace diagnostics")).toBeNull();
   });
 
-  it("shows diagnostics when opened manually", () => {
+  it("does not eagerly render content editor, math blocks, or diagnostics panels", () => {
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByLabelText("Rich editor")).toBeNull();
+    expect(screen.queryByText("Math blocks")).toBeNull();
+    expect(screen.queryByText("Workspace diagnostics")).toBeNull();
+    expect(mocks.richTextEditorRender).not.toHaveBeenCalled();
+    expect(mocks.mathBlocksRender).not.toHaveBeenCalled();
+    expect(mocks.diagnosticsPanelRender).not.toHaveBeenCalled();
+    expect(mocks.seedHealthPanelRender).not.toHaveBeenCalled();
+  });
+
+  it("shows diagnostics when opened manually", async () => {
     render(
       <MemoryRouter>
         <AdminStudioPage />
@@ -283,8 +334,27 @@ describe("AdminStudioPage", () => {
     );
 
     fireEvent.click(screen.getAllByLabelText("Toggle system diagnostics drawer")[0]);
-    expect(screen.getByText("Workspace diagnostics")).toBeTruthy();
+    expect(await screen.findByText("Workspace diagnostics")).toBeTruthy();
     expect(screen.getByText("Preset warning")).toBeTruthy();
+    expect(mocks.diagnosticsPanelRender).toHaveBeenCalled();
+  });
+
+  it("renders editor and math blocks only after the Content tab opens", async () => {
+    render(
+      <MemoryRouter>
+        <AdminStudioPage />
+      </MemoryRouter>,
+    );
+
+    expect(mocks.richTextEditorRender).not.toHaveBeenCalled();
+    expect(mocks.mathBlocksRender).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByLabelText("Open Content tab")[0]);
+
+    expect(await screen.findByLabelText("Rich editor")).toBeTruthy();
+    expect(screen.getAllByText("Math blocks").length).toBeGreaterThan(0);
+    expect(mocks.richTextEditorRender).toHaveBeenCalled();
+    expect(mocks.mathBlocksRender).toHaveBeenCalled();
   });
 
   it("saves binder metadata from the Overview tab", async () => {

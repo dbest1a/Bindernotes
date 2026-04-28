@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   ArrowDown,
@@ -22,12 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
-import { MathBlocks } from "@/components/math/math-blocks";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdminMutations, useBinderBundle, useDashboard } from "@/hooks/use-binders";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
@@ -61,6 +57,21 @@ const TAB_LABELS: Array<{ id: StudioTab; label: string }> = [
   { id: "publish", label: "Publish" },
 ];
 
+const LazyRichTextEditor = lazy(() =>
+  import("@/components/editor/rich-text-editor").then((module) => ({ default: module.RichTextEditor })),
+);
+const LazyMathBlocks = lazy(() =>
+  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
+);
+const LazyWorkspaceDiagnosticsPanel = lazy(() =>
+  import("@/components/ui/workspace-diagnostics-panel").then((module) => ({
+    default: module.WorkspaceDiagnosticsPanel,
+  })),
+);
+const LazySeedHealthPanel = lazy(() =>
+  import("@/components/ui/seed-health-panel").then((module) => ({ default: module.SeedHealthPanel })),
+);
+
 export function AdminStudioPage() {
   const { profile } = useAuth();
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -74,6 +85,7 @@ export function AdminStudioPage() {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [recentOnly, setRecentOnly] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
   const { data: dashboard, isLoading, error } = useDashboard(profile, {
     includeSystemStatus: false,
@@ -96,7 +108,7 @@ export function AdminStudioPage() {
   );
 
   const filteredBinders = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
+    const normalized = deferredSearch.trim().toLowerCase();
     const recencyCutoff = Date.now() - 1000 * 60 * 60 * 24 * 14;
     return binders
       .filter((binder) => {
@@ -117,7 +129,7 @@ export function AdminStudioPage() {
           .includes(normalized);
       })
       .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
-  }, [binders, recentOnly, search, statusFilter, subjectFilter]);
+  }, [binders, deferredSearch, recentOnly, statusFilter, subjectFilter]);
 
   useEffect(() => {
     if (!filteredBinders.length) {
@@ -129,12 +141,15 @@ export function AdminStudioPage() {
     }
   }, [filteredBinders, selectedBinderId]);
 
-  const selectedBinder =
-    filteredBinders.find((binder) => binder.id === selectedBinderId) ??
-    binders.find((binder) => binder.id === selectedBinderId) ??
-    filteredBinders[0] ??
-    binders[0] ??
-    null;
+  const selectedBinder = useMemo(
+    () =>
+      filteredBinders.find((binder) => binder.id === selectedBinderId) ??
+      binders.find((binder) => binder.id === selectedBinderId) ??
+      filteredBinders[0] ??
+      binders[0] ??
+      null,
+    [binders, filteredBinders, selectedBinderId],
+  );
   const { data: bundle } = useBinderBundle(selectedBinder?.id, profile);
 
   const saveStatus = mutations.binder.isPending || mutations.lesson.isPending || mutations.deleteLesson.isPending
@@ -208,10 +223,14 @@ export function AdminStudioPage() {
     );
   };
 
-  const diagnostics = filterActionableDiagnostics(diagnosticsQuery.data?.diagnostics ?? []);
-  const runtimeDiagnostics = diagnosticsQuery.error
-    ? classifyRuntimeError("workspace", diagnosticsQuery.error)
-    : [];
+  const diagnostics = useMemo(
+    () => filterActionableDiagnostics(diagnosticsQuery.data?.diagnostics ?? []),
+    [diagnosticsQuery.data?.diagnostics],
+  );
+  const runtimeDiagnostics = useMemo(
+    () => (diagnosticsQuery.error ? classifyRuntimeError("workspace", diagnosticsQuery.error) : []),
+    [diagnosticsQuery.error],
+  );
   const seedHealth = diagnosticsQuery.data?.seedHealth ?? [];
   const hasSystemWarnings = diagnostics.length > 0 || runtimeDiagnostics.length > 0;
 
@@ -902,8 +921,12 @@ function StudioWorkspace({
                     </Button>
                   </div>
 
-                  <RichTextEditor onChange={setLessonContent} value={lessonContent} />
-                  <MathBlocks blocks={lessonMathBlocks} editable onChange={setLessonMathBlocks} />
+                  <Suspense fallback={<Skeleton className="min-h-[360px]" />}>
+                    <LazyRichTextEditor onChange={setLessonContent} value={lessonContent} />
+                  </Suspense>
+                  <Suspense fallback={<Skeleton className="h-[180px]" />}>
+                    <LazyMathBlocks blocks={lessonMathBlocks} editable onChange={setLessonMathBlocks} />
+                  </Suspense>
 
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => void saveLessonContent()} type="button">
@@ -1138,18 +1161,20 @@ function StudioWorkspace({
               {diagnosticsLoading ? <span className="text-sm text-muted-foreground">Loading diagnostics…</span> : null}
             </div>
 
-            {diagnostics.length ? <WorkspaceDiagnosticsPanel diagnostics={diagnostics} /> : null}
-            {diagnosticsRuntime.length ? (
-              <WorkspaceDiagnosticsPanel diagnostics={diagnosticsRuntime} />
-            ) : null}
-            {seedHealth.length ? (
-              <SeedHealthPanel
-                description="Backend-native system content status for this environment."
-                items={seedHealth}
-                showTechnicalDetails
-                title="Seed status"
-              />
-            ) : null}
+            <Suspense fallback={<Skeleton className="h-[180px]" />}>
+              {diagnostics.length ? <LazyWorkspaceDiagnosticsPanel diagnostics={diagnostics} /> : null}
+              {diagnosticsRuntime.length ? (
+                <LazyWorkspaceDiagnosticsPanel diagnostics={diagnosticsRuntime} />
+              ) : null}
+              {seedHealth.length ? (
+                <LazySeedHealthPanel
+                  description="Backend-native system content status for this environment."
+                  items={seedHealth}
+                  showTechnicalDetails
+                  title="Seed status"
+                />
+              ) : null}
+            </Suspense>
             {!diagnostics.length && !diagnosticsRuntime.length && !seedHealth.length && !diagnosticsLoading ? (
               <p className="text-sm text-muted-foreground">No diagnostics to report right now.</p>
             ) : null}

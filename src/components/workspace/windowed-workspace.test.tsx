@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { applyWorkspaceMode, createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
@@ -122,6 +122,40 @@ describe("WindowedWorkspace", () => {
     vi.runOnlyPendingTimers();
 
     expect(onFitViewport).toHaveBeenCalledWith({ width: 1100, height: 760 });
+  });
+
+  it("does not auto-fit a locked custom canvas after the user has resized modules", () => {
+    const onFitViewport = vi.fn();
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: true,
+      preset: "math-graph-lab",
+      enabledModules: ["lesson", "private-notes"],
+      viewportFit: {
+        width: 720,
+        height: 520,
+        updatedAt: new Date(0).toISOString(),
+      },
+      windowLayout: {
+        lesson: { x: 32, y: 32, w: 860, h: 620, z: 1 },
+        "private-notes": { x: 916, y: 32, w: 520, h: 620, z: 2 },
+      },
+    };
+
+    render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={onFitViewport}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    vi.runOnlyPendingTimers();
+
+    expect(onFitViewport).not.toHaveBeenCalled();
   });
 
   it("does not run locked Split Study auto-refit while setup mode is editing", () => {
@@ -292,6 +326,112 @@ describe("WindowedWorkspace", () => {
 
     expect(getByText("Collapsed windows")).toBeTruthy();
     expect(getByText("Private notes")).toBeTruthy();
+  });
+
+  it("keeps the setup module launcher hidden by default", () => {
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    const { queryByText } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={{
+          ...basePreferences,
+          locked: false,
+          enabledModules: ["lesson", "private-notes"],
+        }}
+      />,
+    );
+
+    expect(queryByText("Module launcher")).toBeNull();
+  });
+
+  it("hides edit helper hints after thirty seconds in setup mode", () => {
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    const { container } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={{
+          ...basePreferences,
+          locked: false,
+          enabledModules: ["lesson"],
+        }}
+      />,
+    );
+
+    const workspace = container.querySelector<HTMLElement>("[data-workspace-edit-hints]");
+    expect(workspace?.dataset.workspaceEditHints).toBe("on");
+
+    act(() => {
+      vi.advanceTimersByTime(29_999);
+    });
+    expect(workspace?.dataset.workspaceEditHints).toBe("on");
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(workspace?.dataset.workspaceEditHints).toBe("off");
+  });
+
+  it("shows minimized modules in the setup module launcher when enabled without mounting their heavy content", () => {
+    const onToggleCollapsed = vi.fn();
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const preferences: WorkspacePreferences = {
+      ...basePreferences,
+      locked: false,
+      enabledModules: ["lesson", "private-notes"],
+      theme: {
+        ...basePreferences.theme,
+        showUtilityUi: true,
+      },
+      moduleLayout: {
+        ...basePreferences.moduleLayout,
+        "private-notes": {
+          ...basePreferences.moduleLayout["private-notes"],
+          span: basePreferences.moduleLayout["private-notes"]?.span ?? "auto",
+          collapsed: true,
+        },
+      },
+    };
+
+    const { getByLabelText, getByText, queryByText } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={onToggleCollapsed}
+        preferences={preferences}
+      />,
+    );
+
+    expect(getByText("Module launcher")).toBeTruthy();
+    expect(getByLabelText("Restore Private notes")).toBeTruthy();
+    expect(queryByText("Notes body")).toBeNull();
+
+    fireEvent.click(getByLabelText("Restore Private notes"));
+
+    expect(onToggleCollapsed).toHaveBeenCalledWith("private-notes", false);
   });
 
   it("does not keep stale infinite canvas height in locked Split Study", () => {

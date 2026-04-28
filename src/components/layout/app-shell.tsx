@@ -78,8 +78,8 @@ export function AppShell() {
       data-premium-color-mode={isAdmin && settings.enabled ? settings.colorMode : "off"}
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
     >
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1540px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
+        <div className="app-header__inner mx-auto flex h-16 max-w-[1540px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             aria-label="BinderNotes dashboard"
             className="flex items-center rounded-xl transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -88,7 +88,7 @@ export function AppShell() {
             <LogoMark className="size-10" />
           </Link>
 
-          <nav className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
+          <nav className="app-primary-nav hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
             <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
               Workspace
             </NavItem>
@@ -108,7 +108,7 @@ export function AppShell() {
             </NavItem>
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="app-header__actions flex items-center gap-2">
             <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex">
               <span className="text-xs font-medium text-muted-foreground">Theme</span>
               <select

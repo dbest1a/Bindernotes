@@ -1023,25 +1023,24 @@ describe("workspace preferences", () => {
     expect(next.windowLayout["desmos-graph"]).toBeDefined();
   });
 
-  it("reconciles overlapping locked windows to a stable non-overlapping layout", () => {
+  it("preserves locked user-sized windows even when they overlap until Fit or Tidy is explicit", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const lessonFrame = { x: 40, y: 40, w: 900, h: 700, z: 1 };
+    const notesFrame = { x: 60, y: 60, w: 900, h: 700, z: 2 };
     const overlapping = {
       ...preferences,
       locked: true as const,
       windowLayout: {
         ...preferences.windowLayout,
-        lesson: { x: 40, y: 40, w: 900, h: 700, z: 1 },
-        "private-notes": { x: 60, y: 60, w: 900, h: 700, z: 2 },
+        lesson: lessonFrame,
+        "private-notes": notesFrame,
       },
     };
 
     const next = ensureWindowFramesForEnabledModules(overlapping);
 
-    expect(next.windowLayout.lesson).toBeDefined();
-    expect(next.windowLayout["private-notes"]).toBeDefined();
-    expect(
-      framesOverlap(next.windowLayout.lesson!, next.windowLayout["private-notes"]!),
-    ).toBe(false);
+    expect(next.windowLayout.lesson).toEqual(lessonFrame);
+    expect(next.windowLayout["private-notes"]).toEqual(notesFrame);
   });
 
   it("migrates legacy graph-panel layouts to the Desmos graph module", () => {

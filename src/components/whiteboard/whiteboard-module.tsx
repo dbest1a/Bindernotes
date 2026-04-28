@@ -202,6 +202,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const saveStatusRef = useRef(saveStatus);
   const lastUsedPrivateNotesModuleRef = useRef<string | null>(null);
   const requestViewportTransformRef = useRef<((transform: WhiteboardViewportTransform) => void) | null>(null);
+  const pendingViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
+  const viewportUpdateRafRef = useRef<number | null>(null);
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
     defaultWhiteboardViewportTransform,
   );
@@ -241,7 +243,25 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     }
 
     viewportTransformRef.current = transform;
-    setViewportTransform(transform);
+    pendingViewportTransformRef.current = transform;
+    if (viewportUpdateRafRef.current !== null) {
+      return;
+    }
+
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      setViewportTransform(transform);
+      pendingViewportTransformRef.current = null;
+      return;
+    }
+
+    viewportUpdateRafRef.current = window.requestAnimationFrame(() => {
+      viewportUpdateRafRef.current = null;
+      const nextTransform = pendingViewportTransformRef.current;
+      pendingViewportTransformRef.current = null;
+      if (nextTransform) {
+        setViewportTransform(nextTransform);
+      }
+    });
   }, []);
   const getLatestViewportTransform = useCallback(() => viewportTransformRef.current, []);
 
@@ -351,6 +371,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     () => () => {
       if (autosaveTimerRef.current) {
         window.clearTimeout(autosaveTimerRef.current);
+      }
+      if (viewportUpdateRafRef.current !== null) {
+        window.cancelAnimationFrame(viewportUpdateRafRef.current);
       }
     },
     [],

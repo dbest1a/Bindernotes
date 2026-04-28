@@ -1,11 +1,14 @@
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   extractWhiteboardViewportTransform,
   whiteboardViewportTransformsEqual,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
-import { sanitizeExcalidrawInitialData } from "@/lib/whiteboards/whiteboard-serialization";
+import {
+  hasPersistentWhiteboardSceneChange,
+  sanitizeExcalidrawInitialData,
+} from "@/lib/whiteboards/whiteboard-serialization";
 import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
 
 type WhiteboardCanvasProps = {
@@ -37,7 +40,8 @@ export function WhiteboardCanvas({
   const hostRef = useRef<HTMLDivElement | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawCameraApi | null>(null);
   const latestViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
-  const initialData = sanitizeExcalidrawInitialData(board.scene);
+  const initialData = useMemo(() => sanitizeExcalidrawInitialData(board.scene), [board.scene]);
+  const latestPersistentSceneRef = useRef<WhiteboardSceneData>(initialData);
 
   const getViewportSize = useCallback(() => {
     const rect = hostRef.current?.getBoundingClientRect();
@@ -121,27 +125,8 @@ export function WhiteboardCanvas({
   );
 
   useEffect(() => {
-    let active = true;
-
-    const watchCamera = () => {
-      if (!active) {
-        return;
-      }
-
-      const appState = excalidrawApiRef.current?.getAppState?.();
-      if (appState) {
-        emitViewportChange(appState);
-      }
-    };
-
-    watchCamera();
-    const intervalId = window.setInterval(watchCamera, 16);
-
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [emitViewportChange]);
+    latestPersistentSceneRef.current = initialData;
+  }, [board.id, initialData]);
 
   useEffect(() => {
     let mounted = true;
@@ -162,6 +147,10 @@ export function WhiteboardCanvas({
   }, [board.id, board.scene.appState, emitViewportChange]);
 
   useEffect(() => {
+    if (!ExcalidrawComponent) {
+      return;
+    }
+
     const host = hostRef.current;
     if (!host || typeof ResizeObserver === "undefined") {
       return;
@@ -198,7 +187,7 @@ export function WhiteboardCanvas({
       }
       resizeObserver.disconnect();
     };
-  }, [emitViewportChange, initialData.appState]);
+  }, [emitViewportChange, ExcalidrawComponent, initialData.appState]);
 
   if (!ExcalidrawComponent) {
     return (
@@ -232,7 +221,10 @@ export function WhiteboardCanvas({
               appState,
               files,
             });
-            onSceneChange(scene);
+            if (hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
+              latestPersistentSceneRef.current = scene;
+              onSceneChange(scene);
+            }
           }}
           onScrollChange={handleScrollChange}
           excalidrawAPI={handleExcalidrawApi}

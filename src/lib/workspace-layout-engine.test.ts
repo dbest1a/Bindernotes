@@ -116,6 +116,41 @@ describe("workspace layout engine", () => {
     expect(bottomRight.frame.y).toBe(viewport.height - bottomRight.frame.h);
   });
 
+  it("does not double-count safe edge padding when workspace bounds are already safe", () => {
+    const result = snapWindowFrame({
+      frame: frame(14, 14),
+      peerFrames: [],
+      viewport,
+      viewportBounds: {
+        minX: 8,
+        maxX: viewport.width - 8,
+        minY: 8,
+        maxY: viewport.height - 8,
+      },
+      snapBehavior: "edges",
+      safeEdgePadding: true,
+    });
+
+    expect(result.frame.x).toBe(8);
+    expect(result.frame.y).toBe(8);
+  });
+
+  it("resizes to fill the safe-edged space between the canvas edge and a neighboring module", () => {
+    const result = snapWindowFrame({
+      frame: frame(8, 48, 368, 260),
+      interaction: "resize",
+      moduleId: "scientific-calculator",
+      peerFrames: [frame(400, 48, 360, 260, 2)],
+      viewport,
+      snapBehavior: "modules",
+      safeEdgePadding: true,
+    });
+
+    expect(result.frame.x).toBe(8);
+    expect(result.frame.x + result.frame.w).toBe(384);
+    expect(result.guides.some((guide) => guide.kind === "module-gap")).toBe(true);
+  });
+
   it("fits offscreen modules into the viewport without making them unreadable", () => {
     const result = fitWindowFramesToViewport({
       frames: {
