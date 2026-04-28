@@ -6385,6 +6385,189 @@
   }
 }
 
+@media (min-width: 768px) and (max-width: 1180px) {
+  .app-loading-shell {
+    padding-block: clamp(1.25rem, 4svh, 2.5rem);
+    width: min(100%, calc(100svw - 2rem));
+  }
+
+  .app-loading-shell__bar {
+    border-radius: 1rem;
+    height: clamp(3.75rem, 7svh, 4.5rem);
+  }
+
+  .app-loading-shell__panel {
+    border-radius: 1.25rem;
+    height: min(62svh, 620px);
+  }
+
+  .marketing-hero {
+    padding: clamp(0.9rem, 1.7vw, 1.25rem);
+  }
+
+  .marketing-nav {
+    gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  }
+
+  .marketing-nav__links {
+    padding: 0.3rem;
+  }
+
+  .marketing-nav__links a,
+  .marketing-nav__signin,
+  .marketing-nav__start {
+    font-size: 0.82rem;
+    min-height: 2.65rem;
+    padding-inline: clamp(0.8rem, 1.25vw, 1.1rem);
+    white-space: nowrap;
+  }
+
+  .marketing-hero__inner {
+    gap: clamp(1.25rem, 2.4vw, 2.2rem);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    min-height: min(740px, calc(100svh - 5rem));
+    overflow: visible;
+    padding: clamp(1rem, 2.4vw, 2rem) 0 1rem;
+  }
+
+  .marketing-hero__copy {
+    max-width: 560px;
+    padding: clamp(1rem, 2.2vw, 1.75rem) 0;
+  }
+
+  .marketing-hero h1 {
+    font-size: clamp(3rem, 5.8vw, 4.6rem);
+    line-height: 0.98;
+  }
+
+  .marketing-hero__copy p {
+    font-size: clamp(0.96rem, 1.35vw, 1.08rem);
+    line-height: 1.65;
+    margin-top: 1.1rem;
+  }
+
+  .marketing-hero__actions {
+    gap: 0.65rem;
+    margin-top: 1.35rem;
+  }
+
+  .marketing-button {
+    min-height: 3rem;
+  }
+
+  .marketing-hero__proof {
+    gap: 0.45rem;
+    margin-top: 1rem;
+  }
+
+  .marketing-hero__proof span {
+    font-size: 0.66rem;
+    padding: 0.38rem 0.58rem;
+  }
+
+  .marketing-product-scene {
+    justify-self: stretch;
+    max-width: min(100%, 640px);
+    min-height: clamp(470px, 64svh, 620px);
+    order: 0;
+    overflow: visible;
+    perspective: 1100px;
+    transform: none;
+    width: 100%;
+  }
+
+  .marketing-product-scene__depth[data-depth="front"] {
+    --depth-drift-x: 4px;
+    --depth-drift-y: -5px;
+    --depth-transform: translateZ(60px) translateX(-1%) scale(0.72) rotate(-2deg);
+    inset: 15% -3% auto -4%;
+    transform-origin: center;
+    width: min(800px, 116%);
+  }
+
+  .marketing-product-scene__depth[data-depth="mid"] {
+    --depth-drift-x: -6px;
+    --depth-drift-y: 7px;
+    --depth-transform: translateZ(8px) translateX(5%) scale(0.72) rotate(6deg);
+    right: -5%;
+    top: 0;
+    width: 62%;
+  }
+
+  .marketing-product-scene__depth[data-depth="back"] {
+    --depth-drift-x: 7px;
+    --depth-drift-y: 5px;
+    --depth-transform: translateZ(-28px) translateX(2%) scale(0.72) rotate(-7deg);
+    bottom: 5%;
+    left: -6%;
+    width: 50%;
+  }
+
+  .marketing-product-scene__status {
+    bottom: 10%;
+    font-size: 0.72rem;
+    padding: 0.62rem 0.78rem;
+    right: 4%;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 960px) and (orientation: portrait) {
+  .marketing-hero__inner {
+    gap: clamp(0.7rem, 1.8vw, 1.25rem);
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    padding: clamp(0.85rem, 2.2vw, 1.4rem) 0 2rem;
+  }
+
+  .marketing-product-scene {
+    justify-self: center;
+    max-width: min(100%, 760px);
+    min-height: clamp(360px, 40svh, 460px);
+    order: -1;
+  }
+
+  .marketing-product-scene__depth[data-depth="front"] {
+    --depth-transform: translateZ(52px) translateX(0) scale(0.64) rotate(-1.5deg);
+    inset: 5% 2% auto;
+    transform-origin: top center;
+    width: min(760px, 100%);
+  }
+
+  .marketing-product-scene__depth[data-depth="mid"] {
+    --depth-transform: translateZ(8px) translateX(8%) scale(0.54) rotate(6deg);
+    opacity: 0.6;
+    right: 0;
+    top: 0;
+    width: 48%;
+  }
+
+  .marketing-product-scene__depth[data-depth="back"] {
+    --depth-transform: translateZ(-26px) translateX(-2%) scale(0.54) rotate(-7deg);
+    bottom: 4%;
+    left: -2%;
+    opacity: 0.48;
+    width: 42%;
+  }
+
+  .marketing-product-scene__status {
+    bottom: 10%;
+    right: 7%;
+  }
+
+  .marketing-hero__copy {
+    max-width: 760px;
+    padding: 0;
+  }
+
+  .marketing-hero h1 {
+    font-size: clamp(3rem, 7.4vw, 4.5rem);
+  }
+
+  .marketing-hero__copy p {
+    max-width: 680px;
+  }
+}
+
 @media (max-width: 767px) {
   .app-page {
     gap: 1.25rem;

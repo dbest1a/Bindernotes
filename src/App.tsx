@@ -283,9 +283,9 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
 
 function RouteSkeleton() {
   return (
-    <main className="mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
-      <Skeleton className="h-16" />
-      <Skeleton className="h-[520px]" />
+    <main className="app-loading-shell mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
+      <Skeleton className="app-loading-shell__bar h-16" />
+      <Skeleton className="app-loading-shell__panel h-[520px]" />
     </main>
   );
 }
@@ -296,9 +296,9 @@ function ProtectedRoute({ children }: { children?: ReactNode }) {
 
   if (isLoading) {
     return (
-      <main className="mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
-        <Skeleton className="h-16" />
-        <Skeleton className="h-[520px]" />
+      <main className="app-loading-shell mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
+        <Skeleton className="app-loading-shell__bar h-16" />
+        <Skeleton className="app-loading-shell__panel h-[520px]" />
       </main>
     );
   }
