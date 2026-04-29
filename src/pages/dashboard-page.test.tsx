@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -178,6 +178,7 @@ import { DashboardPage } from "@/pages/dashboard-page";
 
 describe("DashboardPage", () => {
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
   });
 
@@ -269,7 +270,59 @@ describe("DashboardPage", () => {
     expect(screen.getAllByText("Organizing workspace").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /save order/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeTruthy();
-    expect(screen.getAllByLabelText(/drag .* to reorder/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/drag .* to (reorder|move)/i).length).toBeGreaterThan(0);
+  });
+
+  it("lets admins grab the whole folder and binder card without a detached drag preview", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /organize/i }));
+
+    expect(screen.getByLabelText("Drag History folder card to move").className).toContain("admin-folder-card");
+    expect(screen.getByLabelText("Drag Rise of Rome binder card to move").className).toContain("admin-binder-card");
+    expect(screen.queryByTestId("admin-drag-overlay")).toBeNull();
+  });
+
+  it("clears the saved order confirmation after 10 seconds", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    try {
+      render(
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: /organize/i }));
+      vi.useFakeTimers();
+      fireEvent.click(screen.getByRole("button", { name: /save order/i }));
+
+      expect(screen.getByText("Saved order")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(9999);
+      });
+      expect(screen.getByText("Saved order")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByText("Saved order")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not mount admin drag infrastructure until Organize is clicked", async () => {

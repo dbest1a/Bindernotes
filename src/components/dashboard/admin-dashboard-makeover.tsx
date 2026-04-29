@@ -11,7 +11,6 @@ import { Link } from "react-router-dom";
 import {
   closestCenter,
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useDroppable,
@@ -130,6 +129,18 @@ export function AdminDashboardMakeover({
   }, [data, profile.id]);
 
   useEffect(() => {
+    if (saveState !== "saved") {
+      return;
+    }
+
+    const saveConfirmationTimer = window.setTimeout(() => {
+      setSaveState("idle");
+    }, 10000);
+
+    return () => window.clearTimeout(saveConfirmationTimer);
+  }, [saveState]);
+
+  useEffect(() => {
     let scrollEndTimer: number | undefined;
 
     const markScrolling = () => {
@@ -191,9 +202,6 @@ export function AdminDashboardMakeover({
   const activeBinderId = activeDragId
     ? stripPrefix(activeDragId, "binder:") ?? activeFolderBinder?.binderId ?? null
     : null;
-  const activeFolderId = activeDragId ? stripPrefix(activeDragId, "folder:") : null;
-  const activeBinder = activeBinderId ? binderById.get(activeBinderId) ?? null : null;
-  const activeFolder = activeFolderId ? folderById.get(activeFolderId) ?? null : null;
   const filteredFolders = useMemo(
     () =>
       orderedFolders.filter((folder) =>
@@ -449,9 +457,7 @@ export function AdminDashboardMakeover({
 
       {isEditing ? (
         <AdminDashboardEditableSections
-          activeBinder={activeBinder}
           activeBinderId={activeBinderId}
-          activeFolder={activeFolder}
           binderById={binderById}
           clearDragState={clearDragState}
           documentCountByFolderId={documentCountByFolderId}
@@ -503,9 +509,7 @@ type AdminDashboardSectionsProps = {
 };
 
 type AdminDashboardEditableSectionsProps = AdminDashboardSectionsProps & {
-  activeBinder: Binder | null;
   activeBinderId: string | null;
-  activeFolder: Folder | null;
   clearDragState: () => void;
   onDragEnd: (event: DragEndEvent) => void;
   onDragOver: (event: DragOverEvent) => void;
@@ -608,9 +612,7 @@ function AdminDashboardReadOnlySections({
 }
 
 function AdminDashboardEditableSections({
-  activeBinder,
   activeBinderId,
-  activeFolder,
   binderById,
   clearDragState,
   documentCountByFolderId,
@@ -733,19 +735,6 @@ function AdminDashboardEditableSections({
         </div>
       </section>
 
-      <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-        {activeFolder ? (
-          <div className="admin-drag-preview admin-drag-preview--folder">
-            <FolderOpen />
-            <span>{getDisplayTitle(activeFolder.name, "Recovered Folder")}</span>
-          </div>
-        ) : activeBinder ? (
-          <div className="admin-drag-preview admin-drag-preview--binder">
-            <LibraryBig />
-            <span>{deriveBinderTitle(activeBinder, lessonsByBinderId[activeBinder.id] ?? [])}</span>
-          </div>
-        ) : null}
-      </DragOverlay>
     </DndContext>
   );
 }
@@ -816,19 +805,17 @@ function AdminFolderCard({
     disabled: !isEditing,
   });
   const binderIds = draft.folderBinderOrderByFolderId[folder.id] ?? [];
+  const folderTitle = getDisplayTitle(folder.name, "Recovered Folder");
   const body = (
     <>
       <div className="admin-folder-card__top">
         {isEditing ? (
-          <button
-            aria-label={`Drag ${folder.name} to reorder`}
+          <span
+            aria-hidden="true"
             className="admin-drag-handle"
-            type="button"
-            {...attributes}
-            {...listeners}
           >
             <GripVertical />
-          </button>
+          </span>
         ) : (
           <span className="admin-folder-card__icon">
             <FolderOpen />
@@ -836,7 +823,7 @@ function AdminFolderCard({
         )}
         <ChevronRight className="admin-card-arrow" />
       </div>
-      <h3>{getDisplayTitle(folder.name, "Recovered Folder")}</h3>
+      <h3>{folderTitle}</h3>
       <p>
         {binderIds.length} binders / {documentCount} documents / {noteCount} notes
       </p>
@@ -861,12 +848,16 @@ function AdminFolderCard({
         isDragging && "admin-card--dragging",
         showDropTarget && "admin-folder-card--over",
       )}
+      aria-label={`Drag ${folderTitle} folder card to move`}
+      data-admin-sortable="true"
       ref={setNodeRef}
       style={{
         "--stagger-index": index,
         transform: CSS.Transform.toString(transform),
         transition,
       } as CSSProperties}
+      {...attributes}
+      {...listeners}
     >
       {body}
     </article>
@@ -954,15 +945,12 @@ function AdminBinderCard({
       <div className="admin-binder-card__cover">
         {binder.cover_url ? <img alt="" src={binder.cover_url} /> : <LibraryBig />}
         {isEditing ? (
-          <button
-            aria-label={`Drag ${title} to reorder`}
+          <span
+            aria-hidden="true"
             className="admin-drag-handle"
-            type="button"
-            {...attributes}
-            {...listeners}
           >
             <GripVertical />
-          </button>
+          </span>
         ) : null}
       </div>
       <div className="admin-binder-card__body">
@@ -979,12 +967,16 @@ function AdminBinderCard({
   return isEditing ? (
     <article
       className={cn("admin-binder-card", isDragging && "admin-card--dragging")}
+      aria-label={`Drag ${title} binder card to move`}
+      data-admin-sortable="true"
       ref={setNodeRef}
       style={{
         "--stagger-index": index,
         transform: CSS.Transform.toString(transform),
         transition,
       } as CSSProperties}
+      {...attributes}
+      {...listeners}
     >
       {body}
     </article>
@@ -1146,22 +1138,23 @@ function FolderBinderChip({
   return (
     <div
       className={cn("admin-folder-binder-chip", isDragging && "admin-card--dragging")}
+      aria-label={`Drag ${title} binder chip to move`}
+      data-admin-sortable="true"
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
       }}
+      {...attributes}
+      {...listeners}
     >
       {isEditing ? (
-        <button
-          aria-label={`Drag ${title} to reorder`}
+        <span
+          aria-hidden="true"
           className="admin-mini-drag-handle"
-          type="button"
-          {...attributes}
-          {...listeners}
         >
           <GripVertical />
-        </button>
+        </span>
       ) : null}
       <span>{title}</span>
     </div>

@@ -5869,11 +5869,35 @@
   width: 2.35rem;
 }
 
+.admin-folder-card[data-admin-sortable="true"],
+.admin-binder-card[data-admin-sortable="true"],
+.admin-folder-binder-chip[data-admin-sortable="true"] {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.admin-folder-card[data-admin-sortable="true"]:focus-visible,
+.admin-binder-card[data-admin-sortable="true"]:focus-visible,
+.admin-folder-binder-chip[data-admin-sortable="true"]:focus-visible {
+  outline: 3px solid hsl(var(--ring) / 0.42);
+  outline-offset: 3px;
+}
+
+.admin-folder-card[data-admin-sortable="true"] .admin-drag-handle,
+.admin-binder-card[data-admin-sortable="true"] .admin-drag-handle,
+.admin-folder-binder-chip[data-admin-sortable="true"] .admin-mini-drag-handle {
+  pointer-events: none;
+}
+
 .admin-mini-drag-handle {
   height: 1.8rem;
   width: 1.8rem;
 }
 
+.admin-folder-card[data-admin-sortable="true"]:active,
+.admin-binder-card[data-admin-sortable="true"]:active,
+.admin-folder-binder-chip[data-admin-sortable="true"]:active,
 .admin-drag-handle:active,
 .admin-mini-drag-handle:active {
   cursor: grabbing;
