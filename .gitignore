@@ -9,6 +9,15 @@ build/
 .env.test.local
 .codex-tools/
 .vercel/
+.playwright-cli/
+.tmp/
+artifacts/
+output/
+public/admin-ad-video/
+test-results/
+tutorial-videos/
+supabase/.temp/
+DESIGN.md
 *.log
 *.tsbuildinfo
 vite.config.d.ts
