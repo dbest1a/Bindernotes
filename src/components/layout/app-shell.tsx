@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  NotebookTabs,
   PenTool,
   RotateCcw,
   Sparkles,
@@ -14,7 +15,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
+import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { useTheme } from "@/hooks/use-theme";
+import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
@@ -25,7 +29,15 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = profile?.role === "admin";
-  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(isAdmin);
+  const dashboardExperience = useDashboardExperience(isAdmin);
+  const tutorialPrompts = useTutorialPrompts(profile);
+  const performanceMode = usePerformanceMode();
+  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(
+    isAdmin,
+    performanceMode.effectivePerformanceMode,
+  );
+  const effectivePerformanceMode = performanceMode.effectivePerformanceMode || prefersReducedMotion;
+  const enhancedModeRequested = performanceMode.enhancedModeEnabled;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [routeLanding, setRouteLanding] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -68,11 +80,13 @@ export function AppShell() {
   return (
     <div
       className="min-h-screen bg-background"
-      data-admin-motion={isAdmin && settings.enabled ? "on" : "off"}
+      data-admin-dashboard={dashboardExperience.isAdminMakeoverActive ? "makeover" : "normal"}
+      data-admin-motion={isAdmin && settings.enabled && !effectivePerformanceMode ? "on" : "off"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
-      data-page-transition={isAdmin && settings.enabled ? settings.pageTransition : "off"}
-      data-premium-color-mode={isAdmin && settings.enabled ? settings.colorMode : "off"}
+      data-page-transition={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.pageTransition : "off"}
+      data-performance-mode={effectivePerformanceMode ? "on" : "off"}
+      data-premium-color-mode={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"}
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
     >
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
@@ -90,6 +104,9 @@ export function AppShell() {
           <nav className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
             <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
               Workspace
+            </NavItem>
+            <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
+              Personal Notes
             </NavItem>
             <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
               Math lab
@@ -142,11 +159,11 @@ export function AppShell() {
               </button>
               {profileMenuOpen ? (
                 <div
-                  className="admin-motion-popover absolute right-0 top-[calc(100%+0.5rem)] z-50 w-80 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-2xl"
+                  className="admin-motion-popover admin-profile-settings-solid absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[calc(100vh-5rem)] w-[32rem] max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border border-border p-3 text-popover-foreground"
                   data-testid="profile-settings-popover"
                   role="dialog"
                 >
-                  <div className="flex items-start gap-3 rounded-md bg-secondary/60 p-2">
+                  <div className="admin-profile-settings-card flex items-start gap-3 rounded-md p-2">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-xs font-semibold">
                       {initials(profile?.full_name ?? "BN")}
                     </span>
@@ -156,18 +173,127 @@ export function AppShell() {
                     </div>
                   </div>
                   {isAdmin ? (
-                    <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
-                      <div className="flex items-center justify-between gap-3">
+                    <section
+                      className="admin-profile-settings-card mt-3 rounded-lg border border-border/80 p-3"
+                      data-testid="admin-dashboard-appearance"
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        <LayoutDashboard className="size-4 text-primary" />
+                        Dashboard appearance
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Admin-only preview controls. Learners keep the normal dashboard.
+                      </p>
+                      <label className="mt-3 grid gap-1 text-xs font-medium text-muted-foreground">
+                        Dashboard view
+                        <select
+                          className="appearance-select h-9 rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none"
+                          data-testid="admin-dashboard-view-mode"
+                          onChange={(event) =>
+                            dashboardExperience.setViewMode(
+                              event.target.value as typeof dashboardExperience.preference.viewMode,
+                            )
+                          }
+                          value={dashboardExperience.effectiveViewMode}
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="admin-makeover">Admin Makeover</option>
+                        </select>
+                      </label>
+                    </section>
+                  ) : null}
+                  <section className="admin-profile-settings-card mt-3 rounded-lg border border-border/80 p-3" data-testid="tutorial-prompts-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <BookOpenCheck className="size-4 text-primary" />
+                          Tutorials
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          First-time page prompts are on by default only for accounts created recently.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Toggle tutorial prompts"
+                        aria-pressed={tutorialPrompts.promptsEnabled}
+                        className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="tutorial-prompts-toggle"
+                        onClick={() => tutorialPrompts.setPromptsEnabled(!tutorialPrompts.promptsEnabled)}
+                        type="button"
+                      >
+                        <span
+                          className={
+                            tutorialPrompts.promptsEnabled
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Enable first-time tutorial prompts</span>
+                      </button>
+                    </div>
+                    <p className="admin-profile-settings-note mt-2 rounded-md border border-border/70 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {tutorialPrompts.promptsEnabled
+                        ? "Tutorial prompts can appear once per page until skipped or watched."
+                        : "Tutorial prompts are off. The full Tutorial library stays available from the nav."}
+                    </p>
+                  </section>
+                  <section className="admin-profile-settings-card mt-3 rounded-lg border border-border/80 p-3" data-testid="performance-mode-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <Sparkles className="size-4 text-primary" />
+                          Enhanced Mode
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Default is Performance Mode for faster dashboard, admin, and tutorial scrolling.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Enhanced Mode"
+                        aria-pressed={enhancedModeRequested}
+                        className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="performance-mode-toggle"
+                        onClick={() => performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)}
+                        type="button"
+                      >
+                        <span
+                          className={
+                            enhancedModeRequested
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Toggle Enhanced Mode</span>
+                      </button>
+                    </div>
+                    <p className="admin-profile-settings-note mt-2 rounded-md border border-border/70 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {effectivePerformanceMode
+                        ? "Performance Mode is active. Dashboard, admin, and tutorial pages trim motion, glow, blur, and hover lift for smoother scrolling."
+                        : "Enhanced view is active. Admin Studio, Admin Makeover, and Motion Lab visuals stay as designed."}
+                    </p>
+                  </section>
+                  {isAdmin ? (
+                    <section className="admin-profile-settings-card mt-3 rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
+                      <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
-                            <Sparkles className="size-4 text-cyan-300" />
+                            <Sparkles className="size-4 text-primary" />
                             Admin Motion Lab
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             Premium motion and color polish for admin eyes only.
                           </p>
                         </div>
+                      </div>
+                      <div className="admin-motion-toggle-row mt-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold">Admin animations</p>
+                          <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                            Off disables card sweeps, page motion, and drag sparkle.
+                          </p>
+                        </div>
                         <button
+                          aria-label="Toggle admin animations"
                           aria-pressed={settings.enabled}
                           className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                           data-testid="admin-motion-toggle"
@@ -235,6 +361,28 @@ export function AppShell() {
             </Button>
           </div>
         </div>
+        <nav className="mx-auto flex max-w-[1540px] gap-1 overflow-x-auto border-t border-border/60 px-4 py-2 sm:px-6 md:hidden">
+          <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
+            Workspace
+          </NavItem>
+          <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
+            Personal Notes
+          </NavItem>
+          <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
+            Math lab
+          </NavItem>
+          <NavItem to="/tutorial" icon={<BookOpenCheck data-icon="inline-start" />}>
+            Tutorial
+          </NavItem>
+          {profile?.role === "admin" ? (
+            <NavItem to="/admin" icon={<PenTool data-icon="inline-start" />}>
+              Admin studio
+            </NavItem>
+          ) : null}
+          <NavItem to="/pricing" icon={<GraduationCap data-icon="inline-start" />}>
+            Pricing
+          </NavItem>
+        </nav>
       </header>
       <main className="app-route-transition-shell" data-route-transition-active={routeLanding ? "true" : "false"}>
         <Outlet />

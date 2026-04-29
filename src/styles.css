@@ -251,8 +251,33 @@
   transform-origin: top right;
 }
 
+.admin-profile-settings-solid {
+  animation: none !important;
+  background-color: hsl(var(--popover)) !important;
+  box-shadow:
+    0 30px 90px hsl(220 28% 2% / 0.72),
+    0 0 0 1px hsl(var(--border));
+  isolation: isolate;
+  opacity: 1 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.admin-profile-settings-card {
+  background-color: hsl(var(--card)) !important;
+}
+
+.admin-profile-settings-note,
+.admin-motion-toggle-row {
+  background-color: hsl(var(--secondary)) !important;
+}
+
 :root[data-admin-motion="on"] .admin-motion-popover {
   animation: admin-popover-in var(--admin-motion-duration-normal) var(--admin-motion-ease-pop) both;
+}
+
+:root[data-admin-motion="on"] .admin-profile-settings-solid {
+  animation: none !important;
 }
 
 .admin-motion-toggle {
@@ -274,6 +299,17 @@
 .admin-motion-toggle__knob--on {
   background: hsl(var(--primary));
   transform: translateX(1.25rem);
+}
+
+.admin-motion-toggle-row {
+  align-items: center;
+  background: hsl(var(--background) / 0.92);
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
 }
 
 :root[data-admin-motion="on"] .app-route-transition-shell[data-route-transition-active="true"] {
@@ -333,6 +369,37 @@
 
 :root[data-admin-motion="on"] .workspace-window--editable [data-window-resize="corner"] {
   animation: admin-handle-glow var(--admin-motion-duration-slow) ease-in-out infinite alternate;
+}
+
+:root[data-performance-mode="on"] .app-route-transition-shell,
+:root[data-performance-mode="on"] .admin-motion-popover,
+:root[data-performance-mode="on"] .page-shell,
+:root[data-performance-mode="on"] .hero-aside,
+:root[data-performance-mode="on"] .utility-panel,
+:root[data-performance-mode="on"] .tutorial-card,
+:root[data-performance-mode="on"] .dashboard-card,
+:root[data-performance-mode="on"] .binder-card,
+:root[data-performance-mode="on"] .ui-button-motion {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+
+:root[data-performance-mode="on"] .page-shell,
+:root[data-performance-mode="on"] .hero-aside,
+:root[data-performance-mode="on"] .utility-panel,
+:root[data-performance-mode="on"] .tutorial-card,
+:root[data-performance-mode="on"] .admin-motion-popover {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.06) inset !important;
+}
+
+:root[data-performance-mode="on"] .dashboard-card:hover,
+:root[data-performance-mode="on"] .binder-card:hover,
+:root[data-performance-mode="on"] .tutorial-card:hover,
+:root[data-performance-mode="on"] .ui-button-motion:hover {
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.06) inset !important;
+  transform: none !important;
 }
 
 :root[data-admin-motion="on"] [data-testid="whiteboard-annotation-popup"],
@@ -644,6 +711,37 @@
     border-color: hsl(var(--border) / 0.8);
     --tw-ring-color: hsl(var(--ring) / 0.1);
     box-shadow: inset 0 1px 0 hsl(var(--background) / 0.65);
+  }
+
+  .personal-notes-editor-page {
+    min-height: 100%;
+  }
+
+  .personal-notes-editor-page > div:first-child {
+    border-radius: 0.5rem;
+    border-color: hsl(var(--border) / 0.48);
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  .personal-notes-editor-page .editor-surface {
+    display: flex;
+    min-height: 100%;
+  }
+
+  .personal-notes-editor-page .editor-surface > div {
+    flex: 1 1 auto;
+    min-height: inherit;
+  }
+
+  .personal-notes-editor-page .editor-surface .ProseMirror {
+    min-height: clamp(34rem, 72vh, 72rem);
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
   }
 
   .source-lesson-content {
@@ -5097,4 +5195,50 @@
   .pricing-hero__glow {
     transform: none !important;
   }
+}
+
+/* Personal Notes annotation filtering is view-only: it dims non-matching
+   highlight marks without changing the saved TipTap document JSON. */
+[data-highlight-filter="yellow"] .ProseMirror mark,
+[data-highlight-filter="blue"] .ProseMirror mark,
+[data-highlight-filter="green"] .ProseMirror mark,
+[data-highlight-filter="pink"] .ProseMirror mark {
+  opacity: 0.28;
+  filter: saturate(0.55);
+  transition: opacity 120ms ease, filter 120ms ease;
+}
+
+[data-highlight-filter="yellow"] .ProseMirror mark[style*="#fde68a"],
+[data-highlight-filter="yellow"] .ProseMirror mark[style*="rgb(253, 230, 138)"],
+[data-highlight-filter="blue"] .ProseMirror mark[style*="#93c5fd"],
+[data-highlight-filter="blue"] .ProseMirror mark[style*="rgb(147, 197, 253)"],
+[data-highlight-filter="green"] .ProseMirror mark[style*="#86efac"],
+[data-highlight-filter="green"] .ProseMirror mark[style*="rgb(134, 239, 172)"],
+[data-highlight-filter="pink"] .ProseMirror mark[style*="#d8b4fe"],
+[data-highlight-filter="pink"] .ProseMirror mark[style*="rgb(216, 180, 254)"] {
+  opacity: 1;
+  filter: none;
+  outline: 1px solid rgba(96, 165, 250, 0.32);
+  outline-offset: 1px;
+}
+
+.ProseMirror .bn-comment-annotation,
+.ProseMirror .bn-selection-tag,
+.ProseMirror .bn-source-marker {
+  border-bottom: 1px solid rgba(96, 165, 250, 0.72);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.ProseMirror .bn-comment-annotation {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.ProseMirror .bn-selection-tag {
+  background-color: rgba(20, 184, 166, 0.1);
+}
+
+.ProseMirror .bn-source-marker {
+  background-color: rgba(245, 158, 11, 0.12);
+  border-bottom-color: rgba(245, 158, 11, 0.74);
 }

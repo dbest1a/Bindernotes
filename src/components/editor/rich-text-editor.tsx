@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { EditorContent, JSONContent, type Editor, useEditor } from "@tiptap/react";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -31,6 +32,79 @@ type RichTextEditorProps = {
   onEditorReady?: (editor: Editor | null) => void;
 };
 
+const CommentAnnotation = Mark.create({
+  name: "commentAnnotation",
+  addAttributes() {
+    return {
+      body: { default: null },
+      color: { default: "all" },
+      id: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-comment-annotation]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: "bn-comment-annotation",
+        "data-comment-annotation": "true",
+      }),
+      0,
+    ];
+  },
+});
+
+const SelectionTagAnnotation = Mark.create({
+  name: "selectionTagAnnotation",
+  addAttributes() {
+    return {
+      tag: { default: null },
+      id: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-selection-tag]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: "bn-selection-tag",
+        "data-selection-tag": "true",
+      }),
+      0,
+    ];
+  },
+});
+
+const SourceMarkerAnnotation = Mark.create({
+  name: "sourceMarker",
+  addAttributes() {
+    return {
+      binderId: { default: null },
+      binderTitle: { default: null },
+      lessonId: { default: null },
+      lessonTitle: { default: null },
+      id: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-source-marker]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        class: "bn-source-marker",
+        "data-source-marker": "true",
+      }),
+      0,
+    ];
+  },
+});
+
 export function RichTextEditor({
   value,
   onChange,
@@ -46,6 +120,9 @@ export function RichTextEditor({
     () => [
       StarterKit,
       Highlight.configure({ multicolor: true }),
+      CommentAnnotation,
+      SelectionTagAnnotation,
+      SourceMarkerAnnotation,
       Typography,
       Placeholder.configure({ placeholder }),
     ],

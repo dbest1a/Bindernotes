@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, Profile, WorkspaceDiagnostic } from "@/types";
+import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, LearnerNote, Profile, WorkspaceDiagnostic } from "@/types";
 
 const mocks = vi.hoisted(() => {
   const profile: Profile = {
@@ -80,6 +80,23 @@ const mocks = vi.hoisted(() => {
     },
   ];
 
+  const learnerNote: LearnerNote = {
+    id: "learner-note-1",
+    owner_id: profile.id,
+    binder_id: realBinder.id,
+    lesson_id: lessons[0].id,
+    folder_id: null,
+    title: "Private Rome notes",
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Senate and republic" }] }],
+    },
+    math_blocks: [],
+    pinned: false,
+    created_at: new Date(0).toISOString(),
+    updated_at: new Date(0).toISOString(),
+  };
+
   const diagnostics: WorkspaceDiagnostic[] = [
     {
       code: "missing_folder",
@@ -101,7 +118,7 @@ const mocks = vi.hoisted(() => {
     binders: [realBinder, placeholderBinder],
     folders,
     folderBinders,
-    notes: [],
+    notes: [learnerNote],
     lessons,
     recentLessons: lessons,
     seedHealth: [],
@@ -126,6 +143,10 @@ vi.mock("@/hooks/use-auth", () => ({
 
 vi.mock("@/hooks/use-binders", () => ({
   useDashboard: () => mocks.dashboardState,
+}));
+
+vi.mock("@/hooks/use-personal-notes", () => ({
+  usePersonalNotes: () => ({ data: null }),
 }));
 
 import { DashboardPage } from "@/pages/dashboard-page";
@@ -159,5 +180,24 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("Workspace diagnostics")).toBeNull();
     expect(screen.queryByText("Folder warning")).toBeNull();
     expect(screen.queryByText("Environment warning")).toBeNull();
+  });
+
+  it("adds a Personal Notes entry point with binder-linked note counts", () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByText("Personal Notes").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Your notes, binder private notes, and custom notebooks in one place.").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("1 binder-linked").length).toBeGreaterThan(0);
+    expect(
+      screen
+        .getAllByRole("link", { name: /Open notes/i })
+        .some((link) => link.getAttribute("href") === "/notes"),
+    ).toBe(true);
   });
 });

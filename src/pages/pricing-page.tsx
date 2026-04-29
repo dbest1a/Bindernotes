@@ -174,7 +174,7 @@ const faqs = [
   },
   {
     question: "What is open source here?",
-    answer: "The whiteboard drawing foundation builds on open-source Excalidraw, with BinderNotes adding study-native modules and storage.",
+    answer: "The whiteboard drawing foundation stays BinderNotes-native, with study modules and storage built into the workspace.",
   },
 ];
 

@@ -54,7 +54,7 @@ const foundationItems = [
   },
   {
     title: "Open-source drawing foundation",
-    body: "The whiteboard experience builds on Excalidraw while BinderNotes adds study-native modules.",
+    body: "The whiteboard experience stays inside BinderNotes with study-native modules.",
   },
   {
     title: "Built-in Desmos graphing",

@@ -155,16 +155,28 @@ export function AuthPage() {
               {mode === "signup" ? (
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Full name
-                  <Input disabled={!isConfigured} name="fullName" placeholder="Ada Lovelace" />
+                  <Input autoComplete="name" disabled={!isConfigured} name="fullName" placeholder="Ada Lovelace" />
                 </label>
               ) : null}
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Email
-                <Input disabled={!isConfigured} name="email" placeholder="you@example.com" type="email" />
+                <Input
+                  autoComplete="email"
+                  disabled={!isConfigured}
+                  name="email"
+                  placeholder="you@example.com"
+                  type="email"
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Password
-                <Input disabled={!isConfigured} name="password" placeholder="Enter your password" type="password" />
+                <Input
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  disabled={!isConfigured}
+                  name="password"
+                  placeholder="Enter your password"
+                  type="password"
+                />
               </label>
 
               {mode === "signup" && isConfigured ? (

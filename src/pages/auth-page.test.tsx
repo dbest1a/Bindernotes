@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Profile } from "@/types";
 
 const mocks = vi.hoisted(() => {
@@ -51,6 +51,10 @@ describe("AuthPage", () => {
     mocks.authState.isConfigured = false;
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it("does not expose demo access when Supabase is unavailable", () => {
     render(
       <MemoryRouter initialEntries={["/auth?next=%2Fbinders%2Fbinder-1%2Fdocuments%2Flesson-1"]}>
@@ -66,6 +70,30 @@ describe("AuthPage", () => {
       .getAllByRole("button", { name: "Login" })
       .find((button) => button.getAttribute("type") === "submit");
     expect(submitButton?.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("keeps configured auth compatible with password managers and autofill", () => {
+    mocks.authState.isConfigured = true;
+
+    render(
+      <MemoryRouter initialEntries={["/auth?next=%2Fnotes"]}>
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText(/Demo mode|Learner demo|Admin demo/i)).toBeNull();
+    expect(screen.queryByText("Supabase configuration required")).toBeNull();
+    expect(screen.getByLabelText("Email").getAttribute("name")).toBe("email");
+    expect(screen.getByLabelText("Email").getAttribute("autocomplete")).toBe("email");
+    expect(screen.getByLabelText("Password").getAttribute("name")).toBe("password");
+    expect(screen.getByLabelText("Password").getAttribute("autocomplete")).toBe("current-password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Signup" }));
+
+    expect(screen.getByLabelText("Full name").getAttribute("autocomplete")).toBe("name");
+    expect(screen.getByLabelText("Password").getAttribute("autocomplete")).toBe("new-password");
   });
 
   it("redirects signed-in users to the requested route when one exists", () => {

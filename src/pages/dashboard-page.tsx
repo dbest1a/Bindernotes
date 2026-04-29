@@ -2,8 +2,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   BookCopy,
   ChevronRight,
+  FilePlus2,
   FolderOpen,
   LibraryBig,
+  NotebookTabs,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -17,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/hooks/use-binders";
+import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import {
   deriveBinderTitle,
   deriveLessonTitle,
@@ -31,6 +34,7 @@ export function DashboardPage() {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const { data, isLoading, error } = useDashboard(profile);
+  const { data: personalNotesData } = usePersonalNotes(profile);
   const [query, setQuery] = useState("");
   const showSystemDiagnostics =
     (profile?.role === "admin" || import.meta.env.DEV) &&
@@ -91,6 +95,15 @@ export function DashboardPage() {
     error && showSystemDiagnostics
       ? classifyRuntimeError("workspace", error)
       : [];
+  const personalEntries = personalNotesData?.entries ?? [];
+  const mainPersonalNotes = personalEntries.filter((entry) => entry.kind !== "binder-note").length;
+  const binderLinkedPersonalNotes =
+    personalEntries.length > 0
+      ? personalEntries.filter((entry) => entry.kind === "binder-note").length
+      : data?.notes.length ?? 0;
+  const personalBinderCount = personalNotesData?.personalBinders.length ?? 0;
+  const recentPersonalNotes =
+    personalEntries.length > 0 ? personalEntries.slice(0, 3) : data?.notes.slice(0, 3) ?? [];
   const resolvedFiltered = filtered ?? {
     folderSummaries: [],
     studyReadyBinders: [],
@@ -151,6 +164,65 @@ export function DashboardPage() {
                   <ChevronRight data-icon="inline-start" />
                 </Link>
               </Button>
+            </div>
+            <div className="utility-panel">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                <NotebookTabs className="text-primary" data-icon="inline-start" />
+                Personal Notes
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Your notes, binder private notes, and custom notebooks in one place.
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg border border-border/70 bg-background/78 p-2">
+                  <p className="text-lg font-semibold">{mainPersonalNotes}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    main
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-background/78 p-2">
+                  <p className="text-lg font-semibold">{binderLinkedPersonalNotes}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    binder-linked
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-background/78 p-2">
+                  <p className="text-lg font-semibold">{personalBinderCount}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    binders
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs font-semibold text-muted-foreground">
+                {binderLinkedPersonalNotes} binder-linked
+              </p>
+              {recentPersonalNotes.length ? (
+                <div className="mt-3 grid gap-2">
+                  {recentPersonalNotes.map((note) => (
+                    <Link
+                      className="rounded-md border border-border/70 bg-background/78 px-3 py-2 text-sm transition hover:bg-secondary/70"
+                      key={note.id}
+                      to={"quickOpenUrl" in note ? note.quickOpenUrl : `/notes/n/${note.id}`}
+                    >
+                      {note.title || "Binder private note"}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild size="sm" type="button">
+                  <Link to="/notes?action=new-note">
+                    <FilePlus2 data-icon="inline-start" />
+                    New note
+                  </Link>
+                </Button>
+                <Button asChild size="sm" type="button" variant="outline">
+                  <Link to="/notes">
+                    Open notes
+                    <ChevronRight data-icon="inline-start" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </aside>

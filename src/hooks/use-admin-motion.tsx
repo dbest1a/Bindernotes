@@ -25,13 +25,20 @@ function getPrefersReducedMotion() {
   return hasWindow() && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
-function writeRootAttributes(settings: AdminMotionSettings, isAdmin: boolean, prefersReducedMotion: boolean) {
+function writeRootAttributes(
+  settings: AdminMotionSettings,
+  isAdmin: boolean,
+  prefersReducedMotion: boolean,
+  performanceModeActive: boolean,
+) {
   if (typeof document === "undefined") {
     return;
   }
 
   const root = document.documentElement;
-  const enabled = isAdmin && settings.enabled;
+  const effectivePerformanceMode = performanceModeActive || prefersReducedMotion;
+  const enabled = isAdmin && settings.enabled && !effectivePerformanceMode;
+  root.dataset.performanceMode = effectivePerformanceMode ? "on" : "off";
   root.dataset.adminMotion = enabled ? "on" : "off";
   root.dataset.reducedMotion = prefersReducedMotion ? "system" : "none";
   root.dataset.motionIntensity = settings.intensity;
@@ -40,7 +47,7 @@ function writeRootAttributes(settings: AdminMotionSettings, isAdmin: boolean, pr
   root.dataset.pageTransition = enabled ? settings.pageTransition : "off";
 }
 
-export function useAdminMotionSettings(isAdmin: boolean) {
+export function useAdminMotionSettings(isAdmin: boolean, performanceModeActive = false) {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(getPrefersReducedMotion);
   const [settings, setSettings] = useState<AdminMotionSettings>(() => loadAdminMotionSettings(getStorage()));
 
@@ -56,8 +63,8 @@ export function useAdminMotionSettings(isAdmin: boolean) {
   }, []);
 
   useEffect(() => {
-    writeRootAttributes(settings, isAdmin, prefersReducedMotion);
-  }, [isAdmin, prefersReducedMotion, settings]);
+    writeRootAttributes(settings, isAdmin, prefersReducedMotion, performanceModeActive);
+  }, [isAdmin, performanceModeActive, prefersReducedMotion, settings]);
 
   useEffect(() => {
     if (!hasWindow()) {

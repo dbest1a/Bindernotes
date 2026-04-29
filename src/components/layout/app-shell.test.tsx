@@ -4,13 +4,24 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
+import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
 
 const authMock = vi.hoisted(() => ({
   profile: {
     id: "user-1",
+    email: "kai@example.com",
     full_name: "Kai Chen",
     role: "admin",
-  } as { id: string; full_name: string | null; role: string | null } | null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as {
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null,
   signOut: vi.fn(),
 }));
 
@@ -49,15 +60,32 @@ describe("AppShell profile settings", () => {
     cleanup();
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");
+    document.documentElement.removeAttribute("data-admin-dashboard");
+    document.documentElement.removeAttribute("data-performance-mode");
     document.documentElement.removeAttribute("data-motion-intensity");
     document.documentElement.removeAttribute("data-motion-speed");
     document.documentElement.removeAttribute("data-premium-color-mode");
     document.documentElement.removeAttribute("data-page-transition");
+    // @ts-expect-error jsdom matchMedia is test-controlled here.
+    delete window.matchMedia;
     authMock.profile = {
       id: "user-1",
+      email: "kai@example.com",
       full_name: "Kai Chen",
       role: "admin",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
+  });
+
+  it("shows Personal Notes in the primary navigation", () => {
+    renderShell();
+
+    expect(
+      screen
+        .getAllByRole("link", { name: /Personal Notes/i })
+        .some((link) => link.getAttribute("href") === "/notes"),
+    ).toBe(true);
   });
 
   it("shows Admin Motion Lab controls only for admins", async () => {
@@ -70,8 +98,11 @@ describe("AppShell profile settings", () => {
     cleanup();
     authMock.profile = {
       id: "user-2",
+      email: "learner@example.com",
       full_name: "Learner Person",
       role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     renderShell();
@@ -80,10 +111,121 @@ describe("AppShell profile settings", () => {
     expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
   });
 
+  it("shows dashboard appearance controls only for admins", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("admin-dashboard-appearance")).toBeTruthy();
+    expect(screen.getByTestId("admin-dashboard-view-mode")).toBeTruthy();
+
+    cleanup();
+    authMock.profile = {
+      id: "user-2",
+      email: "learner@example.com",
+      full_name: "Learner Person",
+      role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.queryByTestId("admin-dashboard-appearance")).toBeNull();
+  });
+
+  it("persists admin dashboard view mode and mirrors it to root data attributes", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.change(screen.getByTestId("admin-dashboard-view-mode"), {
+      target: { value: "admin-makeover" },
+    });
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
+      "admin-makeover",
+    );
+  });
+
+  it("shows tutorial prompt controls in the profile menu for admins and learners", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.getByTestId("tutorial-prompts-toggle")).toBeTruthy();
+
+    cleanup();
+    authMock.profile = {
+      id: "user-2",
+      email: "learner@example.com",
+      full_name: "Learner Person",
+      role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
+  });
+
+  it("persists tutorial prompt preference from the profile menu", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("tutorial-prompts-toggle"));
+
+    expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
+    expect(screen.getByTestId("tutorial-prompts-toggle")).toBeTruthy();
+    expect(window.localStorage.getItem(tutorialPromptPreferenceStorageKey("user-1"))).toContain(
+      '"promptsEnabled":false',
+    );
+  });
+
+  it("defaults to Performance Mode while the Enhanced Mode switch controls enhanced visuals", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("performance-mode-section")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(screen.getByText("Enhanced Mode")).toBeTruthy();
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
+
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
+      '"enabled":true',
+    );
+
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
+
+    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
+      '"enabled":false',
+    );
+  });
+
   it("persists admin motion settings and mirrors them to root data attributes", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("performance-mode-toggle"));
     fireEvent.click(screen.getByTestId("admin-motion-toggle"));
     fireEvent.change(screen.getByTestId("admin-motion-intensity"), { target: { value: "party" } });
     fireEvent.change(screen.getByTestId("admin-motion-speed"), { target: { value: "quick" } });
@@ -92,6 +234,32 @@ describe("AppShell profile settings", () => {
     expect(document.documentElement.getAttribute("data-motion-intensity")).toBe("party");
     expect(document.documentElement.getAttribute("data-motion-speed")).toBe("quick");
     expect(window.localStorage.getItem("bindernotes:admin-motion:v1")).toContain('"enabled":true');
+  });
+
+  it("keeps Performance Mode stronger than Admin Motion Lab", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("admin-motion-toggle"));
+    fireEvent.change(screen.getByTestId("admin-page-transition"), { target: { value: "slide-pop" } });
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-admin-motion")).toBe("off");
+    expect(document.documentElement.getAttribute("data-page-transition")).toBe("off");
+  });
+
+  it("respects reduced-motion by enabling effective Performance Mode", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    renderShell();
+
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-reduced-motion")).toBe("system");
   });
 
   it("closes the profile settings popover with Escape", async () => {
