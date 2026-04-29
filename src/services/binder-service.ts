@@ -99,6 +99,28 @@ const DASHBOARD_BINDER_SELECT = [
   "created_at",
   "updated_at",
 ].join(", ");
+export const DASHBOARD_LESSON_SUMMARY_SELECT = [
+  "lesson_id",
+  "binder_id",
+  "title",
+  "order_index",
+  "is_preview",
+  "plain_text_excerpt",
+  "word_count",
+  "created_at",
+  "updated_at",
+].join(", ");
+export const DASHBOARD_NOTE_SUMMARY_SELECT = [
+  "id",
+  "owner_id",
+  "binder_id",
+  "lesson_id",
+  "folder_id",
+  "title",
+  "pinned",
+  "created_at",
+  "updated_at",
+].join(", ");
 const DEMO_DATA_STORAGE_KEY = "binder-notes:demo-data:v1";
 const DEMO_HIGHLIGHT_RESET_MARKER_KEY = "binder-notes:demo-highlight-reset:v1";
 const SHADOW_DATA_STORAGE_KEY = "binder-notes:shadow-content:v1";
@@ -121,6 +143,30 @@ type DemoState = {
   notes: LearnerNote[];
   comments: Comment[];
   highlights: Highlight[];
+};
+
+type DashboardLessonSummaryRow = {
+  lesson_id: string;
+  binder_id: string;
+  title: string;
+  order_index: number;
+  is_preview: boolean;
+  plain_text_excerpt: string | null;
+  word_count: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type DashboardNoteSummaryRow = {
+  id: string;
+  owner_id: string;
+  binder_id: string;
+  lesson_id: string;
+  folder_id: string | null;
+  title: string;
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 type ShadowState = {
@@ -323,6 +369,36 @@ function normalizeDashboardBinder(binder: Binder): Binder {
   return {
     ...binder,
     suite_template_id: binder.suite_template_id ?? inferSuiteTemplateIdFromBinderId(binder.id),
+  };
+}
+
+function lessonFromDashboardSummary(row: DashboardLessonSummaryRow): BinderLesson {
+  return {
+    id: row.lesson_id,
+    binder_id: row.binder_id,
+    title: row.title,
+    order_index: row.order_index,
+    content: emptyDoc(row.plain_text_excerpt ?? ""),
+    math_blocks: [],
+    is_preview: row.is_preview,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function noteFromDashboardSummary(row: DashboardNoteSummaryRow): LearnerNote {
+  return {
+    id: row.id,
+    owner_id: row.owner_id,
+    binder_id: row.binder_id,
+    lesson_id: row.lesson_id,
+    folder_id: row.folder_id,
+    title: row.title,
+    content: emptyDoc(""),
+    math_blocks: [],
+    pinned: row.pinned,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -1132,7 +1208,7 @@ export async function getDashboard(
     supabase.from("folder_binders").select("*"),
     supabase
       .from("learner_notes")
-      .select("*")
+      .select(DASHBOARD_NOTE_SUMMARY_SELECT)
       .eq("owner_id", profile.id)
       .order("updated_at", { ascending: false }),
   ]);
@@ -1163,7 +1239,7 @@ export async function getDashboard(
   });
   debugWorkspaceQueryFailure({
     table: "learner_notes",
-    select: "*",
+    select: DASHBOARD_NOTE_SUMMARY_SELECT,
     filters: [`owner_id = ${profile.id}`, "order updated_at desc"],
     error: notesResult.error,
     userId: profile.id,
@@ -1194,25 +1270,48 @@ export async function getDashboard(
     }
   }
 
-  const lessonsResult =
-    candidateBinders.length > 0
+  const candidateBinderIds = candidateBinders.map((binder) => binder.id);
+  const lessonSummaryResult =
+    candidateBinderIds.length > 0
       ? await supabase
-          .from("binder_lessons")
-          .select("*")
-          .in(
-            "binder_id",
-            candidateBinders.map((binder) => binder.id),
-          )
+          .from("dashboard_lesson_summaries")
+          .select(DASHBOARD_LESSON_SUMMARY_SELECT)
+          .in("binder_id", candidateBinderIds)
           .order("updated_at", { ascending: false })
       : { data: [], error: null };
+  let lessonRows = lessonSummaryResult.error
+    ? []
+    : ((lessonSummaryResult.data ?? []) as DashboardLessonSummaryRow[]).map(lessonFromDashboardSummary);
+  let lessonsError = lessonSummaryResult.error;
+  let lessonsDebugTable = "dashboard_lesson_summaries";
+  let lessonsDebugSelect = DASHBOARD_LESSON_SUMMARY_SELECT;
+  let lessonsUsedSummary = !lessonSummaryResult.error;
+
+  if (candidateBinderIds.length > 0 && (lessonSummaryResult.error || lessonRows.length === 0)) {
+    const fullLessonsResult = await supabase
+      .from("binder_lessons")
+      .select("*")
+      .in("binder_id", candidateBinderIds)
+      .order("updated_at", { ascending: false });
+    lessonRows = fullLessonsResult.error ? [] : ((fullLessonsResult.data ?? []) as BinderLesson[]);
+    lessonsError = fullLessonsResult.error;
+    lessonsDebugTable = "binder_lessons";
+    lessonsDebugSelect = "*";
+    lessonsUsedSummary = false;
+  }
+
   debugWorkspaceQueryFailure({
-    table: "binder_lessons",
-    select: "*",
+    table: lessonsDebugTable,
+    select: lessonsDebugSelect,
     filters:
-      candidateBinders.length > 0
-        ? [`binder_id in (${candidateBinders.map((binder) => binder.id).join(", ")})`, "order updated_at desc"]
+      candidateBinderIds.length > 0
+        ? [
+            `binder_id in (${candidateBinderIds.join(", ")})`,
+            "order updated_at desc",
+            lessonsUsedSummary ? "source = summaries" : "source = full fallback",
+          ]
         : ["no binder ids"],
-    error: lessonsResult.error,
+    error: lessonsError,
     userId: profile.id,
   });
   const queryDiagnostics = [
@@ -1220,7 +1319,7 @@ export async function getDashboard(
     foldersResult.error ? classifyQueryError("folders", foldersResult.error) : null,
     folderBindersResult.error ? classifyQueryError("folder_binders", folderBindersResult.error) : null,
     notesResult.error ? classifyQueryError("learner_notes", notesResult.error) : null,
-    lessonsResult.error ? classifyQueryError("binder_lessons", lessonsResult.error) : null,
+    lessonsError ? classifyQueryError(lessonsDebugTable, lessonsError) : null,
   ].filter(Boolean) as WorkspaceDiagnostic[];
   const diagnostics = includeSystemStatus
     ? dedupeWorkspaceDiagnostics([...(status.diagnostics ?? []), ...queryDiagnostics])
@@ -1228,14 +1327,17 @@ export async function getDashboard(
 
   const shadowState = loadShadowState();
   const shadowNotes = shadowState.notes.filter((note) => note.owner_id === profile.id);
+  const remoteNotes = notesResult.error
+    ? []
+    : ((notesResult.data ?? []) as unknown as DashboardNoteSummaryRow[]).map(noteFromDashboardSummary);
   const notes = notesResult.error
     ? shadowNotes
-    : mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowNotes);
+    : mergeShadowNotes(remoteNotes, shadowNotes);
   const visible = filterVisibleWorkspaceData({
     binders: candidateBinders,
     folders: foldersResult.error ? [] : ((foldersResult.data ?? []) as Folder[]),
     folderBinders: folderBindersResult.error ? [] : ((folderBindersResult.data ?? []) as FolderBinderLink[]),
-    lessons: lessonsResult.error ? [] : mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[]),
+    lessons: lessonsError ? [] : mergeDemoLessons(lessonRows),
     notes,
   });
   const recentLessons = [...visible.lessons]

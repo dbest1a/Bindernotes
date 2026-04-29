@@ -61,6 +61,8 @@ const mocks = vi.hoisted(() => {
         };
       case "binder_lessons":
         return { data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters), error: null };
+      case "dashboard_lesson_summaries":
+        return { data: [], error: null };
       case "learner_notes":
         return { data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters), error: null };
       case "comments":
