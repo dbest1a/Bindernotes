@@ -24,6 +24,7 @@ import {
   ListFilter,
   Maximize2,
   MessageSquare,
+  Minimize2,
   NotebookTabs,
   PanelLeft,
   Pin,
@@ -262,6 +263,7 @@ export function PersonalNotesPage() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [createDialog, setCreateDialog] = useState<CreateDialogKind | null>(null);
   const [focusMode, setFocusMode] = useState(false);
+  const [focusSideMonitorOpen, setFocusSideMonitorOpen] = useState(false);
   const [sidebarsHidden, setSidebarsHidden] = useState(false);
   const [topChromeHidden, setTopChromeHidden] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -278,6 +280,7 @@ export function PersonalNotesPage() {
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const newMenuRef = useRef<HTMLDivElement | null>(null);
   const newButtonRef = useRef<HTMLButtonElement | null>(null);
+  const shellRef = useRef<HTMLElement | null>(null);
 
   const entries = data?.entries ?? [];
   const filteredEntries = useMemo(
@@ -344,6 +347,52 @@ export function PersonalNotesPage() {
   const personalStorageReady = !data?.loadIssues?.some((issue) =>
     issue.code === "personal_schema_missing" || issue.code === "personal_schema_blocked",
   );
+  const focusActive = focusMode || preferences.focusMode;
+  const sidebarsAreHidden = focusActive ? !focusSideMonitorOpen : sidebarsHidden;
+  const shouldShowNotebookPane = focusActive ? focusSideMonitorOpen : !sidebarsHidden && preferences.showNotebookPane;
+  const shouldShowNotesListPane = !focusActive && !sidebarsHidden && preferences.showNotesListPane;
+  const topChromeIsHidden = topChromeHidden || focusActive;
+
+  const exitFullscreenFocus = useCallback(() => {
+    setFocusMode(false);
+    setFocusSideMonitorOpen(false);
+    updatePreferences({ focusMode: false });
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      void document.exitFullscreen().catch(() => {
+        // CSS focus mode has already exited; leave browser fullscreen alone if the browser denies exit.
+      });
+    }
+  }, [updatePreferences]);
+
+  const enterFullscreenFocus = useCallback(() => {
+    setFocusMode(true);
+    setFocusSideMonitorOpen(false);
+    updatePreferences({ focusMode: true });
+    const root = shellRef.current ?? document.documentElement;
+    if (preferences.fullscreenFocusEnabled && root.requestFullscreen && !document.fullscreenElement) {
+      void root.requestFullscreen().catch(() => {
+        // App-level focus mode is already active when browser fullscreen is unavailable.
+      });
+    }
+  }, [preferences.fullscreenFocusEnabled, updatePreferences]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const syncFullscreenFocus = () => {
+      if (!document.fullscreenElement && (focusMode || preferences.focusMode)) {
+        setFocusMode(false);
+        setFocusSideMonitorOpen(false);
+        updatePreferences({ focusMode: false });
+      }
+    };
+
+    document.addEventListener("fullscreenchange", syncFullscreenFocus);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenFocus);
+  }, [focusMode, preferences.focusMode, updatePreferences]);
 
   const setView = useCallback(
     (view: PersonalNotesViewMode) => {
@@ -448,6 +497,10 @@ export function PersonalNotesPage() {
       }
       if ((event.ctrlKey || event.metaKey) && event.key === "\\") {
         event.preventDefault();
+        if (focusActive) {
+          setFocusSideMonitorOpen((current) => !current);
+          return;
+        }
         setSidebarsHidden((current) => !current);
       }
       if (event.key === "Escape") {
@@ -464,16 +517,15 @@ export function PersonalNotesPage() {
           setSettingsOpen(false);
           return;
         }
-        if (focusMode || preferences.focusMode) {
-          setFocusMode(false);
-          updatePreferences({ focusMode: false });
+        if (focusActive) {
+          exitFullscreenFocus();
         }
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commandOpen, filtersOpen, focusMode, newMenuOpen, preferences.focusMode, settingsOpen, updatePreferences]);
+  }, [commandOpen, exitFullscreenFocus, filtersOpen, focusActive, newMenuOpen, settingsOpen]);
 
   useEffect(() => {
     if (!filtersOpen && !newMenuOpen) {
@@ -707,21 +759,6 @@ export function PersonalNotesPage() {
     }
   }, [createLooseNote, isLoading, searchParams, selectedEntry]);
 
-  const focusActive = focusMode || preferences.focusMode;
-  const sidebarsAreHidden = sidebarsHidden || focusActive;
-  const topChromeIsHidden = topChromeHidden || focusActive;
-
-  const enterFullscreenFocus = useCallback(() => {
-    setFocusMode(true);
-    updatePreferences({ focusMode: true });
-    const root = document.documentElement;
-    if (preferences.fullscreenFocusEnabled && root.requestFullscreen && !document.fullscreenElement) {
-      void root.requestFullscreen().catch(() => {
-        // App-level focus mode is already active when browser fullscreen is unavailable.
-      });
-    }
-  }, [preferences.fullscreenFocusEnabled, updatePreferences]);
-
   const editorPanel = (
     <PersonalNoteEditor
       dirty={dirty}
@@ -732,6 +769,7 @@ export function PersonalNotesPage() {
       entries={entries}
       editorWidth={preferences.editorWidth}
       focusMode={focusActive}
+      focusSideMonitorOpen={shouldShowNotebookPane}
       annotatorMode={preferences.annotatorTools}
       compactMetadata={preferences.compactMetadata}
       noteLinkAutocomplete={preferences.noteLinkAutocomplete}
@@ -743,9 +781,15 @@ export function PersonalNotesPage() {
       }}
       onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
       onFocusModeChange={(enabled) => {
-        setFocusMode(enabled);
-        updatePreferences({ focusMode: enabled });
+        if (enabled) {
+          setFocusMode(true);
+          setFocusSideMonitorOpen(false);
+          updatePreferences({ focusMode: true });
+          return;
+        }
+        exitFullscreenFocus();
       }}
+      onToggleFocusSideMonitor={() => setFocusSideMonitorOpen((current) => !current)}
       onInsertTemplate={(content) => {
         setDraftContent(content);
         markDraftChanged();
@@ -775,16 +819,91 @@ export function PersonalNotesPage() {
     preferences.style === "studio"
       ? "bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--secondary)/0.46))]"
       : "bg-background";
+  const shellHeightClass = focusActive ? "min-h-screen" : "min-h-[calc(100vh-3.25rem)]";
+  const sectionHeightClass = focusActive ? "h-screen" : "h-[calc(100vh-3.25rem)]";
+  const commandPalette = commandOpen ? (
+    <CommandPalette
+      entries={entries}
+      onAddTag={addTagToSelected}
+      onClose={() => setCommandOpen(false)}
+      onCreateBinder={createBinder}
+      onCreateDocument={createDocument}
+      onCreateCanvasNotebook={createCanvasNotebook}
+      onCreateFolder={createFolder}
+      onCreateNote={createLooseNote}
+      onCopyLink={() => {
+        if (selectedEntry && typeof navigator !== "undefined" && navigator.clipboard) {
+          void navigator.clipboard.writeText(`${window.location.origin}${selectedEntry.quickOpenUrl}`);
+        }
+      }}
+      onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
+      onEnterFullscreenFocus={enterFullscreenFocus}
+      onFocusEditor={() => {
+        setFocusMode(true);
+        setFocusSideMonitorOpen(false);
+        updatePreferences({ focusMode: true });
+      }}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onMoveToFolder={moveSelectedToFolder}
+      onNotebookBack={stepBackNotebookSidebar}
+      onOpenReviewQueue={() => updatePreferences({ showReviewQueue: true })}
+      onOpenCategory={selectNotebookCategory}
+      onShowAllNotes={showAllNotes}
+      onToggleNotebookPane={() => updatePreferences({ showNotebookPane: !preferences.showNotebookPane })}
+      onToggleNotesListPane={() => updatePreferences({ showNotesListPane: !preferences.showNotesListPane })}
+      onToggleReviewSidebar={() => updatePreferences({ showReviewQueue: !preferences.showReviewQueue })}
+      onUpdatePreferences={updatePreferences}
+      categories={notebookCategories}
+      onOpenRecent={() => {
+        const entry = entries[0];
+        if (entry) {
+          selectEntry(entry);
+        }
+      }}
+      onOpenSource={() => {
+        if (selectedEntry?.quickJumpToBinderUrl) {
+          navigate(selectedEntry.quickJumpToBinderUrl);
+        }
+      }}
+      onOpenEntry={selectEntry}
+      onOpenTemplates={() => setCreateDialog("note")}
+      onPin={toggleSelectedPin}
+      onToggleBinderNotes={() => updatePreferences({ showBinderNotes: !preferences.showBinderNotes })}
+      onToggleFocusMode={() => {
+        const next = !focusActive;
+        if (next) {
+          setFocusMode(true);
+          updatePreferences({ focusMode: true });
+          return;
+        }
+        exitFullscreenFocus();
+      }}
+      onToggleSidebars={() => {
+        if (focusActive) {
+          setFocusSideMonitorOpen((current) => !current);
+          return;
+        }
+        setSidebarsHidden((current) => !current);
+      }}
+      onToggleStyle={() => updatePreferences({ style: preferences.style === "minimal" ? "studio" : "minimal" })}
+      onToggleTopChrome={() => setTopChromeHidden((current) => !current)}
+      focusMode={focusActive}
+      personalStorageReady={personalStorageReady}
+      selectedEntry={selectedEntry}
+      sidebarsHidden={sidebarsAreHidden}
+      topChromeHidden={topChromeIsHidden}
+    />
+  ) : null;
 
   return (
     <main
-      className={`min-h-[calc(100vh-3.25rem)] overflow-hidden ${shellTone}`}
+      className={`${shellHeightClass} overflow-hidden ${shellTone}`}
       data-app-appearance={preferences.style}
       data-app-style={preferences.style}
       data-maximize-module-space={preferences.maximizeModuleSpace ? "true" : "false"}
     >
       <section
-        className="relative flex h-[calc(100vh-3.25rem)] max-w-none flex-col overflow-hidden"
+        className={`personal-notes-focus-shell relative flex ${sectionHeightClass} max-w-none flex-col overflow-hidden`}
         data-app-appearance={preferences.style}
         data-notes-focus-mode={focusActive ? "true" : "false"}
         data-notes-sidebars-hidden={sidebarsAreHidden ? "true" : "false"}
@@ -792,26 +911,25 @@ export function PersonalNotesPage() {
         data-personal-notes-view={preferences.defaultView}
         data-personal-storage-ready={personalStorageReady ? "true" : "false"}
         data-testid="personal-notes-shell"
+        ref={shellRef}
       >
         {topChromeIsHidden ? (
-          <Button
-            aria-label="Show Personal Notes toolbar"
-            className="fixed bottom-4 right-4 z-50 shadow-2xl"
-            data-testid="show-personal-notes-toolbar-button"
-            onClick={() => {
-              setTopChromeHidden(false);
-              if (focusActive) {
-                setFocusMode(false);
-                updatePreferences({ focusMode: false });
-              }
-            }}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <PanelLeft data-icon="inline-start" />
-            Show toolbar
-          </Button>
+          focusActive ? null : (
+            <Button
+              aria-label="Show Personal Notes toolbar"
+              className="fixed bottom-4 right-4 z-50 shadow-2xl"
+              data-testid="show-personal-notes-toolbar-button"
+              onClick={() => {
+                setTopChromeHidden(false);
+              }}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <PanelLeft data-icon="inline-start" />
+              Show toolbar
+            </Button>
+          )
         ) : (
           <>
             <div className="z-20 shrink-0 border-b border-border/70 bg-background/95 px-2 py-2 shadow-sm backdrop-blur sm:px-3">
@@ -1082,8 +1200,8 @@ export function PersonalNotesPage() {
                     selectedCategoryId={selectedCategoryId}
                     selectedScope={selectedNotebookScope}
                     selectedEntry={selectedEntry}
-                    showNotebookPane={!sidebarsAreHidden && preferences.showNotebookPane}
-                    showNotesListPane={!sidebarsAreHidden && preferences.showNotesListPane}
+                    showNotebookPane={shouldShowNotebookPane}
+                    showNotesListPane={shouldShowNotesListPane}
                     showSideMonitorTags={preferences.showSideMonitorTags}
                     tagFilter={tagFilter}
                     tagSummaries={tagSummaries}
@@ -1110,6 +1228,7 @@ export function PersonalNotesPage() {
             </>
           ) : null}
         </div>
+        {commandPalette}
       </section>
 
       {createDialog ? (
@@ -1137,77 +1256,18 @@ export function PersonalNotesPage() {
         />
       ) : null}
 
-      {commandOpen ? (
-        <CommandPalette
-          entries={entries}
-          onAddTag={addTagToSelected}
-          onClose={() => setCommandOpen(false)}
-          onCreateBinder={createBinder}
-          onCreateDocument={createDocument}
-          onCreateCanvasNotebook={createCanvasNotebook}
-          onCreateFolder={createFolder}
-          onCreateNote={createLooseNote}
-          onCopyLink={() => {
-            if (selectedEntry && typeof navigator !== "undefined" && navigator.clipboard) {
-              void navigator.clipboard.writeText(`${window.location.origin}${selectedEntry.quickOpenUrl}`);
-            }
-          }}
-          onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
-          onEnterFullscreenFocus={enterFullscreenFocus}
-          onFocusEditor={() => {
-            setFocusMode(true);
-            updatePreferences({ focusMode: true });
-          }}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onMoveToFolder={moveSelectedToFolder}
-          onNotebookBack={stepBackNotebookSidebar}
-          onOpenReviewQueue={() => updatePreferences({ showReviewQueue: true })}
-          onOpenCategory={selectNotebookCategory}
-          onShowAllNotes={showAllNotes}
-          onToggleNotebookPane={() => updatePreferences({ showNotebookPane: !preferences.showNotebookPane })}
-          onToggleNotesListPane={() => updatePreferences({ showNotesListPane: !preferences.showNotesListPane })}
-          onToggleReviewSidebar={() => updatePreferences({ showReviewQueue: !preferences.showReviewQueue })}
-          onUpdatePreferences={updatePreferences}
-          categories={notebookCategories}
-          onOpenRecent={() => {
-            const entry = entries[0];
-            if (entry) {
-              selectEntry(entry);
-            }
-          }}
-          onOpenSource={() => {
-            if (selectedEntry?.quickJumpToBinderUrl) {
-              navigate(selectedEntry.quickJumpToBinderUrl);
-            }
-          }}
-          onOpenEntry={selectEntry}
-          onOpenTemplates={() => setCreateDialog("note")}
-          onPin={toggleSelectedPin}
-          onToggleBinderNotes={() => updatePreferences({ showBinderNotes: !preferences.showBinderNotes })}
-          onToggleFocusMode={() => {
-            const next = !focusActive;
-            setFocusMode(next);
-            updatePreferences({ focusMode: next });
-          }}
-          onToggleSidebars={() => setSidebarsHidden((current) => !current)}
-          onToggleStyle={() => updatePreferences({ style: preferences.style === "minimal" ? "studio" : "minimal" })}
-          onToggleTopChrome={() => setTopChromeHidden((current) => !current)}
-          focusMode={focusActive}
-          personalStorageReady={personalStorageReady}
-          selectedEntry={selectedEntry}
-          sidebarsHidden={sidebarsAreHidden}
-          topChromeHidden={topChromeIsHidden}
-        />
-      ) : null}
-
       {settingsOpen ? (
         <PersonalNotesSettingsDrawer
           focusMode={focusActive}
           onClose={() => setSettingsOpen(false)}
           onEnterFullscreenFocus={enterFullscreenFocus}
           onToggleFocusMode={(enabled) => {
-            setFocusMode(enabled);
-            updatePreferences({ focusMode: enabled });
+            if (enabled) {
+              setFocusMode(true);
+              updatePreferences({ focusMode: true });
+              return;
+            }
+            exitFullscreenFocus();
           }}
           onToggleSidebars={setSidebarsHidden}
           onToggleTopChrome={setTopChromeHidden}
@@ -3261,11 +3321,13 @@ function PersonalNoteEditor({
   entry,
   entries,
   focusMode,
+  focusSideMonitorOpen,
   noteLinkAutocomplete,
   onAddTag,
   onContentChange,
   onEditorWidthChange,
   onFocusModeChange,
+  onToggleFocusSideMonitor,
   onInsertTemplate,
   onOpenBinder,
   onPin,
@@ -3287,11 +3349,13 @@ function PersonalNoteEditor({
   entry: PersonalNotesEntry | null;
   entries: PersonalNotesEntry[];
   focusMode: boolean;
+  focusSideMonitorOpen: boolean;
   noteLinkAutocomplete: boolean;
   onAddTag: () => void;
   onContentChange: (content: JSONContent) => void;
   onEditorWidthChange: (width: PersonalNotesEditorWidth) => void;
   onFocusModeChange: (enabled: boolean) => void;
+  onToggleFocusSideMonitor: () => void;
   onInsertTemplate: (content: JSONContent) => void;
   onOpenBinder: () => void;
   onPin: () => void;
@@ -3574,8 +3638,34 @@ function PersonalNoteEditor({
                   <NotebookTabs />
                 </Button>
               ) : null}
-              <Button aria-label={focusMode ? "Exit focus mode" : "Enter focus mode"} className="px-2" onClick={() => onFocusModeChange(!focusMode)} size="sm" type="button" variant="outline">
-                <Focus />
+              {focusMode ? (
+                <Button
+                  aria-label={focusSideMonitorOpen ? "Hide side monitor" : "Show side monitor"}
+                  className="px-2"
+                  onClick={onToggleFocusSideMonitor}
+                  size="sm"
+                  type="button"
+                  variant={focusSideMonitorOpen ? "secondary" : "outline"}
+                >
+                  <PanelLeft />
+                </Button>
+              ) : null}
+              <Button
+                aria-label={focusMode ? "Exit fullscreen focus" : "Enter focus mode"}
+                className={focusMode ? "px-3" : "px-2"}
+                onClick={() => onFocusModeChange(!focusMode)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {focusMode ? (
+                  <>
+                    <Minimize2 data-icon="inline-start" />
+                    Exit fullscreen
+                  </>
+                ) : (
+                  <Focus />
+                )}
               </Button>
               <Button disabled={!dirty || saveState === "saving"} onClick={onSave} size="sm" type="button">
                 <Save data-icon="inline-start" />

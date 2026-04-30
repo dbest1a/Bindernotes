@@ -795,6 +795,22 @@
     padding: 0;
   }
 
+  .personal-notes-focus-shell:fullscreen,
+  .personal-notes-focus-shell[data-notes-focus-mode="true"] {
+    background: hsl(var(--background));
+    overflow: hidden;
+  }
+
+  .personal-notes-focus-shell:fullscreen .personal-notes-editor-page,
+  .personal-notes-focus-shell[data-notes-focus-mode="true"] .personal-notes-editor-page {
+    min-height: 0;
+  }
+
+  .personal-notes-focus-shell:fullscreen .personal-notes-editor-page .editor-surface .ProseMirror,
+  .personal-notes-focus-shell[data-notes-focus-mode="true"] .personal-notes-editor-page .editor-surface .ProseMirror {
+    min-height: calc(100vh - 8rem);
+  }
+
   .personal-notes-tools-drawer {
     background: hsl(var(--popover));
     color: hsl(var(--popover-foreground));

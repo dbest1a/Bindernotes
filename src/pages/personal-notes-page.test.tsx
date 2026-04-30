@@ -897,7 +897,7 @@ describe("PersonalNotesPage", () => {
   it("keeps source actions in a non-overlapping row and fullscreen focus calls the browser API", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(document.documentElement, "requestFullscreen", {
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
       configurable: true,
       value: requestFullscreen,
     });
@@ -910,6 +910,22 @@ describe("PersonalNotesPage", () => {
     expect(screen.getByTestId("open-binder-workspace-button").className).toContain("overflow-hidden");
     fireEvent.click(screen.getByRole("button", { name: "Enter fullscreen focus" }));
     expect(requestFullscreen).toHaveBeenCalled();
+    expect(screen.getByTestId("personal-notes-shell").className).toContain("h-screen");
+    expect(screen.queryByTestId("show-personal-notes-toolbar-button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Exit fullscreen focus" })).toBeTruthy();
+    expect(screen.queryByLabelText("Personal Notes side monitor")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show side monitor" }));
+    expect(screen.getByLabelText("Personal Notes side monitor")).toBeTruthy();
+    expect(screen.queryByTestId("notes-list-pane")).toBeNull();
+    expect(screen.getByRole("button", { name: "Hide side monitor" })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    expect(
+      within(screen.getByTestId("personal-notes-shell")).getByRole("dialog", {
+        name: "Personal Notes command palette",
+      }),
+    ).toBeTruthy();
   });
 
   it("keeps saved search chips in the filter menu instead of the default chrome", () => {
@@ -1101,10 +1117,11 @@ describe("PersonalNotesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enter focus mode" }));
     expect(shell.getAttribute("data-notes-focus-mode")).toBe("true");
     expect(shell.getAttribute("data-notes-top-chrome-hidden")).toBe("true");
-    expect(screen.getByRole("button", { name: "Show Personal Notes toolbar" })).toBeTruthy();
-    expect(screen.getByTestId("show-personal-notes-toolbar-button").className).toContain("fixed");
-    expect(screen.getByTestId("show-personal-notes-toolbar-button").className).toContain("bottom-4");
-    expect(screen.getByTestId("show-personal-notes-toolbar-button").className).not.toContain("top-3");
+    expect(screen.queryByRole("button", { name: "Show Personal Notes toolbar" })).toBeNull();
+    expect(screen.queryByTestId("show-personal-notes-toolbar-button")).toBeNull();
+    expect(screen.getByRole("button", { name: "Exit fullscreen focus" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Show side monitor" }));
+    expect(screen.getByLabelText("Personal Notes side monitor")).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(mocks.updatePreferences).toHaveBeenCalledWith({ focusMode: false });
