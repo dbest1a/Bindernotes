@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  NotebookTabs,
   PenTool,
   RotateCcw,
   Sparkles,
@@ -18,9 +19,15 @@ import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { useTheme } from "@/hooks/use-theme";
 import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
+import {
+  loadPersonalNotesPreferences,
+  personalNotesPreferencesUpdatedEvent,
+  savePersonalNotesPreferences,
+} from "@/lib/personal-notes";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
+import type { PersonalNotesPreferences } from "@/types";
 
 export function AppShell() {
   const { profile, signOut } = useAuth();
@@ -31,6 +38,9 @@ export function AppShell() {
   const dashboardExperience = useDashboardExperience(isAdmin);
   const tutorialPrompts = useTutorialPrompts(profile);
   const performanceMode = usePerformanceMode();
+  const [personalNotesPreferences, setPersonalNotesPreferences] = useState(() =>
+    loadPersonalNotesPreferences(profile?.id),
+  );
   const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(
     isAdmin,
     performanceMode.effectivePerformanceMode,
@@ -44,6 +54,38 @@ export function AppShell() {
   const logout = async () => {
     await signOut();
     navigate("/");
+  };
+
+  useEffect(() => {
+    setPersonalNotesPreferences(loadPersonalNotesPreferences(profile?.id));
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (!profile?.id) {
+      return;
+    }
+
+    const onPersonalNotesPreferencesUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        preferences?: PersonalNotesPreferences;
+        userId?: string;
+      }>).detail;
+      if (detail?.userId === profile.id && detail.preferences) {
+        setPersonalNotesPreferences(detail.preferences);
+      }
+    };
+
+    window.addEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
+    return () => window.removeEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
+  }, [profile?.id]);
+
+  const setQuickAccessVisible = (showQuickAccess: boolean) => {
+    const next = {
+      ...personalNotesPreferences,
+      showQuickAccess,
+    };
+    setPersonalNotesPreferences(next);
+    savePersonalNotesPreferences(profile?.id, next);
   };
 
   useEffect(() => {
@@ -101,6 +143,9 @@ export function AppShell() {
           <nav className="app-primary-nav hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
             <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
               Workspace
+            </NavItem>
+            <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
+              Personal Notes
             </NavItem>
             <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
               Math lab
@@ -229,6 +274,41 @@ export function AppShell() {
                       {tutorialPrompts.promptsEnabled
                         ? "Tutorial prompts can appear once per page until skipped or watched."
                         : "Tutorial prompts are off. The full Tutorial library stays available from the nav."}
+                    </p>
+                  </section>
+                  <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="personal-notes-quick-access-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <NotebookTabs className="size-4 text-cyan-300" />
+                          Quick Access
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Show the Personal Notes shortcut card in Home and Organize.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Show Quick Access"
+                        aria-pressed={personalNotesPreferences.showQuickAccess}
+                        className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="personal-notes-quick-access-toggle"
+                        onClick={() => setQuickAccessVisible(!personalNotesPreferences.showQuickAccess)}
+                        type="button"
+                      >
+                        <span
+                          className={
+                            personalNotesPreferences.showQuickAccess
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Toggle Personal Notes Quick Access</span>
+                      </button>
+                    </div>
+                    <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {personalNotesPreferences.showQuickAccess
+                        ? "Quick Access is visible for fast notes, binders, documents, and folders."
+                        : "Quick Access is hidden. Navigation and command palette access stay available."}
                     </p>
                   </section>
                   <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="performance-mode-section">

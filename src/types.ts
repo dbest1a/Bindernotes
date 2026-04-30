@@ -79,6 +79,151 @@ export type LearnerNote = {
   updated_at: string;
 };
 
+export type PersonalNote = {
+  id: string;
+  owner_id: string;
+  title: string;
+  content: JSONContent;
+  math_blocks: MathBlock[];
+  folder_id: string | null;
+  binder_id: string | null;
+  document_id: string | null;
+  tags: string[];
+  pinned: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNoteBinder = {
+  id: string;
+  owner_id: string;
+  folder_id: string | null;
+  title: string;
+  description: string | null;
+  color: string | null;
+  pinned: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotebookBinder = PersonalNoteBinder;
+
+export type PersonalNoteDocument = {
+  id: string;
+  owner_id: string;
+  binder_id: string;
+  title: string;
+  content: JSONContent;
+  math_blocks: MathBlock[];
+  tags: string[];
+  pinned: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotebookDocument = PersonalNoteDocument;
+
+export type PersonalNoteFolder = {
+  id: string;
+  owner_id: string;
+  name: string;
+  color: string;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotesEntryKind = "binder-note" | "personal-note" | "personal-document";
+export type PersonalNotesSourceFilter = "all" | "main" | "binder-linked" | "personal-binders" | "loose";
+export type PersonalNotesViewMode = "notes" | "home" | "organize";
+export type PersonalNotesVisualStyle = "studio" | "minimal";
+export type PersonalNotesDefaultLocation = "loose" | "last-binder" | "ask";
+export type PersonalNotesEditorWidth = "focused" | "comfortable" | "wide" | "full";
+export type PersonalNotesAnnotatorMode = "off" | "floating" | "top" | "both";
+export type PersonalNotesSidebarNavigationMode = "structured" | "loose";
+
+export type PersonalNotesEntry = {
+  kind: PersonalNotesEntryKind;
+  id: string;
+  title: string;
+  content: JSONContent;
+  excerpt: string;
+  searchText: string;
+  updated_at: string;
+  pinned: boolean;
+  folderId: string | null;
+  folderName: string;
+  folderColor: string;
+  tags: string[];
+  math_blocks: MathBlock[];
+  sourceType: "Binder private note" | "Loose note" | "Notebook document";
+  sourceBinderId: string | null;
+  sourceBinderTitle: string | null;
+  sourceDocumentId: string | null;
+  sourceDocumentTitle: string | null;
+  personalBinderId: string | null;
+  personalBinderTitle: string | null;
+  quickOpenUrl: string;
+  quickJumpToBinderUrl: string | null;
+  note: LearnerNote | PersonalNote | PersonalNoteDocument;
+  reviewLater: boolean;
+};
+
+export type PersonalNotesLoadIssue = {
+  code: "personal_schema_missing" | "personal_schema_blocked" | "personal_query_failed";
+  severity: "warning" | "error";
+  title: string;
+  message: string;
+  technicalReason: string;
+  table?: string;
+};
+
+export type PersonalNotesData = {
+  entries: PersonalNotesEntry[];
+  learnerNotes: LearnerNote[];
+  personalNotes: PersonalNote[];
+  personalFolders: PersonalNoteFolder[];
+  personalBinders: PersonalNoteBinder[];
+  personalDocuments: PersonalNoteDocument[];
+  binders: Binder[];
+  lessons: BinderLesson[];
+  folders: Folder[];
+  loadIssues?: PersonalNotesLoadIssue[];
+};
+
+export type PersonalNotesPreferences = {
+  defaultView: PersonalNotesViewMode;
+  style: PersonalNotesVisualStyle;
+  showBinderNotes: boolean;
+  defaultNewNoteLocation: PersonalNotesDefaultLocation;
+  editorWidth: PersonalNotesEditorWidth;
+  autosave: boolean;
+  compactModuleHeaders: boolean;
+  compactMetadata: boolean;
+  maximizeModuleSpace: boolean;
+  showReviewQueue: boolean;
+  showQuickAccess: boolean;
+  showNotebookPane: boolean;
+  showNotesListPane: boolean;
+  organizeCardOrder: string[];
+  sidebarNavigationMode: PersonalNotesSidebarNavigationMode;
+  rememberNotebookContext: boolean;
+  showRecentNotesInScope: boolean;
+  fullscreenFocusEnabled: boolean;
+  defaultFocusBehavior: "focus" | "fullscreen";
+  annotatorTools: PersonalNotesAnnotatorMode;
+  showAnnotationColorFilter: boolean;
+  noteLinkAutocomplete: boolean;
+  canvasToolsLazyLoad: boolean;
+  canvasSafeEdgePadding: boolean;
+  canvasSnapMode: "off" | "edges" | "modules";
+  mobileCanvasBehavior: "module-switcher" | "simplified";
+  focusMode: boolean;
+};
+
 export type Comment = {
   id: string;
   owner_id: string;

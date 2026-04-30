@@ -7,17 +7,20 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   closestCenter,
   DndContext,
-  DragOverlay,
   KeyboardSensor,
+  pointerWithin,
   PointerSensor,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -53,8 +56,6 @@ import {
   createDashboardOrganizationDraft,
   loadDashboardOrganizationDraft,
   moveBinderToFolder,
-  reorderDashboardBinders,
-  reorderDashboardFolders,
   resetDashboardOrganizationDraft,
   saveDashboardOrganizationDraft,
   unfiledDashboardFolderId,
@@ -77,12 +78,217 @@ type AdminDashboardMakeoverProps = {
 };
 
 type SaveState = "idle" | "saved" | "draft";
+type DropPlacement = "before" | "after" | "swap";
+type DragPreviewState = {
+  height: number;
+  id: string;
+  offsetX: number;
+  offsetY: number;
+  pointerX: number;
+  pointerY: number;
+  startPointerX: number;
+  startPointerY: number;
+  width: number;
+};
+
+function safeAttributeValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
 
 const folderSortableId = (folderId: string) => `folder:${folderId}`;
 const binderSortableId = (binderId: string) => `binder:${binderId}`;
 const folderBinderSortableId = (folderId: string, binderId: string) =>
   `folder-binder:${folderId}:${binderId}`;
 const folderDropId = (folderId: string) => `folder-drop:${folderId}`;
+
+const adminDashboardCollisionDetection: CollisionDetection = (args) => {
+  const activeId = String(args.active.id);
+  const isCompatible = (overId: string) => {
+    if (overId === activeId) {
+      return false;
+    }
+    if (activeId.startsWith("folder:")) {
+      return overId.startsWith("folder:");
+    }
+    if (activeId.startsWith("binder:")) {
+      return (
+        overId.startsWith("binder:") ||
+        overId.startsWith("folder:") ||
+        overId.startsWith("folder-drop:") ||
+        overId.startsWith("folder-binder:")
+      );
+    }
+    if (activeId.startsWith("folder-binder:")) {
+      return (
+        overId.startsWith("folder-binder:") ||
+        overId.startsWith("folder:") ||
+        overId.startsWith("folder-drop:") ||
+        overId.startsWith("binder:")
+      );
+    }
+    return true;
+  };
+  const pointerCollisions = pointerWithin(args).filter((collision) =>
+    isCompatible(String(collision.id)),
+  );
+  if (pointerCollisions.length > 0) {
+    return pointerCollisions;
+  }
+  return closestCenter(args).filter((collision) => isCompatible(String(collision.id)));
+};
+
+function getClientPoint(event: Event | null): { x: number; y: number } | null {
+  if (!event) {
+    return null;
+  }
+  const pointerEvent = event as MouseEvent | PointerEvent;
+  if (typeof pointerEvent.clientX === "number" && typeof pointerEvent.clientY === "number") {
+    return { x: pointerEvent.clientX, y: pointerEvent.clientY };
+  }
+  const touchEvent = event as TouchEvent;
+  if (touchEvent.touches?.length) {
+    return { x: touchEvent.touches[0].clientX, y: touchEvent.touches[0].clientY };
+  }
+  if (touchEvent.changedTouches?.length) {
+    return { x: touchEvent.changedTouches[0].clientX, y: touchEvent.changedTouches[0].clientY };
+  }
+  return null;
+}
+
+function getDropPlacement(
+  overRect: { height: number; left: number; top: number; width: number } | undefined,
+  preview: DragPreviewState | null,
+): DropPlacement {
+  if (!overRect || !preview || overRect.width <= 0 || overRect.height <= 0) {
+    return "swap";
+  }
+
+  const relativeX = preview.pointerX - overRect.left;
+  const relativeY = preview.pointerY - overRect.top;
+  const insideX = relativeX >= 0 && relativeX <= overRect.width;
+  const insideY = relativeY >= 0 && relativeY <= overRect.height;
+
+  if (!insideX || !insideY) {
+    return "swap";
+  }
+
+  const edgeBandX = Math.min(34, overRect.width * 0.12);
+  const edgeBandY = Math.min(34, overRect.height * 0.12);
+  const edgeCandidates = [
+    { distance: relativeY, placement: "before" as const },
+    { distance: overRect.height - relativeY, placement: "after" as const },
+    { distance: relativeX, placement: "before" as const },
+    { distance: overRect.width - relativeX, placement: "after" as const },
+  ].filter((candidate, index) =>
+    index < 2 ? candidate.distance <= edgeBandY : candidate.distance <= edgeBandX,
+  );
+
+  if (edgeCandidates.length === 0) {
+    return "swap";
+  }
+
+  edgeCandidates.sort((a, b) => a.distance - b.distance);
+  return edgeCandidates[0].placement;
+}
+
+function reorderIdsByPlacement(
+  order: string[],
+  activeId: string,
+  overId: string,
+  placement: DropPlacement,
+) {
+  const fromIndex = order.indexOf(activeId);
+  const toIndex = order.indexOf(overId);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    return order;
+  }
+
+  const nextOrder = [...order];
+  if (placement === "swap") {
+    nextOrder[fromIndex] = overId;
+    nextOrder[toIndex] = activeId;
+    return nextOrder;
+  }
+
+  const [moved] = nextOrder.splice(fromIndex, 1);
+  const overIndexAfterRemove = nextOrder.indexOf(overId);
+  const insertIndex = placement === "after" ? overIndexAfterRemove + 1 : overIndexAfterRemove;
+  nextOrder.splice(insertIndex, 0, moved);
+  return nextOrder;
+}
+
+function updateDraftFolderOrder(
+  draft: DashboardOrganizationDraft,
+  activeFolderId: string,
+  overFolderId: string,
+  placement: DropPlacement,
+): DashboardOrganizationDraft {
+  const folderOrder = reorderIdsByPlacement(draft.folderOrder, activeFolderId, overFolderId, placement);
+  return folderOrder === draft.folderOrder ? draft : { ...draft, folderOrder, updatedAt: new Date().toISOString() };
+}
+
+function updateDraftBinderOrder(
+  draft: DashboardOrganizationDraft,
+  activeBinderId: string,
+  overBinderId: string,
+  placement: DropPlacement,
+): DashboardOrganizationDraft {
+  const binderOrder = reorderIdsByPlacement(draft.binderOrder, activeBinderId, overBinderId, placement);
+  return binderOrder === draft.binderOrder ? draft : { ...draft, binderOrder, updatedAt: new Date().toISOString() };
+}
+
+function getDashboardDropTarget(activeId: string, preview: DragPreviewState | null) {
+  if (typeof document === "undefined" || !preview) {
+    return null;
+  }
+
+  const elements = document.elementsFromPoint(preview.pointerX, preview.pointerY);
+  for (const element of elements) {
+    const target = element.closest<HTMLElement>("[data-admin-sortable-id], [data-admin-drop-id]");
+    if (!target) {
+      continue;
+    }
+
+    const overId = target.dataset.adminSortableId ?? target.dataset.adminDropId ?? null;
+    if (!overId || overId === activeId) {
+      continue;
+    }
+
+    if (activeId.startsWith("folder:") && !overId.startsWith("folder:")) {
+      continue;
+    }
+    if (
+      activeId.startsWith("binder:") &&
+      !(
+        overId.startsWith("binder:") ||
+        overId.startsWith("folder:") ||
+        overId.startsWith("folder-drop:") ||
+        overId.startsWith("folder-binder:")
+      )
+    ) {
+      continue;
+    }
+    if (
+      activeId.startsWith("folder-binder:") &&
+      !(
+        overId.startsWith("folder-binder:") ||
+        overId.startsWith("folder:") ||
+        overId.startsWith("folder-drop:") ||
+        overId.startsWith("binder:")
+      )
+    ) {
+      continue;
+    }
+
+    const rect = target.getBoundingClientRect();
+    return {
+      id: overId,
+      placement: getDropPlacement(rect, preview),
+    };
+  }
+
+  return null;
+}
 
 function stripPrefix(id: string, prefix: string) {
   return id.startsWith(prefix) ? id.slice(prefix.length) : null;
@@ -114,6 +320,8 @@ export function AdminDashboardMakeover({
   );
   const [isEditing, setIsEditing] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreviewState | null>(null);
+  const dragPreviewRef = useRef<DragPreviewState | null>(null);
   const [overDragId, setOverDragId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const debouncedQuery = useDebouncedValue(query);
@@ -155,6 +363,50 @@ export function AdminDashboardMakeover({
     };
   }, []);
 
+  useEffect(() => {
+    if (!dragPreview) {
+      return;
+    }
+
+    let frame = 0;
+    const updatePoint = (point: { x: number; y: number }) => {
+      const currentPreview = dragPreviewRef.current;
+      if (currentPreview) {
+        dragPreviewRef.current = {
+          ...currentPreview,
+          pointerX: point.x,
+          pointerY: point.y,
+        };
+      }
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = window.requestAnimationFrame(() => {
+        setDragPreview(dragPreviewRef.current);
+      });
+    };
+    const onPointerMove = (event: PointerEvent) => updatePoint({ x: event.clientX, y: event.clientY });
+    const onMouseMove = (event: MouseEvent) => updatePoint({ x: event.clientX, y: event.clientY });
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0] ?? event.changedTouches[0];
+      if (touch) {
+        updatePoint({ x: touch.clientX, y: touch.clientY });
+      }
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [dragPreview?.id]);
+
   const lessonsByBinderId = useMemo(
     () => {
       const groups = data.lessons.reduce<Record<string, BinderLesson[]>>((nextGroups, lesson) => {
@@ -191,9 +443,6 @@ export function AdminDashboardMakeover({
   const activeBinderId = activeDragId
     ? stripPrefix(activeDragId, "binder:") ?? activeFolderBinder?.binderId ?? null
     : null;
-  const activeFolderId = activeDragId ? stripPrefix(activeDragId, "folder:") : null;
-  const activeBinder = activeBinderId ? binderById.get(activeBinderId) ?? null : null;
-  const activeFolder = activeFolderId ? folderById.get(activeFolderId) ?? null : null;
   const filteredFolders = useMemo(
     () =>
       orderedFolders.filter((folder) =>
@@ -261,8 +510,49 @@ export function AdminDashboardMakeover({
   );
 
   const onDragStart = (event: DragStartEvent) => {
-    setActiveDragId(String(event.active.id));
+    const activeId = String(event.active.id);
+    const activeElement =
+      typeof document !== "undefined"
+        ? document.querySelector<HTMLElement>(`[data-admin-sortable-id="${safeAttributeValue(activeId)}"]`)
+        : null;
+    const measuredRect = activeElement?.getBoundingClientRect();
+    const measuredHasSize = Boolean(measuredRect && measuredRect.width > 0 && measuredRect.height > 0);
+    const initialRect = measuredHasSize ? measuredRect : event.active.rect.current.initial;
+    const fallbackPoint = initialRect
+      ? { x: initialRect.left + Math.min(56, initialRect.width / 2), y: initialRect.top + Math.min(56, initialRect.height / 2) }
+      : { x: 0, y: 0 };
+    const point = getClientPoint(event.activatorEvent) ?? fallbackPoint;
+    const nextPreview = {
+      height: initialRect?.height ?? 220,
+      id: activeId,
+      offsetX: initialRect ? point.x - initialRect.left : 32,
+      offsetY: initialRect ? point.y - initialRect.top : 32,
+      pointerX: point.x,
+      pointerY: point.y,
+      startPointerX: point.x,
+      startPointerY: point.y,
+      width: initialRect?.width ?? 360,
+    };
+    setActiveDragId(activeId);
+    dragPreviewRef.current = nextPreview;
+    setDragPreview(nextPreview);
     setOverDragId(null);
+  };
+
+  const onDragMove = (event: DragMoveEvent) => {
+    setDragPreview((currentPreview) => {
+      if (!currentPreview) {
+        dragPreviewRef.current = null;
+        return currentPreview;
+      }
+      const nextPreview = {
+        ...currentPreview,
+        pointerX: currentPreview.startPointerX + event.delta.x,
+        pointerY: currentPreview.startPointerY + event.delta.y,
+      };
+      dragPreviewRef.current = nextPreview;
+      return nextPreview;
+    });
   };
 
   const onDragOver = (event: DragOverEvent) => {
@@ -272,6 +562,8 @@ export function AdminDashboardMakeover({
 
   const clearDragState = () => {
     setActiveDragId(null);
+    dragPreviewRef.current = null;
+    setDragPreview(null);
     setOverDragId(null);
   };
 
@@ -283,11 +575,15 @@ export function AdminDashboardMakeover({
       return;
     }
 
+    const latestPreview = dragPreviewRef.current ?? dragPreview;
+    const dashboardTarget = getDashboardDropTarget(activeId, latestPreview);
+    const effectiveOverId = dashboardTarget?.id ?? overId;
+    const dropPlacement = dashboardTarget?.placement ?? getDropPlacement(event.over?.rect, latestPreview);
     const activeFolderId = stripPrefix(activeId, "folder:");
     if (activeFolderId) {
-      const overFolderId = stripPrefix(overId, "folder:");
+      const overFolderId = stripPrefix(effectiveOverId, "folder:");
       if (overFolderId) {
-        setDraft((current) => reorderDashboardFolders(current, activeFolderId, overFolderId));
+        setDraft((current) => updateDraftFolderOrder(current, activeFolderId, overFolderId, dropPlacement));
         setSaveState("draft");
       }
       clearDragState();
@@ -301,7 +597,7 @@ export function AdminDashboardMakeover({
       return;
     }
 
-    const overFolderId = stripPrefix(overId, "folder-drop:") ?? stripPrefix(overId, "folder:");
+    const overFolderId = stripPrefix(effectiveOverId, "folder-drop:") ?? stripPrefix(effectiveOverId, "folder:");
     if (overFolderId) {
       setDraft((current) =>
         moveBinderToFolder(current, {
@@ -314,7 +610,7 @@ export function AdminDashboardMakeover({
       return;
     }
 
-    const overFolderBinder = parseFolderBinderSortableId(overId);
+    const overFolderBinder = parseFolderBinderSortableId(effectiveOverId);
     if (overFolderBinder) {
       setDraft((current) =>
         moveBinderToFolder(current, {
@@ -328,9 +624,9 @@ export function AdminDashboardMakeover({
       return;
     }
 
-    const overBinderId = stripPrefix(overId, "binder:");
+    const overBinderId = stripPrefix(effectiveOverId, "binder:");
     if (overBinderId) {
-      setDraft((current) => reorderDashboardBinders(current, activeBinderId, overBinderId));
+      setDraft((current) => updateDraftBinderOrder(current, activeBinderId, overBinderId, dropPlacement));
       setSaveState("draft");
     }
     clearDragState();
@@ -449,9 +745,7 @@ export function AdminDashboardMakeover({
 
       {isEditing ? (
         <AdminDashboardEditableSections
-          activeBinder={activeBinder}
           activeBinderId={activeBinderId}
-          activeFolder={activeFolder}
           binderById={binderById}
           clearDragState={clearDragState}
           documentCountByFolderId={documentCountByFolderId}
@@ -462,6 +756,7 @@ export function AdminDashboardMakeover({
           lessonsByBinderId={lessonsByBinderId}
           noteCountByFolderId={noteCountByFolderId}
           onDragEnd={onDragEnd}
+          onDragMove={onDragMove}
           onDragOver={onDragOver}
           onDragStart={onDragStart}
           orderedBinders={orderedBinders}
@@ -484,6 +779,17 @@ export function AdminDashboardMakeover({
           recentDocuments={recentDocuments}
         />
       )}
+      {dragPreview ? (
+        <AdminDashboardDragPreview
+          binderById={binderById}
+          documentCountByFolderId={documentCountByFolderId}
+          draft={draft}
+          folderById={folderById}
+          lessonsByBinderId={lessonsByBinderId}
+          noteCountByFolderId={noteCountByFolderId}
+          preview={dragPreview}
+        />
+      ) : null}
     </main>
   );
 }
@@ -503,11 +809,10 @@ type AdminDashboardSectionsProps = {
 };
 
 type AdminDashboardEditableSectionsProps = AdminDashboardSectionsProps & {
-  activeBinder: Binder | null;
   activeBinderId: string | null;
-  activeFolder: Folder | null;
   clearDragState: () => void;
   onDragEnd: (event: DragEndEvent) => void;
+  onDragMove: (event: DragMoveEvent) => void;
   onDragOver: (event: DragOverEvent) => void;
   onDragStart: (event: DragStartEvent) => void;
   overDragId: string | null;
@@ -608,9 +913,7 @@ function AdminDashboardReadOnlySections({
 }
 
 function AdminDashboardEditableSections({
-  activeBinder,
   activeBinderId,
-  activeFolder,
   binderById,
   clearDragState,
   documentCountByFolderId,
@@ -621,6 +924,7 @@ function AdminDashboardEditableSections({
   lessonsByBinderId,
   noteCountByFolderId,
   onDragEnd,
+  onDragMove,
   onDragOver,
   onDragStart,
   orderedBinders,
@@ -635,9 +939,10 @@ function AdminDashboardEditableSections({
 
   return (
     <DndContext
-      collisionDetection={closestCenter}
+      collisionDetection={adminDashboardCollisionDetection}
       onDragCancel={clearDragState}
       onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
       onDragOver={onDragOver}
       onDragStart={onDragStart}
       sensors={sensors}
@@ -732,21 +1037,100 @@ function AdminDashboardEditableSections({
           />
         </div>
       </section>
-
-      <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-        {activeFolder ? (
-          <div className="admin-drag-preview admin-drag-preview--folder">
-            <FolderOpen />
-            <span>{getDisplayTitle(activeFolder.name, "Recovered Folder")}</span>
-          </div>
-        ) : activeBinder ? (
-          <div className="admin-drag-preview admin-drag-preview--binder">
-            <LibraryBig />
-            <span>{deriveBinderTitle(activeBinder, lessonsByBinderId[activeBinder.id] ?? [])}</span>
-          </div>
-        ) : null}
-      </DragOverlay>
     </DndContext>
+  );
+}
+
+function AdminDashboardDragPreview({
+  binderById,
+  documentCountByFolderId,
+  draft,
+  folderById,
+  lessonsByBinderId,
+  noteCountByFolderId,
+  preview,
+}: {
+  binderById: Map<string, Binder>;
+  documentCountByFolderId: Record<string, number>;
+  draft: DashboardOrganizationDraft;
+  folderById: Map<string, Folder>;
+  lessonsByBinderId: Record<string, BinderLesson[]>;
+  noteCountByFolderId: Record<string, number>;
+  preview: DragPreviewState;
+}) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const folderId = stripPrefix(preview.id, "folder:");
+  const folderBinder = parseFolderBinderSortableId(preview.id);
+  const binderId = stripPrefix(preview.id, "binder:") ?? folderBinder?.binderId ?? null;
+  const folder = folderId ? folderById.get(folderId) ?? null : null;
+  const binder = binderId ? binderById.get(binderId) ?? null : null;
+  const left = preview.pointerX - preview.offsetX;
+  const top = preview.pointerY - preview.offsetY;
+  const style = {
+    "--admin-drag-preview-height": `${preview.height}px`,
+    "--admin-drag-preview-width": `${preview.width}px`,
+    "--admin-drag-preview-x": `${left}px`,
+    "--admin-drag-preview-y": `${top}px`,
+  } as CSSProperties;
+
+  if (folderId && folder) {
+    const binderIds = draft.folderBinderOrderByFolderId[folderId] ?? [];
+    return createPortal(
+      <div className="admin-drag-floating-preview" data-testid="admin-drag-overlay-card" style={style}>
+        <article className="admin-folder-card admin-folder-card--preview" data-testid="admin-folder-drag-preview">
+          <div className="admin-folder-card__top">
+            <span className="admin-folder-card__icon">
+              <FolderOpen />
+            </span>
+            <ChevronRight className="admin-card-arrow" />
+          </div>
+          <h3>{getDisplayTitle(folder.name, "Recovered Folder")}</h3>
+          <p>
+            {binderIds.length} binders / {documentCountByFolderId[folderId] ?? 0} documents /{" "}
+            {noteCountByFolderId[folderId] ?? 0} notes
+          </p>
+          <div className="admin-folder-card__preview">
+            {binderIds.slice(0, 3).map((nextBinderId) => {
+              const nextBinder = binderById.get(nextBinderId);
+              return nextBinder ? (
+                <span key={nextBinder.id}>
+                  {deriveBinderTitle(nextBinder, lessonsByBinderId[nextBinder.id] ?? [])}
+                </span>
+              ) : null;
+            })}
+            {binderIds.length === 0 ? <span>No binders yet</span> : null}
+          </div>
+        </article>
+      </div>,
+      document.body,
+    );
+  }
+
+  if (!binder) {
+    return null;
+  }
+
+  const title = deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? []);
+  return createPortal(
+    <div className="admin-drag-floating-preview" data-testid="admin-drag-overlay-card" style={style}>
+      <article className="admin-binder-card admin-binder-card--preview">
+        <div className="admin-binder-card__cover">
+          {binder.cover_url ? <img alt="" src={binder.cover_url} /> : <LibraryBig />}
+        </div>
+        <div className="admin-binder-card__body">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{binder.subject}</Badge>
+            {folderBinder ? <Badge variant="outline">Folder placement</Badge> : null}
+          </div>
+          <h3>{title}</h3>
+          <p>{binder.description}</p>
+        </div>
+      </article>
+    </div>,
+    document.body,
   );
 }
 
@@ -824,8 +1208,6 @@ function AdminFolderCard({
             aria-label={`Drag ${folder.name} to reorder`}
             className="admin-drag-handle"
             type="button"
-            {...attributes}
-            {...listeners}
           >
             <GripVertical />
           </button>
@@ -861,7 +1243,10 @@ function AdminFolderCard({
         isDragging && "admin-card--dragging",
         showDropTarget && "admin-folder-card--over",
       )}
+      data-admin-sortable-id={folderSortableId(folder.id)}
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={{
         "--stagger-index": index,
         transform: CSS.Transform.toString(transform),
@@ -958,8 +1343,6 @@ function AdminBinderCard({
             aria-label={`Drag ${title} to reorder`}
             className="admin-drag-handle"
             type="button"
-            {...attributes}
-            {...listeners}
           >
             <GripVertical />
           </button>
@@ -979,7 +1362,10 @@ function AdminBinderCard({
   return isEditing ? (
     <article
       className={cn("admin-binder-card", isDragging && "admin-card--dragging")}
+      data-admin-sortable-id={binderSortableId(binder.id)}
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={{
         "--stagger-index": index,
         transform: CSS.Transform.toString(transform),
@@ -1055,6 +1441,7 @@ function FolderDropZone({
   return (
     <article
       className={cn("admin-folder-drop-zone", isOver && "admin-folder-drop-zone--over")}
+      data-admin-drop-id={folderDropId(folder.id)}
       ref={setNodeRef}
     >
       <div className="admin-folder-drop-zone__header">
@@ -1146,7 +1533,10 @@ function FolderBinderChip({
   return (
     <div
       className={cn("admin-folder-binder-chip", isDragging && "admin-card--dragging")}
+      data-admin-sortable-id={folderBinderSortableId(folderId, binder.id)}
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -1157,8 +1547,6 @@ function FolderBinderChip({
           aria-label={`Drag ${title} to reorder`}
           className="admin-mini-drag-handle"
           type="button"
-          {...attributes}
-          {...listeners}
         >
           <GripVertical />
         </button>
@@ -1213,6 +1601,7 @@ function UnfiledDropZone({
   return (
     <article
       className={cn("admin-folder-drop-zone admin-folder-drop-zone--unfiled", isOver && "admin-folder-drop-zone--over")}
+      data-admin-drop-id={folderDropId(unfiledDashboardFolderId)}
       ref={setNodeRef}
     >
       <div className="admin-folder-drop-zone__header">

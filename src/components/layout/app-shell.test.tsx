@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
+import { loadPersonalNotesPreferences } from "@/lib/personal-notes";
 import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
 
 const authMock = vi.hoisted(() => ({
@@ -175,6 +176,27 @@ describe("AppShell profile settings", () => {
     expect(window.localStorage.getItem(tutorialPromptPreferenceStorageKey("user-1"))).toContain(
       '"promptsEnabled":false',
     );
+  });
+
+  it("keeps the solid settings menu and adds a persisted Quick Access toggle between Tutorials and Enhanced Mode", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    const popover = screen.getByTestId("profile-settings-popover");
+    expect(popover.className).toContain("bg-popover");
+    expect(popover.className).not.toContain("backdrop-blur");
+    expect(screen.getByTestId("personal-notes-quick-access-section")).toBeTruthy();
+    expect(popover.textContent?.indexOf("Tutorials")).toBeLessThan(
+      popover.textContent?.indexOf("Quick Access") ?? -1,
+    );
+    expect(popover.textContent?.indexOf("Quick Access")).toBeLessThan(
+      popover.textContent?.indexOf("Enhanced Mode") ?? -1,
+    );
+
+    fireEvent.click(screen.getByTestId("personal-notes-quick-access-toggle"));
+
+    expect(loadPersonalNotesPreferences("user-1").showQuickAccess).toBe(false);
   });
 
   it("defaults to Performance Mode while the Enhanced Mode switch controls enhanced visuals", async () => {

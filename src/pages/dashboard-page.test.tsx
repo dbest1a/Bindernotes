@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -121,6 +121,9 @@ const mocks = vi.hoisted(() => {
 
 const dndMocks = vi.hoisted(() => ({
   dndContextRender: vi.fn(),
+  lastDndContextProps: null as null | {
+    onDragStart?: (event: unknown) => void;
+  },
   useDroppable: vi.fn(() => ({ isOver: false, setNodeRef: vi.fn() })),
   useSensor: vi.fn(() => ({})),
   useSensors: vi.fn(() => []),
@@ -146,9 +149,10 @@ vi.mock("@/hooks/use-binders", () => ({
 
 vi.mock("@dnd-kit/core", () => ({
   closestCenter: vi.fn(),
-  DndContext: ({ children }: { children: ReactNode }) => {
+  DndContext: (props: { children: ReactNode; onDragStart?: (event: unknown) => void }) => {
     dndMocks.dndContextRender();
-    return <div data-testid="admin-dnd-context">{children}</div>;
+    dndMocks.lastDndContextProps = props;
+    return <div data-testid="admin-dnd-context">{props.children}</div>;
   },
   DragOverlay: ({ children }: { children: ReactNode }) => <div data-testid="admin-drag-overlay">{children}</div>,
   KeyboardSensor: vi.fn(),
@@ -186,6 +190,7 @@ describe("DashboardPage", () => {
     mocks.dashboardState.isLoading = false;
     mocks.profile.role = "admin";
     dndMocks.dndContextRender.mockClear();
+    dndMocks.lastDndContextProps = null;
     dndMocks.useDroppable.mockClear();
     dndMocks.useSensor.mockClear();
     dndMocks.useSensors.mockClear();
@@ -296,6 +301,43 @@ describe("DashboardPage", () => {
     expect(dndMocks.dndContextRender).toHaveBeenCalled();
     expect(dndMocks.useSortable).toHaveBeenCalled();
     expect(dndMocks.useDroppable).toHaveBeenCalled();
+  });
+
+  it("renders the full folder card as the drag overlay at the active card size", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /organize/i }));
+
+    act(() => {
+      dndMocks.lastDndContextProps?.onDragStart?.({
+        active: {
+          id: "folder:folder-real",
+          rect: {
+            current: {
+              initial: {
+                height: 272,
+                width: 480,
+              },
+            },
+          },
+        },
+      });
+    });
+
+    const overlay = screen.getByTestId("admin-drag-overlay-card");
+    expect(overlay.getAttribute("style")).toContain("--admin-drag-preview-height: 272px");
+    expect(overlay.getAttribute("style")).toContain("--admin-drag-preview-width: 480px");
+    expect(screen.getByTestId("admin-folder-drag-preview")).toBeTruthy();
+    expect(screen.getAllByText("History").length).toBeGreaterThan(1);
   });
 
   it("does not stringify full lesson content during dashboard search", () => {

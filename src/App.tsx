@@ -30,6 +30,9 @@ const AuthPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })),
 );
+const PersonalNotesPage = lazy(() =>
+  import("@/pages/personal-notes-page").then((module) => ({ default: module.PersonalNotesPage })),
+);
 const FolderPage = lazy(() =>
   import("@/pages/folder-page").then((module) => ({ default: module.FolderPage })),
 );
@@ -127,6 +130,14 @@ function AppRoutes() {
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
             <Route element={<AppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/notes" element={<PersonalNotesPage />} />
+              <Route path="/notes/:noteId" element={<PersonalNotesPage />} />
+              <Route path="/notes/n/:noteId" element={<PersonalNotesPage />} />
+              <Route path="/notes/binders/:personalBinderId" element={<PersonalNotesPage />} />
+              <Route
+                path="/notes/binders/:personalBinderId/documents/:documentId"
+                element={<PersonalNotesPage />}
+              />
               <Route path="/folders/:folderId" element={<FolderPage />} />
               <Route path="/binders/:binderId" element={<BinderPage />} />
               <Route path="/math" element={<MathLandingPage />} />
