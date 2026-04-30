@@ -143,7 +143,7 @@ export type PersonalNotesVisualStyle = "studio" | "minimal";
 export type PersonalNotesDefaultLocation = "loose" | "last-binder" | "ask";
 export type PersonalNotesEditorWidth = "focused" | "comfortable" | "wide" | "full";
 export type PersonalNotesAnnotatorMode = "off" | "floating" | "top" | "both";
-export type PersonalNotesSidebarNavigationMode = "structured" | "loose";
+export type PersonalNotesSidebarNavigationMode = "project-tree" | "scope-drill-in";
 
 export type PersonalNotesEntry = {
   kind: PersonalNotesEntryKind;
@@ -191,6 +191,7 @@ export type PersonalNotesData = {
   binders: Binder[];
   lessons: BinderLesson[];
   folders: Folder[];
+  folderBinders: FolderBinderLink[];
   loadIssues?: PersonalNotesLoadIssue[];
 };
 
@@ -208,6 +209,7 @@ export type PersonalNotesPreferences = {
   showQuickAccess: boolean;
   showNotebookPane: boolean;
   showNotesListPane: boolean;
+  showSideMonitorTags: boolean;
   organizeCardOrder: string[];
   sidebarNavigationMode: PersonalNotesSidebarNavigationMode;
   rememberNotebookContext: boolean;

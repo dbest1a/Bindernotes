@@ -234,7 +234,8 @@ describe("Personal Notes unified model", () => {
       editorWidth: "wide",
       showReviewQueue: false,
       showNotesListPane: true,
-      sidebarNavigationMode: "structured",
+      showSideMonitorTags: false,
+      sidebarNavigationMode: "project-tree",
       rememberNotebookContext: true,
       annotatorTools: "floating",
       noteLinkAutocomplete: true,
@@ -248,6 +249,11 @@ describe("Personal Notes unified model", () => {
 
     expect(normalizePersonalNotesPreferences({ defaultView: "normal" as never }).defaultView).toBe("organize");
     expect(normalizePersonalNotesPreferences({ defaultView: "minimal" as never }).defaultView).toBe("notes");
+    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "structured" as never }).sidebarNavigationMode).toBe("project-tree");
+    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "expanded" as never }).sidebarNavigationMode).toBe("project-tree");
+    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "loose" as never }).sidebarNavigationMode).toBe("scope-drill-in");
+    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "drill-in" as never }).sidebarNavigationMode).toBe("scope-drill-in");
+    expect(normalizePersonalNotesPreferences({}).showSideMonitorTags).toBe(false);
   });
 
   it("includes the expanded V2 template set", () => {

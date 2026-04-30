@@ -2,11 +2,12 @@ import type { JSONContent } from "@tiptap/react";
 import { supabase } from "@/lib/supabase";
 import { emptyDoc } from "@/lib/utils";
 import { buildPersonalNotesEntries } from "@/lib/personal-notes";
-import { upsertLearnerNote } from "@/services/binder-service";
+import { getDashboard, upsertLearnerNote } from "@/services/binder-service";
 import type {
   Binder,
   BinderLesson,
   Folder,
+  FolderBinderLink,
   LearnerNote,
   MathBlock,
   PersonalNote,
@@ -75,6 +76,7 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
       binders: [],
       lessons: [],
       folders: [],
+      folderBinders: [],
       loadIssues: [
         {
           code: "personal_schema_blocked",
@@ -155,15 +157,43 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
     throw referenceError;
   }
 
+  let workspaceData: Pick<PersonalNotesData, "binders" | "folders" | "folderBinders" | "lessons"> = {
+    binders: [],
+    folders: [],
+    folderBinders: [],
+    lessons: [],
+  };
+  try {
+    const dashboard = await getDashboard(profile, { includeSystemStatus: false });
+    workspaceData = {
+      binders: dashboard.binders,
+      folders: dashboard.folders,
+      folderBinders: dashboard.folderBinders,
+      lessons: dashboard.lessons,
+    };
+  } catch {
+    workspaceData = {
+      binders: [],
+      folders: [],
+      folderBinders: [],
+      lessons: [],
+    };
+  }
+
+  const binders = mergeById(workspaceData.binders, (bindersResult.data ?? []) as Binder[]);
+  const lessons = mergeById(workspaceData.lessons, (lessonsResult.data ?? []) as BinderLesson[]);
+  const folders = mergeById(workspaceData.folders, (foldersResult.data ?? []) as Folder[]);
+
   return buildPersonalNotesData({
     learnerNotes,
     personalNotes: personalNotesResult.data,
     personalFolders: personalFoldersResult.data,
     personalBinders: personalBindersResult.data,
     personalDocuments: personalDocumentsResult.data,
-    binders: (bindersResult.data ?? []) as Binder[],
-    lessons: (lessonsResult.data ?? []) as BinderLesson[],
-    folders: (foldersResult.data ?? []) as Folder[],
+    binders,
+    lessons,
+    folders,
+    folderBinders: workspaceData.folderBinders,
     loadIssues: [
       personalNotesResult.issue,
       personalFoldersResult.issue,
@@ -514,6 +544,7 @@ function buildPersonalNotesData(input: {
   binders: Binder[];
   lessons: BinderLesson[];
   folders: Folder[];
+  folderBinders: FolderBinderLink[];
   loadIssues?: PersonalNotesLoadIssue[];
 }): PersonalNotesData {
   const entries = buildPersonalNotesEntries({
@@ -536,8 +567,16 @@ function buildPersonalNotesData(input: {
     binders: input.binders,
     lessons: input.lessons,
     folders: input.folders,
+    folderBinders: input.folderBinders,
     loadIssues: input.loadIssues?.length ? input.loadIssues : undefined,
   };
+}
+
+function mergeById<T extends { id: string }>(primary: T[], fallback: T[]) {
+  const merged = new Map<string, T>();
+  fallback.forEach((item) => merged.set(item.id, item));
+  primary.forEach((item) => merged.set(item.id, item));
+  return Array.from(merged.values());
 }
 
 async function readPersonalTable<T>(

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import type { JSONContent } from "@tiptap/react";
@@ -17,6 +17,7 @@ const value: JSONContent = {
 
 describe("RichTextEditor", () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -39,5 +40,17 @@ describe("RichTextEditor", () => {
         ),
       ),
     ).toBe(false);
+  });
+
+  it("can hide the fixed editor toolbar while keeping the writing surface", async () => {
+    render(<RichTextEditor showToolbar={false} value={value} />);
+
+    await waitFor(() => {
+      expect(document.querySelector(".ProseMirror")).not.toBeNull();
+    });
+
+    expect(screen.queryByRole("button", { name: "Bold" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Highlight" })).toBeNull();
+    expect(document.querySelector(".ProseMirror")).not.toBeNull();
   });
 });

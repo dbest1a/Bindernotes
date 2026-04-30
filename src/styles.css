@@ -58,6 +58,17 @@
     --lesson-highlight-pink-alpha: 0.28;
     --lesson-highlight-orange: 28 95% 62%;
     --lesson-highlight-orange-alpha: 0.36;
+    --editor-highlight-alpha: 0.92;
+    --editor-highlight-yellow: 46 96% 75%;
+    --editor-highlight-yellow-foreground: 38 74% 13%;
+    --editor-highlight-blue: 210 96% 78%;
+    --editor-highlight-blue-foreground: 218 70% 16%;
+    --editor-highlight-green: 148 68% 73%;
+    --editor-highlight-green-foreground: 154 68% 13%;
+    --editor-highlight-pink: 276 82% 82%;
+    --editor-highlight-pink-foreground: 280 54% 16%;
+    --editor-highlight-orange: 28 95% 72%;
+    --editor-highlight-orange-foreground: 24 76% 14%;
   }
 
   .dark {
@@ -113,6 +124,17 @@
     --lesson-highlight-pink-alpha: 0.26;
     --lesson-highlight-orange: 24 95% 53%;
     --lesson-highlight-orange-alpha: 0.3;
+    --editor-highlight-alpha: 0.94;
+    --editor-highlight-yellow: 42 88% 32%;
+    --editor-highlight-yellow-foreground: 44 96% 94%;
+    --editor-highlight-blue: 213 78% 36%;
+    --editor-highlight-blue-foreground: 212 100% 96%;
+    --editor-highlight-green: 155 70% 29%;
+    --editor-highlight-green-foreground: 146 75% 95%;
+    --editor-highlight-pink: 278 52% 39%;
+    --editor-highlight-pink-foreground: 286 100% 96%;
+    --editor-highlight-orange: 25 82% 34%;
+    --editor-highlight-orange-foreground: 34 100% 95%;
   }
 
   * {
@@ -1565,7 +1587,44 @@
   }
 
   .ProseMirror mark {
-    @apply rounded-md bg-amber-200 px-1 text-foreground;
+    @apply rounded-md px-1;
+    background-color: hsl(var(--editor-highlight-yellow) / var(--editor-highlight-alpha));
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    color: hsl(var(--editor-highlight-yellow-foreground));
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--foreground) / 0.08),
+      inset 0 -1px 0 hsl(var(--background) / 0.16);
+  }
+
+  .ProseMirror mark[style*="#fde68a"],
+  .ProseMirror mark[style*="rgb(253, 230, 138)"] {
+    background-color: hsl(var(--editor-highlight-yellow) / var(--editor-highlight-alpha)) !important;
+    color: hsl(var(--editor-highlight-yellow-foreground));
+  }
+
+  .ProseMirror mark[style*="#93c5fd"],
+  .ProseMirror mark[style*="rgb(147, 197, 253)"] {
+    background-color: hsl(var(--editor-highlight-blue) / var(--editor-highlight-alpha)) !important;
+    color: hsl(var(--editor-highlight-blue-foreground));
+  }
+
+  .ProseMirror mark[style*="#86efac"],
+  .ProseMirror mark[style*="rgb(134, 239, 172)"] {
+    background-color: hsl(var(--editor-highlight-green) / var(--editor-highlight-alpha)) !important;
+    color: hsl(var(--editor-highlight-green-foreground));
+  }
+
+  .ProseMirror mark[style*="#d8b4fe"],
+  .ProseMirror mark[style*="rgb(216, 180, 254)"] {
+    background-color: hsl(var(--editor-highlight-pink) / var(--editor-highlight-alpha)) !important;
+    color: hsl(var(--editor-highlight-pink-foreground));
+  }
+
+  .ProseMirror mark[style*="#fdba74"],
+  .ProseMirror mark[style*="rgb(253, 186, 116)"] {
+    background-color: hsl(var(--editor-highlight-orange) / var(--editor-highlight-alpha)) !important;
+    color: hsl(var(--editor-highlight-orange-foreground));
   }
 
   .math-card {
@@ -2173,7 +2232,8 @@
   }
 
   .dark .ProseMirror mark {
-    background-color: rgb(251 191 36 / 0.35);
+    background-color: hsl(var(--editor-highlight-yellow) / var(--editor-highlight-alpha));
+    color: hsl(var(--editor-highlight-yellow-foreground));
   }
 
   .dark .source-reading-flow ::selection {

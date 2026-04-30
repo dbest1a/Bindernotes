@@ -25,6 +25,7 @@ const emptyWorkspace: PersonalNotesData = {
   binders: [],
   lessons: [],
   folders: [],
+  folderBinders: [],
 };
 
 const mocks = vi.hoisted(() => ({
@@ -48,8 +49,10 @@ const mocks = vi.hoisted(() => ({
     toggleBold: vi.fn(),
     toggleItalic: vi.fn(),
     toggleUnderline: vi.fn(),
+    toggleBlockquote: vi.fn(),
     toggleHighlight: vi.fn(),
     unsetHighlight: vi.fn(),
+    setTextSelection: vi.fn(),
     setLink: vi.fn(),
     run: vi.fn(),
   },
@@ -243,13 +246,15 @@ vi.mock("@/hooks/use-personal-notes", () => ({
 vi.mock("@/components/editor/rich-text-editor", () => ({
   RichTextEditor: ({
     onEditorReady,
+    showToolbar,
     value,
   }: {
     onEditorReady?: (editor: unknown) => void;
+    showToolbar?: boolean;
     value: unknown;
   }) => {
     onEditorReady?.(mocks.editor);
-    return <textarea aria-label="Note body" readOnly value={JSON.stringify(value)} />;
+    return <textarea aria-label="Note body" data-show-toolbar={String(showToolbar)} readOnly value={JSON.stringify(value)} />;
   },
 }));
 
@@ -276,8 +281,10 @@ describe("PersonalNotesPage", () => {
     mocks.editorChain.toggleBold.mockReturnValue(mocks.editorChain);
     mocks.editorChain.toggleItalic.mockReturnValue(mocks.editorChain);
     mocks.editorChain.toggleUnderline.mockReturnValue(mocks.editorChain);
+    mocks.editorChain.toggleBlockquote.mockReturnValue(mocks.editorChain);
     mocks.editorChain.toggleHighlight.mockReturnValue(mocks.editorChain);
     mocks.editorChain.unsetHighlight.mockReturnValue(mocks.editorChain);
+    mocks.editorChain.setTextSelection.mockReturnValue(mocks.editorChain);
     mocks.editorChain.setLink.mockReturnValue(mocks.editorChain);
     mocks.editorChain.run.mockReturnValue(true);
     mocks.editor.chain.mockReturnValue(mocks.editorChain);
@@ -347,7 +354,7 @@ describe("PersonalNotesPage", () => {
     expect(dialog.getByRole("option", { name: "Jacob Math Notes" })).toBeTruthy();
 
     fireEvent.change(dialog.getByLabelText("Note title"), { target: { value: "Binder note" } });
-    fireEvent.change(dialog.getByLabelText("Binder"), { target: { value: personalBinder.id } });
+    fireEvent.change(dialog.getByLabelText("Binder"), { target: { value: `personal:${personalBinder.id}` } });
     fireEvent.click(dialog.getByRole("button", { name: "Create note" }));
 
     await waitFor(() => {
@@ -358,6 +365,190 @@ describe("PersonalNotesPage", () => {
         }),
       );
     });
+  });
+
+  it("lets New Note choose an existing workspace folder and binder", async () => {
+    mocks.savePersonalNote.mockClear();
+    mocks.saveBinderLinkedNote.mockClear();
+    const sourceFolder = {
+      id: "folder-math",
+      owner_id: "system",
+      name: "Math",
+      color: "blue",
+      source: "system" as const,
+      suite_template_id: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    const sourceBinder = {
+      id: "binder-algebra-foundations",
+      owner_id: "system",
+      title: "Algebra 1 Foundations",
+      slug: "algebra-1-foundations",
+      description: "Algebra practice",
+      subject: "Math",
+      level: "Algebra 1",
+      status: "published" as const,
+      price_cents: 0,
+      cover_url: null,
+      pinned: false,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    const sourceLesson = {
+      id: "lesson-completing-square",
+      binder_id: sourceBinder.id,
+      title: "Completing the Square",
+      order_index: 1,
+      content: doc("Quadratics"),
+      math_blocks: [],
+      is_preview: false,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    mocks.personalNotesState.data = {
+      ...emptyWorkspace,
+      binders: [sourceBinder],
+      folders: [sourceFolder],
+      folderBinders: [
+        {
+          id: "folder-link-math-algebra",
+          owner_id: "system",
+          folder_id: sourceFolder.id,
+          binder_id: sourceBinder.id,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+      ],
+      lessons: [sourceLesson],
+    };
+    mocks.saveBinderLinkedNote.mockResolvedValue({
+      ...learnerNote,
+      id: "created-source-note",
+      binder_id: sourceBinder.id,
+      lesson_id: sourceLesson.id,
+      title: "Workspace note",
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New note" }));
+
+    expect(screen.getByTestId("personal-notes-create-dialog-overlay").className).toContain("bg-background/72");
+    const dialog = within(screen.getByRole("dialog", { name: "New note" }));
+    expect(screen.getByRole("dialog", { name: "New note" }).className).toContain("max-w-lg");
+    expect(dialog.getByLabelText("Note title").className).toContain("min-w-0");
+    expect(dialog.queryByText("Create a binder first, then add notes to it.")).toBeNull();
+    expect(dialog.getByRole("option", { name: "Math" })).toBeTruthy();
+    expect(dialog.getByRole("option", { name: "Algebra 1 Foundations" })).toBeTruthy();
+
+    fireEvent.change(dialog.getByLabelText("Folder"), { target: { value: `workspace:${sourceFolder.id}` } });
+    fireEvent.change(dialog.getByLabelText("Binder"), { target: { value: `workspace:${sourceBinder.id}` } });
+    expect(dialog.getByLabelText("Document")).toBeTruthy();
+    expect(dialog.getByLabelText("Document").className).toContain("min-w-0");
+    expect(dialog.getByRole("option", { name: "Completing the Square" })).toBeTruthy();
+
+    fireEvent.change(dialog.getByLabelText("Note title"), { target: { value: "Workspace note" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Create note" }));
+
+    await waitFor(() => {
+      expect(mocks.saveBinderLinkedNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          binderId: sourceBinder.id,
+          lessonId: sourceLesson.id,
+          folderId: sourceFolder.id,
+          title: "Workspace note",
+        }),
+      );
+    });
+    expect(mocks.savePersonalNote).not.toHaveBeenCalled();
+  });
+
+  it("lets New Note pick a folder and any existing binder without rendering undefined labels", async () => {
+    const mathFolder = {
+      id: "personal-folder-math",
+      owner_id: "user-1",
+      name: "Math",
+      color: "blue",
+      sort_order: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    const mathBinder = {
+      ...personalBinder,
+      id: "personal-binder-math",
+      folder_id: mathFolder.id,
+      title: "Algebra Practice",
+    };
+    mocks.personalNotesState.data = {
+      ...workspaceWithEntries,
+      personalFolders: [mathFolder],
+      personalBinders: [personalBinder, mathBinder],
+    };
+    mocks.savePersonalNote.mockResolvedValue({
+      ...looseNote,
+      id: "created-folder-note",
+      title: "Folder binder note",
+      folder_id: mathFolder.id,
+      binder_id: mathBinder.id,
+    });
+
+    renderPage("/notes/n/learner-note-1");
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
+    fireEvent.click(sidebar.getByRole("button", { name: /Math folder/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New note" }));
+
+    const dialog = within(screen.getByRole("dialog", { name: "New note" }));
+    expect(dialog.queryByRole("option", { name: /undefined/i })).toBeNull();
+    expect((dialog.getByLabelText("Folder") as HTMLSelectElement).value).toBe("");
+
+    fireEvent.change(dialog.getByLabelText("Folder"), { target: { value: `personal:${mathFolder.id}` } });
+    expect(dialog.getByRole("option", { name: "Algebra Practice" })).toBeTruthy();
+    expect(dialog.getByRole("option", { name: "Jacob Math Notes (Unfiled)" })).toBeTruthy();
+    expect(dialog.queryByRole("option", { name: /No binders/i })).toBeNull();
+
+    fireEvent.change(dialog.getByLabelText("Note title"), { target: { value: "Folder binder note" } });
+    fireEvent.change(dialog.getByLabelText("Binder"), { target: { value: `personal:${mathBinder.id}` } });
+    fireEvent.click(dialog.getByRole("button", { name: "Create note" }));
+
+    await waitFor(() => {
+      expect(mocks.savePersonalNote).toHaveBeenCalledWith(
+        expect.objectContaining({
+          binderId: mathBinder.id,
+          folderId: mathFolder.id,
+          title: "Folder binder note",
+        }),
+      );
+    });
+  });
+
+  it("keeps binder choices available when the selected folder has no binders yet", () => {
+    const historyFolder = {
+      id: "personal-folder-history",
+      owner_id: "user-1",
+      name: "History",
+      color: "teal",
+      sort_order: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    mocks.personalNotesState.data = {
+      ...workspaceWithEntries,
+      personalFolders: [historyFolder],
+      personalBinders: [personalBinder],
+    };
+
+    renderPage("/notes/n/learner-note-1");
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New note" }));
+
+    const dialog = within(screen.getByRole("dialog", { name: "New note" }));
+    fireEvent.change(dialog.getByLabelText("Folder"), { target: { value: `personal:${historyFolder.id}` } });
+
+    expect(dialog.queryByRole("option", { name: /No binders in this folder/i })).toBeNull();
+    expect(dialog.getByRole("option", { name: "Jacob Math Notes (Unfiled)" })).toBeTruthy();
   });
 
   it("uses a full-width compact notes shell instead of a centered hero lane", () => {
@@ -373,20 +564,20 @@ describe("PersonalNotesPage", () => {
       "Your loose notes, custom notebook binders, documents, and binder private notes in one BinderNotes workspace.",
     );
     expect(container.textContent).not.toContain("Personal Notes preferences");
-    expect(screen.getByLabelText("Personal Notes view")).toBeTruthy();
+    expect(screen.queryByLabelText("Personal Notes view")).toBeNull();
     expect(screen.getByLabelText("Editor width")).toBeTruthy();
   });
 
-  it("uses Notes, Home, and Organize as the only Personal Notes view switcher choices", () => {
+  it("hides the Personal Notes view switcher while the Notes workspace is the only active view", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
 
     renderPage("/notes/n/learner-note-1");
-    const switcher = within(screen.getByLabelText("Personal Notes view"));
 
-    expect(switcher.getByRole("button", { name: "Notes view" })).toBeTruthy();
-    expect(switcher.getByRole("button", { name: "Home view" })).toBeTruthy();
-    expect(switcher.getByRole("button", { name: "Organize view" })).toBeTruthy();
-    expect(switcher.queryByRole("button", { name: "Canvas view" })).toBeNull();
+    expect(screen.queryByLabelText("Personal Notes view")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Notes view" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Home view" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Organize view" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Canvas view" })).toBeNull();
   });
 
   it("hides Review Queue from the notebook sidebar and exposes hierarchy settings", () => {
@@ -396,7 +587,7 @@ describe("PersonalNotesPage", () => {
 
     expect(screen.queryByText("Review")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open Personal Notes settings" }));
-    expect(screen.getByText("Personal Notes organization")).toBeTruthy();
+    expect(screen.getByText("Personal Notes sidebar mode")).toBeTruthy();
     expect(screen.getByText("Remember last selected scope and binder")).toBeTruthy();
   });
 
@@ -406,17 +597,17 @@ describe("PersonalNotesPage", () => {
 
     renderPage("/notes/n/learner-note-1");
 
-    const sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.queryByText("Review")).toBeNull();
   });
 
   it("starts the notebook sidebar at scope level without note titles", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
 
     renderPage("/notes/n/learner-note-1");
 
-    const sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByRole("button", { name: /All notes 3/i })).toBeTruthy();
     expect(sidebar.getByRole("button", { name: /History 1/i })).toBeTruthy();
     expect(sidebar.getByRole("button", { name: /Math 1/i })).toBeTruthy();
@@ -428,12 +619,12 @@ describe("PersonalNotesPage", () => {
 
   it("drills from a scope into binders, then into that binder's notes", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
 
     renderPage("/notes/n/learner-note-1");
 
     fireEvent.click(screen.getByRole("button", { name: /Math 1/i }));
-    let sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    let sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByText("Math")).toBeTruthy();
     expect(sidebar.getByRole("button", { name: /Algebra 1 Foundations 1/i })).toBeTruthy();
     expect(sidebar.queryByText("Quadratics private note")).toBeNull();
@@ -442,7 +633,7 @@ describe("PersonalNotesPage", () => {
     expect(screen.queryByText("Russian Revolution private note")).toBeNull();
 
     fireEvent.click(sidebar.getByRole("button", { name: /Algebra 1 Foundations 1/i }));
-    sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByText("Algebra 1 Foundations")).toBeTruthy();
     expect(sidebar.queryByRole("button", { name: /The Russian Revolution/i })).toBeNull();
     expect(screen.getByText("Math / Algebra 1 Foundations")).toBeTruthy();
@@ -450,18 +641,18 @@ describe("PersonalNotesPage", () => {
     expect(screen.queryByText("Russian Revolution private note")).toBeNull();
 
     fireEvent.click(sidebar.getByRole("button", { name: "Back to Math binders" }));
-    sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByRole("button", { name: /Algebra 1 Foundations 1/i })).toBeTruthy();
   });
 
   it("uses All notes as a binder list instead of a note dump", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
 
     renderPage("/notes/n/learner-note-1");
 
     fireEvent.click(screen.getByRole("button", { name: /All notes 3/i }));
-    const sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByRole("button", { name: /The Russian Revolution 1/i })).toBeTruthy();
     expect(sidebar.getByRole("button", { name: /Algebra 1 Foundations 1/i })).toBeTruthy();
     expect(sidebar.queryByText("Russian Revolution private note")).toBeNull();
@@ -470,7 +661,7 @@ describe("PersonalNotesPage", () => {
 
   it("keeps empty notebook categories render-safe instead of breaking the editor", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     renderPage("/notes/n/learner-note-1");
@@ -485,12 +676,12 @@ describe("PersonalNotesPage", () => {
 
   it("shows loose notes directly in the middle pane", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
 
     renderPage("/notes/n/learner-note-1");
 
     fireEvent.click(screen.getByRole("button", { name: /Loose notes 1/i }));
-    const sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByText("Loose notes")).toBeTruthy();
     expect(sidebar.queryByText("Loose reading note")).toBeNull();
     expect(screen.getAllByText("Loose notes").length).toBeGreaterThan(0);
@@ -499,13 +690,13 @@ describe("PersonalNotesPage", () => {
 
   it("uses the drill-in notebook sidebar as the default navigation and toggles the larger notes pane on demand", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose" };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in" };
 
     renderPage("/notes/n/learner-note-1");
 
     expect(screen.getByTestId("notes-list-pane")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /History 1/i }));
-    expect(within(screen.getByLabelText("Notebook hierarchy")).getByRole("button", { name: /The Russian Revolution 1/i })).toBeTruthy();
+    expect(within(screen.getByLabelText("Personal Notes side monitor")).getByRole("button", { name: /The Russian Revolution 1/i })).toBeTruthy();
     expect(screen.getAllByText("Russian Revolution private note").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Hide notes list pane" }));
@@ -514,7 +705,7 @@ describe("PersonalNotesPage", () => {
 
   it("renders the larger notes pane when the notes list preference is enabled", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "loose", showNotesListPane: true };
+    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in", showNotesListPane: true };
 
     renderPage("/notes/n/learner-note-1");
 
@@ -522,20 +713,51 @@ describe("PersonalNotesPage", () => {
     expect(screen.getByRole("button", { name: "Hide notes list pane" })).toBeTruthy();
   });
 
-  it("defaults to Structured Workspace and renders a folder to binder to note project tree", () => {
+  it("defaults to Project Tree and keeps binders closed until the user opens one", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
 
     renderPage("/notes/n/learner-note-math");
 
-    const sidebar = within(screen.getByLabelText("Notebook hierarchy"));
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
     expect(sidebar.getByRole("button", { name: /Math folder 1/i })).toBeTruthy();
+    expect(sidebar.getByRole("button", { name: /History folder 1/i })).toBeTruthy();
     expect(sidebar.getByRole("button", { name: /Algebra 1 Foundations binder 1/i })).toBeTruthy();
+    expect(sidebar.queryByRole("button", { name: /Quadratics private note/i })).toBeNull();
+    fireEvent.click(sidebar.getByRole("button", { name: /Algebra 1 Foundations binder 1/i }));
     expect(sidebar.getByRole("button", { name: /Quadratics private note/i })).toBeTruthy();
     expect(sidebar.queryByText("Review")).toBeNull();
+    expect(sidebar.queryByRole("button", { name: "math" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Personal Notes settings" }));
     const drawer = within(screen.getByRole("dialog", { name: "Personal Notes settings" }));
-    expect((drawer.getByLabelText("Personal Notes organization") as HTMLSelectElement).value).toBe("structured");
+    expect((drawer.getByLabelText("Personal Notes sidebar mode") as HTMLSelectElement).value).toBe("project-tree");
+  });
+
+  it("expands Project Tree folders and binders without changing the current note", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+
+    renderPage("/notes/n/learner-note-1");
+
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
+
+    fireEvent.click(sidebar.getByRole("button", { name: /Math folder 1/i }));
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+
+    fireEvent.click(sidebar.getByRole("button", { name: /Algebra 1 Foundations binder 1/i }));
+    expect(sidebar.getByRole("button", { name: /Quadratics private note/i })).toBeTruthy();
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+  });
+
+  it("can show tags quietly in the side monitor when enabled", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = { ...defaultPersonalNotesPreferences, showSideMonitorTags: true };
+
+    renderPage("/notes/n/learner-note-math");
+
+    const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
+    expect(sidebar.getByRole("button", { name: "math" })).toBeTruthy();
+    expect(sidebar.getByRole("button", { name: "history" })).toBeTruthy();
   });
 
   it("renders Organize as reorderable cards with corner drag handles", () => {
@@ -748,34 +970,16 @@ describe("PersonalNotesPage", () => {
 
     expect(drawer.getByText("Editor")).toBeTruthy();
     const annotatorTools = within(drawer.getByRole("radiogroup", { name: "Annotator tools" }));
-    expect(annotatorTools.getByRole("radio", { name: "Floating selection only" }).getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(annotatorTools.getByRole("radio", { name: "Top toolbar only" }));
-    expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "top" });
+    expect(annotatorTools.getByRole("radio", { name: "Selection popup" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(annotatorTools.getByRole("radio", { name: "Off" }));
+    expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "off" });
 
     fireEvent.change(drawer.getByLabelText("Search Personal Notes settings"), { target: { value: "highlighter" } });
     expect(drawer.getByText("Editor")).toBeTruthy();
     expect(drawer.getByRole("radiogroup", { name: "Annotator tools" })).toBeTruthy();
   });
 
-  it("shows top annotator tools only when enabled and keeps source citation contextual", () => {
-    mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, annotatorTools: "top" };
-
-    const { unmount } = renderPage("/notes/n/learner-note-1");
-
-    expect(screen.getByLabelText("Top annotator toolbar")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Highlight" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Source note citation" })).toBeTruthy();
-
-    unmount();
-    mocks.preferences = { ...defaultPersonalNotesPreferences, annotatorTools: "top" };
-    renderPage("/notes/n/personal-note-1");
-
-    expect(screen.getByLabelText("Top annotator toolbar")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Source note citation" })).toBeNull();
-  });
-
-  it("uses the existing editor highlighter and formatting commands from the floating annotation toolkit", () => {
+  it("uses one workspace-style selection toolbar and hides the fixed editor toolbar", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
     mocks.preferences = {
       ...defaultPersonalNotesPreferences,
@@ -783,17 +987,27 @@ describe("PersonalNotesPage", () => {
       showAnnotationColorFilter: true,
     };
     vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
       toString: () => "selected text",
-    } as Selection);
+    } as unknown as Selection);
 
     renderPage("/notes/n/learner-note-1");
     fireEvent.mouseUp(screen.getByLabelText("Note body"));
 
-    const toolbar = within(screen.getByRole("toolbar", { name: "Floating annotation toolkit" }));
+    expect(screen.getByLabelText("Note body").getAttribute("data-show-toolbar")).toBe("false");
+    expect(screen.queryByLabelText("Top annotator toolbar")).toBeNull();
+    expect(screen.queryByRole("toolbar", { name: "Floating annotation toolkit" })).toBeNull();
+
+    const toolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
     expect(toolbar.getByRole("button", { name: "Bold selection" })).toBeTruthy();
     expect(toolbar.getByRole("button", { name: "Italic selection" })).toBeTruthy();
     expect(toolbar.getByRole("button", { name: "Underline selection" })).toBeTruthy();
-    expect(toolbar.getByRole("button", { name: "Highlight selection" })).toBeTruthy();
+    expect(toolbar.getByRole("button", { name: "Quote selection" })).toBeTruthy();
+    expect(toolbar.getByRole("button", { name: "Link selection" })).toBeTruthy();
+    expect(toolbar.getByRole("button", { name: "Important highlight" })).toBeTruthy();
+    expect(toolbar.getByRole("button", { name: "Definition highlight" })).toBeTruthy();
     expect(toolbar.getByLabelText("Highlight color filter")).toBeTruthy();
 
     fireEvent.click(toolbar.getByRole("button", { name: "Bold selection" }));
@@ -805,13 +1019,16 @@ describe("PersonalNotesPage", () => {
     fireEvent.click(toolbar.getByRole("button", { name: "Underline selection" }));
     expect(mocks.editorChain.toggleUnderline).toHaveBeenCalled();
 
-    fireEvent.click(toolbar.getByRole("button", { name: "Highlight selection" }));
-    expect(screen.getByRole("menu", { name: "Highlight colors" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Blue highlight" }));
+    fireEvent.click(toolbar.getByRole("button", { name: "Quote selection" }));
+    expect(mocks.editorChain.toggleBlockquote).toHaveBeenCalled();
+
+    fireEvent.click(toolbar.getByRole("button", { name: "Link selection" }));
+    expect(screen.getByRole("dialog", { name: "Annotation link popover" })).toBeTruthy();
+
+    fireEvent.click(toolbar.getByRole("button", { name: "Definition highlight" }));
     expect(mocks.editorChain.toggleHighlight).toHaveBeenCalledWith({ color: "#93c5fd" });
 
-    fireEvent.click(toolbar.getByRole("button", { name: "Highlight selection" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Remove highlight" }));
+    fireEvent.click(toolbar.getByRole("button", { name: "Remove highlight" }));
     expect(mocks.editorChain.unsetHighlight).toHaveBeenCalled();
   });
 
@@ -823,13 +1040,16 @@ describe("PersonalNotesPage", () => {
       showAnnotationColorFilter: false,
     };
     vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
       toString: () => "selected text",
-    } as Selection);
+    } as unknown as Selection);
 
     renderPage("/notes/n/learner-note-1");
     fireEvent.mouseUp(screen.getByLabelText("Note body"));
 
-    expect(screen.getByRole("toolbar", { name: "Floating annotation toolkit" })).toBeTruthy();
+    expect(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeTruthy();
     expect(screen.queryByLabelText("Highlight color filter")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Personal Notes settings" }));
@@ -844,16 +1064,22 @@ describe("PersonalNotesPage", () => {
       annotatorTools: "top",
       showAnnotationColorFilter: true,
     };
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
+      toString: () => "selected text",
+    } as unknown as Selection);
 
     renderPage("/notes/n/learner-note-1");
     const originalBody = (screen.getByLabelText("Note body") as HTMLTextAreaElement).value;
+    fireEvent.mouseUp(screen.getByLabelText("Note body"));
+    const toolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Highlight" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Yellow highlight" }));
-    fireEvent.click(screen.getByRole("button", { name: "Highlight" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Blue highlight" }));
-    fireEvent.change(screen.getByLabelText("Highlight color filter"), { target: { value: "blue" } });
-    fireEvent.click(screen.getByRole("button", { name: "Open annotations drawer" }));
+    fireEvent.click(toolbar.getByRole("button", { name: "Important highlight" }));
+    fireEvent.click(toolbar.getByRole("button", { name: "Definition highlight" }));
+    fireEvent.change(toolbar.getByLabelText("Highlight color filter"), { target: { value: "blue" } });
+    fireEvent.click(toolbar.getByRole("button", { name: "Open annotations drawer" }));
 
     const drawer = within(screen.getByRole("dialog", { name: "Annotations drawer" }));
     expect(drawer.getByText("Blue highlight")).toBeTruthy();
@@ -862,14 +1088,14 @@ describe("PersonalNotesPage", () => {
     expect((screen.getByLabelText("Note body") as HTMLTextAreaElement).value).toBe(originalBody);
   });
 
-  it("hides sidebars and enters focus mode without losing the editor surface", () => {
+  it("hides the side monitor and enters focus mode without losing the editor surface", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
 
     renderPage("/notes/n/learner-note-1");
     const shell = screen.getByTestId("personal-notes-shell");
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide sidebars" }));
-    expect(shell.getAttribute("data-notes-sidebars-hidden")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Hide side monitor" }));
+    expect(mocks.updatePreferences).toHaveBeenCalledWith({ showNotebookPane: false });
     expect(screen.getByTestId("personal-note-editor")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Enter focus mode" }));
@@ -892,17 +1118,20 @@ describe("PersonalNotesPage", () => {
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     const palette = within(screen.getByRole("dialog", { name: "Personal Notes command palette" }));
 
+    for (const group of ["Create", "Recent Notes", "Find And Open", "Side Monitor", "Editor And Layout", "Highlights And Annotations", "Current Note"]) {
+      expect(palette.getByText(group)).toBeTruthy();
+    }
+    expect(palette.getByRole("button", { name: /Open note: Loose reading note/i })).toBeTruthy();
+
     for (const command of [
       "New folder",
       "New canvas notebook",
       "Toggle App Appearance Minimal/Studio",
-      "Hide sidebars",
+      "Hide side monitor",
       "Hide top chrome",
       "Enter focus mode",
       "Enter fullscreen focus",
       "Open settings",
-      "Switch to Organize view",
-      "Switch to Notes view",
       "Open Review Queue",
       "Open Templates",
       "Focus editor",
@@ -910,6 +1139,12 @@ describe("PersonalNotesPage", () => {
     ]) {
       expect(palette.getByRole("button", { name: new RegExp(command) })).toBeTruthy();
     }
+    expect(palette.queryByRole("button", { name: /Switch to Notes view/ })).toBeNull();
+    expect(palette.queryByRole("button", { name: /Switch to Home view/ })).toBeNull();
+    expect(palette.queryByRole("button", { name: /Switch to Organize view/ })).toBeNull();
+    fireEvent.change(palette.getByLabelText("Command search"), { target: { value: "quadratics" } });
+    expect(palette.getByText("Matching Notes")).toBeTruthy();
+    expect(palette.getByRole("button", { name: /Open note: Quadratics private note/i })).toBeTruthy();
     expect(promptSpy).not.toHaveBeenCalled();
   });
 

@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   BookMarked,
+  Bold,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
@@ -16,6 +17,7 @@ import {
   Focus,
   GripVertical,
   Highlighter,
+  Italic,
   Layers3,
   LayoutGrid,
   Link2,
@@ -26,6 +28,7 @@ import {
   PanelLeft,
   Pin,
   Plus,
+  Quote,
   Save,
   Search,
   Settings2,
@@ -44,12 +47,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { WorkspaceWindow } from "@/components/workspace/workspace-window";
 import { useAuth } from "@/hooks/use-auth";
@@ -67,6 +70,10 @@ import {
 import { emptyDoc } from "@/lib/utils";
 import { extractPlainText } from "@/lib/workspace-records";
 import type {
+  Binder,
+  BinderLesson,
+  Folder,
+  FolderBinderLink,
   LearnerNote,
   PersonalNote,
   PersonalNoteFolder,
@@ -86,13 +93,39 @@ import type {
 type SaveState = "saved" | "saving" | "error";
 type CreateDialogKind = "note" | "binder" | "document" | "folder" | "canvas" | "tag" | "move-folder";
 type PersonalNotesMutations = ReturnType<typeof usePersonalNotesMutations>;
-type AnnotationHighlightFilter = "all" | "yellow" | "blue" | "green" | "pink";
+type CreateDialogFolderOption = {
+  id: string | null;
+  kind: "personal" | "workspace" | "unfiled";
+  name: string;
+  value: string;
+};
+type CreateDialogBinderOption = {
+  id: string;
+  kind: "personal" | "workspace";
+  title: string;
+  value: string;
+  folderValue: string;
+  folderLabel: string;
+  workspaceFolderId: string | null;
+  lessons: BinderLesson[];
+};
+type AnnotationHighlightFilter = "all" | "yellow" | "blue" | "green" | "pink" | "orange";
 type AnnotationRecord = {
   id: string;
   type: "highlight" | "comment" | "link" | "tag" | "source-marker";
   label: string;
   color: AnnotationHighlightFilter;
   text: string;
+};
+type PersonalNoteSelectionAnchor = {
+  left: number;
+  top: number;
+  placement: "above" | "below";
+};
+type PersonalNoteSelectionState = {
+  text: string;
+  range: Range | null;
+  anchor: PersonalNoteSelectionAnchor;
 };
 type NotebookCategory = {
   id: string;
@@ -167,11 +200,13 @@ const annotationHighlightColors: Array<{
   label: string;
   color: string;
   swatch: string;
+  toolbarLabel: string;
 }> = [
-  { value: "yellow", label: "Yellow", color: "#fde68a", swatch: "bg-amber-300" },
-  { value: "blue", label: "Blue", color: "#93c5fd", swatch: "bg-sky-300" },
-  { value: "green", label: "Green", color: "#86efac", swatch: "bg-emerald-300" },
-  { value: "pink", label: "Pink/Purple", color: "#d8b4fe", swatch: "bg-violet-300" },
+  { value: "yellow", label: "Yellow", color: "#fde68a", swatch: "bg-amber-300", toolbarLabel: "Important" },
+  { value: "blue", label: "Blue", color: "#93c5fd", swatch: "bg-sky-300", toolbarLabel: "Definition" },
+  { value: "green", label: "Green", color: "#86efac", swatch: "bg-emerald-300", toolbarLabel: "Method" },
+  { value: "pink", label: "Pink/Purple", color: "#d8b4fe", swatch: "bg-violet-300", toolbarLabel: "Review" },
+  { value: "orange", label: "Orange", color: "#fdba74", swatch: "bg-orange-300", toolbarLabel: "Question" },
 ];
 
 const defaultCanvasFrames: Record<WorkspaceModuleId, WorkspaceWindowFrame> = {
@@ -316,6 +351,12 @@ export function PersonalNotesPage() {
     },
     [updatePreferences],
   );
+
+  useEffect(() => {
+    if (preferences.defaultView !== "notes") {
+      updatePreferences({ defaultView: "notes" });
+    }
+  }, [preferences.defaultView, updatePreferences]);
 
   const applySavedSearch = useCallback((chip: (typeof savedSearchChips)[number]) => {
     setQuery(chip.query);
@@ -823,58 +864,67 @@ export function PersonalNotesPage() {
                   >
                     Binder {preferences.showBinderNotes ? "ON" : "OFF"}
                   </Button>
+                  <div className="relative shrink-0">
+                    <Button
+                      aria-controls="personal-notes-new-menu"
+                      aria-expanded={newMenuOpen}
+                      aria-haspopup="menu"
+                      disabled={!personalStorageReady}
+                      onClick={() => {
+                        setNewMenuOpen((current) => !current);
+                        setFiltersOpen(false);
+                      }}
+                      ref={newButtonRef}
+                      size="sm"
+                      type="button"
+                    >
+                      <Plus data-icon="inline-start" />
+                      New
+                    </Button>
+                    {newMenuOpen ? (
+                      <div
+                        aria-label="New Personal Notes item"
+                        className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-1.5rem))] origin-top-right rounded-lg border border-border bg-background p-1.5 text-foreground shadow-2xl shadow-black/25"
+                        id="personal-notes-new-menu"
+                        ref={newMenuRef}
+                        role="menu"
+                      >
+                        {[
+                          { label: "New note", meta: "Blank page", icon: <FilePlus2 />, action: createLooseNote },
+                          { label: "New binder", meta: "Container", icon: <BookMarked />, action: createBinder },
+                          { label: "New document", meta: "In binder", icon: <FileText />, action: createDocument },
+                          { label: "New folder", meta: "Subject", icon: <FolderPlus />, action: createFolder },
+                          { label: "New canvas notebook", meta: "Visual", icon: <LayoutGrid />, action: createCanvasNotebook },
+                        ].map((item, index) => (
+                          <button
+                            aria-label={item.label}
+                            autoFocus={index === 0}
+                            className="grid w-full grid-cols-[1.75rem_1fr_auto] items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-semibold transition hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-45"
+                            disabled={!personalStorageReady}
+                            key={item.label}
+                            onClick={() => {
+                              item.action();
+                              setNewMenuOpen(false);
+                            }}
+                            role="menuitem"
+                            type="button"
+                          >
+                            <span className="grid size-7 place-items-center rounded-md bg-secondary text-muted-foreground [&_svg]:size-4">
+                              {item.icon}
+                            </span>
+                            <span className="min-w-0 truncate">{item.label}</span>
+                            <span aria-hidden="true" className="text-[11px] font-semibold text-muted-foreground">
+                              {item.meta}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   <Button
-                    aria-expanded={newMenuOpen}
-                    aria-haspopup="menu"
-                    aria-controls="personal-notes-new-menu"
-                    disabled={!personalStorageReady}
-                    onClick={() => {
-                      setNewMenuOpen((current) => !current);
-                      setFiltersOpen(false);
-                    }}
-                    ref={newButtonRef}
-                    size="sm"
-                    type="button"
-                  >
-                    <Plus data-icon="inline-start" />
-                    New
-                  </Button>
-                  <TabsList aria-label="Personal Notes view" className="hidden rounded-md p-0.5 shadow-none md:inline-flex">
-                    <TabsTrigger
-                      active={preferences.defaultView === "notes"}
-                      aria-label="Notes view"
-                      className="px-2 py-1.5 text-xs"
-                      onClick={() => setView("notes")}
-                      type="button"
-                    >
-                      <FileText data-icon="inline-start" />
-                      Notes
-                    </TabsTrigger>
-                    <TabsTrigger
-                      active={preferences.defaultView === "home"}
-                      aria-label="Home view"
-                      className="px-2 py-1.5 text-xs"
-                      onClick={() => setView("home")}
-                      type="button"
-                    >
-                      <NotebookTabs data-icon="inline-start" />
-                      Home
-                    </TabsTrigger>
-                    <TabsTrigger
-                      active={preferences.defaultView === "organize"}
-                      aria-label="Organize view"
-                      className="px-2 py-1.5 text-xs"
-                      onClick={() => setView("organize")}
-                      type="button"
-                    >
-                      <PanelLeft data-icon="inline-start" />
-                      Organize
-                    </TabsTrigger>
-                  </TabsList>
-                  <Button
-                    aria-label={sidebarsAreHidden ? "Show sidebars" : "Hide sidebars"}
+                    aria-label={preferences.showNotebookPane ? "Hide side monitor" : "Show side monitor"}
                     className="hidden sm:inline-flex"
-                    onClick={() => setSidebarsHidden((current) => !current)}
+                    onClick={() => updatePreferences({ showNotebookPane: !preferences.showNotebookPane })}
                     size="sm"
                     type="button"
                     variant="outline"
@@ -967,41 +1017,6 @@ export function PersonalNotesPage() {
               </div>
             ) : null}
 
-            {newMenuOpen ? (
-              <div className="z-20 shrink-0 border-b border-border/60 bg-background/96 px-2 pb-2 shadow-sm sm:px-3" data-testid="personal-notes-new-dock">
-                <div
-                  aria-label="New Personal Notes item"
-                  className="ml-auto grid w-full max-w-[280px] gap-1 rounded-lg border border-border bg-popover p-2 shadow-xl"
-                  id="personal-notes-new-menu"
-                  ref={newMenuRef}
-                  role="menu"
-                >
-                  {[
-                    { label: "New note", icon: <FilePlus2 />, action: createLooseNote },
-                    { label: "New binder", icon: <BookMarked />, action: createBinder },
-                    { label: "New document", icon: <FileText />, action: createDocument },
-                    { label: "New folder", icon: <FolderPlus />, action: createFolder },
-                    { label: "New canvas notebook", icon: <LayoutGrid />, action: createCanvasNotebook },
-                  ].map((item, index) => (
-                    <button
-                      autoFocus={index === 0}
-                      className="flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm font-medium transition hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:size-4"
-                      disabled={!personalStorageReady}
-                      key={item.label}
-                      onClick={() => {
-                        item.action();
-                        setNewMenuOpen(false);
-                      }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      {item.icon}
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </>
         )}
 
@@ -1069,6 +1084,7 @@ export function PersonalNotesPage() {
                     selectedEntry={selectedEntry}
                     showNotebookPane={!sidebarsAreHidden && preferences.showNotebookPane}
                     showNotesListPane={!sidebarsAreHidden && preferences.showNotesListPane}
+                    showSideMonitorTags={preferences.showSideMonitorTags}
                     tagFilter={tagFilter}
                     tagSummaries={tagSummaries}
                   />
@@ -1099,10 +1115,11 @@ export function PersonalNotesPage() {
       {createDialog ? (
         <PersonalNotesCreateDialog
           binders={data?.personalBinders ?? []}
-          currentFolderId={folderFilter}
+          currentFolderName={folderFilter}
           draftTagsInput={draftTagsInput}
           folders={data?.personalFolders ?? []}
           kind={createDialog}
+          learnerNotes={data?.learnerNotes ?? []}
           mutations={mutations}
           onAddTag={submitTagForSelected}
           onClose={() => setCreateDialog(null)}
@@ -1113,6 +1130,10 @@ export function PersonalNotesPage() {
           onSwitchKind={setCreateDialog}
           onUpdatePreferences={updatePreferences}
           selectedEntry={selectedEntry}
+          workspaceBinders={data?.binders ?? []}
+          workspaceFolderBinders={data?.folderBinders ?? []}
+          workspaceFolders={data?.folders ?? []}
+          workspaceLessons={data?.lessons ?? []}
         />
       ) : null}
 
@@ -1159,9 +1180,9 @@ export function PersonalNotesPage() {
               navigate(selectedEntry.quickJumpToBinderUrl);
             }
           }}
+          onOpenEntry={selectEntry}
           onOpenTemplates={() => setCreateDialog("note")}
           onPin={toggleSelectedPin}
-          onSwitchView={setView}
           onToggleBinderNotes={() => updatePreferences({ showBinderNotes: !preferences.showBinderNotes })}
           onToggleFocusMode={() => {
             const next = !focusActive;
@@ -1323,10 +1344,11 @@ function PersonalNotesEmptyState({
 
 function PersonalNotesCreateDialog({
   binders,
-  currentFolderId,
+  currentFolderName,
   draftTagsInput,
   folders,
   kind,
+  learnerNotes,
   mutations,
   onAddTag,
   onClose,
@@ -1337,12 +1359,17 @@ function PersonalNotesCreateDialog({
   onSwitchKind,
   onUpdatePreferences,
   selectedEntry,
+  workspaceBinders,
+  workspaceFolderBinders,
+  workspaceFolders,
+  workspaceLessons,
 }: {
   binders: Array<{ id: string; title: string; folder_id: string | null }>;
-  currentFolderId: string | null;
+  currentFolderName: string | null;
   draftTagsInput: string;
   folders: PersonalNoteFolder[];
   kind: CreateDialogKind;
+  learnerNotes: LearnerNote[];
   mutations: PersonalNotesMutations;
   onAddTag: (tag: string) => void;
   onClose: () => void;
@@ -1353,11 +1380,135 @@ function PersonalNotesCreateDialog({
   onSwitchKind: (kind: CreateDialogKind) => void;
   onUpdatePreferences: (value: Partial<PersonalNotesPreferences>) => void;
   selectedEntry: PersonalNotesEntry | null;
+  workspaceBinders: Binder[];
+  workspaceFolderBinders: FolderBinderLink[];
+  workspaceFolders: Folder[];
+  workspaceLessons: BinderLesson[];
 }) {
+  const personalFolderOptions = useMemo<CreateDialogFolderOption[]>(
+    () =>
+      folders
+        .filter((folder) => typeof folder.id === "string" && folder.id.length > 0)
+        .map((folder) => ({
+          id: folder.id,
+          kind: "personal" as const,
+          name: normalizeSelectLabel(folder.name, "Untitled folder"),
+          value: `personal:${folder.id}`,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    [folders],
+  );
+  const workspaceFolderOptions = useMemo<CreateDialogFolderOption[]>(
+    () =>
+      workspaceFolders
+        .filter((folder) => typeof folder.id === "string" && folder.id.length > 0)
+        .map((folder) => ({
+          id: folder.id,
+          kind: "workspace" as const,
+          name: normalizeSelectLabel(folder.name, "Untitled folder"),
+          value: `workspace:${folder.id}`,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    [workspaceFolders],
+  );
+  const noteFolderOptions = useMemo(
+    () => [...personalFolderOptions, ...workspaceFolderOptions],
+    [personalFolderOptions, workspaceFolderOptions],
+  );
+  const folderNameByValue = useMemo(
+    () => new Map(noteFolderOptions.map((folder) => [folder.value, folder.name])),
+    [noteFolderOptions],
+  );
+  const resolveFolderValue = (value: string | null | undefined, options: CreateDialogFolderOption[] = noteFolderOptions) => {
+    const trimmed = value?.trim();
+    if (!trimmed) {
+      return "";
+    }
+    if (trimmed.startsWith("personal:") || trimmed.startsWith("workspace:")) {
+      return options.some((folder) => folder.value === trimmed) ? trimmed : "";
+    }
+    const byId = options.find((folder) => folder.id === trimmed);
+    if (byId) {
+      return byId.value;
+    }
+    const normalized = trimmed.toLowerCase();
+    return options.find((folder) => folder.name.toLowerCase() === normalized)?.value ?? "";
+  };
+  const personalBinderOptions = useMemo<CreateDialogBinderOption[]>(
+    () =>
+      binders
+        .filter((binder) => typeof binder.id === "string" && binder.id.length > 0)
+        .map((binder) => {
+          const folderValue = binder.folder_id ? `personal:${binder.folder_id}` : "";
+          return {
+            id: binder.id,
+            kind: "personal" as const,
+            title: normalizeSelectLabel(binder.title, "Untitled binder"),
+            value: `personal:${binder.id}`,
+            folderValue,
+            folderLabel: folderValue ? folderNameByValue.get(folderValue) ?? "Personal folder" : "Unfiled",
+            workspaceFolderId: null,
+            lessons: [],
+          };
+        })
+        .sort((left, right) => left.title.localeCompare(right.title)),
+    [binders, folderNameByValue],
+  );
+  const workspaceLessonsByBinder = useMemo(
+    () =>
+      workspaceLessons.reduce<Record<string, BinderLesson[]>>((entries, lesson) => {
+        entries[lesson.binder_id] = [...(entries[lesson.binder_id] ?? []), lesson].sort(
+          (left, right) => left.order_index - right.order_index || left.title.localeCompare(right.title),
+        );
+        return entries;
+      }, {}),
+    [workspaceLessons],
+  );
+  const workspaceFolderValueByBinderId = useMemo(() => {
+    const map = new Map<string, string>();
+    workspaceFolderBinders.forEach((link) => {
+      if (!map.has(link.binder_id)) {
+        map.set(link.binder_id, `workspace:${link.folder_id}`);
+      }
+    });
+    return map;
+  }, [workspaceFolderBinders]);
+  const workspaceBinderOptions = useMemo<CreateDialogBinderOption[]>(
+    () =>
+      workspaceBinders
+        .filter((binder) => typeof binder.id === "string" && binder.id.length > 0)
+        .map((binder) => {
+          const folderValue = workspaceFolderValueByBinderId.get(binder.id) ?? "";
+          return {
+            id: binder.id,
+            kind: "workspace" as const,
+            title: normalizeSelectLabel(binder.title, "Untitled binder"),
+            value: `workspace:${binder.id}`,
+            folderValue,
+            folderLabel: folderValue ? folderNameByValue.get(folderValue) ?? "Workspace folder" : "Unfiled",
+            workspaceFolderId: folderValue.startsWith("workspace:") ? folderValue.slice("workspace:".length) : null,
+            lessons: workspaceLessonsByBinder[binder.id] ?? [],
+          };
+        })
+        .sort((left, right) => left.title.localeCompare(right.title)),
+    [folderNameByValue, workspaceBinders, workspaceFolderValueByBinderId, workspaceLessonsByBinder],
+  );
+  const noteBinderOptions = useMemo(
+    () => [...personalBinderOptions, ...workspaceBinderOptions],
+    [personalBinderOptions, workspaceBinderOptions],
+  );
+  const initialPersonalBinder = personalBinderOptions.find((binder) => binder.id === selectedEntry?.personalBinderId) ?? null;
+  const initialWorkspaceBinder = workspaceBinderOptions.find((binder) => binder.id === selectedEntry?.sourceBinderId) ?? null;
+  const initialFolderId =
+    initialPersonalBinder?.folderValue ||
+    initialWorkspaceBinder?.folderValue ||
+    resolveFolderValue(currentFolderName) ||
+    resolveFolderValue(selectedEntry?.folderId);
   const [title, setTitle] = useState(defaultTitleForDialog(kind));
   const [description, setDescription] = useState("");
-  const [folderId, setFolderId] = useState(currentFolderId ?? "");
-  const [binderId, setBinderId] = useState(selectedEntry?.personalBinderId ?? "");
+  const [folderId, setFolderId] = useState(initialFolderId);
+  const [binderId, setBinderId] = useState(initialPersonalBinder?.value ?? initialWorkspaceBinder?.value ?? "");
+  const [sourceLessonId, setSourceLessonId] = useState(selectedEntry?.sourceDocumentId ?? "");
   const [templateId, setTemplateId] = useState("blank");
   const [canvasLayout, setCanvasLayout] = useState("blank");
   const [createFirstDocument, setCreateFirstDocument] = useState(false);
@@ -1366,13 +1517,48 @@ function PersonalNotesCreateDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const template = personalNoteTemplates.find((candidate) => candidate.id === templateId) ?? personalNoteTemplates[0];
   const dialogTitle = titleForDialog(kind);
-  const canSubmitDocument = kind !== "document" || Boolean(binderId);
+  const availableFolderOptions = kind === "note" ? noteFolderOptions : personalFolderOptions;
+  const activeFolderId = resolveFolderValue(folderId, availableFolderOptions);
+  const activeFolder = availableFolderOptions.find((folder) => folder.value === activeFolderId) ?? null;
+  const selectedBinderOption = noteBinderOptions.find((binder) => binder.value === binderId) ?? null;
+  const selectedPersonalBinderOption = personalBinderOptions.find((binder) => binder.value === binderId) ?? null;
+  const selectedWorkspaceBinderOption = selectedBinderOption?.kind === "workspace" ? selectedBinderOption : null;
+  const canSubmitDocument = kind !== "document" || Boolean(selectedPersonalBinderOption);
+  const canSubmitNote = kind !== "note" || !selectedWorkspaceBinderOption || selectedWorkspaceBinderOption.lessons.length > 0;
+  const visibleBinderOptions = useMemo(() => {
+    if (kind !== "note" || !activeFolderId) {
+      return noteBinderOptions;
+    }
+    const matching = noteBinderOptions.filter((binder) => binder.folderValue === activeFolderId);
+    const other = noteBinderOptions.filter((binder) => binder.folderValue !== activeFolderId);
+    return [...matching, ...other];
+  }, [activeFolderId, kind, noteBinderOptions]);
 
   useEffect(() => {
-    if (kind === "document" && !binderId && binders[0]?.id) {
-      setBinderId(binders[0].id);
+    if (kind === "document" && !selectedPersonalBinderOption && personalBinderOptions[0]?.value) {
+      setBinderId(personalBinderOptions[0].value);
     }
-  }, [binderId, binders, kind]);
+  }, [kind, personalBinderOptions, selectedPersonalBinderOption]);
+
+  useEffect(() => {
+    if (kind !== "note" || !binderId) {
+      return;
+    }
+    const selectedBinder = noteBinderOptions.find((binder) => binder.value === binderId);
+    if (!selectedBinder) {
+      setBinderId("");
+      setSourceLessonId("");
+      return;
+    }
+    if (selectedBinder.kind === "workspace") {
+      const firstLessonId = selectedBinder.lessons[0]?.id ?? "";
+      if (!sourceLessonId || !selectedBinder.lessons.some((lesson) => lesson.id === sourceLessonId)) {
+        setSourceLessonId(firstLessonId);
+      }
+    } else if (sourceLessonId) {
+      setSourceLessonId("");
+    }
+  }, [binderId, kind, noteBinderOptions, sourceLessonId]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -1381,21 +1567,49 @@ function PersonalNotesCreateDialog({
     try {
       setIsSubmitting(true);
       if (kind === "note") {
-        const selectedBinder = binders.find((binder) => binder.id === binderId) ?? null;
-        const note = await mutations.savePersonalNote.mutateAsync({
-          title: title.trim() || "Untitled note",
-          folderId: folderId || selectedBinder?.folder_id || null,
-          binderId: binderId || null,
-          content: template.content,
-          tags: template.tags ?? [],
-        });
-        onSetSourceFilter("all");
-        onUpdatePreferences({ defaultNewNoteLocation: binderId ? "last-binder" : "loose" });
-        onNavigate(`/notes/n/${note.id}`);
+        if (selectedWorkspaceBinderOption) {
+          const lessonId = sourceLessonId || selectedWorkspaceBinderOption.lessons[0]?.id;
+          if (!lessonId) {
+            setLocalError("Choose a document before adding this note.");
+            return;
+          }
+          const existingNote = learnerNotes.find(
+            (note) => note.binder_id === selectedWorkspaceBinderOption.id && note.lesson_id === lessonId,
+          );
+          if (existingNote) {
+            onSetSourceFilter("all");
+            onUpdatePreferences({ defaultNewNoteLocation: "last-binder" });
+            onNavigate(`/notes/n/${existingNote.id}`);
+            onClose();
+            return;
+          }
+          const note = await mutations.saveBinderLinkedNote.mutateAsync({
+            binderId: selectedWorkspaceBinderOption.id,
+            lessonId,
+            folderId: selectedWorkspaceBinderOption.workspaceFolderId ?? (activeFolder?.kind === "workspace" ? activeFolder.id : null),
+            title: title.trim() || "Untitled note",
+            content: template.content,
+            mathBlocks: [],
+          });
+          onSetSourceFilter("all");
+          onUpdatePreferences({ defaultNewNoteLocation: "last-binder" });
+          onNavigate(`/notes/n/${note.id}`);
+        } else {
+          const note = await mutations.savePersonalNote.mutateAsync({
+            title: title.trim() || "Untitled note",
+            folderId: activeFolder?.kind === "personal" ? activeFolder.id : null,
+            binderId: selectedPersonalBinderOption?.id ?? null,
+            content: template.content,
+            tags: template.tags ?? [],
+          });
+          onSetSourceFilter("all");
+          onUpdatePreferences({ defaultNewNoteLocation: selectedPersonalBinderOption ? "last-binder" : "loose" });
+          onNavigate(`/notes/n/${note.id}`);
+        }
       } else if (kind === "binder") {
         const result = await mutations.createBinder.mutateAsync({
           title: title.trim() || "Untitled binder",
-          folderId: folderId || null,
+          folderId: activeFolder?.kind === "personal" ? activeFolder.id : null,
           description: description.trim() || null,
           createFirstDocument,
         });
@@ -1405,17 +1619,17 @@ function PersonalNotesCreateDialog({
           onNavigate(`/notes/binders/${result.binder.id}`);
         }
       } else if (kind === "document") {
-        if (!binderId) {
+        if (!selectedPersonalBinderOption) {
           setLocalError("Create a binder before adding a document.");
           return;
         }
         const document = await mutations.createDocument.mutateAsync({
-          binderId,
+          binderId: selectedPersonalBinderOption.id,
           title: title.trim() || "Untitled document",
           content: template.content,
           tags: template.tags ?? [],
         });
-        onNavigate(`/notes/binders/${binderId}/documents/${document.id}`);
+        onNavigate(`/notes/binders/${selectedPersonalBinderOption.id}/documents/${document.id}`);
       } else if (kind === "folder") {
         await mutations.createFolder.mutateAsync({
           name: title.trim() || "New folder",
@@ -1424,11 +1638,11 @@ function PersonalNotesCreateDialog({
       } else if (kind === "canvas") {
         const result = await mutations.createBinder.mutateAsync({
           title: title.trim() || "Canvas notebook",
-          folderId: folderId || null,
+          folderId: activeFolder?.kind === "personal" ? activeFolder.id : null,
           description: description.trim() || canvasDescription(canvasLayout),
           createFirstDocument: false,
         });
-        onSetView("home");
+        onSetView("notes");
         onNavigate(`/notes/binders/${result.binder.id}`);
       } else if (kind === "tag") {
         const tag = title.trim();
@@ -1438,7 +1652,7 @@ function PersonalNotesCreateDialog({
         }
         onAddTag(tag);
       } else if (kind === "move-folder") {
-        await onMoveFolder(folderId || null);
+        await onMoveFolder(activeFolder?.kind === "personal" ? activeFolder.id : null);
       }
       onClose();
     } catch (errorValue) {
@@ -1449,10 +1663,14 @@ function PersonalNotesCreateDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/68 p-4 backdrop-blur" role="presentation">
+    <div
+      className="fixed inset-0 z-50 grid place-items-start bg-background/72 p-3 pt-16 backdrop-blur-sm sm:place-items-center sm:pt-3"
+      data-testid="personal-notes-create-dialog-overlay"
+      role="presentation"
+    >
       <form
         aria-label={dialogTitle}
-        className="w-full max-w-xl rounded-lg border border-border bg-popover p-4 shadow-2xl"
+        className="flex max-h-[min(90vh,42rem)] w-full max-w-lg flex-col rounded-lg border border-border bg-popover p-4 shadow-2xl"
         onSubmit={(event) => void submit(event)}
         role="dialog"
       >
@@ -1466,8 +1684,8 @@ function PersonalNotesCreateDialog({
           </Button>
         </div>
 
-        <div className="mt-4 grid gap-4">
-          {kind === "document" && binders.length === 0 ? (
+        <div className="mt-4 grid min-h-0 gap-3 overflow-y-auto pr-1">
+          {kind === "document" && personalBinderOptions.length === 0 ? (
             <div className="rounded-lg border border-amber-500/35 bg-amber-500/8 p-3 text-sm">
               Create a binder first, then add documents to it.
               <Button className="mt-3" onClick={() => onSwitchKind("binder")} type="button" variant="outline">
@@ -1476,12 +1694,22 @@ function PersonalNotesCreateDialog({
             </div>
           ) : null}
 
+          {kind === "note" && noteBinderOptions.length === 0 ? (
+            <div className="rounded-lg border border-amber-500/35 bg-amber-500/8 p-3 text-sm">
+              Create a binder first, then add notes to it.
+              <Button className="mt-3" onClick={() => onSwitchKind("binder")} type="button" variant="outline">
+                Create binder first
+              </Button>
+            </div>
+          ) : null}
+
           {kind !== "move-folder" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               {labelForTitle(kind)}
               <Input
                 autoFocus
                 aria-label={labelForTitle(kind)}
+                className="min-w-0"
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder={placeholderForDialog(kind)}
                 value={title}
@@ -1490,10 +1718,11 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "binder" || kind === "canvas" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               Description
               <Input
                 aria-label="Description"
+                className="min-w-0"
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Optional context"
                 value={description}
@@ -1502,37 +1731,93 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "note" || kind === "binder" || kind === "folder" || kind === "canvas" || kind === "move-folder" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               {kind === "move-folder" ? "Move to folder" : "Folder"}
               <select
                 aria-label={kind === "move-folder" ? "Move to folder" : "Folder"}
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
-                onChange={(event) => setFolderId(event.target.value)}
-                value={folderId}
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
+                onChange={(event) => {
+                  setFolderId(event.target.value);
+                  if (kind === "note") {
+                    setBinderId("");
+                    setSourceLessonId("");
+                  }
+                }}
+                value={activeFolderId}
               >
                 <option value="">Unfiled</option>
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
+                {personalFolderOptions.length ? (
+                  <optgroup label="Personal folders">
+                    {personalFolderOptions.map((folder) => (
+                      <option key={folder.value} value={folder.value}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {kind === "note" && workspaceFolderOptions.length ? (
+                  <optgroup label="Existing folders">
+                    {workspaceFolderOptions.map((folder) => (
+                      <option key={folder.value} value={folder.value}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+              </select>
+            </label>
+          ) : null}
+
+          {kind === "note" ? (
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
+              Binder
+              <select
+                aria-label="Binder"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
+                onChange={(event) => {
+                  const nextBinderId = event.target.value;
+                  const selectedBinder = noteBinderOptions.find((binder) => binder.value === nextBinderId);
+                  setBinderId(nextBinderId);
+                  if (selectedBinder) {
+                    setFolderId(selectedBinder.folderValue);
+                    setSourceLessonId(selectedBinder.kind === "workspace" ? selectedBinder.lessons[0]?.id ?? "" : "");
+                  } else {
+                    setSourceLessonId("");
+                  }
+                }}
+                value={binderId}
+              >
+                <option value="">{activeFolderId ? "Loose note in selected folder" : "Loose note / No binder"}</option>
+                {noteBinderOptions.length === 0 ? (
+                  <option disabled value="__no-binders">
+                    No binders yet
+                  </option>
+                ) : null}
+                {visibleBinderOptions.map((binder) => (
+                  <option key={binder.value} value={binder.value}>
+                    {formatBinderSelectLabel(binder, activeFolderId)}
                   </option>
                 ))}
               </select>
             </label>
           ) : null}
 
-          {kind === "note" ? (
-            <label className="grid gap-2 text-sm font-medium">
-              Binder
+          {kind === "note" && selectedWorkspaceBinderOption ? (
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
+              Document
               <select
-                aria-label="Binder"
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
-                onChange={(event) => setBinderId(event.target.value)}
-                value={binderId}
+                aria-label="Document"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
+                disabled={selectedWorkspaceBinderOption.lessons.length === 0}
+                onChange={(event) => setSourceLessonId(event.target.value)}
+                value={sourceLessonId}
               >
-                <option value="">Loose note / No binder</option>
-                {binders.map((binder) => (
-                  <option key={binder.id} value={binder.id}>
-                    {binder.title}
+                {selectedWorkspaceBinderOption.lessons.length === 0 ? (
+                  <option value="">No documents in this binder</option>
+                ) : null}
+                {selectedWorkspaceBinderOption.lessons.map((lesson) => (
+                  <option key={lesson.id} value={lesson.id}>
+                    {formatSourceDocumentLabel(lesson, learnerNotes)}
                   </option>
                 ))}
               </select>
@@ -1540,16 +1825,16 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "document" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               Binder
               <select
                 aria-label="Binder"
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
                 onChange={(event) => setBinderId(event.target.value)}
                 value={binderId}
               >
-                {binders.map((binder) => (
-                  <option key={binder.id} value={binder.id}>
+                {personalBinderOptions.map((binder) => (
+                  <option key={binder.value} value={binder.value}>
                     {binder.title}
                   </option>
                 ))}
@@ -1558,11 +1843,11 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "note" || kind === "document" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               Template
               <select
                 aria-label="Template"
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
                 onChange={(event) => setTemplateId(event.target.value)}
                 value={templateId}
               >
@@ -1576,11 +1861,11 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "canvas" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               Starting layout
               <select
                 aria-label="Starting layout"
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
                 onChange={(event) => setCanvasLayout(event.target.value)}
                 value={canvasLayout}
               >
@@ -1594,11 +1879,11 @@ function PersonalNotesCreateDialog({
           ) : null}
 
           {kind === "folder" ? (
-            <label className="grid gap-2 text-sm font-medium">
+            <label className="grid min-w-0 gap-2 text-sm font-medium">
               Color
               <select
                 aria-label="Folder color"
-                className="appearance-select h-10 rounded-md border border-border bg-background px-3 text-sm"
+                className="appearance-select h-10 w-full min-w-0 truncate rounded-md border border-border bg-background px-3 text-sm"
                 onChange={(event) => setColor(event.target.value)}
                 value={color}
               >
@@ -1639,7 +1924,7 @@ function PersonalNotesCreateDialog({
           <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
-          <Button disabled={isSubmitting || !canSubmitDocument} type="submit">
+          <Button disabled={isSubmitting || !canSubmitDocument || !canSubmitNote} type="submit">
             {isSubmitting ? "Saving..." : primaryActionForDialog(kind)}
           </Button>
         </div>
@@ -2403,6 +2688,7 @@ function MinimalNotesView({
   selectedEntry,
   showNotebookPane,
   showNotesListPane,
+  showSideMonitorTags,
   tagFilter,
   tagSummaries,
 }: {
@@ -2427,6 +2713,7 @@ function MinimalNotesView({
   selectedEntry: PersonalNotesEntry | null;
   showNotebookPane: boolean;
   showNotesListPane: boolean;
+  showSideMonitorTags: boolean;
   tagFilter: string | null;
   tagSummaries: Array<{ name: string; count: number }>;
 }) {
@@ -2441,10 +2728,10 @@ function MinimalNotesView({
     >
       {showNotebookPane ? (
         <aside
-          aria-label="Notebook hierarchy"
+          aria-label="Personal Notes side monitor"
           className="hidden min-h-0 w-[248px] shrink-0 overflow-auto border-r border-border/55 bg-background p-2 transition-[width,opacity] duration-200 lg:block 2xl:w-[280px]"
         >
-          {navigationMode === "structured" ? (
+          {navigationMode === "project-tree" ? (
             <StructuredNotebookTree
               allEntries={allEntries}
               categories={categories}
@@ -2455,6 +2742,7 @@ function MinimalNotesView({
               onSelectEntry={onSelectEntry}
               onTagFilter={onTagFilter}
               selectedEntry={selectedEntry}
+              showSideMonitorTags={showSideMonitorTags}
               tagFilter={tagFilter}
               tagSummaries={tagSummaries}
             />
@@ -2551,7 +2839,7 @@ function MinimalNotesView({
               </div>
             ) : null}
           </div>
-          {tagSummaries.length ? (
+          {showSideMonitorTags && tagSummaries.length ? (
             <div className="mt-5">
               <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tags</h3>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -2625,6 +2913,7 @@ function StructuredNotebookTree({
   onSelectEntry,
   onTagFilter,
   selectedEntry,
+  showSideMonitorTags,
   tagFilter,
   tagSummaries,
 }: {
@@ -2637,6 +2926,7 @@ function StructuredNotebookTree({
   onSelectEntry: (entry: PersonalNotesEntry) => void;
   onTagFilter: (tag: string | null) => void;
   selectedEntry: PersonalNotesEntry | null;
+  showSideMonitorTags: boolean;
   tagFilter: string | null;
   tagSummaries: Array<{ name: string; count: number }>;
 }) {
@@ -2648,28 +2938,23 @@ function StructuredNotebookTree({
     const firstNonEmptyScope = categories.find((category) => category.id !== "all" && category.count > 0);
     return new Set(firstNonEmptyScope ? [firstNonEmptyScope.id] : []);
   }, [categories, selectedEntry]);
-  const defaultExpandedBinders = useMemo(() => {
-    const expanded = new Set<string>();
-    for (const binder of hierarchy.bindersById.values()) {
-      if (
-        binder.entries.some((entry) => selectedEntryKey === `${entry.kind}:${entry.id}`) ||
-        defaultExpandedScopes.has(binder.scopeId)
-      ) {
-        expanded.add(binder.id);
-      }
-    }
-    return expanded;
-  }, [defaultExpandedScopes, hierarchy.bindersById, selectedEntryKey]);
+  const defaultExpandedBinders = useMemo(() => new Set<string>(), []);
   const [expandedScopes, setExpandedScopes] = useState(defaultExpandedScopes);
   const [expandedBinders, setExpandedBinders] = useState(defaultExpandedBinders);
 
   useEffect(() => {
     setExpandedScopes(defaultExpandedScopes);
-    setExpandedBinders(defaultExpandedBinders);
-  }, [defaultExpandedBinders, defaultExpandedScopes]);
+  }, [defaultExpandedScopes]);
+
+  const projectTreeCategories = useMemo(() => {
+    const order = ["math", "history", "chemistry", "other", "unfiled", "loose", "binder-linked"];
+    const rank = new Map(order.map((id, index) => [id, index]));
+    return categories
+      .filter((category) => category.id !== "all")
+      .sort((left, right) => (rank.get(left.id) ?? 99) - (rank.get(right.id) ?? 99));
+  }, [categories]);
 
   const toggleScope = (category: NotebookCategory) => {
-    onSelectCategory(category);
     setExpandedScopes((current) => {
       const next = new Set(current);
       if (next.has(category.id)) {
@@ -2682,7 +2967,6 @@ function StructuredNotebookTree({
   };
 
   const toggleBinder = (binder: NotebookBinderNode) => {
-    onSelectBinder(binder);
     setExpandedBinders((current) => {
       const next = new Set(current);
       if (next.has(binder.id)) {
@@ -2703,7 +2987,7 @@ function StructuredNotebookTree({
         </Button>
       </div>
       <div className="mt-2 grid gap-1">
-        {categories.map((category) => {
+        {projectTreeCategories.map((category) => {
           const binders = hierarchy.bindersByScope[category.id] ?? [];
           const looseEntries =
             category.id === "loose"
@@ -2783,7 +3067,7 @@ function StructuredNotebookTree({
           );
         })}
       </div>
-      {tagSummaries.length ? (
+      {showSideMonitorTags && tagSummaries.length ? (
         <div className="mt-5">
           <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tags</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -3023,18 +3307,16 @@ function PersonalNoteEditor({
   const [toolsOpen, setToolsOpen] = useState<"templates" | "tags" | "links" | "annotations" | null>(null);
   const [annotationPopover, setAnnotationPopover] = useState<"comment" | "link" | "tag" | null>(null);
   const [annotationDraft, setAnnotationDraft] = useState("");
-  const [floatingAnnotatorVisible, setFloatingAnnotatorVisible] = useState(false);
-  const [highlightMenuOpen, setHighlightMenuOpen] = useState<"floating" | "top" | null>(null);
   const [highlightColorFilter, setHighlightColorFilter] = useState<AnnotationHighlightFilter>("all");
   const [annotationActions, setAnnotationActions] = useState<AnnotationRecord[]>([]);
   const editorRef = useRef<Editor | null>(null);
+  const savedEditorSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
   const selectedTemplate = personalNoteTemplates.find((template) => template.id === selectedTemplateId) ?? personalNoteTemplates[0];
   const contentIsEmpty = extractPlainText(draftContent).trim().length === 0;
   const health = entry ? getPersonalNoteHealth(entry, { unsaved: dirty }) : [];
   const noteLinks = entry && noteLinkAutocomplete ? buildNoteLinkInsights(entry, entries, draftContent) : { linked: [], backlinks: [] };
-  const topAnnotatorEnabled = annotatorMode === "top" || annotatorMode === "both";
-  const floatingAnnotatorEnabled = annotatorMode === "floating" || annotatorMode === "both";
+  const selectionToolbarEnabled = annotatorMode !== "off";
   const annotationRecords = useMemo(
     () => dedupeAnnotationRecords([...extractAnnotationRecords(draftContent), ...annotationActions]),
     [annotationActions, draftContent],
@@ -3047,13 +3329,6 @@ function PersonalNoteEditor({
     [annotationRecords, highlightColorFilter],
   );
 
-  const showFloatingAnnotator = useCallback(() => {
-    if (!floatingAnnotatorEnabled || typeof window === "undefined") {
-      return;
-    }
-    setFloatingAnnotatorVisible(Boolean(window.getSelection()?.toString().trim()));
-  }, [floatingAnnotatorEnabled]);
-
   const rememberAnnotation = useCallback((record: Omit<AnnotationRecord, "id">) => {
     setAnnotationActions((current) => [
       {
@@ -3064,6 +3339,18 @@ function PersonalNoteEditor({
     ]);
   }, []);
 
+  const captureEditorSelection = useCallback(() => {
+    const selection = editorRef.current?.state?.selection;
+    if (selection && !selection.empty) {
+      savedEditorSelectionRef.current = { from: selection.from, to: selection.to };
+    }
+  }, []);
+
+  const openAnnotationPopover = useCallback((kind: "comment" | "link" | "tag") => {
+    captureEditorSelection();
+    setAnnotationPopover(kind);
+  }, [captureEditorSelection]);
+
   const applyHighlight = useCallback((color = "#fde68a") => {
     const colorMeta = annotationHighlightColors.find((item) => item.color === color) ?? annotationHighlightColors[0];
     editorRef.current?.chain().focus().toggleHighlight({ color }).run();
@@ -3073,7 +3360,6 @@ function PersonalNoteEditor({
       color: colorMeta.value,
       text: getCurrentSelectionText() || draftTitle,
     });
-    setHighlightMenuOpen(null);
   }, [draftTitle, rememberAnnotation]);
 
   const removeHighlight = useCallback(() => {
@@ -3084,16 +3370,15 @@ function PersonalNoteEditor({
       color: "all",
       text: getCurrentSelectionText() || draftTitle,
     });
-    setHighlightMenuOpen(null);
   }, [draftTitle, rememberAnnotation]);
 
-  const runEditorMark = useCallback((command: "bold" | "italic" | "underline") => {
+  const runEditorMark = useCallback((command: "bold" | "italic" | "underline" | "quote") => {
     const chain = editorRef.current?.chain().focus();
     if (command === "bold") {
       chain?.toggleBold().run();
     } else if (command === "italic") {
       chain?.toggleItalic().run();
-    } else {
+    } else if (command === "underline") {
       chain?.toggleUnderline().run();
       rememberAnnotation({
         type: "highlight",
@@ -3101,8 +3386,10 @@ function PersonalNoteEditor({
         color: "all",
         text: getCurrentSelectionText() || draftTitle,
       });
+    } else {
+      chain?.toggleBlockquote().run();
     }
-  }, []);
+  }, [draftTitle, rememberAnnotation]);
 
   const saveAnnotationPopover = useCallback(() => {
     const text = annotationDraft.trim();
@@ -3110,12 +3397,16 @@ function PersonalNoteEditor({
       return;
     }
     const commandId = `annotation-${Date.now()}`;
-    const chain = editorRef.current?.chain().focus() as
+    let chain = editorRef.current?.chain().focus() as
       | {
+          setTextSelection?: (range: { from: number; to: number }) => unknown;
           setLink?: (attrs: { href: string }) => { run: () => boolean };
           setMark?: (name: string, attrs: Record<string, unknown>) => { run: () => boolean };
         }
       | undefined;
+    if (savedEditorSelectionRef.current) {
+      chain = (chain?.setTextSelection?.(savedEditorSelectionRef.current) as typeof chain) ?? chain;
+    }
     if (annotationPopover === "link") {
       chain?.setLink?.({ href: text }).run();
     } else if (annotationPopover === "comment") {
@@ -3131,6 +3422,7 @@ function PersonalNoteEditor({
     });
     setAnnotationDraft("");
     setAnnotationPopover(null);
+    savedEditorSelectionRef.current = null;
   }, [annotationDraft, annotationPopover, rememberAnnotation]);
 
   const addSourceMarker = useCallback(() => {
@@ -3171,14 +3463,16 @@ function PersonalNoteEditor({
         applyHighlight(annotationHighlightColors[2].color);
       } else if (command === "highlight-pink") {
         applyHighlight(annotationHighlightColors[3].color);
+      } else if (command === "highlight-orange") {
+        applyHighlight(annotationHighlightColors[4].color);
       } else if (command === "remove-highlight") {
         removeHighlight();
       } else if (command === "comment") {
-        setAnnotationPopover("comment");
+        openAnnotationPopover("comment");
       } else if (command === "link") {
-        setAnnotationPopover("link");
+        openAnnotationPopover("link");
       } else if (command === "tag") {
-        setAnnotationPopover("tag");
+        openAnnotationPopover("tag");
       } else if (command === "source-marker") {
         addSourceMarker();
       } else if (command === "filter-all") {
@@ -3191,13 +3485,15 @@ function PersonalNoteEditor({
         setHighlightColorFilter("green");
       } else if (command === "filter-pink") {
         setHighlightColorFilter("pink");
+      } else if (command === "filter-orange") {
+        setHighlightColorFilter("orange");
       } else if (command === "open-drawer") {
         setToolsOpen("annotations");
       }
     };
     window.addEventListener("personal-notes:annotation-command", handleAnnotationCommand);
     return () => window.removeEventListener("personal-notes:annotation-command", handleAnnotationCommand);
-  }, [addSourceMarker, applyHighlight, removeHighlight]);
+  }, [addSourceMarker, applyHighlight, openAnnotationPopover, removeHighlight]);
 
   if (!entry) {
     return (
@@ -3288,25 +3584,6 @@ function PersonalNoteEditor({
             </div>
           </div>
 
-          {topAnnotatorEnabled ? (
-            <AnnotatorToolbar
-              colorFilter={highlightColorFilter}
-              entry={entry}
-              onComment={() => setAnnotationPopover("comment")}
-              onHighlight={applyHighlight}
-              onHighlightFilterChange={setHighlightColorFilter}
-              onLink={() => setAnnotationPopover("link")}
-              onOpenAnnotations={() => setToolsOpen("annotations")}
-              onRemoveHighlight={removeHighlight}
-              onSourceMarker={addSourceMarker}
-              onTag={() => setAnnotationPopover("tag")}
-              onToggleHighlightMenu={() => setHighlightMenuOpen((current) => current === "top" ? null : "top")}
-              onUnderline={() => runEditorMark("underline")}
-              showColorFilter={showAnnotationColorFilter}
-              showHighlightMenu={highlightMenuOpen === "top"}
-            />
-          ) : null}
-
           <div className={`${compactMetadata ? "mt-0" : "mt-1"} flex flex-wrap items-center gap-1.5`}>
             <Badge variant={saveState === "error" ? "destructive" : dirty ? "outline" : "secondary"}>
               {saveState === "error" ? "Save failed" : dirty ? "Unsaved" : "Saved"}
@@ -3331,51 +3608,26 @@ function PersonalNoteEditor({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto" onKeyUp={showFloatingAnnotator} onMouseUp={showFloatingAnnotator}>
-        {floatingAnnotatorVisible ? (
-          <div
-            aria-label="Floating annotation toolkit"
-            className="sticky top-2 z-20 mx-auto mb-2 flex w-fit max-w-[min(94vw,760px)] flex-wrap items-center gap-1 rounded-xl border border-border bg-popover px-2 py-1 shadow-xl"
-            role="toolbar"
-          >
-            <Button aria-label="Bold selection" className="px-2" onClick={() => runEditorMark("bold")} size="sm" type="button" variant="ghost">
-              B
-            </Button>
-            <Button aria-label="Italic selection" className="px-2 italic" onClick={() => runEditorMark("italic")} size="sm" type="button" variant="ghost">
-              I
-            </Button>
-            <Button aria-label="Underline selection" className="px-2" onClick={() => runEditorMark("underline")} size="sm" type="button" variant="ghost">
-              <Underline />
-            </Button>
-            <div className="relative">
-              <Button aria-label="Highlight selection" className="px-2" onClick={() => setHighlightMenuOpen((current) => current === "floating" ? null : "floating")} size="sm" type="button" variant="ghost">
-                <Highlighter />
-              </Button>
-              {highlightMenuOpen === "floating" ? (
-                <HighlightColorMenu onHighlight={applyHighlight} onRemoveHighlight={removeHighlight} />
-              ) : null}
-            </div>
-            {showAnnotationColorFilter ? (
-              <HighlightColorFilterSelect onChange={setHighlightColorFilter} value={highlightColorFilter} />
-            ) : null}
-            <Button aria-label="Comment selection" className="px-2" onClick={() => setAnnotationPopover("comment")} size="sm" type="button" variant="ghost">
-              <MessageSquare />
-            </Button>
-            <Button aria-label="Link selection" className="px-2" onClick={() => setAnnotationPopover("link")} size="sm" type="button" variant="ghost">
-              <Link2 />
-            </Button>
-            <Button aria-label="Tag selection" className="px-2" onClick={() => setAnnotationPopover("tag")} size="sm" type="button" variant="ghost">
-              <Tags />
-            </Button>
-            {entry.kind === "binder-note" ? (
-              <Button aria-label="Source citation marker" className="px-2" onClick={addSourceMarker} size="sm" type="button" variant="ghost">
-                <ArrowUpRight />
-              </Button>
-            ) : null}
-            <Button aria-label="More annotation actions" className="px-2" onClick={() => setToolsOpen("annotations")} size="sm" type="button" variant="ghost">
-              <ListFilter />
-            </Button>
-          </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {selectionToolbarEnabled ? (
+          <PersonalNotesSelectionToolbar
+            colorFilter={highlightColorFilter}
+            containerSelector="[data-testid='personal-note-writing-surface']"
+            entry={entry}
+            onBold={() => runEditorMark("bold")}
+            onComment={() => openAnnotationPopover("comment")}
+            onHighlight={applyHighlight}
+            onHighlightFilterChange={setHighlightColorFilter}
+            onItalic={() => runEditorMark("italic")}
+            onLink={() => openAnnotationPopover("link")}
+            onOpenAnnotations={() => setToolsOpen("annotations")}
+            onQuote={() => runEditorMark("quote")}
+            onRemoveHighlight={removeHighlight}
+            onSourceMarker={addSourceMarker}
+            onTag={() => openAnnotationPopover("tag")}
+            onUnderline={() => runEditorMark("underline")}
+            showColorFilter={showAnnotationColorFilter}
+          />
         ) : null}
         <div
           className={`grid gap-2 px-4 pb-8 pt-3 ${editorWidthClass(editorWidth)}`}
@@ -3389,6 +3641,7 @@ function PersonalNoteEditor({
               editorRef.current = editor;
             }}
             placeholder="Write in BinderNotes..."
+            showToolbar={false}
             value={draftContent}
           />
         </div>
@@ -3563,75 +3816,428 @@ function editorWidthClass(width: PersonalNotesEditorWidth) {
   }
 }
 
-function AnnotatorToolbar({
+function PersonalNotesSelectionToolbar({
   colorFilter,
+  containerSelector,
   entry,
+  onBold,
   onComment,
   onHighlight,
   onHighlightFilterChange,
+  onItalic,
   onLink,
   onOpenAnnotations,
+  onQuote,
   onRemoveHighlight,
   onSourceMarker,
   onTag,
-  onToggleHighlightMenu,
   onUnderline,
   showColorFilter,
-  showHighlightMenu,
 }: {
   colorFilter: AnnotationHighlightFilter;
+  containerSelector: string;
   entry: PersonalNotesEntry;
+  onBold: () => void;
   onComment: () => void;
   onHighlight: (color?: string) => void;
   onHighlightFilterChange: (color: AnnotationHighlightFilter) => void;
+  onItalic: () => void;
   onLink: () => void;
   onOpenAnnotations: () => void;
+  onQuote: () => void;
   onRemoveHighlight: () => void;
   onSourceMarker: () => void;
   onTag: () => void;
-  onToggleHighlightMenu: () => void;
   onUnderline: () => void;
   showColorFilter: boolean;
-  showHighlightMenu: boolean;
 }) {
-  return (
-    <div aria-label="Top annotator toolbar" className="flex flex-wrap items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-1" role="toolbar">
-      <div className="relative">
-        <Button aria-label="Highlight" className="px-2" onClick={onToggleHighlightMenu} size="sm" type="button" variant="ghost">
-          <Highlighter />
-        </Button>
-        {showHighlightMenu ? (
-          <HighlightColorMenu onHighlight={onHighlight} onRemoveHighlight={onRemoveHighlight} />
+  const [selection, setSelection] = useState<PersonalNoteSelectionState | null>(null);
+  const selectionRef = useRef<PersonalNoteSelectionState | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
+  const hideToolbar = useCallback(() => {
+    selectionRef.current = null;
+    setSelection(null);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    clearCurrentPersonalNoteSelection();
+    hideToolbar();
+  }, [hideToolbar]);
+
+  useEffect(() => {
+    const syncSelection = (event?: Event) => {
+      try {
+        const next = readPersonalNoteSelection(containerSelector, event?.target ?? null);
+        if (next) {
+          selectionRef.current = next;
+          setSelection(next);
+          return;
+        }
+
+        const preserved = refreshPersonalNoteSelection(selectionRef.current, containerSelector);
+        if (preserved) {
+          selectionRef.current = preserved;
+          setSelection(preserved);
+          return;
+        }
+
+        selectionRef.current = null;
+        setSelection(null);
+      } catch {
+        selectionRef.current = null;
+        setSelection(null);
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const root = document.querySelector(containerSelector);
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (toolbarRef.current?.contains(target)) {
+        event.preventDefault();
+        restorePersonalNoteSelection(selectionRef.current);
+        return;
+      }
+
+      if (root?.contains(target)) {
+        selectionRef.current = null;
+        setSelection(null);
+        return;
+      }
+
+      clearSelection();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        clearSelection();
+      }
+    };
+
+    document.addEventListener("selectionchange", syncSelection);
+    document.addEventListener("mouseup", syncSelection);
+    document.addEventListener("keyup", syncSelection);
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("scroll", syncSelection, true);
+    window.addEventListener("resize", syncSelection);
+    document.addEventListener("fullscreenchange", syncSelection);
+
+    return () => {
+      document.removeEventListener("selectionchange", syncSelection);
+      document.removeEventListener("mouseup", syncSelection);
+      document.removeEventListener("keyup", syncSelection);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("scroll", syncSelection, true);
+      window.removeEventListener("resize", syncSelection);
+      document.removeEventListener("fullscreenchange", syncSelection);
+    };
+  }, [clearSelection, containerSelector]);
+
+  if (!selection) {
+    return null;
+  }
+
+  const toolbarTransform =
+    selection.anchor.placement === "above"
+      ? "translate(-50%, calc(-100% - 12px))"
+      : "translate(-50%, 12px)";
+
+  const runSelectionAction = (action: () => void, clearAfter = false) => {
+    restorePersonalNoteSelection(selectionRef.current);
+    action();
+    if (clearAfter) {
+      clearSelection();
+    }
+  };
+
+  const toolbar = (
+    <div
+      className="pointer-events-none fixed z-[2147483647]"
+      data-testid="personal-notes-selection-popup"
+      ref={toolbarRef}
+      style={{
+        left: selection.anchor.left,
+        top: selection.anchor.top,
+        transform: toolbarTransform,
+      }}
+    >
+      <div
+        aria-label="Personal Notes selection toolbar"
+        className="pointer-events-auto flex max-w-[min(94vw,820px)] flex-wrap items-center gap-1 rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur"
+        role="toolbar"
+      >
+        <span className="px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Highlight
+        </span>
+        {annotationHighlightColors.map((color) => (
+          <button
+            aria-label={`${color.toolbarLabel} highlight`}
+            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-2.5 py-1.5 text-xs font-medium transition hover:border-primary/35 hover:bg-accent/60"
+            key={color.value}
+            onClick={() => runSelectionAction(() => onHighlight(color.color))}
+            onMouseDown={preservePersonalNoteSelection}
+            onPointerDown={preservePersonalNoteSelection}
+            type="button"
+          >
+            <span className={`size-2.5 rounded-full ${color.swatch}`} />
+            {color.toolbarLabel}
+          </button>
+        ))}
+        <SelectionToolbarButton label="Remove highlight" onClick={() => runSelectionAction(onRemoveHighlight)} variant="outline">
+          <X data-icon="inline-start" />
+          Remove
+        </SelectionToolbarButton>
+        <span className="mx-1 h-6 w-px bg-border/70" />
+        <SelectionToolbarButton label="Bold selection" onClick={() => runSelectionAction(onBold)}>
+          <Bold data-icon="inline-start" />
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Italic selection" onClick={() => runSelectionAction(onItalic)}>
+          <Italic data-icon="inline-start" />
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Underline selection" onClick={() => runSelectionAction(onUnderline)}>
+          <Underline data-icon="inline-start" />
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Quote selection" onClick={() => runSelectionAction(onQuote)}>
+          <Quote data-icon="inline-start" />
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Link selection" onClick={() => runSelectionAction(onLink, false)} variant="outline">
+          <Link2 data-icon="inline-start" />
+          Link
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Comment selection" onClick={() => runSelectionAction(onComment, false)} variant="outline">
+          <MessageSquare data-icon="inline-start" />
+          Comment
+        </SelectionToolbarButton>
+        <SelectionToolbarButton label="Tag selection" onClick={() => runSelectionAction(onTag, false)} variant="outline">
+          <Tags data-icon="inline-start" />
+          Tag
+        </SelectionToolbarButton>
+        {entry.kind === "binder-note" ? (
+          <SelectionToolbarButton label="Source citation marker" onClick={() => runSelectionAction(onSourceMarker)} variant="outline">
+            <ArrowUpRight data-icon="inline-start" />
+            Source
+          </SelectionToolbarButton>
+        ) : null}
+        <SelectionToolbarButton label="Open annotations drawer" onClick={() => runSelectionAction(onOpenAnnotations, false)} variant="outline">
+          <NotebookTabs data-icon="inline-start" />
+        </SelectionToolbarButton>
+        {showColorFilter ? (
+          <HighlightColorFilterSelect onChange={onHighlightFilterChange} value={colorFilter} />
         ) : null}
       </div>
-      {showColorFilter ? (
-        <HighlightColorFilterSelect onChange={onHighlightFilterChange} value={colorFilter} />
-      ) : null}
-      <Button aria-label="Comment" className="px-2" onClick={onComment} size="sm" type="button" variant="ghost">
-        <MessageSquare />
-      </Button>
-      <Button aria-label="Underline" className="px-2" onClick={onUnderline} size="sm" type="button" variant="ghost">
-        <Underline />
-      </Button>
-      <Button aria-label="Link" className="px-2" onClick={onLink} size="sm" type="button" variant="ghost">
-        <Link2 />
-      </Button>
-      <Button aria-label="Tag selection" className="px-2" onClick={onTag} size="sm" type="button" variant="ghost">
-        <Tags />
-      </Button>
-      <Button aria-label="Remove annotation" className="px-2" onClick={onRemoveHighlight} size="sm" type="button" variant="ghost">
-        <X />
-      </Button>
-      {entry.kind === "binder-note" ? (
-        <Button aria-label="Source note citation" className="px-2" onClick={onSourceMarker} size="sm" type="button" variant="ghost">
-          <ArrowUpRight />
-        </Button>
-      ) : null}
-      <Button aria-label="Open annotations drawer" className="px-2" onClick={onOpenAnnotations} size="sm" type="button" variant="ghost">
-        <NotebookTabs />
-      </Button>
     </div>
   );
+
+  return createPortal(toolbar, resolvePersonalNoteToolbarPortalHost(containerSelector));
+}
+
+function SelectionToolbarButton({
+  children,
+  label,
+  onClick,
+  variant = "ghost",
+}: {
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+  variant?: "ghost" | "outline";
+}) {
+  return (
+    <Button
+      aria-label={label}
+      className="h-8 px-2"
+      onClick={onClick}
+      onMouseDown={preservePersonalNoteSelection}
+      onPointerDown={preservePersonalNoteSelection}
+      size="sm"
+      type="button"
+      variant={variant}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function readPersonalNoteSelection(
+  containerSelector: string,
+  eventTarget: EventTarget | null,
+): PersonalNoteSelectionState | null {
+  const nativeSelection = window.getSelection();
+  const text = nativeSelection?.toString().trim();
+  const root = document.querySelector(containerSelector);
+  if (!nativeSelection || !text || !root) {
+    return null;
+  }
+
+  if (nativeSelection.rangeCount > 0 && !nativeSelection.isCollapsed) {
+    try {
+      const range = nativeSelection.getRangeAt(0).cloneRange();
+      if (isPersonalNoteRangeInsideRoot(range, root)) {
+        const anchor = measurePersonalNoteSelectionAnchor(range) ?? measurePersonalNoteFallbackAnchor(root);
+        return { text, range, anchor };
+      }
+    } catch {
+      // Textarea selections and some browser selections do not expose DOM ranges.
+    }
+  }
+
+  const targetNode =
+    eventTarget instanceof Node
+      ? eventTarget
+      : document.activeElement instanceof Node
+        ? document.activeElement
+        : null;
+  if (!targetNode || !root.contains(targetNode)) {
+    return null;
+  }
+
+  return {
+    text,
+    range: null,
+    anchor: measurePersonalNoteFallbackAnchor(root),
+  };
+}
+
+function refreshPersonalNoteSelection(
+  selection: PersonalNoteSelectionState | null,
+  containerSelector: string,
+): PersonalNoteSelectionState | null {
+  if (!selection) {
+    return null;
+  }
+
+  const root = document.querySelector(containerSelector);
+  if (!root) {
+    return null;
+  }
+
+  if (!selection.range) {
+    return {
+      ...selection,
+      anchor: measurePersonalNoteFallbackAnchor(root),
+    };
+  }
+
+  if (!isPersonalNoteRangeInsideRoot(selection.range, root)) {
+    return null;
+  }
+
+  const anchor = measurePersonalNoteSelectionAnchor(selection.range);
+  if (!anchor) {
+    return null;
+  }
+
+  return {
+    ...selection,
+    range: selection.range.cloneRange(),
+    anchor,
+  };
+}
+
+function isPersonalNoteRangeInsideRoot(range: Range, root: Element) {
+  const commonAncestor =
+    range.commonAncestorContainer instanceof Element
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+
+  return Boolean(commonAncestor && root.contains(commonAncestor));
+}
+
+function measurePersonalNoteSelectionAnchor(range: Range): PersonalNoteSelectionAnchor | null {
+  const clientRects = Array.from(range.getClientRects()).filter(
+    (rect) => rect.width > 0 || rect.height > 0,
+  );
+  const primaryRect = clientRects
+    .slice()
+    .sort((left, right) => left.top - right.top || left.left - right.left)[0];
+  const fallbackRect = range.getBoundingClientRect();
+  const rect =
+    primaryRect && (primaryRect.width > 0 || primaryRect.height > 0)
+      ? primaryRect
+      : fallbackRect.width > 0 || fallbackRect.height > 0
+        ? fallbackRect
+        : null;
+
+  if (!rect) {
+    return null;
+  }
+
+  const maxToolbarWidth = Math.min(window.innerWidth * 0.94, 820);
+  const horizontalInset = Math.min(24, maxToolbarWidth / 2);
+  const left = clampPersonalNoteToolbar(
+    rect.left + rect.width / 2,
+    maxToolbarWidth / 2 + horizontalInset,
+    window.innerWidth - maxToolbarWidth / 2 - horizontalInset,
+  );
+  const placeBelow = rect.top < 104;
+  const top = placeBelow
+    ? clampPersonalNoteToolbar(rect.bottom, 18, window.innerHeight - 18)
+    : clampPersonalNoteToolbar(rect.top, 18, window.innerHeight - 18);
+
+  return {
+    left,
+    top,
+    placement: placeBelow ? "below" : "above",
+  };
+}
+
+function measurePersonalNoteFallbackAnchor(root: Element): PersonalNoteSelectionAnchor {
+  const rect = root.getBoundingClientRect();
+  const fallbackLeft = rect.left + Math.min(Math.max(rect.width / 2, 220), 420);
+  const fallbackTop = rect.top + 18;
+
+  return {
+    left: clampPersonalNoteToolbar(fallbackLeft, 24, window.innerWidth - 24),
+    top: clampPersonalNoteToolbar(fallbackTop, 18, window.innerHeight - 18),
+    placement: "below",
+  };
+}
+
+function restorePersonalNoteSelection(selection: PersonalNoteSelectionState | null) {
+  if (!selection?.range) {
+    return;
+  }
+
+  const nextSelection = window.getSelection();
+  if (!nextSelection) {
+    return;
+  }
+
+  nextSelection.removeAllRanges();
+  nextSelection.addRange(selection.range.cloneRange());
+}
+
+function clearCurrentPersonalNoteSelection() {
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+}
+
+function resolvePersonalNoteToolbarPortalHost(containerSelector: string) {
+  const root = document.querySelector(containerSelector);
+  const fullscreenHost = document.fullscreenElement;
+  if (root && fullscreenHost instanceof HTMLElement && fullscreenHost.contains(root)) {
+    return fullscreenHost;
+  }
+
+  return document.body;
+}
+
+function clampPersonalNoteToolbar(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function preservePersonalNoteSelection(event: { preventDefault: () => void }) {
+  event.preventDefault();
 }
 
 function HighlightColorMenu({
@@ -3843,6 +4449,9 @@ function highlightColorFromValue(value: unknown): AnnotationHighlightFilter {
   if (color.includes("d8b4fe") || color.includes("pink") || color.includes("purple") || color.includes("violet")) {
     return "pink";
   }
+  if (color.includes("fdba74") || color.includes("orange")) {
+    return "orange";
+  }
   if (color.includes("fde68a") || color.includes("yellow") || color.includes("amber")) {
     return "yellow";
   }
@@ -3967,6 +4576,7 @@ type AnnotationCommand =
   | "highlight-blue"
   | "highlight-green"
   | "highlight-pink"
+  | "highlight-orange"
   | "remove-highlight"
   | "comment"
   | "link"
@@ -3977,6 +4587,7 @@ type AnnotationCommand =
   | "filter-blue"
   | "filter-green"
   | "filter-pink"
+  | "filter-orange"
   | "open-drawer";
 
 function dispatchAnnotationCommand(command: AnnotationCommand) {
@@ -4002,12 +4613,12 @@ function CommandPalette({
   onOpenSettings,
   onOpenReviewQueue,
   onOpenCategory,
+  onOpenEntry,
   onOpenRecent,
   onOpenSource,
   onOpenTemplates,
   onShowAllNotes,
   onPin,
-  onSwitchView,
   onToggleBinderNotes,
   onToggleFocusMode,
   onToggleNotebookPane,
@@ -4041,12 +4652,12 @@ function CommandPalette({
   onOpenSettings: () => void;
   onOpenReviewQueue: () => void;
   onOpenCategory: (category: NotebookCategory) => void;
+  onOpenEntry: (entry: PersonalNotesEntry) => void;
   onOpenRecent: () => void;
   onOpenSource: () => void;
   onOpenTemplates: () => void;
   onShowAllNotes: () => void;
   onPin: () => void;
-  onSwitchView: (view: PersonalNotesViewMode) => void;
   onToggleBinderNotes: () => void;
   onToggleFocusMode: () => void;
   onToggleNotebookPane: () => void;
@@ -4063,145 +4674,290 @@ function CommandPalette({
   topChromeHidden: boolean;
 }) {
   const [commandQuery, setCommandQuery] = useState("");
-  const commands = [
-    { label: "New note", action: onCreateNote, icon: <FilePlus2 />, disabled: !personalStorageReady },
-    { label: "New binder", action: onCreateBinder, icon: <BookMarked />, disabled: !personalStorageReady },
-    { label: "New document", action: onCreateDocument, icon: <FileText />, disabled: !personalStorageReady },
-    { label: "New folder", action: onCreateFolder, icon: <FolderPlus />, disabled: !personalStorageReady },
-    { label: "New canvas notebook", action: onCreateCanvasNotebook, icon: <Plus />, disabled: !personalStorageReady },
-    { label: "Search notes", action: () => undefined, icon: <Search /> },
-    { label: "Search binders", action: () => undefined, icon: <BookMarked /> },
-    { label: "Open binder", action: () => undefined, icon: <BookMarked /> },
-    { label: "Show all notes", action: onShowAllNotes, icon: <NotebookTabs /> },
-    ...categories
-      .filter((category) => ["all", "history", "math", "chemistry", "loose", "binder-linked"].includes(category.id))
-      .map((category) => ({
-        label: `Open ${category.label}`,
-        action: () => onOpenCategory(category),
-        icon: <NotebookTabs />,
-      })),
-    { label: "Go back in notebook sidebar", action: onNotebookBack, icon: <ChevronLeft /> },
-    { label: "Reset notebook sidebar", action: onShowAllNotes, icon: <NotebookTabs /> },
-    { label: "Clear selected binder", action: onNotebookBack, icon: <BookMarked /> },
-    { label: "Toggle binder-linked notes", action: onToggleBinderNotes, icon: <ListFilter /> },
-    { label: "Toggle App Appearance Minimal/Studio", action: onToggleStyle, icon: <Sparkles /> },
-    { label: "Use Structured Workspace", action: () => onUpdatePreferences({ sidebarNavigationMode: "structured" }), icon: <NotebookTabs /> },
-    { label: "Use Loose Notes", action: () => onUpdatePreferences({ sidebarNavigationMode: "loose" }), icon: <NotebookTabs /> },
-    { label: sidebarsHidden ? "Show sidebars" : "Hide sidebars", action: onToggleSidebars, icon: <PanelLeft /> },
-    { label: "Toggle Notebook pane", action: onToggleNotebookPane, icon: <PanelLeft /> },
-    { label: "Toggle Notes list pane", action: onToggleNotesListPane, icon: <PanelLeft /> },
-    { label: "Toggle Review Queue sidebar", action: onToggleReviewSidebar, icon: <CheckSquare /> },
-    { label: topChromeHidden ? "Show top chrome" : "Hide top chrome", action: onToggleTopChrome, icon: <PanelLeft /> },
-    { label: focusMode ? "Exit focus mode" : "Enter focus mode", action: onToggleFocusMode, icon: <Maximize2 />, disabled: !selectedEntry },
-    { label: "Enter fullscreen focus", action: onEnterFullscreenFocus, icon: <Maximize2 />, disabled: !selectedEntry },
-    { label: "Open settings", action: onOpenSettings, icon: <Settings2 /> },
-    { label: "Switch to Home view", action: () => onSwitchView("home"), icon: <NotebookTabs /> },
-    { label: "Switch to Organize view", action: () => onSwitchView("organize"), icon: <PanelLeft /> },
-    { label: "Switch to Notes view", action: () => onSwitchView("notes"), icon: <NotebookTabs /> },
-    ...editorWidthOptions.map((option) => ({
-      label: `Change editor width to ${option.label}`,
-      action: () => onEditorWidthChange(option.value),
-      icon: <Maximize2 />,
-    })),
-    { label: "Open Review Queue", action: onOpenReviewQueue, icon: <CheckSquare /> },
-    { label: "Toggle annotator tools", action: () => onUpdatePreferences({ annotatorTools: "both" }), icon: <Highlighter /> },
-    { label: "Enable floating annotator", action: () => onUpdatePreferences({ annotatorTools: "floating" }), icon: <Highlighter /> },
-    { label: "Enable top toolbar annotator", action: () => onUpdatePreferences({ annotatorTools: "top" }), icon: <Highlighter /> },
-    { label: "Enable both annotator toolbars", action: () => onUpdatePreferences({ annotatorTools: "both" }), icon: <Highlighter /> },
-    { label: "Disable annotator tools", action: () => onUpdatePreferences({ annotatorTools: "off" }), icon: <X /> },
-    { label: "Add highlight", action: () => dispatchAnnotationCommand("highlight"), icon: <Highlighter />, disabled: !selectedEntry },
-    { label: "Highlight selected text yellow", action: () => dispatchAnnotationCommand("highlight-yellow"), icon: <Highlighter />, disabled: !selectedEntry },
-    { label: "Highlight selected text blue", action: () => dispatchAnnotationCommand("highlight-blue"), icon: <Highlighter />, disabled: !selectedEntry },
-    { label: "Highlight selected text green", action: () => dispatchAnnotationCommand("highlight-green"), icon: <Highlighter />, disabled: !selectedEntry },
-    { label: "Highlight selected text pink/purple", action: () => dispatchAnnotationCommand("highlight-pink"), icon: <Highlighter />, disabled: !selectedEntry },
-    { label: "Add comment", action: () => dispatchAnnotationCommand("comment"), icon: <MessageSquare />, disabled: !selectedEntry },
-    { label: "Add link", action: () => dispatchAnnotationCommand("link"), icon: <Link2 />, disabled: !selectedEntry },
-    { label: "Add tag to selection", action: () => dispatchAnnotationCommand("tag"), icon: <Tags />, disabled: !selectedEntry },
-    { label: "Add source marker", action: () => dispatchAnnotationCommand("source-marker"), icon: <ArrowUpRight />, disabled: selectedEntry?.kind !== "binder-note" },
-    { label: "Remove annotation", action: () => dispatchAnnotationCommand("remove-highlight"), icon: <X />, disabled: !selectedEntry },
-    { label: "Open annotations drawer", action: () => dispatchAnnotationCommand("open-drawer"), icon: <NotebookTabs />, disabled: !selectedEntry },
-    { label: "Filter highlights: All colors", action: () => dispatchAnnotationCommand("filter-all"), icon: <ListFilter />, disabled: !selectedEntry },
-    { label: "Filter highlights: Yellow", action: () => dispatchAnnotationCommand("filter-yellow"), icon: <ListFilter />, disabled: !selectedEntry },
-    { label: "Filter highlights: Blue", action: () => dispatchAnnotationCommand("filter-blue"), icon: <ListFilter />, disabled: !selectedEntry },
-    { label: "Filter highlights: Green", action: () => dispatchAnnotationCommand("filter-green"), icon: <ListFilter />, disabled: !selectedEntry },
-    { label: "Filter highlights: Pink/Purple", action: () => dispatchAnnotationCommand("filter-pink"), icon: <ListFilter />, disabled: !selectedEntry },
-    { label: "Open Templates", action: onOpenTemplates, icon: <FileText />, disabled: !personalStorageReady },
-    { label: "Focus editor", action: onFocusEditor, icon: <Maximize2 />, disabled: !selectedEntry },
-    { label: "Open recent note", action: onOpenRecent, icon: <ChevronRight />, disabled: entries.length === 0 },
+  type CommandPaletteCommand = {
+    action: () => void;
+    description?: string;
+    disabled?: boolean;
+    icon: ReactNode;
+    keywords?: string;
+    label: string;
+    meta?: string;
+  };
+  type CommandPaletteGroup = {
+    commands: CommandPaletteCommand[];
+    description: string;
+    id: string;
+    label: string;
+  };
+
+  const normalizedCommandQuery = commandQuery.trim().toLowerCase();
+  const matchesCommandSearch = (text: string) => {
+    if (!normalizedCommandQuery) {
+      return true;
+    }
+    const normalizedText = text.toLowerCase();
+    return normalizedCommandQuery.split(/\s+/).every((term) => {
+      if (normalizedText.includes(term)) {
+        return true;
+      }
+      let termIndex = 0;
+      for (const char of normalizedText) {
+        if (char === term[termIndex]) {
+          termIndex += 1;
+          if (termIndex === term.length) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+  };
+  const sortedCommandEntries = [...entries].sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+    return Date.parse(b.updated_at) - Date.parse(a.updated_at);
+  });
+  const noteQuickSwitchEntries = sortedCommandEntries
+    .filter((entry) =>
+      matchesCommandSearch(
+        [
+          entry.title,
+          entry.excerpt,
+          entry.searchText,
+          entry.folderName,
+          entry.personalBinderTitle,
+          entry.sourceBinderTitle,
+          entry.sourceDocumentTitle,
+          entry.tags.join(" "),
+          entry.sourceType,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ),
+    )
+    .slice(0, normalizedCommandQuery ? 8 : 5);
+  const noteQuickSwitchCommands: CommandPaletteCommand[] = noteQuickSwitchEntries.map((entry) => {
+    const binderContext = entry.personalBinderTitle ?? entry.sourceBinderTitle;
+    const location = [entry.folderName, binderContext, entry.sourceDocumentTitle].filter(Boolean).join(" / ");
+    const kindLabel = entry.kind === "binder-note" ? "Linked" : entry.kind === "personal-document" ? "Doc" : entry.pinned ? "Pinned" : "Note";
+    return {
+      label: `Open note: ${entry.title}`,
+      description: location || entry.sourceType,
+      action: () => onOpenEntry(entry),
+      icon: <FileText />,
+      keywords: [entry.searchText, entry.tags.join(" "), entry.sourceType, entry.quickOpenUrl].join(" "),
+      meta: kindLabel,
+    };
+  });
+
+  const subjectCommands: CommandPaletteCommand[] = categories
+    .filter((category) => ["history", "math", "chemistry", "loose", "binder-linked"].includes(category.id))
+    .map((category) => ({
+      label: `Open ${category.label}`,
+      description: "Jump the side monitor to this scope.",
+      action: () => onOpenCategory(category),
+      icon: <NotebookTabs />,
+      keywords: `${category.label} folder binder subject scope`,
+      meta: category.count > 0 ? String(category.count) : undefined,
+    }));
+  const editorWidthCommands: CommandPaletteCommand[] = editorWidthOptions.map((option) => ({
+    label: `Change editor width to ${option.label}`,
+    description: "Resize the writing area.",
+    action: () => onEditorWidthChange(option.value),
+    icon: <Maximize2 />,
+    keywords: `editor width ${option.value}`,
+  }));
+  const commandGroups: CommandPaletteGroup[] = [
     {
-      label: "Open source binder workspace",
-      action: onOpenSource,
-      icon: <ArrowUpRight />,
-      disabled: !selectedEntry?.quickJumpToBinderUrl,
+      id: "create",
+      label: "Create",
+      description: "Start notes, binders, folders, documents, and canvases.",
+      commands: [
+        { label: "New note", description: "Choose a folder and binder before saving.", action: onCreateNote, icon: <FilePlus2 />, disabled: !personalStorageReady },
+        { label: "New binder", description: "Create a container inside a folder.", action: onCreateBinder, icon: <BookMarked />, disabled: !personalStorageReady },
+        { label: "New document", description: "Add a document to a personal binder.", action: onCreateDocument, icon: <FileText />, disabled: !personalStorageReady },
+        { label: "New folder", description: "Create a top-level subject folder.", action: onCreateFolder, icon: <FolderPlus />, disabled: !personalStorageReady },
+        { label: "New canvas notebook", description: "Create a visual canvas notebook.", action: onCreateCanvasNotebook, icon: <Plus />, disabled: !personalStorageReady },
+        { label: "Open Templates", description: "Start from a note template.", action: onOpenTemplates, icon: <FileText />, disabled: !personalStorageReady },
+      ],
     },
     {
-      label: "Move to folder",
-      action: onMoveToFolder,
-      icon: <FolderPlus />,
-      disabled: selectedEntry?.kind !== "personal-note",
+      id: "quick-switcher",
+      label: normalizedCommandQuery ? "Matching Notes" : "Recent Notes",
+      description: normalizedCommandQuery ? "Open notes that match title, binder, folder, tags, or text." : "Pinned and recently updated notes.",
+      commands: noteQuickSwitchCommands,
     },
     {
-      label: selectedEntry?.pinned ? "Unpin" : "Pin",
-      action: onPin,
-      icon: <Pin />,
-      disabled: !selectedEntry || selectedEntry.kind === "binder-note",
+      id: "find-open",
+      label: "Find And Open",
+      description: "Move around folders, binders, and recent notes.",
+      commands: [
+        { label: "Show all notes", description: "Clear filters and show the whole workspace.", action: onShowAllNotes, icon: <NotebookTabs /> },
+        ...subjectCommands,
+        { label: "Open recent note", description: "Open the most recent note in this workspace.", action: onOpenRecent, icon: <ChevronRight />, disabled: entries.length === 0 },
+        {
+          label: "Open source binder workspace",
+          description: "Jump back to the original binder for this linked note.",
+          action: onOpenSource,
+          icon: <ArrowUpRight />,
+          disabled: !selectedEntry?.quickJumpToBinderUrl,
+        },
+      ],
     },
     {
-      label: "Add tag",
-      action: onAddTag,
-      icon: <Tags />,
-      disabled: !selectedEntry || selectedEntry.kind === "binder-note",
+      id: "side-monitor",
+      label: "Side Monitor",
+      description: "Control the folder and binder explorer.",
+      commands: [
+        { label: "Go back in side monitor", description: "Step up one level in Scope Drill-in.", action: onNotebookBack, icon: <ChevronLeft /> },
+        { label: "Reset side monitor", description: "Return the side monitor to the full tree.", action: onShowAllNotes, icon: <NotebookTabs /> },
+        { label: "Clear selected binder", description: "Leave the current binder selection.", action: onNotebookBack, icon: <BookMarked /> },
+        { label: "Use Project Tree", description: "Persistent folder, binder, and note hierarchy.", action: () => onUpdatePreferences({ sidebarNavigationMode: "project-tree" }), icon: <NotebookTabs /> },
+        { label: "Use Scope Drill-in", description: "Narrow the sidebar as you choose scopes.", action: () => onUpdatePreferences({ sidebarNavigationMode: "scope-drill-in" }), icon: <NotebookTabs /> },
+        { label: sidebarsHidden ? "Show side monitor" : "Hide side monitor", description: "Show or hide the full side area.", action: onToggleSidebars, icon: <PanelLeft /> },
+        { label: "Toggle side monitor", description: "Show or hide only the side monitor.", action: onToggleNotebookPane, icon: <PanelLeft /> },
+        { label: "Toggle Notes list pane", description: "Show or hide the middle notes list.", action: onToggleNotesListPane, icon: <PanelLeft /> },
+        { label: "Toggle binder-linked notes", description: "Include or hide notes linked from binders.", action: onToggleBinderNotes, icon: <ListFilter /> },
+      ],
     },
     {
-      label: "Copy note link",
-      action: onCopyLink,
-      icon: <ArrowUpRight />,
-      disabled: !selectedEntry,
+      id: "editor-layout",
+      label: "Editor And Layout",
+      description: "Focus, width, chrome, and appearance commands.",
+      commands: [
+        { label: "Focus editor", description: "Move attention back to the active note.", action: onFocusEditor, icon: <Maximize2 />, disabled: !selectedEntry },
+        { label: focusMode ? "Exit focus mode" : "Enter focus mode", description: "Minimize surrounding UI while writing.", action: onToggleFocusMode, icon: <Focus />, disabled: !selectedEntry },
+        { label: "Enter fullscreen focus", description: "Use the fullest writing surface.", action: onEnterFullscreenFocus, icon: <Maximize2 />, disabled: !selectedEntry },
+        { label: topChromeHidden ? "Show top chrome" : "Hide top chrome", description: "Toggle the top toolbar.", action: onToggleTopChrome, icon: <PanelLeft /> },
+        ...editorWidthCommands,
+        { label: "Toggle App Appearance Minimal/Studio", description: "Switch the Personal Notes visual style.", action: onToggleStyle, icon: <Sparkles /> },
+        { label: "Open settings", description: "Open all Personal Notes preferences.", action: onOpenSettings, icon: <Settings2 /> },
+      ],
+    },
+    {
+      id: "highlights",
+      label: "Highlights And Annotations",
+      description: "Mark, comment, link, tag, and filter selected text.",
+      commands: [
+        { label: "Enable selection popup", description: "Show the annotation popup near selected text.", action: () => onUpdatePreferences({ annotatorTools: "floating" }), icon: <Highlighter /> },
+        { label: "Disable selection popup", description: "Turn annotation controls off.", action: () => onUpdatePreferences({ annotatorTools: "off" }), icon: <X /> },
+        { label: "Add highlight", description: "Highlight the selected text.", action: () => dispatchAnnotationCommand("highlight"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Highlight selected text yellow", description: "Apply yellow highlight.", action: () => dispatchAnnotationCommand("highlight-yellow"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Highlight selected text blue", description: "Apply blue highlight.", action: () => dispatchAnnotationCommand("highlight-blue"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Highlight selected text green", description: "Apply green highlight.", action: () => dispatchAnnotationCommand("highlight-green"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Highlight selected text pink/purple", description: "Apply pink or purple highlight.", action: () => dispatchAnnotationCommand("highlight-pink"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Highlight selected text orange", description: "Apply question highlight.", action: () => dispatchAnnotationCommand("highlight-orange"), icon: <Highlighter />, disabled: !selectedEntry },
+        { label: "Add comment", description: "Attach a comment to selected text.", action: () => dispatchAnnotationCommand("comment"), icon: <MessageSquare />, disabled: !selectedEntry },
+        { label: "Add link", description: "Link selected text.", action: () => dispatchAnnotationCommand("link"), icon: <Link2 />, disabled: !selectedEntry },
+        { label: "Add tag to selection", description: "Tag selected text.", action: () => dispatchAnnotationCommand("tag"), icon: <Tags />, disabled: !selectedEntry },
+        { label: "Add source marker", description: "Mark source context on a binder-linked note.", action: () => dispatchAnnotationCommand("source-marker"), icon: <ArrowUpRight />, disabled: selectedEntry?.kind !== "binder-note" },
+        { label: "Remove annotation", description: "Remove the selected annotation mark.", action: () => dispatchAnnotationCommand("remove-highlight"), icon: <X />, disabled: !selectedEntry },
+        { label: "Open annotations drawer", description: "Review annotation details.", action: () => dispatchAnnotationCommand("open-drawer"), icon: <NotebookTabs />, disabled: !selectedEntry },
+        { label: "Filter highlights: All colors", description: "Show every highlight color.", action: () => dispatchAnnotationCommand("filter-all"), icon: <ListFilter />, disabled: !selectedEntry },
+        { label: "Filter highlights: Yellow", description: "Show yellow highlights.", action: () => dispatchAnnotationCommand("filter-yellow"), icon: <ListFilter />, disabled: !selectedEntry },
+        { label: "Filter highlights: Blue", description: "Show blue highlights.", action: () => dispatchAnnotationCommand("filter-blue"), icon: <ListFilter />, disabled: !selectedEntry },
+        { label: "Filter highlights: Green", description: "Show green highlights.", action: () => dispatchAnnotationCommand("filter-green"), icon: <ListFilter />, disabled: !selectedEntry },
+        { label: "Filter highlights: Pink/Purple", description: "Show pink or purple highlights.", action: () => dispatchAnnotationCommand("filter-pink"), icon: <ListFilter />, disabled: !selectedEntry },
+        { label: "Filter highlights: Orange", description: "Show orange highlights.", action: () => dispatchAnnotationCommand("filter-orange"), icon: <ListFilter />, disabled: !selectedEntry },
+      ],
+    },
+    {
+      id: "note-actions",
+      label: "Current Note",
+      description: "Actions for the selected note.",
+      commands: [
+        { label: "Move to folder", description: "Move this personal note to a folder.", action: onMoveToFolder, icon: <FolderPlus />, disabled: selectedEntry?.kind !== "personal-note" },
+        { label: selectedEntry?.pinned ? "Unpin" : "Pin", description: "Pin or unpin this personal note.", action: onPin, icon: <Pin />, disabled: !selectedEntry || selectedEntry.kind === "binder-note" },
+        { label: "Add tag", description: "Add a tag to this personal note.", action: onAddTag, icon: <Tags />, disabled: !selectedEntry || selectedEntry.kind === "binder-note" },
+        { label: "Copy note link", description: "Copy a link to the current note.", action: onCopyLink, icon: <ArrowUpRight />, disabled: !selectedEntry },
+        { label: "Open Review Queue", description: "Open notes marked for review.", action: onOpenReviewQueue, icon: <CheckSquare /> },
+        { label: "Toggle Review Queue sidebar", description: "Show or hide review queue panel.", action: onToggleReviewSidebar, icon: <CheckSquare /> },
+      ],
     },
   ];
-  const visibleCommands = commands.filter((command) =>
-    command.label.toLowerCase().includes(commandQuery.trim().toLowerCase()),
-  );
+  const visibleGroups = commandGroups
+    .map((group) => ({
+      ...group,
+      commands: group.commands.filter((command) =>
+        matchesCommandSearch([group.label, group.description, command.label, command.description, command.keywords].filter(Boolean).join(" ")),
+      ),
+    }))
+    .filter((group) => group.commands.length > 0);
+  const visibleCommandCount = visibleGroups.reduce((count, group) => count + group.commands.length, 0);
 
   return (
     <div className="fixed inset-0 z-50 bg-background/62 p-4 backdrop-blur" role="presentation">
       <div
         aria-label="Personal Notes command palette"
-        className="mx-auto mt-16 max-w-2xl rounded-lg border border-border bg-popover p-3 shadow-2xl"
+        className="mx-auto mt-10 flex max-h-[min(42rem,calc(100vh-5rem))] max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-2xl"
         role="dialog"
       >
-        <div className="flex items-center gap-2 border-b border-border/70 pb-3">
+        <div className="flex items-center gap-2 border-b border-border/70 p-3">
           <Command className="size-4 text-muted-foreground" />
           <Input
             autoFocus
             aria-label="Command search"
+            className="h-10 border-transparent bg-transparent shadow-none focus-visible:ring-0"
             onChange={(event) => setCommandQuery(event.target.value)}
-            placeholder="Search commands"
+            placeholder="Search commands, folders, side monitor, highlights"
             value={commandQuery}
           />
           <Button aria-label="Close command palette" onClick={onClose} size="icon" type="button" variant="ghost">
             <X />
           </Button>
         </div>
-        <div className="mt-3 grid gap-1">
-          {visibleCommands.map((command) => (
-            <button
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-45"
-              disabled={command.disabled}
-              key={command.label}
-              onClick={() => {
-                command.action();
-                onClose();
-              }}
-              type="button"
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-muted-foreground [&_svg]:size-4">{command.icon}</span>
-                {command.label}
-              </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-          ))}
+        <div className="flex items-center justify-between border-b border-border/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <span>Command Tree</span>
+          <span>{visibleCommandCount} commands</span>
+        </div>
+        <div className="min-h-0 overflow-auto p-2">
+          {visibleGroups.length > 0 ? (
+            visibleGroups.map((group) => (
+              <section className="rounded-lg px-1 py-2" key={group.id}>
+                <div className="mb-1 flex items-end justify-between gap-3 px-2">
+                  <div className="min-w-0">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{group.label}</h3>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground/75">{group.description}</p>
+                  </div>
+                  <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {group.commands.length}
+                  </span>
+                </div>
+                <div className="grid gap-1">
+                  {group.commands.map((command) => (
+                    <button
+                      className="group flex items-center gap-3 rounded-lg px-2.5 py-2 text-left transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-45"
+                      disabled={command.disabled}
+                      key={`${group.id}-${command.label}`}
+                      onClick={() => {
+                        command.action();
+                        onClose();
+                      }}
+                      type="button"
+                    >
+                      <span className="grid size-8 shrink-0 place-items-center rounded-md border border-border/70 bg-background text-muted-foreground transition group-hover:text-foreground [&_svg]:size-4">
+                        {command.icon}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">{command.label}</span>
+                        {command.description ? (
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{command.description}</span>
+                        ) : null}
+                      </span>
+                      {command.meta ? (
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                          {command.meta}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <div className="rounded-lg border border-border/70 p-4 text-sm text-muted-foreground">No commands match this search.</div>
+          )}
         </div>
       </div>
     </div>
@@ -4241,9 +4997,9 @@ function PersonalNotesSettingsDrawer({
     },
     {
       id: "layout",
-      label: "Notebook",
+      label: "Side monitor",
       terms:
-        "notebook layout hide panes sidebar notebook notes list folder folders binder binders hierarchy drill structured project tree file tree explorer codex vscode all notes linked loose quick notes unfiled back up history math chemistry quick access shortcuts recent home dashboard organize",
+        "notebook layout hide panes side monitor sidebar project tree scope drill folder folders binder binders hierarchy file tree explorer all notes linked loose quick notes unfiled back up history math chemistry tags quick access shortcuts recent home dashboard organize",
     },
     {
       id: "focus",
@@ -4274,16 +5030,17 @@ function PersonalNotesSettingsDrawer({
   ].filter((section) => `${section.label} ${section.terms}`.toLowerCase().includes(normalizedQuery));
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80" role="presentation">
+    <div className="fixed inset-0 z-50 bg-background/80" data-app-appearance={preferences.style} role="presentation">
       <aside
         aria-label="Personal Notes settings"
-        className="ml-auto flex h-full w-full max-w-[560px] flex-col border-l border-border bg-[#111722] shadow-2xl"
+        className="ml-auto flex h-full w-full max-w-[560px] flex-col border-l border-border bg-background text-foreground shadow-2xl"
+        data-app-appearance={preferences.style}
         role="dialog"
       >
         <div className="border-b border-border/70 p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3 rounded-xl bg-secondary/45 p-3">
-              <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-background font-bold">PN</div>
+            <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 p-3">
+              <div className="grid size-12 shrink-0 place-items-center rounded-lg border border-border/70 bg-background font-bold">PN</div>
               <div className="min-w-0">
                 <span className="page-kicker">Settings</span>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">Personal Notes settings</h2>
@@ -4297,7 +5054,7 @@ function PersonalNotesSettingsDrawer({
             <Settings2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label="Search Personal Notes settings"
-              className="h-10 bg-background pl-9"
+              className="h-10 border-border bg-background pl-9 text-foreground placeholder:text-muted-foreground"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search focus, fullscreen, annotate, sidebar"
               value={query}
@@ -4306,7 +5063,7 @@ function PersonalNotesSettingsDrawer({
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
           {sections.map((section) => (
-            <section className="rounded-xl border border-border bg-card p-4" key={section.id}>
+            <section className="rounded-xl border border-border bg-card p-4 shadow-sm" key={section.id}>
               <h3 className="text-base font-semibold">{section.label}</h3>
 
               {section.id === "appearance" ? (
@@ -4336,17 +5093,22 @@ function PersonalNotesSettingsDrawer({
               {section.id === "layout" ? (
                 <div className="mt-3 grid gap-3">
                   <SettingSelect
-                    label="Personal Notes organization"
+                    label="Personal Notes sidebar mode"
                     onChange={(value) => onUpdate({ sidebarNavigationMode: value as PersonalNotesSidebarNavigationMode })}
                     value={preferences.sidebarNavigationMode}
                   >
-                    <option value="structured">Structured Workspace</option>
-                    <option value="loose">Loose Notes</option>
+                    <option value="project-tree">Project Tree</option>
+                    <option value="scope-drill-in">Scope Drill-in</option>
                   </SettingSelect>
                   <ToggleSetting
                     checked={preferences.showNotebookPane}
-                    label="Show Notebook pane"
+                    label="Show side monitor"
                     onChange={(checked) => onUpdate({ showNotebookPane: checked })}
+                  />
+                  <ToggleSetting
+                    checked={preferences.showSideMonitorTags}
+                    label="Show tags in side monitor"
+                    onChange={(checked) => onUpdate({ showSideMonitorTags: checked })}
                   />
                   <ToggleSetting
                     checked={preferences.showNotesListPane}
@@ -4368,21 +5130,12 @@ function PersonalNotesSettingsDrawer({
                     label="Show recent notes in unselected scope"
                     onChange={(checked) => onUpdate({ showRecentNotesInScope: checked })}
                   />
-                  <SettingSelect
-                    label="Default Personal Notes view"
-                    onChange={(value) => onUpdate({ defaultView: value as PersonalNotesViewMode })}
-                    value={preferences.defaultView}
-                  >
-                    <option value="notes">Notes</option>
-                    <option value="home">Home</option>
-                    <option value="organize">Organize</option>
-                  </SettingSelect>
                 </div>
               ) : null}
 
               {section.id === "focus" ? (
                 <div className="mt-3 grid gap-3">
-                  <ToggleSetting checked={sidebarsHidden} label="Hide side panes" onChange={onToggleSidebars} />
+                  <ToggleSetting checked={sidebarsHidden} label="Hide side monitor and notes list" onChange={onToggleSidebars} />
                   <ToggleSetting checked={topChromeHidden} label="Hide top chrome" onChange={onToggleTopChrome} />
                   <ToggleSetting checked={focusMode} label="Focus mode" onChange={onToggleFocusMode} />
                   <ToggleSetting
@@ -4525,9 +5278,7 @@ function SettingSelect({
 
 const annotatorModeOptions: Array<{ label: string; shortLabel: string; value: PersonalNotesAnnotatorMode }> = [
   { label: "Off", shortLabel: "Off", value: "off" },
-  { label: "Floating selection only", shortLabel: "Floating", value: "floating" },
-  { label: "Top toolbar only", shortLabel: "Top", value: "top" },
-  { label: "Both", shortLabel: "Both", value: "both" },
+  { label: "Selection popup", shortLabel: "Popup", value: "floating" },
 ];
 
 function AnnotatorModeControl({
@@ -4537,20 +5288,22 @@ function AnnotatorModeControl({
   onChange: (value: PersonalNotesAnnotatorMode) => void;
   value: PersonalNotesAnnotatorMode;
 }) {
+  const normalizedValue = value === "off" ? "off" : "floating";
+
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold text-muted-foreground">Annotator tools</span>
-        <Badge variant="outline">{annotatorModeOptions.find((option) => option.value === value)?.shortLabel ?? "Floating"}</Badge>
+        <Badge variant="outline">{annotatorModeOptions.find((option) => option.value === normalizedValue)?.shortLabel ?? "Popup"}</Badge>
       </div>
       <div
         aria-label="Annotator tools"
-        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/55 p-1 sm:grid-cols-4"
+        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/55 p-1"
         role="radiogroup"
       >
         {annotatorModeOptions.map((option) => (
           <button
-            aria-checked={value === option.value}
+            aria-checked={normalizedValue === option.value}
             aria-label={option.label}
             className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
               value === option.value
@@ -4580,7 +5333,7 @@ function ToggleSetting({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-sm font-semibold">
+    <label className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-sm font-semibold transition hover:border-border hover:bg-secondary/35">
       <span>{label}</span>
       <input
         checked={checked}
@@ -4639,7 +5392,7 @@ function renderCanvasModule(input: {
             New document
           </Button>
           <p className="text-sm leading-6 text-muted-foreground">
-            Search and filters above apply to every Personal Notes view.
+            Search and filters apply to your notes workspace.
           </p>
         </div>
       );
@@ -4905,6 +5658,32 @@ function buildTagSummaries(entries: PersonalNotesEntry[]) {
 
 function parseTags(value: string) {
   return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function normalizeSelectLabel(value: unknown, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "undefined" || trimmed.toLowerCase() === "null") {
+    return fallback;
+  }
+  return trimmed;
+}
+
+function formatBinderSelectLabel(
+  binder: CreateDialogBinderOption,
+  activeFolderId: string,
+) {
+  if (!activeFolderId || binder.folderValue === activeFolderId) {
+    return binder.title;
+  }
+  return `${binder.title} (${binder.folderLabel})`;
+}
+
+function formatSourceDocumentLabel(lesson: BinderLesson, learnerNotes: LearnerNote[]) {
+  const title = normalizeSelectLabel(lesson.title, "Untitled document");
+  return learnerNotes.some((note) => note.lesson_id === lesson.id) ? `${title} (opens existing note)` : title;
 }
 
 function formatDate(value: string) {

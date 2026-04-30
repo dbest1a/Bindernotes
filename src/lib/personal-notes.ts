@@ -77,8 +77,9 @@ export const defaultPersonalNotesPreferences: PersonalNotesPreferences = {
   showQuickAccess: true,
   showNotebookPane: true,
   showNotesListPane: true,
+  showSideMonitorTags: false,
   organizeCardOrder: [],
-  sidebarNavigationMode: "structured",
+  sidebarNavigationMode: "project-tree",
   rememberNotebookContext: true,
   showRecentNotesInScope: true,
   fullscreenFocusEnabled: true,
@@ -415,6 +416,10 @@ export function normalizePersonalNotesPreferences(
       typeof value?.showNotesListPane === "boolean"
         ? value.showNotesListPane
         : defaultPersonalNotesPreferences.showNotesListPane,
+    showSideMonitorTags:
+      typeof value?.showSideMonitorTags === "boolean"
+        ? value.showSideMonitorTags
+        : defaultPersonalNotesPreferences.showSideMonitorTags,
     organizeCardOrder:
       Array.isArray(value?.organizeCardOrder)
         ? value.organizeCardOrder.filter((id): id is string => typeof id === "string")
@@ -460,11 +465,11 @@ export function normalizePersonalNotesPreferences(
 }
 
 function normalizeSidebarNavigationMode(value: unknown): PersonalNotesPreferences["sidebarNavigationMode"] {
-  if (value === "loose" || value === "drill-in") {
-    return "loose";
+  if (value === "scope-drill-in" || value === "loose" || value === "drill-in") {
+    return "scope-drill-in";
   }
-  if (value === "structured" || value === "expanded") {
-    return "structured";
+  if (value === "project-tree" || value === "structured" || value === "expanded") {
+    return "project-tree";
   }
   return defaultPersonalNotesPreferences.sidebarNavigationMode;
 }

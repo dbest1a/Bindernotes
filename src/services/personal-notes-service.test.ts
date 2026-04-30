@@ -8,6 +8,7 @@ const supabaseCalls = vi.hoisted(() => ({
 }));
 
 const binderServiceMocks = vi.hoisted(() => ({
+  getDashboard: vi.fn(),
   upsertLearnerNote: vi.fn(async (input: {
     id?: string;
     ownerId: string;
@@ -63,6 +64,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/services/binder-service", () => ({
+  getDashboard: binderServiceMocks.getDashboard,
   upsertLearnerNote: binderServiceMocks.upsertLearnerNote,
 }));
 
@@ -84,6 +86,7 @@ describe("Personal Notes service writes", () => {
     supabaseCalls.tables.length = 0;
     supabaseCalls.inserts.length = 0;
     supabaseCalls.upserts.length = 0;
+    binderServiceMocks.getDashboard.mockClear();
     binderServiceMocks.upsertLearnerNote.mockClear();
   });
 

@@ -29,6 +29,7 @@ type RichTextEditorProps = {
   insertRequest?: NoteInsertRequest | null;
   onInsertApplied?: (id: string) => void;
   onEditorReady?: (editor: Editor | null) => void;
+  showToolbar?: boolean;
 };
 
 export function RichTextEditor({
@@ -41,6 +42,7 @@ export function RichTextEditor({
   insertRequest,
   onInsertApplied,
   onEditorReady,
+  showToolbar = true,
 }: RichTextEditorProps) {
   const extensions = useMemo(
     () => [
@@ -144,7 +146,7 @@ export function RichTextEditor({
 
   return (
     <div className={cn("flex flex-col gap-3", surface === "lesson" && "lesson-surface", className)}>
-      {editable ? (
+      {editable && showToolbar ? (
         <div className="flex flex-wrap gap-1 rounded-lg border border-border/75 bg-card/94 p-1.5 shadow-sm backdrop-blur">
           <ToolbarButton
             active={editor.isActive("heading", { level: 2 })}
