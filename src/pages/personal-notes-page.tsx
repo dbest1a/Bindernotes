@@ -3683,10 +3683,11 @@ function PersonalNoteEditor({
                   ? "Note links and backlinks drawer"
                   : "Annotations drawer"
           }
-          className="absolute inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-popover shadow-2xl"
+          className="personal-notes-tools-drawer absolute inset-y-0 right-0 z-[70] flex w-full max-w-md flex-col overflow-hidden border-l border-border bg-popover text-popover-foreground shadow-2xl"
+          data-testid="personal-notes-tools-drawer"
           role="dialog"
         >
-          <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+          <div className="personal-notes-tools-drawer__header flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
             <h2 className="text-sm font-semibold">
               {toolsOpen === "templates"
                 ? "Templates"
@@ -3700,7 +3701,7 @@ function PersonalNoteEditor({
               <X />
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-4">
+          <div className="personal-notes-tools-drawer__body min-h-0 flex-1 overflow-auto p-4">
             {toolsOpen === "templates" ? (
               <div className="grid gap-3">
                 <label className="grid gap-2 text-sm font-semibold">

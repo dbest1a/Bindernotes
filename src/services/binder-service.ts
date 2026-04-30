@@ -1142,7 +1142,6 @@ export async function getProfile(userId: string, email: string): Promise<Profile
         id: bootstrap.id,
         email: bootstrap.email,
         full_name: bootstrap.full_name,
-        role: bootstrap.role,
         updated_at: now(),
       },
       { onConflict: "id" },

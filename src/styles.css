@@ -795,6 +795,19 @@
     padding: 0;
   }
 
+  .personal-notes-tools-drawer {
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    isolation: isolate;
+  }
+
+  .personal-notes-tools-drawer__header,
+  .personal-notes-tools-drawer__body {
+    background: hsl(var(--popover));
+  }
+
   .source-lesson-content {
     min-height: 100%;
   }

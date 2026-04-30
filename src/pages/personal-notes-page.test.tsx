@@ -1155,7 +1155,11 @@ describe("PersonalNotesPage", () => {
 
     expect(screen.queryByText("Linked notes")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Links" }));
-    expect(screen.getByRole("dialog", { name: "Note links and backlinks drawer" })).toBeTruthy();
+    const drawer = screen.getByRole("dialog", { name: "Note links and backlinks drawer" });
+    expect(drawer).toBeTruthy();
+    expect(drawer.className).toContain("personal-notes-tools-drawer");
+    expect(drawer.className).toContain("bg-popover");
+    expect(drawer.className).not.toContain("backdrop-blur");
     expect(screen.getByText("Linked notes")).toBeTruthy();
     expect(screen.getAllByText("Loose reading note").length).toBeGreaterThan(0);
     expect(screen.getByText("Backlinks")).toBeTruthy();

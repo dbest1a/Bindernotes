@@ -149,7 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       void hydrateAuthState(nextSession, {
-        foreground: shouldBlockAuthHydration(event),
+        foreground: shouldBlockAuthHydration(event, {
+          currentUserId,
+          hasProfile: Boolean(profileRef.current),
+          nextUserId,
+        }),
         refreshProfile: shouldRefreshProfile(event),
       });
     });
@@ -205,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
-      signUp: async (email, password, fullName, role) => {
+      signUp: async (email, password, fullName, _role) => {
         if (!supabase) {
           setIsLoading(false);
           throw createSupabaseRequiredError();
@@ -218,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             data: {
               full_name: fullName,
-              role,
             },
           },
         });
@@ -270,7 +273,23 @@ function createSupabaseRequiredError() {
   );
 }
 
-export function shouldBlockAuthHydration(event: AuthChangeEvent) {
+export function shouldBlockAuthHydration(
+  event: AuthChangeEvent,
+  context?: {
+    currentUserId?: string | null;
+    hasProfile?: boolean;
+    nextUserId?: string | null;
+  },
+) {
+  if (
+    event === "SIGNED_IN" &&
+    context?.hasProfile &&
+    context.currentUserId &&
+    context.currentUserId === context.nextUserId
+  ) {
+    return false;
+  }
+
   return event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "PASSWORD_RECOVERY";
 }
 
