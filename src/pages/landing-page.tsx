@@ -206,7 +206,7 @@ export function LandingPage() {
             <p>
               BinderNotes brings lessons, private notes, highlights, formulas, graphing, and
               whiteboards into one cinematic study system that stays organized while your thinking
-              gets bigger.
+              gets bigger and stronger.
             </p>
             <div className="marketing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
