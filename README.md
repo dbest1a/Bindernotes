@@ -1,5 +1,7 @@
 # Binder Notes
 
+Current Codex project folder: `C:\Users\kaich\Documents\Codex\bindernotes-clean-project`
+
 Last updated: 2026-04-28
 
 Binder Notes is a student-first learning workspace for reading course material, taking private notes, graphing math, building study layouts, and testing the product through a Vercel-ready public site.
