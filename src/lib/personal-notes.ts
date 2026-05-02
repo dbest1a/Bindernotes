@@ -598,7 +598,7 @@ function normalizeEditorWidth(value: unknown): PersonalNotesEditorWidth {
 }
 
 function normalizeAnnotatorTools(value: unknown): PersonalNotesAnnotatorMode {
-  return value === "off" || value === "top" || value === "both" ? value : "floating";
+  return value === "off" || value === "hotkeys" || value === "top" || value === "both" ? value : "floating";
 }
 
 function preferencesStorageKey(userId: string) {

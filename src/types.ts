@@ -142,7 +142,7 @@ export type PersonalNotesViewMode = "notes" | "home" | "organize";
 export type PersonalNotesVisualStyle = "studio" | "minimal";
 export type PersonalNotesDefaultLocation = "loose" | "last-binder" | "ask";
 export type PersonalNotesEditorWidth = "focused" | "comfortable" | "wide" | "full";
-export type PersonalNotesAnnotatorMode = "off" | "floating" | "top" | "both";
+export type PersonalNotesAnnotatorMode = "off" | "floating" | "hotkeys" | "top" | "both";
 export type PersonalNotesSidebarNavigationMode = "project-tree" | "scope-drill-in";
 
 export type PersonalNotesEntry = {

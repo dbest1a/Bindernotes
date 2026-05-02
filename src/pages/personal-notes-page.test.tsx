@@ -987,6 +987,9 @@ describe("PersonalNotesPage", () => {
     expect(drawer.getByText("Editor")).toBeTruthy();
     const annotatorTools = within(drawer.getByRole("radiogroup", { name: "Annotator tools" }));
     expect(annotatorTools.getByRole("radio", { name: "Selection popup" }).getAttribute("aria-checked")).toBe("true");
+    expect(annotatorTools.getByRole("radio", { name: "Hotkeys" }).getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(annotatorTools.getByRole("radio", { name: "Hotkeys" }));
+    expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "hotkeys" });
     fireEvent.click(annotatorTools.getByRole("radio", { name: "Off" }));
     expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "off" });
 
@@ -995,7 +998,7 @@ describe("PersonalNotesPage", () => {
     expect(drawer.getByRole("radiogroup", { name: "Annotator tools" })).toBeTruthy();
   });
 
-  it("uses one workspace-style selection toolbar and hides the fixed editor toolbar", () => {
+  it("uses one workspace-style selection toolbar and hides the fixed editor toolbar", async () => {
     mocks.personalNotesState.data = workspaceWithEntries;
     mocks.preferences = {
       ...defaultPersonalNotesPreferences,
@@ -1043,8 +1046,13 @@ describe("PersonalNotesPage", () => {
 
     fireEvent.click(toolbar.getByRole("button", { name: "Definition highlight" }));
     expect(mocks.editorChain.toggleHighlight).toHaveBeenCalledWith({ color: "#93c5fd" });
+    await waitFor(() => {
+      expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+    });
 
-    fireEvent.click(toolbar.getByRole("button", { name: "Remove highlight" }));
+    fireEvent.mouseUp(screen.getByLabelText("Note body"));
+    const nextToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    fireEvent.click(nextToolbar.getByRole("button", { name: "Remove highlight" }));
     expect(mocks.editorChain.unsetHighlight).toHaveBeenCalled();
   });
 
@@ -1073,6 +1081,83 @@ describe("PersonalNotesPage", () => {
     expect(drawer.getByText("Show highlight color filter")).toBeTruthy();
   });
 
+  it("clears the Personal Notes selection popup after applying or removing a highlight", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = {
+      ...defaultPersonalNotesPreferences,
+      annotatorTools: "floating",
+      showAnnotationColorFilter: true,
+    };
+    let selectedText = "selected text";
+    const removeAllRanges = vi.fn(() => {
+      selectedText = "";
+    });
+    vi.spyOn(window, "getSelection").mockImplementation(() => ({
+      isCollapsed: false,
+      rangeCount: 0,
+      removeAllRanges,
+      toString: () => selectedText,
+    } as unknown as Selection));
+
+    renderPage("/notes/n/learner-note-1");
+    const noteBody = screen.getByLabelText("Note body");
+    fireEvent.mouseUp(noteBody);
+
+    const toolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    fireEvent.click(toolbar.getByRole("button", { name: "Important highlight" }));
+
+    expect(mocks.editorChain.toggleHighlight).toHaveBeenCalledWith({ color: "#fde68a" });
+    expect(removeAllRanges).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+    });
+
+    fireEvent.mouseUp(noteBody);
+    expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+
+    selectedText = "selected text";
+    fireEvent.mouseUp(noteBody);
+    const nextToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    fireEvent.click(nextToolbar.getByRole("button", { name: "Remove highlight" }));
+
+    expect(mocks.editorChain.unsetHighlight).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+    });
+
+    fireEvent.mouseUp(noteBody);
+    expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+  });
+
+  it("uses annotation hotkeys without showing the selection popup", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = {
+      ...defaultPersonalNotesPreferences,
+      annotatorTools: "hotkeys",
+      showAnnotationColorFilter: true,
+    };
+    vi.spyOn(window, "getSelection").mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 0,
+      removeAllRanges: vi.fn(),
+      toString: () => "selected text",
+    } as unknown as Selection);
+
+    renderPage("/notes/n/learner-note-1");
+    fireEvent.mouseUp(screen.getByLabelText("Note body"));
+
+    expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
+    fireEvent.keyDown(window, { key: "h", ctrlKey: true, altKey: true });
+    expect(mocks.editorChain.toggleHighlight).toHaveBeenCalledWith({ color: "#fde68a" });
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true, altKey: true });
+    expect(screen.getByRole("dialog", { name: "Annotation comment popover" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close annotation popover" }));
+
+    fireEvent.keyDown(window, { key: "a", ctrlKey: true, altKey: true });
+    expect(screen.getByRole("dialog", { name: "Annotations drawer" })).toBeTruthy();
+  });
+
   it("filters the annotations drawer by highlight color without mutating note content", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
     mocks.preferences = {
@@ -1093,9 +1178,13 @@ describe("PersonalNotesPage", () => {
     const toolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
 
     fireEvent.click(toolbar.getByRole("button", { name: "Important highlight" }));
-    fireEvent.click(toolbar.getByRole("button", { name: "Definition highlight" }));
-    fireEvent.change(toolbar.getByLabelText("Highlight color filter"), { target: { value: "blue" } });
-    fireEvent.click(toolbar.getByRole("button", { name: "Open annotations drawer" }));
+    fireEvent.mouseUp(screen.getByLabelText("Note body"));
+    const definitionToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    fireEvent.click(definitionToolbar.getByRole("button", { name: "Definition highlight" }));
+    fireEvent.mouseUp(screen.getByLabelText("Note body"));
+    const drawerToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    fireEvent.change(drawerToolbar.getByLabelText("Highlight color filter"), { target: { value: "blue" } });
+    fireEvent.click(drawerToolbar.getByRole("button", { name: "Open annotations drawer" }));
 
     const drawer = within(screen.getByRole("dialog", { name: "Annotations drawer" }));
     expect(drawer.getByText("Blue highlight")).toBeTruthy();

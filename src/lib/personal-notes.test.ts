@@ -254,6 +254,7 @@ describe("Personal Notes unified model", () => {
     expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "loose" as never }).sidebarNavigationMode).toBe("scope-drill-in");
     expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "drill-in" as never }).sidebarNavigationMode).toBe("scope-drill-in");
     expect(normalizePersonalNotesPreferences({}).showSideMonitorTags).toBe(false);
+    expect(normalizePersonalNotesPreferences({ annotatorTools: "hotkeys" }).annotatorTools).toBe("hotkeys");
   });
 
   it("includes the expanded V2 template set", () => {

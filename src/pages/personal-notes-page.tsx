@@ -210,6 +210,14 @@ const annotationHighlightColors: Array<{
   { value: "orange", label: "Orange", color: "#fdba74", swatch: "bg-orange-300", toolbarLabel: "Question" },
 ];
 
+const annotationHotkeyHighlightColors: Record<string, string> = {
+  "1": annotationHighlightColors[0].color,
+  "2": annotationHighlightColors[1].color,
+  "3": annotationHighlightColors[2].color,
+  "4": annotationHighlightColors[3].color,
+  "5": annotationHighlightColors[4].color,
+};
+
 const defaultCanvasFrames: Record<WorkspaceModuleId, WorkspaceWindowFrame> = {
   "private-notes": { x: 24, y: 24, w: 520, h: 500, z: 4 },
   search: { x: 576, y: 24, w: 340, h: 250, z: 3 },
@@ -3380,7 +3388,8 @@ function PersonalNoteEditor({
   const contentIsEmpty = extractPlainText(draftContent).trim().length === 0;
   const health = entry ? getPersonalNoteHealth(entry, { unsaved: dirty }) : [];
   const noteLinks = entry && noteLinkAutocomplete ? buildNoteLinkInsights(entry, entries, draftContent) : { linked: [], backlinks: [] };
-  const selectionToolbarEnabled = annotatorMode !== "off";
+  const selectionToolbarEnabled = annotatorMode !== "off" && annotatorMode !== "hotkeys";
+  const annotationHotkeysEnabled = annotatorMode === "hotkeys" || annotatorMode === "both";
   const annotationRecords = useMemo(
     () => dedupeAnnotationRecords([...extractAnnotationRecords(draftContent), ...annotationActions]),
     [annotationActions, draftContent],
@@ -3513,6 +3522,75 @@ function PersonalNoteEditor({
     });
     setToolsOpen("annotations");
   }, [draftTitle, entry, rememberAnnotation]);
+
+  useEffect(() => {
+    if (!annotationHotkeysEnabled || !entry) {
+      return;
+    }
+
+    const handleAnnotationHotkey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !event.altKey || !(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      if (isPersonalNotesTextInputTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const highlightColor = annotationHotkeyHighlightColors[key];
+      if (highlightColor) {
+        event.preventDefault();
+        applyHighlight(highlightColor);
+        clearCurrentPersonalNoteSelection();
+        return;
+      }
+
+      if (key === "h") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          removeHighlight();
+        } else {
+          applyHighlight();
+        }
+        clearCurrentPersonalNoteSelection();
+        return;
+      }
+
+      if (key === "n") {
+        event.preventDefault();
+        openAnnotationPopover("comment");
+        return;
+      }
+
+      if (key === "l") {
+        event.preventDefault();
+        openAnnotationPopover("link");
+        return;
+      }
+
+      if (key === "t") {
+        event.preventDefault();
+        openAnnotationPopover("tag");
+        return;
+      }
+
+      if (key === "a") {
+        event.preventDefault();
+        setToolsOpen("annotations");
+        return;
+      }
+
+      if (key === "0" || key === "backspace" || key === "delete") {
+        event.preventDefault();
+        removeHighlight();
+        clearCurrentPersonalNoteSelection();
+      }
+    };
+
+    window.addEventListener("keydown", handleAnnotationHotkey);
+    return () => window.removeEventListener("keydown", handleAnnotationHotkey);
+  }, [addSourceMarker, annotationHotkeysEnabled, applyHighlight, entry, openAnnotationPopover, removeHighlight]);
 
   useEffect(() => {
     const handleAnnotationCommand = (event: Event) => {
@@ -3999,8 +4077,7 @@ function PersonalNotesSelectionToolbar({
       }
 
       if (root?.contains(target)) {
-        selectionRef.current = null;
-        setSelection(null);
+        clearSelection();
         return;
       }
 
@@ -4075,7 +4152,7 @@ function PersonalNotesSelectionToolbar({
             aria-label={`${color.toolbarLabel} highlight`}
             className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-2.5 py-1.5 text-xs font-medium transition hover:border-primary/35 hover:bg-accent/60"
             key={color.value}
-            onClick={() => runSelectionAction(() => onHighlight(color.color))}
+            onClick={() => runSelectionAction(() => onHighlight(color.color), true)}
             onMouseDown={preservePersonalNoteSelection}
             onPointerDown={preservePersonalNoteSelection}
             type="button"
@@ -4084,7 +4161,7 @@ function PersonalNotesSelectionToolbar({
             {color.toolbarLabel}
           </button>
         ))}
-        <SelectionToolbarButton label="Remove highlight" onClick={() => runSelectionAction(onRemoveHighlight)} variant="outline">
+        <SelectionToolbarButton label="Remove highlight" onClick={() => runSelectionAction(onRemoveHighlight, true)} variant="outline">
           <X data-icon="inline-start" />
           Remove
         </SelectionToolbarButton>
@@ -4311,6 +4388,18 @@ function restorePersonalNoteSelection(selection: PersonalNoteSelectionState | nu
 function clearCurrentPersonalNoteSelection() {
   const selection = window.getSelection();
   selection?.removeAllRanges();
+}
+
+function isPersonalNotesTextInputTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  if (target.closest(".ProseMirror")) {
+    return false;
+  }
+
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
 function resolvePersonalNoteToolbarPortalHost(containerSelector: string) {
@@ -5329,8 +5418,16 @@ function PersonalNotesSettingsDrawer({
               ) : null}
 
               {section.id === "keyboard" ? (
-                <div className="mt-3 rounded-xl border border-border/70 bg-background/45 p-3 text-sm leading-6 text-muted-foreground">
-                  Ctrl/Cmd+K opens the command palette for search, notes, panes, focus, annotator tools, and settings.
+                <div className="mt-3 grid gap-3 rounded-xl border border-border/70 bg-background/45 p-3 text-sm leading-6 text-muted-foreground">
+                  <p>Ctrl/Cmd+K opens the command palette for search, notes, panes, focus, annotator tools, and settings.</p>
+                  {preferences.annotatorTools === "hotkeys" ? (
+                    <div className="grid gap-2 text-xs font-semibold text-foreground sm:grid-cols-2">
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+H highlight</span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+Shift+H remove</span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+N note</span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+A annotations</span>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </section>
@@ -5370,6 +5467,7 @@ function SettingSelect({
 const annotatorModeOptions: Array<{ label: string; shortLabel: string; value: PersonalNotesAnnotatorMode }> = [
   { label: "Off", shortLabel: "Off", value: "off" },
   { label: "Selection popup", shortLabel: "Popup", value: "floating" },
+  { label: "Hotkeys", shortLabel: "Hotkeys", value: "hotkeys" },
 ];
 
 function AnnotatorModeControl({
@@ -5379,7 +5477,7 @@ function AnnotatorModeControl({
   onChange: (value: PersonalNotesAnnotatorMode) => void;
   value: PersonalNotesAnnotatorMode;
 }) {
-  const normalizedValue = value === "off" ? "off" : "floating";
+  const normalizedValue = value === "off" || value === "hotkeys" ? value : "floating";
 
   return (
     <div className="grid gap-2">
@@ -5389,7 +5487,7 @@ function AnnotatorModeControl({
       </div>
       <div
         aria-label="Annotator tools"
-        className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/55 p-1"
+        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background/55 p-1"
         role="radiogroup"
       >
         {annotatorModeOptions.map((option) => (
