@@ -22,6 +22,9 @@ describe("LandingPage", () => {
     expect(screen.getAllByText("Desmos Graph").length).toBeGreaterThan(0);
     expect(screen.getByText("APIs + open source")).toBeTruthy();
     expect(screen.getAllByText(/Built-in Desmos graphing/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /loose stone under the footer/i }).getAttribute("href")).toBe(
+      "/hidden-hollow",
+    );
   });
 
   it("switches the product showcase without leaving the page", () => {

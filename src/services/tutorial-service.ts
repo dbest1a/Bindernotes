@@ -9,6 +9,18 @@ import {
 const tutorialVideoBucket = "tutorial-videos";
 const tutorialPosterBucket = "tutorial-posters";
 const defaultPosterSrc = "/tutorials/posters/bindernotes-tutorial-poster.svg";
+const maxTutorialVideoBytes = 500 * 1024 * 1024;
+const maxTutorialPosterBytes = 10 * 1024 * 1024;
+const allowedTutorialVideoMimeTypes = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+]);
+const allowedTutorialPosterMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 export type CreateTutorialInput = {
   id: string;
@@ -137,6 +149,20 @@ export async function createUploadedTutorial(
   if (!videoFile && !existingTutorial?.videoSrc) {
     throw new Error("Choose a tutorial video before creating the tutorial.");
   }
+  if (videoFile) {
+    validateTutorialAsset(videoFile, {
+      allowedTypes: allowedTutorialVideoMimeTypes,
+      label: "Tutorial video",
+      maxBytes: maxTutorialVideoBytes,
+    });
+  }
+  if (posterFile) {
+    validateTutorialAsset(posterFile, {
+      allowedTypes: allowedTutorialPosterMimeTypes,
+      label: "Tutorial poster",
+      maxBytes: maxTutorialPosterBytes,
+    });
+  }
 
   const videoPath = videoFile ? buildAssetPath(id, videoFile.name, "video") : null;
   const videoSrc = videoFile
@@ -170,7 +196,7 @@ export async function createUploadedTutorial(
     poster_url: posterSrc,
     steps: input.steps,
     transcript: input.transcript.trim(),
-    related_feature_link: input.relatedFeatureLink.trim() || "/tutorial",
+    related_feature_link: normalizeInternalTutorialLink(input.relatedFeatureLink),
     ...(videoPath ? { storage_path: videoPath } : {}),
     ...(posterPath ? { poster_storage_path: posterPath } : {}),
     status: input.status,
@@ -230,8 +256,43 @@ function recordToTutorialEntry(record: TutorialEntryRecord): TutorialEntry {
     status: record.status,
     steps: record.steps ?? [],
     transcript: record.transcript ?? "",
-    relatedFeatureLink: record.related_feature_link || "/tutorial",
+    relatedFeatureLink: normalizeInternalTutorialLink(record.related_feature_link),
   };
+}
+
+function validateTutorialAsset(
+  file: File,
+  options: {
+    allowedTypes: Set<string>;
+    label: string;
+    maxBytes: number;
+  },
+) {
+  if (!options.allowedTypes.has(file.type)) {
+    throw new Error(`${options.label} must use an allowed file type.`);
+  }
+
+  if (file.size > options.maxBytes) {
+    throw new Error(`${options.label} is larger than the allowed upload size.`);
+  }
+}
+
+export function normalizeInternalTutorialLink(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+    return "/tutorial";
+  }
+
+  try {
+    const parsed = new URL(trimmed, "https://bindernotes.local");
+    if (parsed.origin !== "https://bindernotes.local") {
+      return "/tutorial";
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/tutorial";
+  }
 }
 
 function buildAssetPath(tutorialId: string, fileName: string, kind: "poster" | "video") {

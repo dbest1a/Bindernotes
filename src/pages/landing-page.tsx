@@ -433,6 +433,9 @@ export function LandingPage() {
           <Link to="/pricing">Pricing</Link>
           <Link to="/tutorial">Tutorial</Link>
         </nav>
+        <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
+          loose stone
+        </Link>
       </footer>
     </main>
   );

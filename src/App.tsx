@@ -24,6 +24,9 @@ import { useSyncRecovery } from "@/lib/sync-recovery";
 const LandingPage = lazy(() =>
   import("@/pages/landing-page").then((module) => ({ default: module.LandingPage })),
 );
+const OgreDungeonRunnerPage = lazy(() =>
+  import("@/pages/ogre-dungeon-runner-page").then((module) => ({ default: module.OgreDungeonRunnerPage })),
+);
 const AuthPage = lazy(() =>
   import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })),
 );
@@ -124,6 +127,7 @@ function AppRoutes() {
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route element={<ProtectedRoute />}>
