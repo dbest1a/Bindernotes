@@ -1,4 +1,11 @@
-import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown, ChevronUp, Palette, Quote, Send, X } from "lucide-react";
 import { createStickyNoteLayout } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
@@ -7,12 +14,18 @@ import type { Comment, StickyNoteLayout } from "@/types";
 type WorkspaceStickyOverlayProps = {
   canvasHeight: number;
   canvasWidth: number;
+  className?: string;
   comments: Comment[];
   stickyLayouts: Record<string, StickyNoteLayout>;
   onDeleteSticky: (commentId: string) => void;
   onLayoutChange: (commentId: string, layout: StickyNoteLayout) => void;
   onSendToNotes: (comment: Comment) => void;
   onUpdateSticky: (commentId: string, body: string) => void;
+  surface?: "canvas" | "page" | "mobile";
+};
+
+type WorkspaceStickyLayerProps = Omit<WorkspaceStickyOverlayProps, "canvasHeight" | "canvasWidth" | "className"> & {
+  children: ReactNode;
 };
 
 const stickyColorClasses: Record<StickyNoteLayout["color"], string> = {
@@ -32,17 +45,21 @@ const stickyColors: StickyNoteLayout["color"][] = ["amber", "mint", "sky", "rose
 export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
   canvasHeight,
   canvasWidth,
+  className,
   comments,
   stickyLayouts,
   onDeleteSticky,
   onLayoutChange,
   onSendToNotes,
   onUpdateSticky,
+  surface = "canvas",
 }: WorkspaceStickyOverlayProps) {
   const layoutsRef = useRef<Record<string, StickyNoteLayout>>({});
   const activeDragRef = useRef<string | null>(null);
   const pendingPersistRef = useRef(new Set<string>());
   const animationFrameRef = useRef<number | null>(null);
+  const draftsRef = useRef<Record<string, string>>({});
+  const bodySnapshotsRef = useRef<Record<string, string>>({});
   const [layouts, setLayouts] = useState<Record<string, StickyNoteLayout>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -74,11 +91,21 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
       });
       return next;
     });
-    setDrafts((current) =>
-      Object.fromEntries(
-        comments.map((comment) => [comment.id, current[comment.id] ?? comment.body]),
-      ),
-    );
+    setDrafts((current) => {
+      const next = Object.fromEntries(
+        comments.map((comment) => {
+          const previousBody = bodySnapshotsRef.current[comment.id];
+          const currentDraft = current[comment.id];
+          const keepDraft = currentDraft !== undefined && previousBody === comment.body;
+          return [comment.id, keepDraft ? currentDraft : comment.body];
+        }),
+      );
+      draftsRef.current = next;
+      bodySnapshotsRef.current = Object.fromEntries(
+        comments.map((comment) => [comment.id, comment.body]),
+      );
+      return next;
+    });
   }, [comments, stickyLayouts]);
 
   useEffect(() => {
@@ -116,6 +143,25 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
       [commentId]: nextLayout,
     }));
     onLayoutChange(commentId, nextLayout);
+  };
+
+  const updateDraft = (commentId: string, value: string) => {
+    draftsRef.current = {
+      ...draftsRef.current,
+      [commentId]: value,
+    };
+    setDrafts(draftsRef.current);
+  };
+
+  const commitDraft = (comment: Comment) => {
+    const nextBody = (draftsRef.current[comment.id] ?? comment.body).trim() || "New sticky note";
+    if (nextBody !== comment.body.trim()) {
+      onUpdateSticky(comment.id, nextBody);
+    }
+    return {
+      ...comment,
+      body: nextBody,
+    };
   };
 
   const mutateLayout = (
@@ -174,8 +220,12 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
             }
           : {
               ...layout,
-              w: clamp(startLayout.w + dx, 210, 380),
-              h: clamp(startLayout.h + dy, 150, 360),
+              w: clamp(startLayout.w + dx, 220, Math.max(220, Math.min(460, canvasWidth - startLayout.x - 12))),
+              h: clamp(
+                startLayout.h + dy,
+                150,
+                Math.max(150, Math.min(420, canvasHeight - startLayout.y - 12)),
+              ),
             },
       false);
     };
@@ -197,7 +247,10 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-40">
+    <div
+      className={cn("workspace-sticky-overlay pointer-events-none absolute inset-0 z-40", className)}
+      data-sticky-surface={surface}
+    >
       {comments.map((comment, index) => {
         const layout = layouts[comment.id] ?? createStickyNoteLayout(index);
         const draft = drafts[comment.id] ?? comment.body;
@@ -244,6 +297,7 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
               </button>
               <div className="relative z-10 flex items-center gap-1">
                 <button
+                  aria-label="Change sticky color"
                   className="rounded-full p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
                   data-sticky-control="true"
                   onPointerDown={stopStickyControlEvent}
@@ -259,6 +313,7 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
                   <Palette className="size-3.5" />
                 </button>
                 <button
+                  aria-label={isMinimized ? "Expand sticky note" : "Collapse sticky note"}
                   className="rounded-full p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
                   data-sticky-control="true"
                   onPointerDown={stopStickyControlEvent}
@@ -302,13 +357,9 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
                 <textarea
                   className="min-h-[88px] w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-current/55"
                   onBlur={() => {
-                    if (draft.trim() !== comment.body.trim()) {
-                      onUpdateSticky(comment.id, draft.trim() || "New sticky note");
-                    }
+                    commitDraft(comment);
                   }}
-                  onChange={(event) =>
-                    setDrafts((current) => ({ ...current, [comment.id]: event.target.value }))
-                  }
+                  onChange={(event) => updateDraft(comment.id, event.target.value)}
                   placeholder="Write a quick idea, reminder, or question."
                   value={draft}
                 />
@@ -319,7 +370,10 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
                   className="inline-flex items-center gap-1 rounded-full border border-black/10 px-2 py-1 font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
                   data-sticky-control="true"
                   onPointerDown={stopStickyControlEvent}
-                  onClick={() => onSendToNotes(comment)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSendToNotes(commitDraft(comment));
+                  }}
                   type="button"
                 >
                     <Send className="size-3" />
@@ -335,6 +389,7 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
 
             {!isMinimized ? (
               <button
+                aria-label="Resize sticky note"
                 className="absolute bottom-1.5 right-1.5 size-5 cursor-nwse-resize rounded-full border border-black/10 bg-white/55 text-black/60 shadow-sm backdrop-blur dark:border-white/10 dark:bg-black/20 dark:text-white/60"
                 data-sticky-control="true"
                 onPointerDown={(event) => {
@@ -350,6 +405,70 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
     </div>
   );
 });
+
+export function WorkspaceStickyLayer({
+  children,
+  comments,
+  stickyLayouts,
+  onDeleteSticky,
+  onLayoutChange,
+  onSendToNotes,
+  onUpdateSticky,
+  surface = "page",
+}: WorkspaceStickyLayerProps) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [bounds, setBounds] = useState({ width: 1200, height: 760 });
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || typeof window === "undefined") {
+      return;
+    }
+
+    const readBounds = () => {
+      const rect = host.getBoundingClientRect();
+      setBounds({
+        width: Math.max(320, Math.round(rect.width || window.innerWidth)),
+        height: Math.max(420, Math.round(rect.height || window.innerHeight - 120)),
+      });
+    };
+
+    readBounds();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            readBounds();
+          });
+    observer?.observe(host);
+    window.addEventListener("resize", readBounds);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", readBounds);
+    };
+  }, []);
+
+  return (
+    <div className="workspace-sticky-layer" data-sticky-surface={surface} ref={hostRef}>
+      {children}
+      {comments.length > 0 ? (
+        <WorkspaceStickyOverlay
+          canvasHeight={bounds.height}
+          canvasWidth={bounds.width}
+          className="workspace-sticky-layer__overlay"
+          comments={comments}
+          onDeleteSticky={onDeleteSticky}
+          onLayoutChange={onLayoutChange}
+          onSendToNotes={onSendToNotes}
+          onUpdateSticky={onUpdateSticky}
+          stickyLayouts={stickyLayouts}
+          surface={surface}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);

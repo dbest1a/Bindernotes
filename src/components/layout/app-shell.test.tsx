@@ -140,6 +140,52 @@ describe("AppShell profile settings", () => {
     );
   });
 
+  it("offers Normal, Admin Makeover, and Minimal dashboard appearances", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    const selector = screen.getByTestId("admin-dashboard-view-mode");
+    const options = Array.from(selector.querySelectorAll("option")).map((option) => ({
+      label: option.textContent,
+      value: option.value,
+    }));
+
+    expect(options).toEqual([
+      { label: "Normal", value: "normal" },
+      { label: "Admin Makeover", value: "admin-makeover" },
+      { label: "Minimal", value: "minimal" },
+    ]);
+  });
+
+  it("switches from Minimal back to Normal or Admin Makeover without losing the preference", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.change(screen.getByTestId("admin-dashboard-view-mode"), {
+      target: { value: "minimal" },
+    });
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("minimal");
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain('"minimal"');
+
+    fireEvent.change(screen.getByTestId("admin-dashboard-view-mode"), {
+      target: { value: "normal" },
+    });
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("normal");
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain('"normal"');
+
+    fireEvent.change(screen.getByTestId("admin-dashboard-view-mode"), {
+      target: { value: "admin-makeover" },
+    });
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
+      '"admin-makeover"',
+    );
+  });
+
   it("shows tutorial prompt controls in the profile menu for admins and learners", async () => {
     renderShell();
 

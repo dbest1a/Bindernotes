@@ -5,6 +5,14 @@ import type {
   AppearanceSettings,
   FullCanvasSettings,
   FullCanvasSnapBehavior,
+  FaceliftCanvasSettings,
+  FaceliftDensity,
+  FaceliftMobileBehavior,
+  FaceliftModuleChrome,
+  FaceliftNavigationMode,
+  FaceliftPresetBehavior,
+  FaceliftSurfaceMode,
+  FaceliftWorkspaceSettings,
   HighlightColor,
   ModularPanelDensity,
   ModularSidePanelPosition,
@@ -29,6 +37,7 @@ import type {
   WorkspaceRoundness,
   WorkspaceShadow,
   WorkspaceMode,
+  WorkspacePresentationMode,
   WorkspaceStyle,
   WorkspaceThemeSettings,
   WorkspaceThemeId,
@@ -47,6 +56,7 @@ import { getPresetDefinition, gridLayoutToWindowFrames } from "@/lib/preset-vali
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import {
   applyWorkspacePresetDesignAvailability,
+  buildFaceliftPresetFrames,
   getWorkspacePresetDesign,
   selectWorkspacePresetVisibleModules,
   type WorkspacePresetRuntimeAvailability,
@@ -106,6 +116,20 @@ export type WorkspaceStyleOption = {
 
 export type WorkspaceModeOption = {
   id: WorkspaceMode;
+  name: string;
+  description: string;
+};
+
+export type WorkspacePresentationModeOption = {
+  id: WorkspacePresentationMode;
+  name: string;
+  description: string;
+};
+
+export type WorkspaceViewMode = WorkspaceMode | "facelift";
+
+export type WorkspaceViewModeOption = {
+  id: WorkspaceViewMode;
   name: string;
   description: string;
 };
@@ -184,6 +208,47 @@ export const workspaceModeOptions: WorkspaceModeOption[] = [
     id: "canvas",
     name: "Canvas",
     description: "Advanced custom workspace with movable and resizable modules.",
+  },
+];
+
+export const workspacePresentationModeOptions: WorkspacePresentationModeOption[] = [
+  {
+    id: "simple",
+    name: "Simple",
+    description: "Keep the classic focused reading and notes workspace.",
+  },
+  {
+    id: "canvas",
+    name: "Canvas",
+    description: "Keep the classic movable canvas workspace.",
+  },
+  {
+    id: "facelift",
+    name: "Facelift",
+    description: "Use the redesigned student workspace with guided hierarchy and polished module chrome.",
+  },
+];
+
+export const workspaceViewModeOptions: WorkspaceViewModeOption[] = [
+  {
+    id: "simple",
+    name: "Simple View",
+    description: "Clean fullscreen study view with reading, notes, and helper drawers.",
+  },
+  {
+    id: "modular",
+    name: "Study Panels",
+    description: "Structured preset panels for active study without full canvas editing.",
+  },
+  {
+    id: "canvas",
+    name: "Canvas",
+    description: "Advanced custom workspace with movable and resizable modules.",
+  },
+  {
+    id: "facelift",
+    name: "Facelift",
+    description: "Redesigned student workspace with guided hierarchy and polished module chrome.",
   },
 ];
 
@@ -427,10 +492,18 @@ export function getWorkspacePresetSubject(presetId: WorkspacePresetId) {
 }
 
 export function getVisibleWorkspacePresets(
-  preferences: Pick<WorkspacePreferences, "activeMode" | "preset">,
+  preferences: Pick<WorkspacePreferences, "activeMode" | "preset"> &
+    Partial<Pick<WorkspacePreferences, "workspacePresentationMode" | "facelift">>,
   options: VisibleWorkspacePresetOptions = {},
 ) {
   const activeSubject = resolvePresetSubject(options.binderSubject, options.historyEnabled);
+  const isFacelift = preferences.workspacePresentationMode === "facelift";
+  const effectiveMode =
+    isFacelift && preferences.facelift?.surfaceMode === "canvas"
+      ? "canvas"
+      : isFacelift
+        ? "simple"
+        : preferences.activeMode;
 
   return workspacePresets.filter((preset) => {
     const visibility = workspacePresetVisibility[preset.id];
@@ -443,7 +516,11 @@ export function getVisibleWorkspacePresets(
       visibility.subject === "general" ||
       visibility.subject === activeSubject ||
       (presetIsActive && visibility.subject !== "history" && activeSubject === "general");
-    const modeMatches = visibility.modes.includes(preferences.activeMode) || presetIsActive;
+    const modeMatches =
+      (isFacelift
+        ? visibility.modes.includes("canvas") || visibility.modes.includes("simple")
+        : visibility.modes.includes(effectiveMode)) ||
+      presetIsActive;
     const advancedMatches = options.includeAdvanced || !visibility.advanced || presetIsActive;
 
     return subjectMatches && modeMatches && advancedMatches;
@@ -451,7 +528,8 @@ export function getVisibleWorkspacePresets(
 }
 
 export function getTopbarWorkspacePresetRecommendations(
-  preferences: Pick<WorkspacePreferences, "activeMode" | "preset">,
+  preferences: Pick<WorkspacePreferences, "activeMode" | "preset"> &
+    Partial<Pick<WorkspacePreferences, "workspacePresentationMode" | "facelift">>,
   options: VisibleWorkspacePresetOptions = {},
   limit = 2,
 ) {
@@ -2119,6 +2197,27 @@ export function createDefaultFullCanvasSettings(): FullCanvasSettings {
   };
 }
 
+export function createDefaultFaceliftCanvasSettings(): FaceliftCanvasSettings {
+  return {
+    panelPositions: {},
+    canvasHeight: WINDOW_CANVAS_MIN_HEIGHT,
+  };
+}
+
+export function createDefaultFaceliftWorkspaceSettings(): FaceliftWorkspaceSettings {
+  return {
+    surfaceMode: "simple",
+    density: "comfortable",
+    navigationMode: "map",
+    moduleChrome: "normal",
+    presetBehavior: "auto-fit",
+    mobileBehavior: "tabs",
+    compactControls: true,
+    expandedControls: false,
+    canvas: createDefaultFaceliftCanvasSettings(),
+  };
+}
+
 export function createDefaultAppearanceSettings(
   binderId?: string | null,
   suiteTemplateId?: string | null,
@@ -2162,6 +2261,8 @@ export function createDefaultWorkspacePreferences(
     binderId,
     suiteTemplateId: suiteTemplateId ?? null,
     activeMode: "simple",
+    workspacePresentationMode: "simple",
+    facelift: createDefaultFaceliftWorkspaceSettings(),
     appearance,
     simple,
     modular: createDefaultModularStudySettings(initialPreset),
@@ -2236,6 +2337,134 @@ export function applyWorkspaceModeToViewport(
   return next.activeMode === "simple"
     ? next
     : fitWorkspaceToViewport(next, viewport, { force: true });
+}
+
+export function getEffectiveWorkspaceMode(preferences: WorkspacePreferences): WorkspaceMode {
+  if (preferences.workspacePresentationMode === "facelift") {
+    return preferences.facelift.surfaceMode === "canvas" ? "canvas" : "simple";
+  }
+
+  if (preferences.workspacePresentationMode === "canvas") {
+    return "canvas";
+  }
+
+  return preferences.activeMode === "modular" ? "modular" : "simple";
+}
+
+export function getWorkspaceViewMode(preferences: WorkspacePreferences): WorkspaceViewMode {
+  if (preferences.workspacePresentationMode === "facelift") {
+    return "facelift";
+  }
+
+  if (preferences.workspacePresentationMode === "canvas" || preferences.activeMode === "canvas") {
+    return "canvas";
+  }
+
+  return preferences.activeMode === "modular" ? "modular" : "simple";
+}
+
+export function applyWorkspaceViewModeToViewport(
+  preferences: WorkspacePreferences,
+  viewMode: WorkspaceViewMode,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  if (viewMode === "facelift") {
+    return applyWorkspacePresentationModeToViewport(preferences, "facelift", viewport);
+  }
+
+  return applyWorkspaceModeToViewport(preferences, viewMode, viewport);
+}
+
+export function applyWorkspacePresentationModeToViewport(
+  preferences: WorkspacePreferences,
+  presentationMode: WorkspacePresentationMode,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  if (presentationMode === "facelift") {
+    return applyFaceliftSurfaceModeToViewport(
+      {
+        ...preferences,
+        workspacePresentationMode: "facelift",
+        facelift: normalizeFaceliftWorkspaceSettings(preferences.facelift),
+      },
+      normalizeFaceliftSurfaceMode(preferences.facelift?.surfaceMode),
+      viewport,
+    );
+  }
+
+  const classicMode = presentationMode === "canvas" ? "canvas" : "simple";
+  const next = applyWorkspaceModeToViewport(preferences, classicMode, viewport);
+
+  return {
+    ...next,
+    workspacePresentationMode: presentationMode,
+    facelift: normalizeFaceliftWorkspaceSettings(preferences.facelift),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function applyFaceliftSurfaceModeToViewport(
+  preferences: WorkspacePreferences,
+  surfaceMode: FaceliftSurfaceMode,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  const facelift = {
+    ...normalizeFaceliftWorkspaceSettings(preferences.facelift),
+    surfaceMode,
+  };
+
+  if (surfaceMode === "simple") {
+    const next = applyWorkspaceMode(preferences, "simple");
+    return {
+      ...next,
+      workspacePresentationMode: "facelift",
+      facelift,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const classicCanvas = preferences.canvas;
+  const nextBase = applyWorkspaceMode(preferences, "canvas");
+  const storedFaceliftFrames = normalizeWindowLayout(facelift.canvas.panelPositions);
+  const hasStoredFaceliftFrames = Object.keys(storedFaceliftFrames).length > 0;
+  const faceliftPresetFrames = normalizeWindowLayout(buildFaceliftPresetFrames(nextBase.preset, viewport));
+  const hasFaceliftPresetFrames = Object.keys(faceliftPresetFrames).length > 0;
+  const nextWindowLayout = hasStoredFaceliftFrames
+    ? {
+        ...nextBase.windowLayout,
+        ...storedFaceliftFrames,
+      }
+    : hasFaceliftPresetFrames
+      ? {
+          ...nextBase.windowLayout,
+          ...faceliftPresetFrames,
+        }
+    : nextBase.windowLayout;
+  const withFaceliftFrames: WorkspacePreferences = {
+    ...nextBase,
+    workspacePresentationMode: "facelift",
+    facelift,
+    canvas: classicCanvas,
+    windowLayout: nextWindowLayout,
+  };
+  const fitted =
+    facelift.presetBehavior === "manual"
+      ? ensureWindowFramesForEnabledModules(withFaceliftFrames)
+      : fitWorkspaceToViewport(withFaceliftFrames, viewport, { force: facelift.presetBehavior === "auto-fit" });
+
+  return {
+    ...fitted,
+    workspacePresentationMode: "facelift",
+    facelift: {
+      ...facelift,
+      canvas: {
+        ...facelift.canvas,
+        canvasHeight: fitted.canvas.canvasHeight,
+      },
+    },
+    canvas: classicCanvas,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function applyFocusModeToViewport(
@@ -2407,6 +2636,7 @@ export function applyWorkspaceMode(
     return ensureWindowFramesForEnabledModules({
       ...preferences,
       activeMode,
+      workspacePresentationMode: "simple",
       workspaceStyle: "guided",
       styleChoiceCompleted: true,
       locked: true,
@@ -2418,6 +2648,7 @@ export function applyWorkspaceMode(
     const nextBase: WorkspacePreferences = {
       ...preferences,
       activeMode,
+      workspacePresentationMode: "simple",
       workspaceStyle: "flexible",
       styleChoiceCompleted: true,
       locked: true,
@@ -2434,6 +2665,7 @@ export function applyWorkspaceMode(
   const nextBase: WorkspacePreferences = {
     ...preferences,
     activeMode,
+    workspacePresentationMode: "canvas",
     workspaceStyle: "full-studio",
     styleChoiceCompleted: true,
     locked: true,
@@ -2969,10 +3201,17 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     preferences.suiteTemplateId,
   );
   const modular = normalizeModularStudySettings(preferences.modular, preferences.preset);
+  const activeMode = normalizeWorkspaceMode(preferences.activeMode, preferences.workspaceStyle);
+  const workspacePresentationMode = normalizeWorkspacePresentationMode(
+    preferences.workspacePresentationMode,
+    activeMode,
+  );
 
   const normalized: WorkspacePreferences = {
     ...preferences,
-    activeMode: normalizeWorkspaceMode(preferences.activeMode, preferences.workspaceStyle),
+    activeMode,
+    workspacePresentationMode,
+    facelift: normalizeFaceliftWorkspaceSettings(preferences.facelift),
     appearance: normalizedAppearance,
     simple,
     modular: {
@@ -3133,6 +3372,49 @@ function normalizeWorkspaceMode(mode?: string, workspaceStyle?: string): Workspa
   }
 
   return "simple";
+}
+
+function normalizeWorkspacePresentationMode(
+  mode?: string,
+  activeMode?: WorkspaceMode,
+): WorkspacePresentationMode {
+  if (workspacePresentationModeOptions.some((option) => option.id === mode)) {
+    return mode as WorkspacePresentationMode;
+  }
+
+  return activeMode === "canvas" ? "canvas" : "simple";
+}
+
+function normalizeFaceliftSurfaceMode(value?: string): FaceliftSurfaceMode {
+  return value === "canvas" ? "canvas" : "simple";
+}
+
+function normalizeFaceliftDensity(value?: string): FaceliftDensity {
+  return (["comfortable", "compact", "focus"] as FaceliftDensity[]).includes(value as FaceliftDensity)
+    ? (value as FaceliftDensity)
+    : "comfortable";
+}
+
+function normalizeFaceliftNavigationMode(value?: string): FaceliftNavigationMode {
+  return (["map", "sidebar", "topline"] as FaceliftNavigationMode[]).includes(value as FaceliftNavigationMode)
+    ? (value as FaceliftNavigationMode)
+    : "map";
+}
+
+function normalizeFaceliftModuleChrome(value?: string): FaceliftModuleChrome {
+  return (["normal", "compact", "minimal"] as FaceliftModuleChrome[]).includes(value as FaceliftModuleChrome)
+    ? (value as FaceliftModuleChrome)
+    : "normal";
+}
+
+function normalizeFaceliftPresetBehavior(value?: string): FaceliftPresetBehavior {
+  return (["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).includes(value as FaceliftPresetBehavior)
+    ? (value as FaceliftPresetBehavior)
+    : "auto-fit";
+}
+
+function normalizeFaceliftMobileBehavior(value?: string): FaceliftMobileBehavior {
+  return value === "stack" ? "stack" : "tabs";
 }
 
 function normalizeAppearanceSettings(
@@ -3333,6 +3615,43 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
       typeof settings?.showDiagnostics === "boolean"
         ? settings.showDiagnostics
         : fallback.showDiagnostics,
+  };
+}
+
+function normalizeFaceliftCanvasSettings(settings?: Partial<FaceliftCanvasSettings>): FaceliftCanvasSettings {
+  const fallback = createDefaultFaceliftCanvasSettings();
+  const canvasHeight =
+    typeof settings?.canvasHeight === "number" && Number.isFinite(settings.canvasHeight)
+      ? clamp(Math.round(settings.canvasHeight), WINDOW_CANVAS_MIN_HEIGHT, WORKSPACE_MAX_CANVAS_HEIGHT)
+      : fallback.canvasHeight;
+
+  return {
+    panelPositions: normalizeWindowLayout(settings?.panelPositions),
+    canvasHeight,
+  };
+}
+
+export function normalizeFaceliftWorkspaceSettings(
+  settings?: Partial<FaceliftWorkspaceSettings>,
+): FaceliftWorkspaceSettings {
+  const fallback = createDefaultFaceliftWorkspaceSettings();
+
+  return {
+    surfaceMode: normalizeFaceliftSurfaceMode(settings?.surfaceMode),
+    density: normalizeFaceliftDensity(settings?.density),
+    navigationMode: normalizeFaceliftNavigationMode(settings?.navigationMode),
+    moduleChrome: normalizeFaceliftModuleChrome(settings?.moduleChrome),
+    presetBehavior: normalizeFaceliftPresetBehavior(settings?.presetBehavior),
+    mobileBehavior: normalizeFaceliftMobileBehavior(settings?.mobileBehavior),
+    compactControls:
+      typeof settings?.compactControls === "boolean"
+        ? settings.compactControls
+        : fallback.compactControls,
+    expandedControls:
+      typeof settings?.expandedControls === "boolean"
+        ? settings.expandedControls
+        : fallback.expandedControls,
+    canvas: normalizeFaceliftCanvasSettings(settings?.canvas),
   };
 }
 

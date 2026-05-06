@@ -1,23 +1,24 @@
 import type { ReactNode } from "react";
 import {
   accentOptions,
-  applyWorkspaceModeToViewport,
+  applyWorkspaceViewModeToViewport,
+  getWorkspaceViewMode,
   simplePresentationFontSizeOptions,
   simplePresentationMotionOptions,
   simplePresentationReadingWidthOptions,
   simplePresentationThemeOptions,
   updateWorkspaceAppearance,
-  workspaceModeOptions,
+  workspaceViewModeOptions,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
 import type {
   AccentColor,
   AppearanceCustomPalette,
   SimplePresentationSettings,
-  WorkspaceMode,
   WorkspacePreferences,
   WorkspaceThemeId,
 } from "@/types";
@@ -52,8 +53,12 @@ export function SimpleSettingsPanel({
     });
   };
 
-  const changeMode = (mode: WorkspaceMode) => {
-    setNext(applyWorkspaceModeToViewport(preferences, mode, getSimpleSettingsViewport()));
+  const activeWorkspaceViewMode = getWorkspaceViewMode(preferences);
+
+  const changeMode = (mode: (typeof workspaceViewModeOptions)[number]["id"]) => {
+    const presentationMode = mode === "facelift" ? "facelift" : mode === "canvas" ? "canvas" : "simple";
+    saveWorkspacePresentationPreference(presentationMode);
+    setNext(applyWorkspaceViewModeToViewport(preferences, mode, getSimpleSettingsViewport()));
   };
 
   const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
@@ -101,11 +106,11 @@ export function SimpleSettingsPanel({
             </p>
           </div>
           <div className="grid gap-2">
-            {workspaceModeOptions.map((mode) => (
+            {workspaceViewModeOptions.map((mode) => (
               <button
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  preferences.activeMode === mode.id
+                  activeWorkspaceViewMode === mode.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/55",
                 )}

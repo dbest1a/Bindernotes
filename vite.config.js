@@ -6,6 +6,7 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
+                onlyExplicitManualChunks: true,
                 manualChunks: function (id) {
                     if (id.includes("node_modules/@tiptap"))
                         return "editor";
@@ -17,8 +18,6 @@ export default defineConfig({
                         return "math";
                     if (id.includes("node_modules/@supabase"))
                         return "supabase";
-                    if (id.includes("node_modules/react") || id.includes("node_modules/react-dom"))
-                        return "react";
                 },
             },
         },
@@ -29,6 +28,7 @@ export default defineConfig({
             "**/dist/**",
             "**/.{idea,git,cache,output,temp}/**",
             "**/.tmp/**",
+            "**/.codex-deploy-*/**",
         ],
     },
     resolve: {

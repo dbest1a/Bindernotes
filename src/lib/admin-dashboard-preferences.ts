@@ -1,4 +1,10 @@
-export type DashboardViewMode = "normal" | "admin-makeover";
+export type DashboardViewMode = "normal" | "admin-makeover" | "minimal";
+
+export type DashboardViewModeOption = {
+  description: string;
+  label: string;
+  value: DashboardViewMode;
+};
 
 export type AdminDashboardPreference = {
   viewMode: DashboardViewMode;
@@ -11,7 +17,27 @@ export const defaultAdminDashboardPreference: AdminDashboardPreference = {
   viewMode: "normal",
 };
 
-const viewModes = new Set<DashboardViewMode>(["normal", "admin-makeover"]);
+export const dashboardViewModeOptions: DashboardViewModeOption[] = [
+  {
+    description: "The classic BinderNotes dashboard with larger study hierarchy panels.",
+    label: "Normal",
+    value: "normal",
+  },
+  {
+    description: "A premium admin preview for organizing folders, binders, and documents.",
+    label: "Admin Makeover",
+    value: "admin-makeover",
+  },
+  {
+    description: "A compact, low-distraction dashboard for fast scanning and efficient study work.",
+    label: "Minimal",
+    value: "minimal",
+  },
+];
+
+const viewModes = new Set<DashboardViewMode>(
+  dashboardViewModeOptions.map((option) => option.value),
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

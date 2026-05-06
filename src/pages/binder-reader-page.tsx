@@ -24,6 +24,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { WorkspaceRenderBoundary } from "@/components/workspace/workspace-render-boundary";
+import { FaceliftSimpleShell } from "@/components/workspace/facelift-simple-shell";
+import { WorkspaceStickyLayer } from "@/components/workspace/workspace-sticky-overlay";
 import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
 import { SimpleSettingsPanel } from "@/components/workspace/simple-settings-panel";
 import { WorkspaceSettings } from "@/components/workspace/workspace-settings";
@@ -67,22 +69,28 @@ import {
 } from "@/lib/highlights";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
+import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
 import {
   applyFocusModeToViewport,
   applyGlobalAppearanceToWorkspace,
+  applyWorkspaceViewModeToViewport,
   applyWorkspaceModeToViewport,
   applyPresetToViewport,
   createStickyNoteLayout,
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
   fitWorkspaceToViewport,
+  getWorkspaceViewMode,
   getTopbarWorkspacePresetRecommendations,
   tidyWorkspaceLayout as tidyWorkspaceToViewport,
   updateWorkspaceAppearance,
   workspacePresets,
-  workspaceModeOptions,
+  workspaceViewModeOptions,
 } from "@/lib/workspace-preferences";
-import { getWorkspaceMobileModuleTabs } from "@/lib/workspace-preset-designs";
+import {
+  buildFaceliftPresetFrames,
+  getWorkspaceMobileModuleTabs,
+} from "@/lib/workspace-preset-designs";
 import {
   getWorkspaceModuleMinimumSize,
   WORKSPACE_MAX_CANVAS_HEIGHT,
@@ -102,7 +110,7 @@ import type {
   LessonTextSelection,
   MathBlock,
   WorkspaceModuleId,
-  WorkspaceMode,
+  WorkspacePresentationMode,
   WorkspacePreferences,
   WorkspacePresetId,
   WorkspaceWindowFrame,
@@ -205,9 +213,26 @@ export function BinderReaderPage() {
   const isCompact = !responsiveDevice.isDesktop;
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
-  const isSimpleMode = active?.activeMode === "simple";
-  const isCanvasMode = active?.activeMode === "canvas";
-  const isLayoutEditing = layoutMode === "setup" && isCanvasMode;
+  const workspaceViewMode = active ? getWorkspaceViewMode(active) : "simple";
+  const effectivePresentationMode: WorkspacePresentationMode =
+    workspaceViewMode === "facelift"
+      ? "facelift"
+      : workspaceViewMode === "canvas"
+        ? "canvas"
+        : "simple";
+  const isFaceliftMode = effectivePresentationMode === "facelift";
+  const isFaceliftSimple = Boolean(
+    active?.workspacePresentationMode === "facelift" && active.facelift.surfaceMode === "simple",
+  );
+  const isFaceliftCanvas = Boolean(
+    active?.workspacePresentationMode === "facelift" && active.facelift.surfaceMode === "canvas",
+  );
+  const isStudyPanelsMode = workspaceViewMode === "modular";
+  const isSimpleMode = workspaceViewMode === "simple";
+  const isCanvasMode = workspaceViewMode === "canvas" || isFaceliftCanvas;
+  const canEditWindowLayout = isCanvasMode;
+  const isWindowedWorkspace = isStudyPanelsMode || isCanvasMode;
+  const isLayoutEditing = layoutMode === "setup" && canEditWindowLayout;
   const isLayoutEditingRef = useRef(isLayoutEditing);
   const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
@@ -514,14 +539,24 @@ export function BinderReaderPage() {
 
   const resetWorkspaceLayout = useCallback(() => {
     const viewport = getWorkspaceViewport();
-    updateWorkspace((current) => applyPresetToViewport(current, current.preset, viewport));
+    updateWorkspace((current) =>
+      preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, current.preset, viewport), {
+        usePresetRecipe: true,
+        viewport,
+      }),
+    );
     setLayoutMode("setup");
   }, [getWorkspaceViewport, updateWorkspace]);
 
   const applyWorkspacePreset = useCallback(
     (presetId: WorkspacePresetId) => {
       const viewport = getWorkspaceViewport();
-      updateWorkspace((current) => applyPresetToViewport(current, presetId, viewport));
+      updateWorkspace((current) =>
+        preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, presetId, viewport), {
+          usePresetRecipe: true,
+          viewport,
+        }),
+      );
     },
     [getWorkspaceViewport, updateWorkspace],
   );
@@ -566,7 +601,9 @@ export function BinderReaderPage() {
     }
 
     const viewport = getWorkspaceViewport();
-    updateWorkspace((current) => fitWorkspaceToViewport(current, viewport, { force: true }));
+    updateWorkspace((current) =>
+      preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport, { force: true })),
+    );
   }, [active, getWorkspaceViewport, updateWorkspace]);
 
   const tidyWorkspaceLayout = useCallback(() => {
@@ -575,7 +612,9 @@ export function BinderReaderPage() {
     }
 
     const viewport = getWorkspaceViewport();
-    updateWorkspace((current) => tidyWorkspaceToViewport(current, viewport));
+    updateWorkspace((current) =>
+      preserveClassicCanvasForFacelift(current, tidyWorkspaceToViewport(current, viewport)),
+    );
   }, [active, getWorkspaceViewport, updateWorkspace]);
 
   const addCanvasSpaceBelow = useCallback(() => {
@@ -591,6 +630,22 @@ export function BinderReaderPage() {
           frame ? frame.y + frame.h : 0,
         ),
       );
+      if (isFaceliftCanvasPreferences(current)) {
+        return {
+          ...current,
+          facelift: {
+            ...current.facelift,
+            canvas: {
+              ...current.facelift.canvas,
+              canvasHeight: Math.max(current.facelift.canvas.canvasHeight, frameBottom + 960),
+            },
+          },
+          theme: {
+            ...current.theme,
+            verticalSpace: "infinite",
+          },
+        };
+      }
       return {
         ...current,
         canvas: {
@@ -674,7 +729,7 @@ export function BinderReaderPage() {
           view,
         );
 
-        return next;
+        return preserveClassicCanvasForFacelift(current, next);
       });
     },
     [active, getWorkspaceCanvasView, updateWorkspace],
@@ -696,9 +751,10 @@ export function BinderReaderPage() {
           },
         };
 
-        return collapsed
+        const restored = collapsed
           ? next
           : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
+        return preserveClassicCanvasForFacelift(current, restored);
       });
     },
     [getWorkspaceCanvasView, updateWorkspace],
@@ -1118,9 +1174,14 @@ export function BinderReaderPage() {
   );
 
   const applyModeChoice = useCallback(
-    (workspaceMode: WorkspaceMode) => {
+    (viewMode: (typeof workspaceViewModeOptions)[number]["id"]) => {
       const viewport = getWorkspaceViewport();
-      updateWorkspace((current) => applyWorkspaceModeToViewport(current, workspaceMode, viewport));
+      const presentationMode =
+        viewMode === "facelift" ? "facelift" : viewMode === "canvas" ? "canvas" : "simple";
+      saveWorkspacePresentationPreference(presentationMode);
+      updateWorkspace((current) =>
+        applyWorkspaceViewModeToViewport(current, viewMode, viewport),
+      );
       setPreferencesOpen(false);
     },
     [getWorkspaceViewport, updateWorkspace],
@@ -1129,8 +1190,12 @@ export function BinderReaderPage() {
   const toggleFocusMode = useCallback(() => {
     const viewport = getWorkspaceViewport();
     updateWorkspace((current) => {
+      const currentViewMode = getWorkspaceViewMode(current);
       const nextFocusMode =
-        current.activeMode === "simple" ? !current.simple.focusMode : !current.theme.focusMode;
+        currentViewMode === "simple" ||
+        (currentViewMode === "facelift" && current.facelift.surfaceMode === "simple")
+          ? !current.simple.focusMode
+          : !current.theme.focusMode;
       return applyFocusModeToViewport(current, nextFocusMode, viewport);
     });
   }, [getWorkspaceViewport, updateWorkspace]);
@@ -2062,38 +2127,31 @@ export function BinderReaderPage() {
 
   const handleWorkspaceCanvasHeightChange = useCallback(
     (canvasHeight: number) =>
-      updateWorkspace((current) => ({
-        ...current,
-        canvas: {
-          ...current.canvas,
-          canvasHeight,
-        },
-      })),
+      updateWorkspace((current) =>
+        isFaceliftCanvasPreferences(current)
+          ? {
+              ...current,
+              facelift: {
+                ...current.facelift,
+                canvas: {
+                  ...current.facelift.canvas,
+                  canvasHeight,
+                },
+              },
+            }
+          : {
+              ...current,
+              canvas: {
+                ...current.canvas,
+                canvasHeight,
+              },
+            },
+      ),
     [updateWorkspace],
   );
   const handleWorkspaceFrameCommit = useCallback(
     (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
-      updateWorkspace((current) => ({
-        ...current,
-        canvas:
-          current.activeMode === "canvas"
-            ? {
-                ...current.canvas,
-                canvasHeight: Math.max(
-                  current.canvas.canvasHeight,
-                  frame.y + frame.h + 320,
-                ),
-                panelPositions: {
-                  ...current.canvas.panelPositions,
-                  [moduleId]: frame,
-                },
-              }
-            : current.canvas,
-        windowLayout: {
-          ...current.windowLayout,
-          [moduleId]: frame,
-        },
-      })),
+      updateWorkspace((current) => writeWorkspaceFrame(current, moduleId, frame)),
     [updateWorkspace],
   );
   const handleWorkspaceFitViewport = useCallback(
@@ -2102,7 +2160,9 @@ export function BinderReaderPage() {
         return;
       }
 
-      updateWorkspace((current) => fitWorkspaceToViewport(current, viewport));
+      updateWorkspace((current) =>
+        preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport)),
+      );
     },
     [updateWorkspace],
   );
@@ -2153,9 +2213,9 @@ export function BinderReaderPage() {
   });
   const showTopbarUtilityUi = isLayoutEditing;
   const workspaceModeLabel =
-    workspaceModeOptions.find((option) => option.id === active.activeMode)?.name ?? "Simple View";
+    workspaceViewModeOptions.find((option) => option.id === workspaceViewMode)?.name ?? "Simple View";
   const activeFocusMode =
-    active.activeMode === "simple" ? active.simple.focusMode : active.theme.focusMode;
+    isSimpleMode || isFaceliftSimple ? active.simple.focusMode : active.theme.focusMode;
 
   const context: WorkspaceModuleContext = {
     ownerId,
@@ -2572,24 +2632,32 @@ export function BinderReaderPage() {
     <main
       className="workspace-page"
       data-maximize-module-space={active.theme.compactMode ? "true" : "false"}
+      data-facelift-density={isFaceliftMode ? active.facelift.density : undefined}
+      data-facelift-module-chrome={isFaceliftMode ? active.facelift.moduleChrome : undefined}
+      data-facelift-surface={isFaceliftMode ? active.facelift.surfaceMode : undefined}
       data-viewport-category={responsiveDevice.category}
       data-workspace-active-focus={activeFocusMode ? "true" : "false"}
       data-workspace-preset={active.preset}
+      data-workspace-presentation={effectivePresentationMode}
+      data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
-      <Breadcrumbs
-        items={[
-          { label: "Workspace", to: "/dashboard" },
-          ...(primaryFolder ? [{ label: primaryFolder.name, to: `/folders/${primaryFolder.id}` }] : []),
-          { label: binderQuery.data.binder.title, to: `/binders/${binderQuery.data.binder.id}` },
-          { label: selectedLesson.title },
-        ]}
-      />
+      {!isFaceliftSimple ? (
+        <Breadcrumbs
+          items={[
+            { label: "Workspace", to: "/dashboard" },
+            ...(primaryFolder ? [{ label: primaryFolder.name, to: `/folders/${primaryFolder.id}` }] : []),
+            { label: binderQuery.data.binder.title, to: `/binders/${binderQuery.data.binder.id}` },
+            { label: selectedLesson.title },
+          ]}
+        />
+      ) : null}
 
       <section
         className="workspace-topbar"
         data-layout-editing={isLayoutEditing ? "true" : "false"}
         data-utility-ui={showTopbarUtilityUi ? "true" : "false"}
+        hidden={isFaceliftSimple}
       >
         <div className="workspace-topbar__summary">
           <p className="workspace-topbar__eyebrow">
@@ -2599,12 +2667,18 @@ export function BinderReaderPage() {
           <p className="workspace-topbar__copy">
             {workspaceModeLabel}
             {" • "}
-            {active.activeMode === "simple" ? "Learning module" : currentPresetLabel}
+            {isSimpleMode ? "Learning module" : currentPresetLabel}
             {" • "}
             {isLayoutEditing
               ? "Layout editing"
-              : active.activeMode === "simple"
+              : isFaceliftSimple
+                ? "Facelift Simple"
+                : isSimpleMode
                 ? "Simple study"
+                : isFaceliftCanvas
+                  ? "Facelift Canvas"
+                : isStudyPanelsMode
+                  ? "Study panels"
                 : active.locked
                   ? "Locked study mode"
                   : "Studio mode"}
@@ -2658,7 +2732,11 @@ export function BinderReaderPage() {
               </Button>
               <Button onClick={toggleFocusMode} size="sm" type="button" variant="outline">
                 <Maximize2 data-icon="inline-start" />
-                {active.activeMode === "simple" ? "Focus" : "Focus canvas"}
+                {isSimpleMode || isFaceliftSimple
+                  ? "Focus"
+                  : isStudyPanelsMode
+                    ? "Focus panels"
+                    : "Focus canvas"}
               </Button>
               {!isLayoutEditing ? (
                 <Button
@@ -2679,9 +2757,9 @@ export function BinderReaderPage() {
                   variant="outline"
                 >
                   <LayoutPanelLeft data-icon="inline-start" />
-                  {active.activeMode === "simple"
+                  {isSimpleMode || isFaceliftSimple
                     ? "Change view"
-                    : active.activeMode === "modular"
+                    : isStudyPanelsMode
                       ? "Adjust panels"
                       : "Edit layout"}
                 </Button>
@@ -2727,7 +2805,7 @@ export function BinderReaderPage() {
                   </Button>
                 </>
               )}
-              {active.activeMode !== "simple" ? (
+              {isWindowedWorkspace ? (
                 <>
                   <Button onClick={fitWorkspaceToScreen} size="sm" type="button" variant="outline">
                     <Maximize2 data-icon="inline-start" />
@@ -2739,7 +2817,7 @@ export function BinderReaderPage() {
                   </Button>
                   <Button onClick={toggleStickyManager} size="sm" type="button" variant="outline">
                     <StickyNote data-icon="inline-start" />
-                    {stickyManagerVisible ? "Hide stickies" : "Sticky manager"}
+                    {stickyManagerVisible ? "Hide manager" : "Sticky manager"}
                   </Button>
                 </>
               ) : null}
@@ -2771,15 +2849,16 @@ export function BinderReaderPage() {
               Start with the amount of workspace control that feels right.
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Simple View keeps the lesson calm and full-screen. Study Panels gives you structured modules.
-              Canvas opens the advanced movable workspace. You can switch later in settings.
+              Simple keeps the classic lesson surface. Canvas keeps the classic movable workspace.
+              Study Panels keeps the structured preset workspace. Facelift opens the redesigned
+              student workspace. You can switch later in settings.
             </p>
           </div>
-          <div className="grid gap-3 lg:grid-cols-3">
-            {workspaceModeOptions.map((option) => (
+          <div className="grid gap-3 lg:grid-cols-4">
+            {workspaceViewModeOptions.map((option) => (
               <button
                 className={`rounded-2xl border px-4 py-4 text-left transition ${
-                  active.activeMode === option.id
+                  workspaceViewMode === option.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
                 }`}
@@ -2795,8 +2874,70 @@ export function BinderReaderPage() {
         </section>
       ) : null}
 
-      {active.activeMode === "simple" ? (
-        <section className="simple-presentation-stage">
+      {isFaceliftSimple ? (
+        <WorkspaceStickyLayer
+          comments={context.comments}
+          onDeleteSticky={context.onDeleteComment}
+          onLayoutChange={context.onStickyMove}
+          onSendToNotes={context.onSendStickyToNotes}
+          onUpdateSticky={context.onUpdateComment}
+          stickyLayouts={context.stickyLayouts}
+          surface="page"
+        >
+          <section className="facelift-presentation-stage">
+          {preferencesOpen ? (
+            <>
+              <button
+                aria-label="Close facelift settings"
+                className="workspace-preferences-backdrop"
+                onClick={() => setPreferencesOpen(false)}
+                type="button"
+              />
+              <section className="workspace-preferences-popover">
+                <WorkspaceSettings
+                  binderTitle={binderQuery.data.binder.title}
+                  binderSubject={binderQuery.data.binder.subject}
+                  historyEnabled={historyEnabled}
+                  isResettingHighlights={annotations.resetHighlights.isPending}
+                  lessonTitle={selectedLesson.title}
+                  mode="preferences"
+                  onChange={commitWorkspacePreferences}
+                  onClose={() => setPreferencesOpen(false)}
+                  onResetBinderHighlights={resetBinderHighlights}
+                  onResetLessonHighlights={resetCurrentLessonHighlights}
+                  preferences={active}
+                />
+              </section>
+            </>
+          ) : null}
+          <WorkspaceRenderBoundary
+            resetKey={`${selectedLesson.id}:${active.workspacePresentationMode}:${active.facelift.surfaceMode}:${active.preset}`}
+            title="This facelift study view could not render"
+          >
+            <FaceliftSimpleShell
+              context={context}
+              focusModeActive={activeFocusMode}
+              onChange={commitWorkspacePreferences}
+              onChangeView={enterLayoutEditMode}
+              onCreateSticky={() => void createSticky(null, "")}
+              onOpenSettings={() => setPreferencesOpen(true)}
+              onToggleFocus={toggleFocusMode}
+              preferences={active}
+            />
+          </WorkspaceRenderBoundary>
+          </section>
+        </WorkspaceStickyLayer>
+      ) : isSimpleMode ? (
+        <WorkspaceStickyLayer
+          comments={context.comments}
+          onDeleteSticky={context.onDeleteComment}
+          onLayoutChange={context.onStickyMove}
+          onSendToNotes={context.onSendStickyToNotes}
+          onUpdateSticky={context.onUpdateComment}
+          stickyLayouts={context.stickyLayouts}
+          surface="page"
+        >
+          <section className="simple-presentation-stage">
           {preferencesOpen ? (
             <>
               <button
@@ -2825,9 +2966,19 @@ export function BinderReaderPage() {
               preferences={active}
             />
           </WorkspaceRenderBoundary>
-        </section>
+          </section>
+        </WorkspaceStickyLayer>
       ) : isCompact ? (
-        <section className="responsive-mobile-workspace grid gap-4">
+        <WorkspaceStickyLayer
+          comments={context.comments}
+          onDeleteSticky={context.onDeleteComment}
+          onLayoutChange={context.onStickyMove}
+          onSendToNotes={context.onSendStickyToNotes}
+          onUpdateSticky={context.onUpdateComment}
+          stickyLayouts={context.stickyLayouts}
+          surface="mobile"
+        >
+          <section className="responsive-mobile-workspace grid gap-4">
           {isLayoutEditing ? (
             <WorkspaceSettings
               binderTitle={binderQuery.data.binder.title}
@@ -2888,7 +3039,8 @@ export function BinderReaderPage() {
               title="No mobile module available"
             />
           )}
-        </section>
+          </section>
+        </WorkspaceStickyLayer>
       ) : (
         <section className="workspace-stage-shell">
           {!isLayoutEditing && preferencesOpen ? (
@@ -2933,7 +3085,7 @@ export function BinderReaderPage() {
               />
             ) : null}
             <WorkspaceRenderBoundary
-              resetKey={`${selectedLesson.id}:${active.activeMode}:${active.preset}`}
+              resetKey={`${selectedLesson.id}:${active.activeMode}:${active.preset}:${active.workspacePresentationMode}:${active.facelift.surfaceMode}`}
               title="This document workspace could not render"
             >
               <WindowedWorkspace
@@ -2944,7 +3096,7 @@ export function BinderReaderPage() {
                 onFitViewport={handleWorkspaceFitViewport}
                 onOpenModule={openWorkspaceModule}
                 onToggleCollapsed={toggleWorkspaceModuleCollapsed}
-                preferences={active}
+                preferences={getWindowedWorkspaceRenderPreferences(active)}
               />
             </WorkspaceRenderBoundary>
           </section>
@@ -3055,10 +3207,31 @@ function writeWorkspaceFrame(
   moduleId: WorkspaceModuleId,
   frame: WorkspaceWindowFrame,
 ): WorkspacePreferences {
-  const canvasHeight = Math.min(
-    WORKSPACE_MAX_CANVAS_HEIGHT,
-    Math.max(preferences.canvas.canvasHeight, frame.y + frame.h + 320),
-  );
+  const currentCanvasHeight = isFaceliftCanvasPreferences(preferences)
+    ? preferences.facelift.canvas.canvasHeight
+    : preferences.canvas.canvasHeight;
+  const canvasHeight = Math.min(WORKSPACE_MAX_CANVAS_HEIGHT, Math.max(currentCanvasHeight, frame.y + frame.h + 320));
+
+  if (isFaceliftCanvasPreferences(preferences)) {
+    return {
+      ...preferences,
+      facelift: {
+        ...preferences.facelift,
+        canvas: {
+          ...preferences.facelift.canvas,
+          canvasHeight,
+          panelPositions: {
+            ...preferences.facelift.canvas.panelPositions,
+            [moduleId]: frame,
+          },
+        },
+      },
+      windowLayout: {
+        ...preferences.windowLayout,
+        [moduleId]: frame,
+      },
+    };
+  }
 
   return {
     ...preferences,
@@ -3073,6 +3246,83 @@ function writeWorkspaceFrame(
     windowLayout: {
       ...preferences.windowLayout,
       [moduleId]: frame,
+    },
+  };
+}
+
+function isFaceliftCanvasPreferences(preferences: WorkspacePreferences) {
+  return preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas";
+}
+
+function getWindowedWorkspaceRenderPreferences(preferences: WorkspacePreferences): WorkspacePreferences {
+  if (!isFaceliftCanvasPreferences(preferences)) {
+    return preferences;
+  }
+
+  const faceliftFrames = preferences.facelift.canvas.panelPositions;
+
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      canvasHeight: preferences.facelift.canvas.canvasHeight,
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...faceliftFrames,
+      },
+    },
+    windowLayout: {
+      ...preferences.windowLayout,
+      ...faceliftFrames,
+    },
+  };
+}
+
+function preserveClassicCanvasForFacelift(
+  previous: WorkspacePreferences,
+  next: WorkspacePreferences,
+  options: {
+    usePresetRecipe?: boolean;
+    viewport?: { width: number; height: number };
+  } = {},
+): WorkspacePreferences {
+  if (!isFaceliftCanvasPreferences(previous)) {
+    return next;
+  }
+
+  const recipeFrames =
+    options.usePresetRecipe && options.viewport
+      ? buildFaceliftPresetFrames(next.preset, options.viewport)
+      : {};
+  const windowLayout = {
+    ...next.windowLayout,
+    ...recipeFrames,
+  };
+  const frameBottom = Math.max(
+    0,
+    ...Object.values(windowLayout).map((frame) => (frame ? frame.y + frame.h : 0)),
+  );
+  const canvasHeight = Math.min(
+    WORKSPACE_MAX_CANVAS_HEIGHT,
+    Math.max(next.facelift.canvas.canvasHeight, next.canvas.canvasHeight, frameBottom + 320),
+  );
+
+  return {
+    ...next,
+    workspacePresentationMode: "facelift",
+    canvas: previous.canvas,
+    windowLayout,
+    facelift: {
+      ...next.facelift,
+      surfaceMode: "canvas",
+      canvas: {
+        ...next.facelift.canvas,
+        canvasHeight,
+        panelPositions: {
+          ...next.facelift.canvas.panelPositions,
+          ...windowLayout,
+        },
+      },
     },
   };
 }

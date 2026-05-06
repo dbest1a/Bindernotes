@@ -487,6 +487,13 @@ export type WorkspacePresetId =
 
 export type WorkspaceStyle = "guided" | "flexible" | "full-studio";
 export type WorkspaceMode = "simple" | "modular" | "canvas";
+export type WorkspacePresentationMode = "simple" | "canvas" | "facelift";
+export type FaceliftSurfaceMode = "simple" | "canvas";
+export type FaceliftDensity = "comfortable" | "compact" | "focus";
+export type FaceliftNavigationMode = "map" | "sidebar" | "topline";
+export type FaceliftModuleChrome = "normal" | "compact" | "minimal";
+export type FaceliftPresetBehavior = "auto-fit" | "preserve" | "manual";
+export type FaceliftMobileBehavior = "tabs" | "stack";
 export type WorkspaceBreakpoint = "desktop" | "tablet" | "mobile";
 export type WorkspacePresetLockMode = "locked" | "flexible";
 
@@ -590,6 +597,23 @@ export type FullCanvasSettings = {
   showDiagnostics: boolean;
 };
 
+export type FaceliftCanvasSettings = {
+  panelPositions: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  canvasHeight: number;
+};
+
+export type FaceliftWorkspaceSettings = {
+  surfaceMode: FaceliftSurfaceMode;
+  density: FaceliftDensity;
+  navigationMode: FaceliftNavigationMode;
+  moduleChrome: FaceliftModuleChrome;
+  presetBehavior: FaceliftPresetBehavior;
+  mobileBehavior: FaceliftMobileBehavior;
+  compactControls: boolean;
+  expandedControls: boolean;
+  canvas: FaceliftCanvasSettings;
+};
+
 export type AppTheme = WorkspaceThemeId;
 export type StudySurface = SimplePresentationTheme;
 export type AppearanceMotion = "full" | "reduced" | "minimal";
@@ -652,6 +676,8 @@ export type WorkspacePreferences = {
   binderId: string;
   suiteTemplateId?: string | null;
   activeMode: WorkspaceMode;
+  workspacePresentationMode: WorkspacePresentationMode;
+  facelift: FaceliftWorkspaceSettings;
   appearance: AppearanceSettings;
   simple: SimplePresentationSettings;
   modular: ModularStudySettings;

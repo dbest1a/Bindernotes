@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useBinderOverview } from "@/hooks/use-binders";
+import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presentation-preference";
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
@@ -18,6 +19,7 @@ export function BinderPage() {
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useBinderOverview(binderId, profile);
+  const workspacePresentation = useWorkspacePresentationPreference();
   const debugModeEnabled = searchParams.get("debug") === "system";
   const showSystemDiagnostics =
     debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
@@ -69,7 +71,7 @@ export function BinderPage() {
   const documents = getBinderDocumentSummaries(data.lessons, data.notes);
 
   return (
-    <main className="app-page">
+    <main className="app-page" data-workspace-presentation={workspacePresentation}>
       <Breadcrumbs
         items={[
           { label: "Workspace", to: "/dashboard" },

@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
+import { applyWorkspaceMode, createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
 import { emptyDoc } from "@/lib/utils";
 import type { BinderBundle, Profile } from "@/types";
 
@@ -659,6 +659,32 @@ describe("BinderReaderPage", () => {
     expect(topbar?.textContent).toContain("Locked study mode");
     expect(container.querySelector(".workspace-topbar__meta")).toBeNull();
     expect(container.querySelector(".workspace-topbar__presets")).toBeNull();
+  });
+
+  it("labels and renders Study Panels separately from Simple View", () => {
+    setTestViewportWidth(1181);
+
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "modular",
+    );
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+    const topbar = container.querySelector(".workspace-topbar");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-workspace-view")).toBe("modular");
+    expect(topbar?.textContent).toContain("Study Panels");
+    expect(topbar?.textContent).toContain("Study panels");
+    expect(screen.getByRole("button", { name: /adjust panels/i })).toBeTruthy();
+    expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
+    expect(container.querySelector(".simple-presentation-shell")).toBeNull();
   });
 
   it("uses responsive module tabs on tablet widths instead of tiny desktop windows", () => {

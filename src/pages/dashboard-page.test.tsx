@@ -240,6 +240,75 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: /organize/i })).toBeTruthy();
   });
 
+  it("renders Minimal as a compact workspace view with core student actions still visible", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "minimal",
+    );
+    expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+    expect(screen.getByTestId("minimal-dashboard-command-bar")).toBeTruthy();
+    expect(screen.getByTestId("minimal-dashboard-search")).toBeTruthy();
+    expect(screen.getAllByTestId("minimal-dashboard-stat")).toHaveLength(3);
+    expect(screen.getByTestId("dashboard-primary-action")).toBeTruthy();
+    expect(screen.getByTestId("minimal-folder-grid")).toBeTruthy();
+    expect(screen.getAllByTestId("minimal-folder-card").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("minimal-binder-card")).toHaveLength(1);
+    expect(screen.queryByText("Recovered Binder")).toBeNull();
+    expect(screen.queryByText("Write a clear promise for this binder.")).toBeNull();
+    expect(screen.getAllByTestId("minimal-document-row").length).toBeGreaterThan(0);
+  });
+
+  it("keeps Minimal folder, binder, and document links usable", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("minimal-folder-card").getAttribute("href")).toBe("/folders/folder-real");
+    expect(screen.getByTestId("minimal-binder-card").getAttribute("href")).toBe("/binders/binder-real");
+    expect(screen.getByTestId("minimal-document-row").getAttribute("href")).toBe(
+      "/binders/binder-real/documents/lesson-real",
+    );
+  });
+
+  it("switches from Admin Makeover to Minimal using the makeover dashboard toggle", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Minimal" }));
+
+    expect(await screen.findByTestId("dashboard-page")).toBeTruthy();
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "minimal",
+    );
+  });
+
   it("keeps learners on the normal dashboard even if makeover preference exists", () => {
     mocks.profile.role = "learner";
     window.localStorage.setItem(
@@ -255,6 +324,25 @@ describe("DashboardPage", () => {
 
     expect(screen.queryByTestId("admin-dashboard-makeover")).toBeNull();
     expect(screen.getByText("A real study hierarchy: folders, binders, then documents.")).toBeTruthy();
+  });
+
+  it("keeps learners on the normal dashboard even if Minimal preference exists", () => {
+    mocks.profile.role = "learner";
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("admin-dashboard-makeover")).toBeNull();
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "normal",
+    );
   });
 
   it("shows admin-only organization controls and drag handles in makeover edit mode", async () => {

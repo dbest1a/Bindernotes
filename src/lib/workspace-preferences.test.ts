@@ -3,6 +3,8 @@ import {
   applyGlobalAppearanceToWorkspace,
   applyFocusModeToViewport,
   applyPresetToViewport,
+  applyFaceliftSurfaceModeToViewport,
+  applyWorkspacePresentationModeToViewport,
   applyWorkspaceMode,
   applyThemeSettings,
   applyPreset,
@@ -23,6 +25,7 @@ import {
   tidyWorkspaceLayout,
   updateWorkspaceAppearance,
   workspaceModules,
+  workspacePresentationModeOptions,
   workspacePresets,
 } from "@/lib/workspace-preferences";
 import {
@@ -41,6 +44,14 @@ afterEach(() => {
 });
 
 describe("workspace preferences", () => {
+  it("exposes Simple, Canvas, and Facelift as the public workspace presentation choices", () => {
+    expect(workspacePresentationModeOptions.map((option) => option.id)).toEqual([
+      "simple",
+      "canvas",
+      "facelift",
+    ]);
+  });
+
   it("creates locked defaults for a user and binder", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
 
@@ -51,6 +62,15 @@ describe("workspace preferences", () => {
     expect(preferences.enabledModules).toContain("private-notes");
     expect(preferences.workspaceStyle).toBe("guided");
     expect(preferences.activeMode).toBe("simple");
+    expect(preferences.workspacePresentationMode).toBe("simple");
+    expect(preferences.facelift).toMatchObject({
+      density: "comfortable",
+      moduleChrome: "normal",
+      navigationMode: "map",
+      presetBehavior: "auto-fit",
+      surfaceMode: "simple",
+      mobileBehavior: "tabs",
+    });
     expect(preferences.styleChoiceCompleted).toBe(false);
     expect(preferences.simple.theme).toBe("match");
     expect(preferences.appearance.appTheme).toBe(preferences.theme.id);
@@ -130,6 +150,67 @@ describe("workspace preferences", () => {
     expect(canvas.locked).toBe(true);
     expect(canvas.canvas.panelPositions.lesson).toEqual(canvasFrame);
     expect(canvas.windowLayout.lesson).toBeDefined();
+  });
+
+  it("switches presentation modes while keeping old canvas state separate from Facelift settings", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const oldCanvasFrame: WorkspaceWindowFrame = { x: 444, y: 88, w: 720, h: 640, z: 22 };
+    const faceliftCanvasFrame: WorkspaceWindowFrame = { x: 0, y: 0, w: 900, h: 720, z: 1 };
+    const withCanvasMemory = {
+      ...preferences,
+      canvas: {
+        ...preferences.canvas,
+        panelPositions: {
+          lesson: oldCanvasFrame,
+        },
+      },
+      facelift: {
+        ...preferences.facelift,
+        density: "compact" as const,
+        canvas: {
+          ...preferences.facelift.canvas,
+          panelPositions: {
+            lesson: faceliftCanvasFrame,
+          },
+        },
+      },
+    };
+
+    const facelift = applyWorkspacePresentationModeToViewport(
+      withCanvasMemory,
+      "facelift",
+      { width: 1440, height: 860 },
+    );
+    const faceliftCanvas = applyFaceliftSurfaceModeToViewport(
+      facelift,
+      "canvas",
+      { width: 1440, height: 860 },
+    );
+    const classicCanvas = applyWorkspacePresentationModeToViewport(
+      faceliftCanvas,
+      "canvas",
+      { width: 1440, height: 860 },
+    );
+    const classicSimple = applyWorkspacePresentationModeToViewport(
+      classicCanvas,
+      "simple",
+      { width: 1440, height: 860 },
+    );
+
+    expect(facelift.workspacePresentationMode).toBe("facelift");
+    expect(facelift.activeMode).toBe("simple");
+    expect(facelift.facelift.density).toBe("compact");
+    expect(faceliftCanvas.workspacePresentationMode).toBe("facelift");
+    expect(faceliftCanvas.facelift.surfaceMode).toBe("canvas");
+    expect(faceliftCanvas.activeMode).toBe("canvas");
+    expect(faceliftCanvas.canvas.panelPositions.lesson).toEqual(oldCanvasFrame);
+    expect(faceliftCanvas.facelift.canvas.panelPositions.lesson).toEqual(faceliftCanvasFrame);
+    expect(classicCanvas.workspacePresentationMode).toBe("canvas");
+    expect(classicCanvas.activeMode).toBe("canvas");
+    expect(classicCanvas.canvas.panelPositions.lesson).toEqual(oldCanvasFrame);
+    expect(classicSimple.workspacePresentationMode).toBe("simple");
+    expect(classicSimple.activeMode).toBe("simple");
+    expect(classicSimple.facelift.surfaceMode).toBe("canvas");
   });
 
   it("keeps appearance shared across simple, modular, and canvas settings", () => {

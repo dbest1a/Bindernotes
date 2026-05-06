@@ -201,6 +201,7 @@ describe("WhiteboardCanvas", () => {
       render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={vi.fn()} />);
 
       await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+      await waitFor(() => expect(resizeCallbacks).toHaveLength(1));
       excalidrawMock.refresh.mockClear();
 
       act(() => {

@@ -15,6 +15,72 @@ afterEach(() => {
 });
 
 describe("WorkspaceSettings appearance scope", () => {
+  it("shows Simple View, Study Panels, Canvas, and Facelift workspace view choices with Facelift-specific settings", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />,
+    );
+
+    expect(screen.getByRole("button", { name: "Workspace view Simple View" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Workspace view Study Panels" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Workspace view Canvas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Workspace view Facelift" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Workspace view Facelift" }));
+    const faceliftPreferences = onChange.mock.calls.at(-1)?.[0];
+
+    expect(faceliftPreferences).toEqual(
+      expect.objectContaining({
+        workspacePresentationMode: "facelift",
+        activeMode: "simple",
+      }),
+    );
+
+    rerender(
+      <WorkspaceSettings
+        onChange={onChange}
+        preferences={faceliftPreferences}
+        mode="layout"
+      />,
+    );
+
+    expect(screen.getByText("Facelift surface")).toBeTruthy();
+    expect(
+      screen
+        .getAllByRole("button", { name: /Facelift Simple/i })
+        .some((button) => button.textContent?.trim() === "Facelift Simple"),
+    ).toBe(true);
+    expect(
+      screen
+        .getAllByRole("button", { name: /Facelift Canvas/i })
+        .some((button) => button.textContent?.trim() === "Facelift Canvas"),
+    ).toBe(true);
+    expect(screen.getByText("Facelift density")).toBeTruthy();
+    expect(screen.getByText("Navigation behavior")).toBeTruthy();
+    expect(screen.getByText("Module header mode")).toBeTruthy();
+  });
+
+  it("finds Facelift settings through workspace, hierarchy, mobile, and compact searches", () => {
+    const preferences = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      workspacePresentationMode: "facelift" as const,
+    };
+
+    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+
+    for (const query of ["facelift", "workspace", "folder", "document", "mobile", "compact"]) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+      const faceliftFolder = screen
+        .getAllByRole("button", { name: /facelift/i })
+        .find((button) => button.getAttribute("aria-controls") === "workspace-settings-folder-facelift");
+      expect(faceliftFolder?.getAttribute("aria-expanded")).toBe("true");
+      expect(screen.getByText("Facelift surface")).toBeTruthy();
+    }
+  });
+
   it("does not show Simple View Study Surface controls in Study Panels", () => {
     const preferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -378,7 +444,7 @@ describe("WorkspaceSettings appearance scope", () => {
       />,
     );
 
-    expect(screen.getByText("Study mode")).toBeTruthy();
+    expect(screen.getByText("Workspace view")).toBeTruthy();
     expect(screen.getByText("Layout")).toBeTruthy();
     expect(screen.getByText("Math Graph Lab")).toBeTruthy();
     expect(screen.queryByText("Recommended")).toBeNull();

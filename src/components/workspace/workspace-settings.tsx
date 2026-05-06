@@ -2,12 +2,14 @@ import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "
 import {
   accentOptions,
   animationLevelOptions,
+  applyFaceliftSurfaceModeToViewport,
   applyPresetToViewport,
-  applyWorkspaceModeToViewport,
+  applyWorkspaceViewModeToViewport,
   backgroundStyleOptions,
   densityOptions,
   ensureWindowFramesForEnabledModules,
   fontOptions,
+  getWorkspaceViewMode,
   getVisibleWorkspacePresets,
   graphAppearanceOptions,
   graphChromeOptions,
@@ -17,13 +19,18 @@ import {
   updateWorkspaceAppearance,
   verticalSpaceOptions,
   workspaceModules,
-  workspaceModeOptions,
+  workspaceViewModeOptions,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import type {
   AccentColor,
   AppearanceCustomPalette,
-  WorkspaceMode,
+  FaceliftDensity,
+  FaceliftMobileBehavior,
+  FaceliftModuleChrome,
+  FaceliftNavigationMode,
+  FaceliftPresetBehavior,
+  FaceliftSurfaceMode,
   WorkspaceModuleId,
   WorkspacePreferences,
   WorkspaceThemeId,
@@ -31,6 +38,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
 
 type WorkspaceSettingsProps = {
   preferences: WorkspacePreferences;
@@ -89,10 +97,26 @@ const settingsSearchAliases = {
   header: ["header", "space", "compact", "maximize", "chrome", "module", "source", "lesson", "notes"],
   whiteboard: ["whiteboard", "board", "canvas", "drawing", "sketch", "module", "math board"],
   launcher: ["launcher", "module launcher", "canvas launcher", "side menu", "selected module", "inspector", "builder", "launch"],
+  facelift: [
+    "facelift",
+    "workspace",
+    "binder",
+    "folder",
+    "document",
+    "hierarchy",
+    "navigation",
+    "surface",
+    "preset",
+    "mobile",
+    "phone",
+    "compact",
+    "header",
+  ],
 } as const;
 
 type SettingsFolderId =
   | "layout-presets"
+  | "facelift"
   | "edit-layout"
   | "snapping-canvas"
   | "module-display"
@@ -120,9 +144,12 @@ export function WorkspaceSettings({
   const [settingsQuery, setSettingsQuery] = useState("");
   const deferredSettingsQuery = useDeferredValue(settingsQuery);
   const isLayoutMode = mode === "layout";
+  const isFacelift = preferences.workspacePresentationMode === "facelift";
+  const activeWorkspaceViewMode = getWorkspaceViewMode(preferences);
   const isCanvas = preferences.activeMode === "canvas";
+  const isCanvasSurface = isCanvas || (isFacelift && preferences.facelift.surfaceMode === "canvas");
   const isModular = preferences.activeMode === "modular";
-  const isFullStudio = isCanvas || preferences.workspaceStyle === "full-studio";
+  const isFullStudio = isCanvasSurface || preferences.workspaceStyle === "full-studio";
   const isGuided = preferences.workspaceStyle === "guided";
   const hasAdvancedCustomization = showAdvancedCustomization || isLayoutMode;
   const normalizedSettingsQuery = useMemo(() => normalizeSearch(deferredSettingsQuery), [deferredSettingsQuery]);
@@ -130,15 +157,16 @@ export function WorkspaceSettings({
   const defaultExpandedFolders = useMemo<Record<SettingsFolderId, boolean>>(
     () => ({
       "layout-presets": true,
+      facelift: isFacelift,
       "edit-layout": isLayoutMode,
-      "snapping-canvas": isLayoutMode && isCanvas,
+      "snapping-canvas": isLayoutMode && isCanvasSurface,
       "module-display": true,
       "colors-study-surface": true,
       "motion-performance": false,
       "tools-modules": false,
       advanced: false,
     }),
-    [isCanvas, isLayoutMode],
+    [isCanvasSurface, isFacelift, isLayoutMode],
   );
   const folderStorageKey = `${settingsFolderStoragePrefix}:${mode}`;
   const [expandedFolders, setExpandedFolders] = useState<Record<SettingsFolderId, boolean>>(() =>
@@ -180,8 +208,13 @@ export function WorkspaceSettings({
     ]);
   const layoutPresetsFolderMatch = folderMatches(
     "Layout & Presets",
-    "Workspace mode, presets, fit, tidy, and reset to preset controls.",
-    ["preset", "fit", "tidy"],
+    "Workspace presentation mode, presets, fit, tidy, and reset to preset controls.",
+    ["preset", "fit", "tidy", "facelift"],
+  );
+  const faceliftFolderMatch = folderMatches(
+    "Facelift",
+    "Facelift Simple, Facelift Canvas, density, hierarchy navigation, module headers, preset behavior, and mobile behavior.",
+    ["facelift", "mobile", "header", "preset"],
   );
   const editLayoutFolderMatch = folderMatches(
     "Edit Layout",
@@ -221,10 +254,28 @@ export function WorkspaceSettings({
   const showStudyModeSettings = matchesSetting([
     "Study mode",
     "workspace control",
-    "Simple View",
-    "Study Panels",
+    "Presentation mode",
+    "Simple",
     "Canvas",
+    "Facelift",
     ...aliases("mobile"),
+    ...aliases("facelift"),
+  ]);
+  const showFaceliftSettings = isFacelift && matchesSetting([
+    "Facelift",
+    "Facelift surface",
+    "Facelift Simple",
+    "Facelift Canvas",
+    "Facelift density",
+    "Navigation behavior",
+    "Module header mode",
+    "Preset behavior",
+    "Mobile behavior",
+    "workspace",
+    "binder",
+    "folder",
+    "document",
+    ...aliases("facelift", "mobile", "header", "preset"),
   ]);
   const showPresetSettings = matchesSetting([
     "Presets",
@@ -280,7 +331,7 @@ export function WorkspaceSettings({
     "Phone and tablet layouts adapt automatically so settings stay touch-friendly.",
     ...aliases("mobile"),
   ]);
-  const showCanvasSettings = isCanvas && matchesSetting([
+  const showCanvasSettings = isCanvasSurface && matchesSetting([
     "Snapping & Canvas",
     "Canvas / workspace",
     "Background",
@@ -335,6 +386,7 @@ export function WorkspaceSettings({
       ...workspaceModules.flatMap((module) => [module.name, module.description]),
     ]);
   const renderStudyModeSettings = showStudyModeSettings || layoutPresetsFolderMatch;
+  const renderFaceliftSettings = showFaceliftSettings || faceliftFolderMatch;
   const renderPresetSettings = showPresetSettings || layoutPresetsFolderMatch;
   const renderCustomizationDepthSettings =
     showCustomizationDepthSettings || layoutPresetsFolderMatch;
@@ -350,6 +402,7 @@ export function WorkspaceSettings({
   const renderLayoutSettings = showLayoutSettings || editLayoutFolderMatch;
   const layoutPresetsFolderVisible =
     renderStudyModeSettings || renderPresetSettings || renderCustomizationDepthSettings;
+  const faceliftFolderVisible = isFacelift || renderFaceliftSettings;
   const editLayoutFolderVisible = isLayoutMode && renderLayoutSettings;
   const snappingCanvasFolderVisible = renderCanvasSettings;
   const moduleDisplayFolderVisible = renderStudyPanelSettings || renderModuleDisplaySettings;
@@ -359,6 +412,7 @@ export function WorkspaceSettings({
   const advancedFolderVisible = renderAdvancedSettings;
   const visibleSettingsFolders = [
     layoutPresetsFolderVisible,
+    faceliftFolderVisible,
     editLayoutFolderVisible,
     snappingCanvasFolderVisible,
     moduleDisplayFolderVisible,
@@ -369,7 +423,9 @@ export function WorkspaceSettings({
   ].filter(Boolean).length;
 
   const isFolderExpanded = (folderId: SettingsFolderId) =>
-    isSearchingSettings ? true : expandedFolders[folderId] ?? defaultExpandedFolders[folderId];
+    isSearchingSettings || (folderId === "facelift" && isFacelift)
+      ? true
+      : expandedFolders[folderId] ?? defaultExpandedFolders[folderId];
   const toggleFolder = (folderId: SettingsFolderId) => {
     setExpandedFolders((current) => ({
       ...current,
@@ -429,8 +485,35 @@ export function WorkspaceSettings({
     setNext(updateWorkspaceAppearance(preferences, { accent }));
   };
 
-  const changeMode = (workspaceMode: WorkspaceMode) => {
-    setNext(applyWorkspaceModeToViewport(preferences, workspaceMode, getWorkspaceSettingsViewport()));
+  const changeWorkspaceViewMode = (viewMode: (typeof workspaceViewModeOptions)[number]["id"]) => {
+    const presentationMode =
+      viewMode === "facelift" ? "facelift" : viewMode === "canvas" ? "canvas" : "simple";
+    saveWorkspacePresentationPreference(presentationMode);
+    setNext(applyWorkspaceViewModeToViewport(preferences, viewMode, getWorkspaceSettingsViewport()));
+  };
+
+  const changeFaceliftSurfaceMode = (surfaceMode: FaceliftSurfaceMode) => {
+    setNext(applyFaceliftSurfaceModeToViewport(preferences, surfaceMode, getWorkspaceSettingsViewport()));
+  };
+
+  const updateFacelift = (
+    patch: Partial<Omit<WorkspacePreferences["facelift"], "canvas">>,
+  ) => {
+    const nextPreferences = {
+      ...preferences,
+      workspacePresentationMode: "facelift",
+      facelift: {
+        ...preferences.facelift,
+        ...patch,
+      },
+    } satisfies WorkspacePreferences;
+    setNext(
+      applyFaceliftSurfaceModeToViewport(
+        nextPreferences,
+        nextPreferences.facelift.surfaceMode,
+        getWorkspaceSettingsViewport(),
+      ),
+    );
   };
 
   const confirmAndRunReset = async (
@@ -549,25 +632,27 @@ export function WorkspaceSettings({
           >
         {renderStudyModeSettings ? (
         <Section
-          description="Choose how much workspace control BinderNotes should expose."
-          title="Study mode"
+          description="Choose how much workspace control BinderNotes should expose without hiding the classic Study Panels option."
+          title="Workspace view"
         >
           <div className="grid gap-2">
-            {workspaceModeOptions.map((workspaceMode) => (
+            {workspaceViewModeOptions.map((viewMode) => (
               <button
+                aria-label={`Workspace view ${viewMode.name}`}
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  preferences.activeMode === workspaceMode.id
+                  activeWorkspaceViewMode === viewMode.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/55",
                 )}
-                key={workspaceMode.id}
-                onClick={() => changeMode(workspaceMode.id)}
+                data-workspace-view-option={viewMode.id}
+                key={viewMode.id}
+                onClick={() => changeWorkspaceViewMode(viewMode.id)}
                 type="button"
               >
-                <span className="block text-sm font-medium">{workspaceMode.name}</span>
+                <span className="block text-sm font-medium">{viewMode.name}</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {workspaceMode.description}
+                  {viewMode.description}
                 </span>
               </button>
             ))}
@@ -628,6 +713,106 @@ export function WorkspaceSettings({
             </Button>
           </div>
         </div>
+        ) : null}
+          </SettingsFolder>
+        ) : null}
+
+        {faceliftFolderVisible ? (
+          <SettingsFolder
+            description="Facelift Simple, Facelift Canvas, density, hierarchy navigation, module chrome, presets, and mobile behavior."
+            expanded={isFolderExpanded("facelift")}
+            id="facelift"
+            onToggle={toggleFolder}
+            title="Facelift"
+          >
+        {renderFaceliftSettings ? (
+          <Section
+            description="Tune the redesigned student workspace without changing the classic Simple or Canvas settings."
+            title="Facelift workspace"
+          >
+            <div className="grid gap-4">
+              <ControlGroup title="Facelift surface">
+                {(["simple", "canvas"] as FaceliftSurfaceMode[]).map((surfaceMode) => (
+                  <ThemeChoice
+                    active={preferences.facelift.surfaceMode === surfaceMode}
+                    key={surfaceMode}
+                    onClick={() => changeFaceliftSurfaceMode(surfaceMode)}
+                  >
+                    {surfaceMode === "simple" ? "Facelift Simple" : "Facelift Canvas"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Facelift density">
+                {(["comfortable", "compact", "focus"] as FaceliftDensity[]).map((density) => (
+                  <ThemeChoice
+                    active={preferences.facelift.density === density}
+                    key={density}
+                    onClick={() => updateFacelift({ density })}
+                  >
+                    {density === "comfortable" ? "Comfortable" : density === "compact" ? "Compact" : "Focus"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Navigation behavior">
+                {(["map", "sidebar", "topline"] as FaceliftNavigationMode[]).map((navigationMode) => (
+                  <ThemeChoice
+                    active={preferences.facelift.navigationMode === navigationMode}
+                    key={navigationMode}
+                    onClick={() => updateFacelift({ navigationMode })}
+                  >
+                    {navigationMode === "map" ? "Map" : navigationMode === "sidebar" ? "Sidebar" : "Topline"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Module header mode">
+                {(["normal", "compact", "minimal"] as FaceliftModuleChrome[]).map((moduleChrome) => (
+                  <ThemeChoice
+                    active={preferences.facelift.moduleChrome === moduleChrome}
+                    key={moduleChrome}
+                    onClick={() => updateFacelift({ moduleChrome })}
+                  >
+                    {moduleChrome === "normal" ? "Normal" : moduleChrome === "compact" ? "Compact" : "Minimal"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Preset behavior">
+                {(["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).map((presetBehavior) => (
+                  <ThemeChoice
+                    active={preferences.facelift.presetBehavior === presetBehavior}
+                    key={presetBehavior}
+                    onClick={() => updateFacelift({ presetBehavior })}
+                  >
+                    {presetBehavior === "auto-fit" ? "Auto-fit" : presetBehavior === "preserve" ? "Preserve" : "Manual"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Mobile behavior">
+                {(["tabs", "stack"] as FaceliftMobileBehavior[]).map((mobileBehavior) => (
+                  <ThemeChoice
+                    active={preferences.facelift.mobileBehavior === mobileBehavior}
+                    key={mobileBehavior}
+                    onClick={() => updateFacelift({ mobileBehavior })}
+                  >
+                    {mobileBehavior === "tabs" ? "Tabs" : "Stack"}
+                  </ThemeChoice>
+                ))}
+              </ControlGroup>
+
+              <ControlGroup title="Compact controls">
+                <ToggleChoice
+                  active={preferences.facelift.compactControls}
+                  description="Keep secondary controls tucked into compact rows."
+                  label={preferences.facelift.compactControls ? "Compact" : "Expanded"}
+                  onClick={() => updateFacelift({ compactControls: !preferences.facelift.compactControls })}
+                />
+              </ControlGroup>
+            </div>
+          </Section>
         ) : null}
           </SettingsFolder>
         ) : null}
@@ -1396,7 +1581,7 @@ function SettingsFolder({
           </span>
         </span>
         <span className="workspace-settings-folder__chevron" aria-hidden="true">
-          {expanded ? "−" : "+"}
+          {expanded ? "-" : "+"}
         </span>
       </button>
       {expanded ? (

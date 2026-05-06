@@ -20,13 +20,20 @@ function getStorage() {
   return hasWindow() ? window.localStorage : undefined;
 }
 
+function getDashboardAttribute(viewMode: DashboardViewMode) {
+  if (viewMode === "admin-makeover") {
+    return "makeover";
+  }
+  return viewMode;
+}
+
 function writeRootAttributes(preference: AdminDashboardPreference, isAdmin: boolean) {
   if (typeof document === "undefined") {
     return;
   }
 
-  document.documentElement.dataset.adminDashboard =
-    isAdmin && preference.viewMode === "admin-makeover" ? "makeover" : "normal";
+  const effectiveViewMode: DashboardViewMode = isAdmin ? preference.viewMode : "normal";
+  document.documentElement.dataset.adminDashboard = getDashboardAttribute(effectiveViewMode);
 }
 
 export function useDashboardExperience(isAdmin: boolean) {
@@ -99,8 +106,10 @@ export function useDashboardExperience(isAdmin: boolean) {
 
   return useMemo(
     () => ({
+      dashboardAttribute: getDashboardAttribute(effectiveViewMode),
       effectiveViewMode,
       isAdminMakeoverActive: effectiveViewMode === "admin-makeover",
+      isMinimalActive: effectiveViewMode === "minimal",
       preference,
       setViewMode,
     }),

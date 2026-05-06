@@ -24,6 +24,7 @@ import {
   personalNotesPreferencesUpdatedEvent,
   savePersonalNotesPreferences,
 } from "@/lib/personal-notes";
+import { dashboardViewModeOptions } from "@/lib/admin-dashboard-preferences";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
@@ -121,7 +122,7 @@ export function AppShell() {
   return (
     <div
       className="min-h-screen bg-background"
-      data-admin-dashboard={dashboardExperience.isAdminMakeoverActive ? "makeover" : "normal"}
+      data-admin-dashboard={dashboardExperience.dashboardAttribute}
       data-admin-motion={isAdmin && settings.enabled && !effectivePerformanceMode ? "on" : "off"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
@@ -235,10 +236,20 @@ export function AppShell() {
                           }
                           value={dashboardExperience.effectiveViewMode}
                         >
-                          <option value="normal">Normal</option>
-                          <option value="admin-makeover">Admin Makeover</option>
+                          {dashboardViewModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {
+                          dashboardViewModeOptions.find(
+                            (option) => option.value === dashboardExperience.effectiveViewMode,
+                          )?.description
+                        }
+                      </p>
                     </section>
                   ) : null}
                   <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="tutorial-prompts-section">

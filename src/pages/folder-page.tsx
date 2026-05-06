@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useFolderWorkspace } from "@/hooks/use-binders";
+import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presentation-preference";
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
@@ -18,6 +19,7 @@ export function FolderPage() {
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useFolderWorkspace(folderId, profile);
+  const workspacePresentation = useWorkspacePresentationPreference();
   const showSystemDiagnostics =
     (profile?.role === "admin" || import.meta.env.DEV) &&
     searchParams.get("debug") === "system";
@@ -66,7 +68,7 @@ export function FolderPage() {
   }
 
   return (
-    <main className="app-page">
+    <main className="app-page" data-workspace-presentation={workspacePresentation}>
       <Breadcrumbs items={[{ label: "Workspace", to: "/dashboard" }, { label: data.folder.name }]} />
 
       <section className="hero-grid">

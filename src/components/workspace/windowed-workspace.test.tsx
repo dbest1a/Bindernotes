@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { applyWorkspaceMode, createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
-import type { WorkspacePreferences } from "@/types";
+import type { Comment, StickyNoteLayout, WorkspacePreferences } from "@/types";
 
 vi.mock("@/components/workspace/workspace-modules", () => ({
   workspaceModuleRegistry: {
@@ -16,6 +16,22 @@ vi.mock("@/components/workspace/workspace-modules", () => ({
     "private-notes": {
       title: "Private notes",
       render: () => <section>Notes body</section>,
+    },
+    "formula-sheet": {
+      title: "Formula sheet",
+      render: () => <section>Formula body</section>,
+    },
+    "math-blocks": {
+      title: "Math blocks",
+      render: () => <section>Math body</section>,
+    },
+    "desmos-graph": {
+      title: "Desmos graph",
+      render: () => <section>Graph body</section>,
+    },
+    whiteboard: {
+      title: "Math Whiteboard",
+      render: () => <section>Whiteboard body</section>,
     },
   },
 }));
@@ -33,6 +49,28 @@ class ResizeObserverMock {
 
   disconnect() {}
 }
+
+const comment: Comment = {
+  id: "comment-1",
+  owner_id: "user-1",
+  binder_id: "binder-1",
+  lesson_id: "lesson-1",
+  anchor_text: "A limit is the value a function approaches.",
+  body: "Connect this to epsilon-delta later.",
+  parent_id: null,
+  resolved_at: null,
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+};
+
+const stickyLayout: StickyNoteLayout = {
+  x: 40,
+  y: 50,
+  w: 250,
+  h: 206,
+  z: 52,
+  color: "amber",
+};
 
 describe("WindowedWorkspace", () => {
   beforeEach(() => {
@@ -88,6 +126,89 @@ describe("WindowedWorkspace", () => {
     vi.runOnlyPendingTimers();
 
     expect(onFitViewport).not.toHaveBeenCalled();
+  });
+
+  it("marks Facelift Canvas separately from the classic canvas shell", () => {
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      workspacePresentationMode: "facelift",
+      facelift: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").facelift,
+        surfaceMode: "canvas",
+        density: "compact",
+        moduleChrome: "minimal",
+      },
+      enabledModules: ["lesson", "private-notes"],
+      windowLayout: {
+        lesson: { x: 0, y: 0, w: 550, h: 760, z: 1 },
+        "private-notes": { x: 550, y: 0, w: 550, h: 760, z: 2 },
+      },
+    };
+
+    const { container } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    const root = container.querySelector("[data-workspace-presentation='facelift']");
+    expect(root?.getAttribute("data-facelift-surface")).toBe("canvas");
+    expect(root?.getAttribute("data-facelift-density")).toBe("compact");
+    expect(root?.getAttribute("data-facelift-module-chrome")).toBe("minimal");
+  });
+
+  it("uses the Facelift Canvas preset recipe in locked study mode instead of stale saved frames", () => {
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const preferences: WorkspacePreferences = {
+      ...basePreferences,
+      workspacePresentationMode: "facelift",
+      preset: "math-practice-mode",
+      locked: true,
+      facelift: {
+        ...basePreferences.facelift,
+        surfaceMode: "canvas",
+      },
+      enabledModules: ["whiteboard", "math-blocks", "private-notes", "formula-sheet", "desmos-graph"],
+      moduleLayout: {
+        ...basePreferences.moduleLayout,
+        whiteboard: { span: "full", collapsed: false },
+        "math-blocks": { span: "medium", collapsed: false },
+        "private-notes": { span: "wide", collapsed: false },
+        "formula-sheet": { span: "medium", collapsed: false },
+        "desmos-graph": { span: "full", collapsed: false },
+      },
+      windowLayout: {
+        ...basePreferences.windowLayout,
+        whiteboard: { x: 240, y: 120, w: 620, h: 500, z: 1 },
+        "desmos-graph": { x: 0, y: 0, w: 1100, h: 740, z: 9 },
+      },
+    };
+
+    const { container } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    const whiteboard = container.querySelector<HTMLElement>('[data-window-module-id="whiteboard"]');
+    const graph = container.querySelector<HTMLElement>('[data-window-module-id="desmos-graph"]');
+    expect(whiteboard?.style.left).toBe("256px");
+    expect(whiteboard?.style.top).toBe("0px");
+    expect(graph?.style.left).not.toBe("0px");
+    expect(Number.parseInt(graph?.style.left ?? "0", 10)).toBeGreaterThanOrEqual(800);
   });
 
   it("auto-fits locked Split Study when the measured canvas is wider than the saved fit", () => {
@@ -190,6 +311,40 @@ describe("WindowedWorkspace", () => {
     vi.runOnlyPendingTimers();
 
     expect(onFitViewport).not.toHaveBeenCalled();
+  });
+
+  it("keeps floating stickies visible even when the sticky manager window is hidden", () => {
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: true,
+      enabledModules: ["lesson"],
+      stickyNotes: {
+        "comment-1": stickyLayout,
+      },
+    };
+    const context = {
+      comments: [comment],
+      stickyLayouts: {
+        [comment.id]: stickyLayout,
+      },
+      onDeleteComment: vi.fn(),
+      onStickyMove: vi.fn(),
+      onSendStickyToNotes: vi.fn(),
+      onUpdateComment: vi.fn(),
+    } as unknown as WorkspaceModuleContext;
+
+    render(
+      <WindowedWorkspace
+        context={context}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Connect this to epsilon-delta later.")).toBeTruthy();
   });
 
   it("cancels a pending locked-study auto-fit when the user enters setup mode", () => {
@@ -328,6 +483,44 @@ describe("WindowedWorkspace", () => {
     expect(getByText("Private notes")).toBeTruthy();
   });
 
+  it("removes the bottom collapsed-window tray in Facelift Canvas", () => {
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const preferences: WorkspacePreferences = {
+      ...basePreferences,
+      workspacePresentationMode: "facelift",
+      facelift: {
+        ...basePreferences.facelift,
+        surfaceMode: "canvas",
+      },
+      enabledModules: ["lesson", "private-notes"],
+      moduleLayout: {
+        ...basePreferences.moduleLayout,
+        "private-notes": {
+          ...basePreferences.moduleLayout["private-notes"],
+          span: basePreferences.moduleLayout["private-notes"]?.span ?? "auto",
+          collapsed: true,
+        },
+      },
+    };
+
+    const { queryByText } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(queryByText("Collapsed windows")).toBeNull();
+    expect(queryByText("Private notes")).toBeNull();
+  });
+
   it("keeps the setup module launcher hidden by default", () => {
     const basePreferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -387,6 +580,38 @@ describe("WindowedWorkspace", () => {
       vi.advanceTimersByTime(1);
     });
     expect(workspace?.dataset.workspaceEditHints).toBe("off");
+  });
+
+  it("does not cover Facelift Canvas modules with the setup helper hint", () => {
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    const { container, queryByText } = render(
+      <WindowedWorkspace
+        context={{} as WorkspaceModuleContext}
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={{
+          ...basePreferences,
+          workspacePresentationMode: "facelift",
+          locked: false,
+          facelift: {
+            ...basePreferences.facelift,
+            surfaceMode: "canvas",
+          },
+          enabledModules: ["lesson"],
+        }}
+      />,
+    );
+
+    const workspace = container.querySelector<HTMLElement>("[data-workspace-edit-hints]");
+    expect(workspace?.dataset.workspaceEditHints).toBe("off");
+    expect(queryByText(/Drag windows/i)).toBeNull();
   });
 
   it("shows minimized modules in the setup module launcher when enabled without mounting their heavy content", () => {

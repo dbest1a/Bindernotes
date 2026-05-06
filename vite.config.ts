@@ -7,13 +7,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        onlyExplicitManualChunks: true,
         manualChunks(id) {
           if (id.includes("node_modules/@tiptap")) return "editor";
           if (id.includes("node_modules/@excalidraw")) return "whiteboard-engine";
           if (id.includes("node_modules/@dnd-kit")) return "drag-drop";
           if (id.includes("node_modules/katex")) return "math";
           if (id.includes("node_modules/@supabase")) return "supabase";
-          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react";
         },
       },
     },
@@ -24,6 +24,7 @@ export default defineConfig({
       "**/dist/**",
       "**/.{idea,git,cache,output,temp}/**",
       "**/.tmp/**",
+      "**/.codex-deploy-*/**",
     ],
   },
   resolve: {

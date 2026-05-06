@@ -21,6 +21,7 @@ import {
   getWorkspaceModuleMinimumSize,
   type WorkspaceSnapGuide,
 } from "@/lib/workspace-layout-engine";
+import { buildFaceliftPresetFrames } from "@/lib/workspace-preset-designs";
 import { resolveVerticalWorkspaceMetrics } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
 import type { WorkspaceModuleId, WorkspacePreferences, WorkspaceWindowFrame } from "@/types";
@@ -49,11 +50,15 @@ export function WindowedWorkspace({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const pendingSnapGuidesRef = useRef<WorkspaceSnapGuide[] | null>(null);
   const snapGuidesRafRef = useRef<number | null>(null);
+  const isFaceliftCanvas =
+    preferences.workspacePresentationMode === "facelift" &&
+    preferences.facelift.surfaceMode === "canvas";
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [draftCanvasHeight, setDraftCanvasHeight] = useState(preferences.canvas.canvasHeight);
   const [snapGuides, setSnapGuides] = useState<WorkspaceSnapGuide[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState<WorkspaceModuleId | null>(null);
-  const [showEditHints, setShowEditHints] = useState(mode === "setup");
+  const [showEditHints, setShowEditHints] = useState(mode === "setup" && !isFaceliftCanvas);
+  const stickyComments = context.comments ?? [];
 
   useEffect(() => {
     setDraftCanvasHeight((current) => Math.max(current, preferences.canvas.canvasHeight));
@@ -90,7 +95,7 @@ export function WindowedWorkspace({
   }, [mode, preferences.canvas.snapBehavior]);
 
   useEffect(() => {
-    if (mode !== "setup") {
+    if (mode !== "setup" || isFaceliftCanvas) {
       setShowEditHints(false);
       return;
     }
@@ -101,10 +106,23 @@ export function WindowedWorkspace({
     }, EDIT_LAYOUT_HINT_DURATION_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [mode]);
+  }, [isFaceliftCanvas, mode]);
 
   const shouldLockSplitCanvasToViewport =
     mode === "study" && preferences.locked && preferences.preset === "split-study";
+  const shouldUseFaceliftViewportLayout =
+    isFaceliftCanvas &&
+    mode === "study" &&
+    preferences.locked &&
+    viewportSize.width > 0 &&
+    viewportSize.height > 0;
+  const faceliftViewportLayout = useMemo(
+    () =>
+      shouldUseFaceliftViewportLayout
+        ? buildFaceliftPresetFrames(preferences.preset, viewportSize)
+        : null,
+    [preferences.preset, shouldUseFaceliftViewportLayout, viewportSize],
+  );
   const splitStudyViewportLayout = useMemo(
     () =>
       shouldLockSplitCanvasToViewport && viewportSize.width > 0 && viewportSize.height > 0
@@ -113,8 +131,11 @@ export function WindowedWorkspace({
     [preferences.windowLayout, shouldLockSplitCanvasToViewport, viewportSize],
   );
   const getRenderFrame = useCallback(
-    (moduleId: WorkspaceModuleId) => splitStudyViewportLayout?.[moduleId] ?? preferences.windowLayout[moduleId],
-    [preferences.windowLayout, splitStudyViewportLayout],
+    (moduleId: WorkspaceModuleId) =>
+      faceliftViewportLayout?.[moduleId] ??
+      splitStudyViewportLayout?.[moduleId] ??
+      preferences.windowLayout[moduleId],
+    [faceliftViewportLayout, preferences.windowLayout, splitStudyViewportLayout],
   );
 
   const visibleModules = useMemo(
@@ -137,7 +158,8 @@ export function WindowedWorkspace({
     () => Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[],
     [],
   );
-  const showCollapsedWindowTray = collapsedModules.length > 0 && !preferences.theme.focusMode;
+  const showCollapsedWindowTray =
+    collapsedModules.length > 0 && !preferences.theme.focusMode && !isFaceliftCanvas;
   const frameByModuleId = useMemo(
     () => new Map(visibleModules.map((moduleId) => [moduleId, getRenderFrame(moduleId)])),
     [getRenderFrame, visibleModules],
@@ -176,13 +198,14 @@ export function WindowedWorkspace({
     preferences.theme.verticalSpace,
     viewportSize.height,
   );
-  const canvasWidth = shouldLockSplitCanvasToViewport
+  const shouldLockCanvasToViewport = shouldLockSplitCanvasToViewport || shouldUseFaceliftViewportLayout;
+  const canvasWidth = shouldLockCanvasToViewport
     ? Math.max(viewportSize.width > 0 ? viewportSize.width : 0, frameBounds.maxX)
     : Math.max(
         viewportSize.width > 0 ? viewportSize.width : 0,
         frameBounds.maxX + 8,
       );
-  const canvasHeight = shouldLockSplitCanvasToViewport
+  const canvasHeight = shouldLockCanvasToViewport
     ? Math.max(viewportSize.height > 0 ? viewportSize.height : 0, frameBounds.maxY)
     : Math.max(
         preferences.canvas.canvasHeight,
@@ -329,8 +352,14 @@ export function WindowedWorkspace({
     <section
       className="flex min-h-0 flex-1 flex-col gap-4"
       data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
+      data-facelift-density={preferences.workspacePresentationMode === "facelift" ? preferences.facelift.density : undefined}
+      data-facelift-module-chrome={
+        preferences.workspacePresentationMode === "facelift" ? preferences.facelift.moduleChrome : undefined
+      }
+      data-facelift-surface={preferences.workspacePresentationMode === "facelift" ? preferences.facelift.surfaceMode : undefined}
       data-workspace-mode={mode}
       data-workspace-preset={preferences.preset}
+      data-workspace-presentation={preferences.workspacePresentationMode}
       data-workspace-reduced-chrome={preferences.theme.reducedChrome ? "true" : "false"}
       data-workspace-style={preferences.workspaceStyle}
       data-workspace-vertical-space={preferences.theme.verticalSpace}
@@ -501,7 +530,7 @@ export function WindowedWorkspace({
               width: canvasWidth,
             }}
           >
-            {mode === "setup" ? (
+            {mode === "setup" && !isFaceliftCanvas ? (
               <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-4 rounded-full border border-border/60 bg-background/88 px-4 py-2 text-xs text-muted-foreground shadow-sm backdrop-blur">
                 <span className="inline-flex items-center gap-2 font-medium text-foreground">
                   <Sparkles className="size-3.5 text-primary" />
@@ -580,11 +609,11 @@ export function WindowedWorkspace({
               );
             })}
 
-            {preferences.enabledModules.includes("comments") && context.comments.length > 0 ? (
+            {stickyComments.length > 0 ? (
               <WorkspaceStickyOverlay
                 canvasHeight={canvasHeight}
                 canvasWidth={canvasWidth}
-                comments={context.comments}
+                comments={stickyComments}
                 onDeleteSticky={context.onDeleteComment}
                 onLayoutChange={context.onStickyMove}
                 onSendToNotes={context.onSendStickyToNotes}

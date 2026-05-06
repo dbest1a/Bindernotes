@@ -66,6 +66,7 @@ import {
   deriveLessonTitle,
   getDisplayTitle,
 } from "@/lib/workspace-records";
+import { dashboardViewModeOptions, type DashboardViewMode } from "@/lib/admin-dashboard-preferences";
 import { markDevPerformance } from "@/lib/performance-marks";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +75,8 @@ type AdminDashboardMakeoverProps = {
   profile: Profile;
   query: string;
   onQueryChange: (query: string) => void;
-  onSwitchNormal: () => void;
+  onViewModeChange: (viewMode: DashboardViewMode) => void;
+  viewMode: DashboardViewMode;
 };
 
 type SaveState = "idle" | "saved" | "draft";
@@ -307,9 +309,10 @@ function parseFolderBinderSortableId(id: string) {
 export function AdminDashboardMakeover({
   data,
   onQueryChange,
-  onSwitchNormal,
+  onViewModeChange,
   profile,
   query,
+  viewMode,
 }: AdminDashboardMakeoverProps) {
   const dashboardRef = useRef<HTMLElement | null>(null);
   const [draft, setDraft] = useState<DashboardOrganizationDraft>(() =>
@@ -685,12 +688,19 @@ export function AdminDashboardMakeover({
 
         <div className="admin-dashboard-hero__panel">
           <div className="admin-dashboard-toggle" aria-label="Dashboard view">
-            <button className="admin-dashboard-toggle__item admin-dashboard-toggle__item--active" type="button">
-              Admin Makeover
-            </button>
-            <button className="admin-dashboard-toggle__item" onClick={onSwitchNormal} type="button">
-              Normal
-            </button>
+            {dashboardViewModeOptions.map((option) => (
+              <button
+                className={cn(
+                  "admin-dashboard-toggle__item",
+                  option.value === viewMode && "admin-dashboard-toggle__item--active",
+                )}
+                key={option.value}
+                onClick={() => onViewModeChange(option.value)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
           <div className="admin-dashboard-stats">
             <AdminStat icon={<FolderOpen />} label="Folders" value={data.folders.length} />
