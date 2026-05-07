@@ -187,6 +187,7 @@ import { DashboardPage } from "@/pages/dashboard-page";
 describe("DashboardPage", () => {
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
@@ -314,6 +315,80 @@ describe("DashboardPage", () => {
     ).toBe("hidden");
   });
 
+  it("defaults Admin Makeover to full width for existing admin users until they choose focused width", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+    window.localStorage.setItem(
+      "binder-notes:dashboard-workspace-view:user-1",
+      JSON.stringify({ width: "focused" }),
+    );
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+    expect(screen.getByTestId("admin-dashboard-makeover").getAttribute("data-admin-dashboard-width")).toBe(
+      "full",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /focused width/i }));
+
+    expect(screen.getByTestId("admin-dashboard-makeover").getAttribute("data-admin-dashboard-width")).toBe(
+      "focused",
+    );
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-width:user-1")).toBe("focused");
+
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+    expect(screen.getByTestId("admin-dashboard-makeover").getAttribute("data-admin-dashboard-width")).toBe(
+      "focused",
+    );
+  });
+
+  it("auto-dismisses Admin Makeover notices after ten seconds", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+    vi.useFakeTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /focused width/i }));
+
+    expect(screen.getByTestId("admin-dashboard-notice").textContent).toContain("Focused width");
+
+    act(() => {
+      vi.advanceTimersByTime(9999);
+    });
+    expect(screen.getByTestId("admin-dashboard-notice")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByTestId("admin-dashboard-notice")).toBeNull();
+  });
+
   it("renders Minimal as a compact workspace view with core student actions still visible", () => {
     window.localStorage.setItem(
       "binder-notes:admin-dashboard-view",
@@ -439,6 +514,32 @@ describe("DashboardPage", () => {
 
     expect(screen.getByTestId("dashboard-page").getAttribute("data-minimal-width")).toBe("focused");
     expect(screen.getByTestId("minimal-dashboard-notice").textContent).toContain("Focused width");
+  });
+
+  it("auto-dismisses Minimal dashboard notices after ten seconds", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    vi.useFakeTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /compact rows/i }));
+
+    expect(screen.getByTestId("minimal-dashboard-notice").textContent).toContain("Compact rows");
+
+    act(() => {
+      vi.advanceTimersByTime(10000);
+    });
+
+    expect(screen.queryByTestId("minimal-dashboard-notice")).toBeNull();
   });
 
   it("keeps the Minimal full-width View setting after the dashboard remounts", () => {

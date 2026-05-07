@@ -79,6 +79,8 @@ type DashboardFilteredData = {
   studyReadyBinders: DashboardData["binders"];
 };
 
+const dashboardNoticeDismissMs = 10000;
+
 export function DashboardPage() {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
@@ -623,6 +625,19 @@ function MinimalDashboardView({
   const [folderOrder, setFolderOrder] = useState<string[]>(() =>
     loadDashboardOrganizationDraft(profile.id, data).folderOrder,
   );
+
+  useEffect(() => {
+    if (!dashboardNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDashboardNotice(null);
+    }, dashboardNoticeDismissMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dashboardNotice]);
+
   const dashboardPrefix = appearance === "minimal" ? "minimal" : "normal";
   const isMinimalAppearance = appearance === "minimal";
   const dashboardIntro =

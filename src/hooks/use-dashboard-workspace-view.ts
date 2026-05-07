@@ -32,6 +32,39 @@ export function getDashboardWorkspaceViewStorageKey(profileId: string) {
   return `binder-notes:dashboard-workspace-view:${profileId}`;
 }
 
+export function getAdminDashboardWidthStorageKey(profileId: string) {
+  return `binder-notes:admin-dashboard-width:${profileId}`;
+}
+
+export function sanitizeDashboardWorkspaceWidth(value: unknown): DashboardWorkspaceWidth | null {
+  return value === "focused" || value === "full" ? value : null;
+}
+
+export function loadAdminDashboardWidthPreference(profileId: string): DashboardWorkspaceWidth | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return sanitizeDashboardWorkspaceWidth(
+      window.localStorage.getItem(getAdminDashboardWidthStorageKey(profileId)),
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function saveAdminDashboardWidthPreference(
+  profileId: string,
+  width: DashboardWorkspaceWidth,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(getAdminDashboardWidthStorageKey(profileId), width);
+}
+
 export function sanitizeDashboardWorkspaceViewPreference(
   value: Partial<DashboardWorkspaceViewPreference> | null | undefined,
 ): DashboardWorkspaceViewPreference {

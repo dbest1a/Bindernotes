@@ -62,10 +62,13 @@ import { Input } from "@/components/ui/input";
 import { useDashboardWorkspaceMutations } from "@/hooks/use-binders";
 import {
   dashboardWorkspaceScopeLabels,
+  loadAdminDashboardWidthPreference,
+  saveAdminDashboardWidthPreference,
   useDashboardWorkspaceViewPreference,
   type DashboardWorkspaceDensity,
   type DashboardWorkspaceScope,
   type DashboardWorkspaceSort,
+  type DashboardWorkspaceViewPreference,
   type DashboardWorkspaceWidth,
 } from "@/hooks/use-dashboard-workspace-view";
 import type { Binder, BinderLesson, DashboardData, Folder, Profile } from "@/types";
@@ -109,6 +112,8 @@ type DragPreviewState = {
   startPointerY: number;
   width: number;
 };
+
+const adminDashboardNoticeDismissMs = 10000;
 
 function safeAttributeValue(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -348,7 +353,10 @@ export function AdminDashboardMakeover({
   const deferredQuery = useDeferredValue(debouncedQuery);
   const filebarRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [workspaceView, updateWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
+  const [baseWorkspaceView, updateBaseWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
+  const [adminDashboardWidth, setAdminDashboardWidth] = useState<DashboardWorkspaceWidth>(() =>
+    loadAdminDashboardWidthPreference(profile.id) ?? "full",
+  );
   const workspaceMutations = useDashboardWorkspaceMutations(profile);
   const [openCommandMenu, setOpenCommandMenu] = useState<"new" | "browse" | "open" | "view" | null>(null);
   const [createKind, setCreateKind] = useState<"folder" | "binder" | null>(null);
@@ -359,6 +367,53 @@ export function AdminDashboardMakeover({
   useEffect(() => {
     markDevPerformance(isEditing ? "admin-dashboard-organize-render" : "admin-dashboard-render");
   });
+
+  useEffect(() => {
+    setAdminDashboardWidth(loadAdminDashboardWidthPreference(profile.id) ?? "full");
+  }, [profile.id]);
+
+  useEffect(() => {
+    if (!dashboardNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDashboardNotice(null);
+    }, adminDashboardNoticeDismissMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dashboardNotice]);
+
+  useEffect(() => {
+    if (saveState !== "saved") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSaveState("idle");
+    }, adminDashboardNoticeDismissMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [saveState]);
+
+  const workspaceView = useMemo(
+    () => ({
+      ...baseWorkspaceView,
+      width: adminDashboardWidth,
+    }),
+    [adminDashboardWidth, baseWorkspaceView],
+  );
+
+  const updateWorkspaceView = useCallback(
+    (patch: Partial<DashboardWorkspaceViewPreference>) => {
+      if (patch.width) {
+        setAdminDashboardWidth(patch.width);
+        saveAdminDashboardWidthPreference(profile.id, patch.width);
+      }
+      updateBaseWorkspaceView(patch);
+    },
+    [profile.id, updateBaseWorkspaceView],
+  );
 
   useEffect(() => {
     const nextDraft = loadDashboardOrganizationDraft(profile.id, data);
