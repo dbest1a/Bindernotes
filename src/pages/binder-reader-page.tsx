@@ -238,7 +238,7 @@ export function BinderReaderPage() {
   const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
 
   const responsiveDevice = useResponsiveDevice();
-  const isCompact = !responsiveDevice.isDesktop;
+  const isCompact = responsiveDevice.isMobileWorkspace;
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
   const workspaceViewMode = active ? getWorkspaceViewMode(active) : "simple";
@@ -2708,7 +2708,9 @@ export function BinderReaderPage() {
       data-facelift-density={isFaceliftMode ? active.facelift.density : undefined}
       data-facelift-module-chrome={isFaceliftMode ? active.facelift.moduleChrome : undefined}
       data-facelift-surface={isFaceliftMode ? active.facelift.surfaceMode : undefined}
+      data-mobile-workspace={responsiveDevice.isMobileWorkspace ? "true" : "false"}
       data-viewport-category={responsiveDevice.category}
+      data-viewport-orientation={responsiveDevice.isPortrait ? "portrait" : "landscape"}
       data-workspace-active-focus={activeFocusMode ? "true" : "false"}
       data-workspace-preset={active.preset}
       data-workspace-presentation={effectivePresentationMode}

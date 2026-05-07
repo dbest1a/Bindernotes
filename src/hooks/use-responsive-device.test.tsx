@@ -46,6 +46,9 @@ describe("responsive device detection", () => {
         isPhone: true,
         isTablet: false,
         isDesktop: false,
+        isPortrait: true,
+        isLandscape: false,
+        isMobileWorkspace: true,
         hasCoarsePointer: true,
         prefersReducedMotion: true,
       }),
@@ -68,6 +71,7 @@ describe("responsive device detection", () => {
       return false;
     }, listeners);
     setViewportWidth(width);
+    setViewportHeight(900);
     const addEventListener = vi.spyOn(window, "addEventListener");
 
     const { result } = renderHook(() => useResponsiveDevice());
@@ -82,14 +86,74 @@ describe("responsive device detection", () => {
     });
 
     expect(result.current.category).toBe("tablet");
+    expect(result.current.isTabletPortrait).toBe(true);
+    expect(result.current.isMobileWorkspace).toBe(true);
     expect(addEventListener).not.toHaveBeenCalledWith("resize", expect.any(Function));
   });
+
+  it("keeps tablet landscape on the designed workspace path while tablet portrait uses mobile modules", () => {
+    const listeners: MatchMediaListener[] = [];
+    stubMatchMedia((query) => {
+      if (query === "(min-width: 768px) and (max-width: 1180px)") {
+        return true;
+      }
+      if (query === "(orientation: landscape)") {
+        return true;
+      }
+      return false;
+    }, listeners);
+    setViewportWidth(1024);
+    setViewportHeight(768);
+
+    const { result } = renderHook(() => useResponsiveDevice());
+
+    expect(result.current.category).toBe("tablet");
+    expect(result.current.isTabletLandscape).toBe(true);
+    expect(result.current.isMobileWorkspace).toBe(false);
+  });
+
+  it.each([
+    [390, 844, "phone", true, true, false],
+    [430, 932, "phone", true, true, false],
+    [667, 375, "phone", true, false, true],
+    [768, 1024, "tablet", true, true, false],
+    [1024, 768, "tablet", false, false, true],
+    [1180, 820, "tablet", false, false, true],
+    [1366, 768, "desktop", false, false, true],
+    [1440, 900, "desktop", false, false, true],
+  ] as const)(
+    "classifies the responsive QA viewport %ix%i",
+    (width, height, category, isMobileWorkspace, isPortrait, isLandscape) => {
+      const listeners: MatchMediaListener[] = [];
+      stubMatchMedia((query) => matchesViewportQuery(query, width, height), listeners);
+      setViewportWidth(width);
+      setViewportHeight(height);
+
+      const { result } = renderHook(() => useResponsiveDevice());
+
+      expect(result.current).toEqual(
+        expect.objectContaining<Partial<ResponsiveDeviceSnapshot>>({
+          category,
+          isMobileWorkspace,
+          isPortrait,
+          isLandscape,
+        }),
+      );
+    },
+  );
 });
 
 function setViewportWidth(width: number) {
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
     value: width,
+  });
+}
+
+function setViewportHeight(height: number) {
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: height,
   });
 }
 
@@ -121,4 +185,23 @@ function stubMatchMedia(
     },
     dispatchEvent: () => false,
   }));
+}
+
+function matchesViewportQuery(query: string, width: number, height: number) {
+  if (query === "(max-width: 767px)") {
+    return width <= 767;
+  }
+  if (query === "(min-width: 768px) and (max-width: 1180px)") {
+    return width >= 768 && width <= 1180;
+  }
+  if (query === "(min-width: 1181px)") {
+    return width > 1180;
+  }
+  if (query === "(orientation: portrait)") {
+    return height >= width;
+  }
+  if (query === "(orientation: landscape)") {
+    return width > height;
+  }
+  return false;
 }

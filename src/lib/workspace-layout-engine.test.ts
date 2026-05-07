@@ -205,6 +205,22 @@ describe("workspace layout engine", () => {
     );
   });
 
+  it("keeps Split Study as two readable full-height panes on tablet landscape", () => {
+    const result = tidyWorkspaceFrames({
+      frames: {
+        lesson: frame(180, 80, 460, 360),
+        "private-notes": frame(760, 100, 460, 360, 2),
+      },
+      moduleIds: ["lesson", "private-notes"],
+      presetId: "split-study",
+      viewport: { width: 1024, height: 768 },
+      safeEdgePadding: false,
+    });
+
+    expect(result.frames.lesson).toMatchObject({ x: 0, y: 0, w: 512, h: 768 });
+    expect(result.frames["private-notes"]).toMatchObject({ x: 512, y: 0, w: 512, h: 768 });
+  });
+
   it("validates layouts with huge unused space and offscreen modules", () => {
     const result = validateWindowFrameLayout({
       frames: {

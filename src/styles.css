@@ -8058,6 +8058,66 @@
   overflow: hidden;
 }
 
+.responsive-mobile-workspace {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.responsive-mobile-tabs {
+  align-items: center;
+  background-color: hsl(var(--card) / 0.9);
+  contain: layout paint;
+  position: sticky;
+  top: 0.35rem;
+  z-index: 25;
+}
+
+.responsive-mobile-module {
+  contain: layout paint;
+}
+
+.responsive-mobile-module .workspace-panel {
+  border-radius: 1rem;
+  max-width: 100%;
+  min-height: min(74svh, 720px) !important;
+}
+
+.responsive-mobile-module .workspace-panel__header {
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 3rem;
+}
+
+.responsive-mobile-module .workspace-panel__actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.responsive-mobile-module .workspace-panel__body {
+  min-width: 0;
+  overflow-x: clip;
+  padding: 0.8rem;
+}
+
+.responsive-mobile-module .source-lesson-content,
+.responsive-mobile-module .private-notes-content {
+  margin-left: 0;
+  margin-right: 0;
+  max-width: none;
+  width: 100%;
+}
+
+.responsive-mobile-module .source-lesson-body-card,
+.responsive-mobile-module .private-notes-editor-hero,
+.responsive-mobile-module .private-notes-editor-frame {
+  border-radius: 1rem;
+  max-width: 100%;
+}
+
+.responsive-mobile-module .private-notes-editor .editor-surface .ProseMirror {
+  min-height: min(58svh, 42rem);
+}
+
 @media (max-width: 1180px) {
   html,
   body,
@@ -8156,6 +8216,22 @@
 
   .workspace-canvas-shell {
     min-height: min(72svh, 720px);
+  }
+
+  .workspace-page[data-mobile-workspace="true"] {
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__actions,
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__presets {
+    scroll-snap-type: x proximity;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__actions > *,
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__presets > *,
+  .workspace-page[data-mobile-workspace="true"] .responsive-mobile-tabs > * {
+    scroll-snap-align: start;
   }
 
   .workspace-settings {
@@ -8729,6 +8805,49 @@
   .editor-surface .ProseMirror {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1180px) and (orientation: landscape) {
+  .workspace-page[data-mobile-workspace="false"] {
+    height: calc(100svh - 4rem);
+    overflow: hidden;
+  }
+
+  .workspace-page[data-mobile-workspace="false"] .workspace-stage-shell,
+  .workspace-page[data-mobile-workspace="false"] .workspace-stage,
+  .workspace-page[data-mobile-workspace="false"] section[data-workspace-mode] {
+    min-height: 0;
+  }
+
+  .workspace-page[data-mobile-workspace="false"] .workspace-canvas-shell {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .workspace-page[data-mobile-workspace="true"] {
+    gap: 0.55rem;
+    padding-block: 0.55rem;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar {
+    gap: 0.45rem;
+    padding: 0.55rem;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__copy,
+  .workspace-page[data-mobile-workspace="true"] .workspace-topbar__meta {
+    display: none;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .responsive-mobile-tabs {
+    padding: 0.45rem;
+  }
+
+  .workspace-page[data-mobile-workspace="true"] .responsive-mobile-module .workspace-panel {
+    min-height: calc(100svh - 8.5rem) !important;
   }
 }
 

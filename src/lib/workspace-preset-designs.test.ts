@@ -259,6 +259,16 @@ describe("workspace preset design catalog", () => {
         "private-notes",
       ]).map((tab) => tab.label),
     ).toEqual(["Argument", "Evidence", "Lesson", "Timeline", "Notes"]);
+
+    expect(
+      getWorkspaceMobileModuleTabs("annotation-mode", [
+        "lesson",
+        "private-notes",
+        "recent-highlights",
+        "comments",
+        "lesson-outline",
+      ]).map((tab) => tab.label),
+    ).toEqual(["Lesson", "Notes", "Highlights", "Comments", "Outline"]);
   });
 
   it("recommends first-time starter choices by subject without demo content", () => {

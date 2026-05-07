@@ -20,8 +20,19 @@ describe("phone and tablet responsive layout styles", () => {
 
   it("keeps mobile workspace module tabs scrollable and avoids tiny desktop window surfaces", () => {
     expect(css).toMatch(/\.responsive-mobile-tabs\s*{[\s\S]*overflow-x:\s*auto/s);
+    expect(css).toMatch(/\.responsive-mobile-tabs\s*{[\s\S]*position:\s*sticky/s);
     expect(css).toMatch(/\.responsive-mobile-module\s*{[\s\S]*min-width:\s*0/s);
+    expect(css).toMatch(/\.responsive-mobile-module \.workspace-panel\s*{[\s\S]*min-height:\s*min\(74svh,\s*720px\) !important/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.workspace-canvas-shell[\s\S]*min-height:\s*min\(72svh,\s*720px\)/s);
+  });
+
+  it("keeps tablet landscape on the full canvas path while phone/tablet portrait use mobile modules", () => {
+    expect(css).toMatch(
+      /@media \(min-width: 768px\) and \(max-width: 1180px\) and \(orientation: landscape\)[\s\S]*\.workspace-page\[data-mobile-workspace="false"\]\s*{[\s\S]*height:\s*calc\(100svh - 4rem\)/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 767px\) and \(orientation: landscape\)[\s\S]*\.workspace-page\[data-mobile-workspace="true"\] \.workspace-topbar__copy/s,
+    );
   });
 
   it("adds an iPad/tablet landing composition without changing the desktop default or phone fix", () => {

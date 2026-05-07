@@ -1586,8 +1586,6 @@ export function getWorkspaceStarterChoices(options: {
 const compactMobileToolModules = new Set<WorkspaceModuleId>([
   "scientific-calculator",
   "saved-graphs",
-  "comments",
-  "recent-highlights",
   "search",
   "tasks",
   "history-myth-checks",

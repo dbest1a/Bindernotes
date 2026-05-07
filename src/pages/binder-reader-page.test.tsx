@@ -165,6 +165,7 @@ vi.mock("@/hooks/use-theme", () => ({
 import { BinderReaderPage } from "@/pages/binder-reader-page";
 
 let viewportWidth = 1024;
+let viewportHeight = 768;
 
 function renderReaderPage(initialEntry: string) {
   const queryClient = new QueryClient({
@@ -193,6 +194,19 @@ function setTestViewportWidth(width: number) {
   });
 }
 
+function setTestViewportSize(width: number, height: number) {
+  viewportWidth = width;
+  viewportHeight = height;
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: height,
+  });
+}
+
 function matchesResponsiveQuery(query: string) {
   if (query === "(max-width: 767px)") {
     return viewportWidth <= 767;
@@ -212,6 +226,14 @@ function matchesResponsiveQuery(query: string) {
 
   if (query === "(pointer: coarse)" || query === "(prefers-reduced-motion: reduce)") {
     return false;
+  }
+
+  if (query === "(orientation: portrait)") {
+    return viewportHeight >= viewportWidth;
+  }
+
+  if (query === "(orientation: landscape)") {
+    return viewportWidth > viewportHeight;
   }
 
   return false;
@@ -263,7 +285,7 @@ function createSingleLessonBundle(
 
 describe("BinderReaderPage", () => {
   beforeEach(() => {
-    setTestViewportWidth(1024);
+    setTestViewportSize(1024, 768);
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: matchesResponsiveQuery(query),
       media: query,
@@ -721,8 +743,8 @@ describe("BinderReaderPage", () => {
     expect(container.querySelector(".simple-presentation-shell")).toBeNull();
   });
 
-  it("uses responsive module tabs on tablet widths instead of tiny desktop windows", () => {
-    setTestViewportWidth(1180);
+  it("uses responsive module tabs on tablet portrait widths instead of tiny desktop windows", () => {
+    setTestViewportSize(768, 1024);
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.workspacePreferences.active = {
       ...preferences,
@@ -738,13 +760,38 @@ describe("BinderReaderPage", () => {
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("tablet");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe("portrait");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-mobile-workspace")).toBe("true");
     expect(container.querySelector(".responsive-mobile-tabs")).not.toBeNull();
     expect(container.querySelector(".responsive-mobile-module")).not.toBeNull();
     expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
   });
 
+  it("keeps the designed workspace path on tablet landscape and above", () => {
+    setTestViewportSize(1024, 768);
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-graph-lab",
+      locked: true,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("tablet");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe("landscape");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-mobile-workspace")).toBe("false");
+    expect(container.querySelector(".responsive-mobile-tabs")).toBeNull();
+    expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
+  });
+
   it("keeps the desktop workspace path above the tablet breakpoint", () => {
-    setTestViewportWidth(1181);
+    setTestViewportSize(1181, 820);
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.workspacePreferences.active = {
       ...preferences,
