@@ -10,7 +10,7 @@ import {
 import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
-import { getProfile } from "@/services/binder-service";
+import { getProfile } from "@/services/auth-profile";
 import type { Profile, Role } from "@/types";
 
 type AuthState = {

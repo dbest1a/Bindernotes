@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { buildInsertNodes, type NoteInsertRequest } from "@/lib/note-blocks";
 import { cn } from "@/lib/utils";
 
-type RichTextEditorProps = {
+export type RichTextEditorProps = {
   value: JSONContent;
   onChange?: (value: JSONContent) => void;
   editable?: boolean;

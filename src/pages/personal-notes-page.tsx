@@ -54,7 +54,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { WorkspaceWindow } from "@/components/workspace/workspace-window";
 import { useAuth } from "@/hooks/use-auth";
 import {

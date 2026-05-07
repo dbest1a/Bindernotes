@@ -14,7 +14,7 @@ import {
   Sparkles,
   StickyNote,
 } from "lucide-react";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { MathBlocks } from "@/components/math/math-blocks";
 import {
   buildLessonContentSelector,

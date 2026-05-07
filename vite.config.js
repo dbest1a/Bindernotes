@@ -6,16 +6,27 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
-                onlyExplicitManualChunks: true,
                 manualChunks: function (id) {
-                    if (id.includes("node_modules/@excalidraw"))
-                        return "whiteboard-engine";
-                    if (id.includes("node_modules/@dnd-kit"))
-                        return "drag-drop";
-                    if (id.includes("node_modules/katex"))
-                        return "math";
-                    if (id.includes("node_modules/@supabase"))
+                    var normalizedId = id.replace(/\\/g, "/");
+                    if (!normalizedId.includes("/node_modules/")) {
+                        return undefined;
+                    }
+                    if (normalizedId.includes("/@supabase/")) {
                         return "supabase";
+                    }
+                    if (normalizedId.includes("/katex/")) {
+                        return "katex";
+                    }
+                    if (normalizedId.includes("/react/") ||
+                        normalizedId.includes("/react-dom/") ||
+                        normalizedId.includes("/react-router/") ||
+                        normalizedId.includes("/scheduler/")) {
+                        return "react-vendor";
+                    }
+                    if (normalizedId.includes("/@tanstack/react-query/")) {
+                        return "query-vendor";
+                    }
+                    return undefined;
                 },
             },
         },

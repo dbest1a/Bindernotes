@@ -821,10 +821,13 @@ describe("BinderReaderPage", () => {
       expect(container.querySelector(".workspace-topbar")?.getAttribute("data-layout-editing")).toBe("true");
     });
 
-    const oceanThemeButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Ocean"),
-    );
-    expect(oceanThemeButton).not.toBeNull();
+    let oceanThemeButton: HTMLButtonElement | undefined;
+    await waitFor(() => {
+      oceanThemeButton = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent?.includes("Ocean"),
+      );
+      expect(oceanThemeButton).toBeDefined();
+    });
     fireEvent.click(oceanThemeButton!);
 
     expect(mocks.workspacePreferences.updateDraft).toHaveBeenCalled();

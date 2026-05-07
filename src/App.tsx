@@ -10,16 +10,30 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
-import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { TutorialPromptHost } from "@/components/tutorials/tutorial-prompt";
-import { UserAppearanceSync } from "@/components/theme/user-appearance-sync";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSyncRecovery } from "@/lib/sync-recovery";
 
+const LazyAppShell = lazy(() =>
+  import("@/components/layout/app-shell").then((module) => ({ default: module.AppShell })),
+);
+const LazyTutorialPromptHost = lazy(() =>
+  import("@/components/tutorials/tutorial-prompt").then((module) => ({
+    default: module.TutorialPromptHost,
+  })),
+);
+const LazyUserAppearanceSync = lazy(() =>
+  import("@/components/theme/user-appearance-sync").then((module) => ({
+    default: module.UserAppearanceSync,
+  })),
+);
+const LazySyncRecoveryBridge = lazy(() =>
+  import("@/components/system/sync-recovery-bridge").then((module) => ({
+    default: module.SyncRecoveryBridge,
+  })),
+);
 const LandingPage = lazy(() =>
   import("@/pages/landing-page").then((module) => ({ default: module.LandingPage })),
 );
@@ -106,8 +120,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <UserAppearanceSync />
-          <SyncRecoveryBridge />
+          <SignedInBackgroundServices />
           <Router>
             <AppRoutes />
           </Router>
@@ -130,7 +143,7 @@ function AppRoutes() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
-            <Route element={<AppShell />}>
+            <Route element={<LazyAppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/notes" element={<PersonalNotesPage />} />
               <Route path="/notes/:noteId" element={<PersonalNotesPage />} />
@@ -169,18 +182,19 @@ function AppRoutes() {
   );
 }
 
-function SyncRecoveryBridge() {
-  useSyncRecovery([
-    "highlight",
-    "workspace_layout",
-    "history_event",
-    "history_source",
-    "history_evidence",
-    "history_argument",
-    "myth_check",
-  ]);
+function SignedInBackgroundServices() {
+  const { user } = useAuth();
 
-  return null;
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <LazyUserAppearanceSync />
+      <LazySyncRecoveryBridge />
+    </Suspense>
+  );
 }
 
 type RouteErrorBoundaryProps = {
@@ -324,7 +338,9 @@ function ProtectedRoute({ children }: { children?: ReactNode }) {
 
   return (
     <>
-      <TutorialPromptHost />
+      <Suspense fallback={null}>
+        <LazyTutorialPromptHost />
+      </Suspense>
       {children ? <>{children}</> : <Outlet />}
     </>
   );

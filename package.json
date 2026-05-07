@@ -10,6 +10,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest --run",
     "typecheck": "tsc -b --pretty false",
+    "scan:build": "node scripts/scan-build-assets.mjs",
     "seed:system": "tsx scripts/seed-system.ts",
     "repair:system": "tsx scripts/repair-system-content.ts",
     "repair:system:apply": "tsx scripts/repair-system-content.ts --apply",

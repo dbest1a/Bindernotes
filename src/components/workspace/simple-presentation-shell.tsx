@@ -14,7 +14,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { MathBlocks } from "@/components/math/math-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

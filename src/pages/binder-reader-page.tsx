@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -29,7 +29,7 @@ import { StudyPanelsShell } from "@/components/workspace/study-panels-shell";
 import { WorkspaceStickyLayer } from "@/components/workspace/workspace-sticky-overlay";
 import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
 import { SimpleSettingsPanel } from "@/components/workspace/simple-settings-panel";
-import { WorkspaceSettings } from "@/components/workspace/workspace-settings";
+import type { WorkspaceSettingsProps } from "@/components/workspace/workspace-settings";
 import {
   type WorkspaceModuleContext,
   workspaceModuleRegistry,
@@ -139,6 +139,30 @@ type WorkspaceCanvasView = {
   scrollTop: number;
   width: number;
 };
+
+const loadWorkspaceSettings = () => import("@/components/workspace/workspace-settings");
+
+const LazyWorkspaceSettings = lazy(() =>
+  loadWorkspaceSettings().then((module) => ({ default: module.WorkspaceSettings })),
+);
+
+function preloadWorkspaceSettings() {
+  void loadWorkspaceSettings();
+}
+
+function WorkspaceSettingsPanel(props: WorkspaceSettingsProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="workspace-settings-loading" role="status">
+          Loading settings...
+        </div>
+      }
+    >
+      <LazyWorkspaceSettings {...props} />
+    </Suspense>
+  );
+}
 
 export function BinderReaderPage() {
   const { binderId, lessonId } = useParams();
@@ -464,16 +488,27 @@ export function BinderReaderPage() {
     [active, setGlobalTheme, workspace],
   );
 
+  const openWorkspacePreferences = useCallback(() => {
+    preloadWorkspaceSettings();
+    setPreferencesOpen(true);
+  }, []);
+
+  const toggleWorkspacePreferences = useCallback(() => {
+    preloadWorkspaceSettings();
+    setPreferencesOpen((current) => !current);
+  }, []);
+
   const enterLayoutEditMode = useCallback(() => {
     if (!active) {
       return;
     }
 
     if (active.activeMode !== "canvas") {
-      setPreferencesOpen(true);
+      openWorkspacePreferences();
       return;
     }
 
+    preloadWorkspaceSettings();
     isLayoutEditingRef.current = true;
     setLayoutMode("setup");
     workspace.updateDraft((current) => ({
@@ -481,7 +516,7 @@ export function BinderReaderPage() {
       locked: false,
       updatedAt: new Date().toISOString(),
     }));
-  }, [active, workspace]);
+  }, [active, openWorkspacePreferences, workspace]);
 
   const saveUnlockedLayout = useCallback(() => {
     isLayoutEditingRef.current = true;
@@ -801,7 +836,7 @@ export function BinderReaderPage() {
         setPreferencesOpen(false);
       } else if (options?.enterLayoutWhenAdded) {
         commitWorkspacePreferences(next);
-        setPreferencesOpen(true);
+        openWorkspacePreferences();
       } else if (isLayoutEditing) {
         workspace.updateDraft(() => ({
           ...next,
@@ -813,7 +848,7 @@ export function BinderReaderPage() {
 
       return true;
     },
-    [active, commitWorkspacePreferences, isLayoutEditing, workspace],
+    [active, commitWorkspacePreferences, isLayoutEditing, openWorkspacePreferences, workspace],
   );
 
   const ensureNotesVisible = useCallback(() => {
@@ -2778,7 +2813,9 @@ export function BinderReaderPage() {
               </Button>
               {!isLayoutEditing ? (
                 <Button
-                  onClick={() => setPreferencesOpen((current) => !current)}
+                  onClick={toggleWorkspacePreferences}
+                  onFocus={preloadWorkspaceSettings}
+                  onMouseEnter={preloadWorkspaceSettings}
                   size="sm"
                   type="button"
                   variant={preferencesOpen ? "default" : "outline"}
@@ -2954,7 +2991,7 @@ export function BinderReaderPage() {
                 type="button"
               />
               <section className="workspace-preferences-popover">
-                <WorkspaceSettings
+                <WorkspaceSettingsPanel
                   binderTitle={binderQuery.data.binder.title}
                   binderSubject={binderQuery.data.binder.subject}
                   historyEnabled={historyEnabled}
@@ -2982,7 +3019,7 @@ export function BinderReaderPage() {
               onChangeWorkspaceViewMode={applyModeChoice}
               onChangeView={enterLayoutEditMode}
               onCreateSticky={() => void createSticky(null, "")}
-              onOpenSettings={() => setPreferencesOpen(true)}
+              onOpenSettings={openWorkspacePreferences}
               onToggleFocus={toggleFocusMode}
               preferences={active}
               workspaceViewMode={workspaceViewMode}
@@ -3010,7 +3047,7 @@ export function BinderReaderPage() {
                   type="button"
                 />
                 <section className="workspace-preferences-popover">
-                  <WorkspaceSettings
+                  <WorkspaceSettingsPanel
                     binderTitle={binderQuery.data.binder.title}
                     binderSubject={binderQuery.data.binder.subject}
                     historyEnabled={historyEnabled}
@@ -3037,7 +3074,7 @@ export function BinderReaderPage() {
                 isCompact={isCompact}
                 onChangeMode={applyModeChoice}
                 onCreateSticky={() => void createSticky(null, "")}
-                onOpenSettings={() => setPreferencesOpen(true)}
+                onOpenSettings={openWorkspacePreferences}
                 onToggleFocus={toggleFocusMode}
                 preferences={active}
               />
@@ -3079,7 +3116,7 @@ export function BinderReaderPage() {
             <SimplePresentationShell
               context={context}
               onChange={commitWorkspacePreferences}
-              onOpenSettings={() => setPreferencesOpen(true)}
+              onOpenSettings={openWorkspacePreferences}
               preferences={active}
             />
           </WorkspaceRenderBoundary>
@@ -3097,7 +3134,7 @@ export function BinderReaderPage() {
         >
           <section className="responsive-mobile-workspace grid gap-4">
           {isLayoutEditing ? (
-            <WorkspaceSettings
+            <WorkspaceSettingsPanel
               binderTitle={binderQuery.data.binder.title}
               binderSubject={binderQuery.data.binder.subject}
               historyEnabled={historyEnabled}
@@ -3112,7 +3149,7 @@ export function BinderReaderPage() {
           ) : null}
 
           {!isLayoutEditing && preferencesOpen ? (
-            <WorkspaceSettings
+            <WorkspaceSettingsPanel
               binderTitle={binderQuery.data.binder.title}
               binderSubject={binderQuery.data.binder.subject}
               historyEnabled={historyEnabled}
@@ -3169,7 +3206,7 @@ export function BinderReaderPage() {
                 type="button"
               />
               <section className="workspace-preferences-popover">
-                <WorkspaceSettings
+                <WorkspaceSettingsPanel
                   binderTitle={binderQuery.data.binder.title}
                   binderSubject={binderQuery.data.binder.subject}
                   historyEnabled={historyEnabled}
@@ -3188,7 +3225,7 @@ export function BinderReaderPage() {
 
           <section className={`workspace-stage ${isLayoutEditing ? "" : "workspace-stage-locked"}`}>
             {isLayoutEditing ? (
-              <WorkspaceSettings
+              <WorkspaceSettingsPanel
                 binderTitle={binderQuery.data.binder.title}
                 binderSubject={binderQuery.data.binder.subject}
                 historyEnabled={historyEnabled}

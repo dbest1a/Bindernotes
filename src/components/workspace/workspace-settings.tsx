@@ -40,7 +40,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 
-type WorkspaceSettingsProps = {
+export type WorkspaceSettingsProps = {
   preferences: WorkspacePreferences;
   onChange: (preferences: WorkspacePreferences) => void;
   onClose?: () => void;
