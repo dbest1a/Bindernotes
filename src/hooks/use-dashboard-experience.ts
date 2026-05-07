@@ -27,16 +27,20 @@ function getDashboardAttribute(viewMode: DashboardViewMode) {
   return viewMode;
 }
 
-function writeRootAttributes(preference: AdminDashboardPreference, isAdmin: boolean) {
+function resolveEffectiveViewMode(preference: AdminDashboardPreference, isAdmin: boolean | undefined) {
+  return isAdmin === false ? "normal" : preference.viewMode;
+}
+
+function writeRootAttributes(preference: AdminDashboardPreference, isAdmin: boolean | undefined) {
   if (typeof document === "undefined") {
     return;
   }
 
-  const effectiveViewMode: DashboardViewMode = isAdmin ? preference.viewMode : "normal";
+  const effectiveViewMode = resolveEffectiveViewMode(preference, isAdmin);
   document.documentElement.dataset.adminDashboard = getDashboardAttribute(effectiveViewMode);
 }
 
-export function useDashboardExperience(isAdmin: boolean) {
+export function useDashboardExperience(isAdmin: boolean | undefined) {
   const [preference, setPreference] = useState<AdminDashboardPreference>(() =>
     loadAdminDashboardPreference(getStorage()),
   );
@@ -102,7 +106,7 @@ export function useDashboardExperience(isAdmin: boolean) {
     [publish],
   );
 
-  const effectiveViewMode: DashboardViewMode = isAdmin ? preference.viewMode : "normal";
+  const effectiveViewMode: DashboardViewMode = resolveEffectiveViewMode(preference, isAdmin);
 
   return useMemo(
     () => ({

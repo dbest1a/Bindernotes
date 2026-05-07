@@ -1,5 +1,5 @@
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type PointerEvent as ReactPointerEvent } from "react";
 import {
   extractWhiteboardViewportTransform,
   whiteboardViewportTransformsEqual,
@@ -9,6 +9,7 @@ import {
   hasPersistentWhiteboardSceneChange,
   sanitizeExcalidrawInitialData,
 } from "@/lib/whiteboards/whiteboard-serialization";
+import { AUTOSAVE_DEBOUNCE_MS } from "@/lib/whiteboards/whiteboard-limits";
 import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
 
 type WhiteboardCanvasProps = {
@@ -23,6 +24,12 @@ type ExcalidrawCameraApi = {
   getAppState?: () => unknown;
   updateScene?: (scene: { appState?: Record<string, unknown> }) => void;
   refresh?: () => void;
+};
+
+type PendingSceneInput = {
+  elements: readonly unknown[];
+  appState: unknown;
+  files: unknown;
 };
 
 type WhiteboardDebugWindow = typeof window & {
@@ -42,6 +49,11 @@ export function WhiteboardCanvas({
   const latestViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
   const initialData = useMemo(() => sanitizeExcalidrawInitialData(board.scene), [board.scene]);
   const latestPersistentSceneRef = useRef<WhiteboardSceneData>(initialData);
+  const pendingSceneRef = useRef<PendingSceneInput | null>(null);
+  const sceneChangeTimerRef = useRef<number | null>(null);
+  const drawingPointerIdsRef = useRef(new Set<number>());
+  const pendingResizeRefreshRef = useRef(false);
+  const lastHostSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   const getViewportSize = useCallback(() => {
     const rect = hostRef.current?.getBoundingClientRect();
@@ -91,6 +103,105 @@ export function WhiteboardCanvas({
     [emitViewportChange],
   );
 
+  const clearSceneChangeTimer = useCallback(() => {
+    if (sceneChangeTimerRef.current !== null) {
+      window.clearTimeout(sceneChangeTimerRef.current);
+      sceneChangeTimerRef.current = null;
+    }
+  }, []);
+
+  const flushPendingSceneChange = useCallback(() => {
+    const pendingScene = pendingSceneRef.current;
+    pendingSceneRef.current = null;
+    clearSceneChangeTimer();
+    if (!pendingScene) {
+      return;
+    }
+
+    const scene = sanitizeExcalidrawInitialData({
+      elements: pendingScene.elements as unknown[],
+      appState: pendingScene.appState,
+      files: pendingScene.files,
+    });
+    if (!hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
+      return;
+    }
+
+    latestPersistentSceneRef.current = scene;
+    onSceneChange(scene);
+  }, [clearSceneChangeTimer, onSceneChange]);
+
+  const scheduleSceneChangeFlush = useCallback(() => {
+    clearSceneChangeTimer();
+    sceneChangeTimerRef.current = window.setTimeout(flushPendingSceneChange, AUTOSAVE_DEBOUNCE_MS);
+  }, [clearSceneChangeTimer, flushPendingSceneChange]);
+
+  const refreshCanvasAfterLayout = useCallback(() => {
+    const api = excalidrawApiRef.current;
+    api?.refresh?.();
+    emitViewportChange(api?.getAppState?.() ?? initialData.appState ?? {});
+  }, [emitViewportChange, initialData.appState]);
+
+  const finishDrawingPointerById = useCallback(
+    (pointerId?: number) => {
+      const hadActiveDrawingPointer = drawingPointerIdsRef.current.size > 0;
+      if (typeof pointerId === "number") {
+        drawingPointerIdsRef.current.delete(pointerId);
+      } else {
+        drawingPointerIdsRef.current.clear();
+      }
+
+      if (!hadActiveDrawingPointer || drawingPointerIdsRef.current.size > 0) {
+        return;
+      }
+
+      flushPendingSceneChange();
+      if (pendingResizeRefreshRef.current) {
+        pendingResizeRefreshRef.current = false;
+        window.requestAnimationFrame(refreshCanvasAfterLayout);
+      }
+    },
+    [flushPendingSceneChange, refreshCanvasAfterLayout],
+  );
+
+  const finishDrawingPointer = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      finishDrawingPointerById(event.pointerId);
+    },
+    [finishDrawingPointerById],
+  );
+
+  const handleDrawingPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    drawingPointerIdsRef.current.add(event.pointerId);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const finishPointer = (event: PointerEvent) => finishDrawingPointerById(event.pointerId);
+    const clearPointers = () => finishDrawingPointerById();
+    const flushForPageExit = () => flushPendingSceneChange();
+    const flushWhenHidden = () => {
+      if (document.visibilityState === "hidden") {
+        flushPendingSceneChange();
+      }
+    };
+    window.addEventListener("pointerup", finishPointer);
+    window.addEventListener("pointercancel", finishPointer);
+    window.addEventListener("blur", clearPointers);
+    window.addEventListener("pagehide", flushForPageExit);
+    document.addEventListener("visibilitychange", flushWhenHidden);
+    return () => {
+      window.removeEventListener("pointerup", finishPointer);
+      window.removeEventListener("pointercancel", finishPointer);
+      window.removeEventListener("blur", clearPointers);
+      window.removeEventListener("pagehide", flushForPageExit);
+      document.removeEventListener("visibilitychange", flushWhenHidden);
+    };
+  }, [finishDrawingPointerById, flushPendingSceneChange]);
+
   const handleExcalidrawApi = useCallback(
     (api: ExcalidrawCameraApi) => {
       excalidrawApiRef.current = api;
@@ -119,14 +230,16 @@ export function WhiteboardCanvas({
 
   useEffect(
     () => () => {
+      flushPendingSceneChange();
       onViewportRequestReady?.(null);
     },
-    [onViewportRequestReady],
+    [flushPendingSceneChange, onViewportRequestReady],
   );
 
   useEffect(() => {
+    flushPendingSceneChange();
     latestPersistentSceneRef.current = initialData;
-  }, [board.id, initialData]);
+  }, [board.id, flushPendingSceneChange, initialData]);
 
   useEffect(() => {
     let mounted = true;
@@ -164,15 +277,28 @@ export function WhiteboardCanvas({
 
       animationFrame = window.requestAnimationFrame(() => {
         animationFrame = 0;
-        const api = excalidrawApiRef.current;
-        api?.refresh?.();
-        emitViewportChange(api?.getAppState?.() ?? initialData.appState ?? {});
+        refreshCanvasAfterLayout();
       });
     };
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry?.contentRect.width || !entry.contentRect.height) {
+        return;
+      }
+
+      const nextSize = {
+        width: Math.round(entry.contentRect.width),
+        height: Math.round(entry.contentRect.height),
+      };
+      const lastSize = lastHostSizeRef.current;
+      if (lastSize?.width === nextSize.width && lastSize.height === nextSize.height) {
+        return;
+      }
+      lastHostSizeRef.current = nextSize;
+
+      if (drawingPointerIdsRef.current.size > 0) {
+        pendingResizeRefreshRef.current = true;
         return;
       }
 
@@ -187,7 +313,32 @@ export function WhiteboardCanvas({
       }
       resizeObserver.disconnect();
     };
-  }, [emitViewportChange, ExcalidrawComponent, initialData.appState]);
+  }, [ExcalidrawComponent, refreshCanvasAfterLayout]);
+
+  const excalidrawInitialData = useMemo(
+    () => ({
+      elements: initialData.elements as never[],
+      appState: {
+        viewBackgroundColor: "#11131a",
+        ...(initialData.appState ?? {}),
+      },
+      files: (initialData.files ?? {}) as never,
+    }),
+    [initialData],
+  );
+
+  const handleExcalidrawChange = useCallback(
+    (elements: readonly unknown[], appState: unknown, files: unknown) => {
+      emitViewportChange(appState as Record<string, unknown>);
+      pendingSceneRef.current = {
+        elements,
+        appState,
+        files,
+      };
+      scheduleSceneChangeFlush();
+    },
+    [emitViewportChange, scheduleSceneChangeFlush],
+  );
 
   if (!ExcalidrawComponent) {
     return (
@@ -200,36 +351,23 @@ export function WhiteboardCanvas({
   return (
     <div
       className="whiteboard-excalidraw-host absolute inset-0 h-full w-full overflow-hidden bg-[#10131a]"
+      data-board-toolbar-layer="true"
       data-fullscreen-whiteboard={fullscreen ? "true" : "false"}
+      data-whiteboard-active="true"
       data-testid="whiteboard-excalidraw-host"
+      onPointerCancelCapture={finishDrawingPointer}
+      onPointerDownCapture={handleDrawingPointerDown}
+      onPointerUpCapture={finishDrawingPointer}
       ref={hostRef}
     >
       <ExcalidrawComponent
         key={board.id}
-        initialData={{
-          elements: initialData.elements as never[],
-          appState: {
-            viewBackgroundColor: "#11131a",
-            ...(initialData.appState ?? {}),
-          },
-          files: (initialData.files ?? {}) as never,
-        }}
-          onChange={(elements: readonly unknown[], appState: unknown, files: unknown) => {
-            emitViewportChange(appState as Record<string, unknown>);
-            const scene = sanitizeExcalidrawInitialData({
-              elements: elements as unknown[],
-              appState,
-              files,
-            });
-            if (hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
-              latestPersistentSceneRef.current = scene;
-              onSceneChange(scene);
-            }
-          }}
-          onScrollChange={handleScrollChange}
-          excalidrawAPI={handleExcalidrawApi}
-          theme="dark"
-        />
+        excalidrawAPI={handleExcalidrawApi}
+        initialData={excalidrawInitialData}
+        onChange={handleExcalidrawChange}
+        onScrollChange={handleScrollChange}
+        theme="dark"
+      />
     </div>
   );
 }

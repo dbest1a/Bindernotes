@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -285,6 +285,7 @@ describe("BinderReaderPage", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
@@ -345,6 +346,39 @@ describe("BinderReaderPage", () => {
     renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(screen.getByText("Document unavailable")).toBeTruthy();
+  });
+
+  it("offers guided first-time starter choices that apply a Facelift preset locally", async () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.commit.mockClear();
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      styleChoiceCompleted: false,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle("Jacob Math Notes", "Vectors and Matrices");
+
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(screen.getByText("Pick what you want to do first.")).toBeTruthy();
+    expect(screen.getByText("Work math")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Work math").closest("button")!);
+
+    await waitFor(() => {
+      expect(mocks.workspacePreferences.commit).toHaveBeenCalled();
+    });
+
+    const next = mocks.workspacePreferences.commit.mock.calls.at(-1)?.[0];
+    expect(next).toEqual(
+      expect.objectContaining({
+        preset: "math-practice-mode",
+        workspacePresentationMode: "facelift",
+        styleChoiceCompleted: true,
+      }),
+    );
+    expect(next?.facelift.surfaceMode).toBe("simple");
   });
 
   it("does not claim an empty private note is already saved to the account", () => {
@@ -677,13 +711,13 @@ describe("BinderReaderPage", () => {
     mocks.binderBundle.data = createSingleLessonBundle();
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
-    const topbar = container.querySelector(".workspace-topbar");
 
     expect(container.querySelector(".workspace-page")?.getAttribute("data-workspace-view")).toBe("modular");
-    expect(topbar?.textContent).toContain("Study Panels");
-    expect(topbar?.textContent).toContain("Study panels");
-    expect(screen.getByRole("button", { name: /adjust panels/i })).toBeTruthy();
-    expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
+    expect(screen.getByTestId("study-panels-shell")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /workspace mode study panels/i })).toBeTruthy();
+    expect(screen.getByRole("tablist", { name: /study panel modules/i })).toBeTruthy();
+    expect(container.querySelector(".workspace-topbar")?.hasAttribute("hidden")).toBe(true);
+    expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
     expect(container.querySelector(".simple-presentation-shell")).toBeNull();
   });
 

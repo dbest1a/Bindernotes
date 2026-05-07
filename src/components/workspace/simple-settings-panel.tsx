@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
+import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 import type {
   AccentColor,
   AppearanceCustomPalette,
@@ -56,8 +56,7 @@ export function SimpleSettingsPanel({
   const activeWorkspaceViewMode = getWorkspaceViewMode(preferences);
 
   const changeMode = (mode: (typeof workspaceViewModeOptions)[number]["id"]) => {
-    const presentationMode = mode === "facelift" ? "facelift" : mode === "canvas" ? "canvas" : "simple";
-    saveWorkspacePresentationPreference(presentationMode);
+    saveWorkspaceViewPreference(mode);
     setNext(applyWorkspaceViewModeToViewport(preferences, mode, getSimpleSettingsViewport()));
   };
 
@@ -85,7 +84,7 @@ export function SimpleSettingsPanel({
       <div className="workspace-settings__header flex items-start justify-between gap-3 p-4">
         <div>
           <Badge variant="outline">Settings</Badge>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Simple View</h2>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Simple</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Keep the study screen calm. Change text, color, and helpers without opening layout tools.
           </p>
@@ -108,6 +107,7 @@ export function SimpleSettingsPanel({
           <div className="grid gap-2">
             {workspaceViewModeOptions.map((mode) => (
               <button
+                aria-label={`Workspace view ${mode.name}`}
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
                   activeWorkspaceViewMode === mode.id

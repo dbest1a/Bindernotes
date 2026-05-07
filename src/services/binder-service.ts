@@ -242,7 +242,7 @@ function isLegacyLocalSampleBinderId(binderId: string) {
 }
 
 function createLegacyLocalSampleUnavailableError() {
-  return new Error("This sample binder is no longer available in account workspaces.");
+  return new Error("This bundled study binder is not available in account workspaces.");
 }
 
 function buildSyntheticSystemFolderArtifacts(
@@ -2666,6 +2666,110 @@ export async function upsertBinder(
   }
 
   return data as Binder;
+}
+
+export async function createWorkspaceFolder(input: {
+  color?: string;
+  name: string;
+  ownerId: string;
+}): Promise<Folder> {
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("Folder name is required before saving.");
+  }
+
+  const folder = {
+    id: crypto.randomUUID(),
+    owner_id: input.ownerId,
+    name,
+    color: input.color ?? "blue",
+    updated_at: now(),
+  };
+
+  if (!supabase) {
+    const saved = {
+      ...folder,
+      created_at: now(),
+    };
+    demoFolders.unshift(saved);
+    return saved;
+  }
+
+  const { data, error } = await supabase
+    .from("folders")
+    .insert(folder)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Folder;
+}
+
+export async function linkWorkspaceBinderToFolder(input: {
+  binderId: string;
+  folderId: string;
+  ownerId: string;
+}): Promise<FolderBinderLink> {
+  const link = {
+    id: crypto.randomUUID(),
+    owner_id: input.ownerId,
+    folder_id: input.folderId,
+    binder_id: input.binderId,
+    updated_at: now(),
+  };
+
+  if (!supabase) {
+    const saved = {
+      ...link,
+      created_at: now(),
+    };
+    demoFolderBinders.push(saved);
+    return saved;
+  }
+
+  const { data, error } = await supabase
+    .from("folder_binders")
+    .upsert(link)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as FolderBinderLink;
+}
+
+export async function createWorkspaceBinder(input: {
+  description?: string | null;
+  folderId?: string | null;
+  ownerId: string;
+  subject?: string;
+  title: string;
+}): Promise<Binder> {
+  const binder = await upsertBinder({
+    ownerId: input.ownerId,
+    title: input.title,
+    description: input.description ?? "Personal workspace binder.",
+    subject: input.subject ?? "General",
+    level: "Personal",
+    status: "draft",
+    price_cents: 0,
+    pinned: false,
+  });
+
+  if (input.folderId) {
+    await linkWorkspaceBinderToFolder({
+      binderId: binder.id,
+      folderId: input.folderId,
+      ownerId: input.ownerId,
+    });
+  }
+
+  return binder;
 }
 
 export async function upsertLesson(input: Partial<UpsertLessonInput>): Promise<BinderLesson> {

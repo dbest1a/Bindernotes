@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  applyWorkspaceViewModeToViewport,
   applyGlobalAppearanceToWorkspace,
   createDefaultWorkspacePreferences,
+  getWorkspaceViewMode,
   normalizeWorkspacePreferences,
 } from "@/lib/workspace-preferences";
+import {
+  loadWorkspaceViewPreference,
+  saveWorkspaceViewPreference,
+} from "@/lib/workspace-presentation-storage";
 import { useTheme } from "@/hooks/use-theme";
 import {
   getWorkspacePreferencesRecord,
@@ -30,15 +36,53 @@ function normalizeLoadedWorkspacePreferences(
     : applyGlobalAppearanceToWorkspace(normalized, globalTheme);
 }
 
+function getBootViewport() {
+  if (typeof window === "undefined") {
+    return { width: 1366, height: 768 };
+  }
+
+  return {
+    width: Math.max(320, Math.round(window.innerWidth || 1366)),
+    height: Math.max(360, Math.round((window.innerHeight || 900) - 168)),
+  };
+}
+
+function createBootWorkspacePreferences(
+  userId: string | undefined,
+  binderId: string | undefined,
+  suiteTemplateId?: string | null,
+  globalTheme?: WorkspacePreferences["theme"],
+) {
+  if (!userId || !binderId) {
+    return null;
+  }
+
+  const fallback = createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
+  const bootMode = loadWorkspaceViewPreference();
+  const modeAdjusted = applyWorkspaceViewModeToViewport(fallback, bootMode, getBootViewport());
+
+  return normalizeLoadedWorkspacePreferences(
+    modeAdjusted,
+    userId,
+    binderId,
+    suiteTemplateId,
+    globalTheme,
+  );
+}
+
 export function useWorkspacePreferences(
   userId: string | undefined,
   binderId: string | undefined,
   suiteTemplateId?: string | null,
 ) {
-  const [saved, setSaved] = useState<WorkspacePreferences | null>(null);
-  const [draft, setDraft] = useState<WorkspacePreferences | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const { clearThemeOverride, globalTheme, setTheme } = useTheme();
+  const [saved, setSaved] = useState<WorkspacePreferences | null>(() =>
+    createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
+  );
+  const [draft, setDraft] = useState<WorkspacePreferences | null>(() =>
+    createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
+  );
 
   useEffect(() => {
     if (!userId || !binderId) {
@@ -49,8 +93,9 @@ export function useWorkspacePreferences(
     }
 
     let cancelled = false;
-    setSaved(null);
-    setDraft(null);
+    const bootPreferences = createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme);
+    setSaved(bootPreferences);
+    setDraft(bootPreferences);
     setSaveError(null);
 
     void getWorkspacePreferencesRecord(userId, binderId)
@@ -65,6 +110,7 @@ export function useWorkspacePreferences(
           suiteTemplateId,
           globalTheme,
         );
+        saveWorkspaceViewPreference(getWorkspaceViewMode(normalized));
         setSaved(normalized);
         setDraft(normalized);
       })
@@ -73,7 +119,9 @@ export function useWorkspacePreferences(
         if (cancelled) {
           return;
         }
-        const fallback = createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
+        const fallback =
+          createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme) ??
+          createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
         setSaved(fallback);
         setDraft(fallback);
       });
@@ -81,7 +129,7 @@ export function useWorkspacePreferences(
     return () => {
       cancelled = true;
     };
-  }, [binderId, suiteTemplateId, userId]);
+  }, [binderId, globalTheme, suiteTemplateId, userId]);
 
   useEffect(() => {
     const active = draft ?? saved;
@@ -120,6 +168,7 @@ export function useWorkspacePreferences(
     setSaveError(null);
     void upsertWorkspacePreferencesRecord(next)
       .then((persisted) => {
+        saveWorkspaceViewPreference(getWorkspaceViewMode(persisted));
         setSaveError(null);
         setSaved(persisted);
         setDraft((current) => (current?.updatedAt === next.updatedAt ? persisted : current));

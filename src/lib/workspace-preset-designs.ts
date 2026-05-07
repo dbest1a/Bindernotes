@@ -63,6 +63,18 @@ export type FaceliftWorkspacePresetDesign = {
     sequence: WorkspaceModuleId[];
     studentGoal: string;
   };
+  studentCommand: {
+    intent: "read" | "write" | "graph" | "work" | "argue" | "timeline" | "evidence";
+    label: string;
+    primaryAction: string;
+    followUpAction: string;
+  };
+  performanceBudget: {
+    maxComfortableModules: number;
+    maxCompactModules: number;
+    mobilePrimaryModule: WorkspaceModuleId;
+    lazyModules: WorkspaceModuleId[];
+  };
   reasoning: string;
 };
 
@@ -75,6 +87,15 @@ export type WorkspacePresetRuntimeAvailability = {
 export type WorkspaceMobileModuleTab = {
   moduleId: WorkspaceModuleId;
   label: string;
+};
+
+export type WorkspaceStarterChoice = {
+  id: "read" | "notes" | "math" | "history" | "canvas";
+  label: string;
+  description: string;
+  presetId: WorkspacePresetId;
+  presentation: "facelift-simple" | "facelift-canvas" | "classic-simple" | "classic-canvas";
+  recommendedFor: "all" | "math" | "history";
 };
 
 type MinimumSize = {
@@ -501,6 +522,8 @@ type FaceliftPresetDesignOverride = {
   placement?: FaceliftWorkspacePresetDesign["placement"];
   graphIntegration?: FaceliftWorkspacePresetDesign["graphIntegration"];
   historyWorkflow?: FaceliftWorkspacePresetDesign["historyWorkflow"];
+  studentCommand?: FaceliftWorkspacePresetDesign["studentCommand"];
+  performanceBudget?: Partial<FaceliftWorkspacePresetDesign["performanceBudget"]>;
   reasoning?: string;
 };
 
@@ -525,6 +548,116 @@ const historyToolCollapseOrder: WorkspaceModuleId[] = [
   "search",
   "tasks",
 ];
+
+const heavyWorkspaceModules = new Set<WorkspaceModuleId>([
+  "desmos-graph",
+  "scientific-calculator",
+  "saved-graphs",
+  "whiteboard",
+  "history-timeline",
+  "history-evidence",
+  "history-argument",
+  "history-myth-checks",
+]);
+
+const defaultStudentCommands: Record<WorkspacePresetId, FaceliftWorkspacePresetDesign["studentCommand"]> = {
+  "focused-reading": {
+    intent: "read",
+    label: "Read",
+    primaryAction: "Read the next section",
+    followUpAction: "Mark one sentence that carries the main idea.",
+  },
+  "split-study": {
+    intent: "write",
+    label: "Read + write",
+    primaryAction: "Read one paragraph",
+    followUpAction: "Rewrite it once in your own words.",
+  },
+  "notes-focus": {
+    intent: "write",
+    label: "Write",
+    primaryAction: "Build your explanation",
+    followUpAction: "Use the lesson only when you need evidence or wording.",
+  },
+  "annotation-mode": {
+    intent: "read",
+    label: "Annotate",
+    primaryAction: "Select one important source line",
+    followUpAction: "Add why it matters before moving on.",
+  },
+  "math-study": {
+    intent: "graph",
+    label: "Study graph",
+    primaryAction: "Compare formula and graph",
+    followUpAction: "Write the pattern you notice in notes.",
+  },
+  "math-simple-presentation": {
+    intent: "read",
+    label: "Follow",
+    primaryAction: "Follow the worked explanation",
+    followUpAction: "Open the graph only when the formula needs a visual.",
+  },
+  "math-guided-study": {
+    intent: "graph",
+    label: "Guided math",
+    primaryAction: "Move from lesson to graph",
+    followUpAction: "Explain the relationship in your notes.",
+  },
+  "math-graph-lab": {
+    intent: "graph",
+    label: "Graph lab",
+    primaryAction: "Change one graph idea",
+    followUpAction: "Record what moved, stretched, or stayed fixed.",
+  },
+  "math-proof-concept": {
+    intent: "work",
+    label: "Reason",
+    primaryAction: "Name the rule",
+    followUpAction: "Test it against one example or counterexample.",
+  },
+  "math-practice-mode": {
+    intent: "work",
+    label: "Practice",
+    primaryAction: "Work one problem on the board",
+    followUpAction: "Check the formula and write the hinge step.",
+  },
+  "full-math-canvas": {
+    intent: "work",
+    label: "Math studio",
+    primaryAction: "Use the largest work surface first",
+    followUpAction: "Open extra tools only when they answer the next question.",
+  },
+  "history-guided": {
+    intent: "timeline",
+    label: "History loop",
+    primaryAction: "Read the source in context",
+    followUpAction: "Place it in time, then save one useful piece of evidence.",
+  },
+  "history-timeline-focus": {
+    intent: "timeline",
+    label: "Timeline",
+    primaryAction: "Find the next event",
+    followUpAction: "Explain what changed and why it mattered.",
+  },
+  "history-source-evidence": {
+    intent: "evidence",
+    label: "Evidence",
+    primaryAction: "Collect one strong source detail",
+    followUpAction: "Write what it proves, not just what it says.",
+  },
+  "history-argument-builder": {
+    intent: "argue",
+    label: "Argument",
+    primaryAction: "Write the claim first",
+    followUpAction: "Attach only the evidence that actually supports it.",
+  },
+  "history-full-studio": {
+    intent: "timeline",
+    label: "History studio",
+    primaryAction: "Start with chronology",
+    followUpAction: "Move through source, evidence, and argument in order.",
+  },
+};
 
 const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetDesignOverride>> = {
   "focused-reading": {
@@ -875,6 +1008,17 @@ function buildFaceliftPresetDesign(presetId: WorkspacePresetId): FaceliftWorkspa
       getWorkspaceModuleMinimumSize(moduleId, moduleId === resolvedPrimaryModule ? "primary" : "secondary"),
     ]),
   ) as Partial<Record<WorkspaceModuleId, MinimumSize>>;
+  const mobilePrimaryModule = getMobileModuleOrder(presetId).find((moduleId) =>
+    appendUnique([...visibleModules, ...collapsedModules]).includes(moduleId),
+  ) ?? resolvedPrimaryModule;
+  const defaultPerformanceBudget: FaceliftWorkspacePresetDesign["performanceBudget"] = {
+    maxComfortableModules: presetId === "full-math-canvas" || presetId === "history-full-studio" ? 5 : 4,
+    maxCompactModules: 3,
+    mobilePrimaryModule,
+    lazyModules: appendUnique([...visibleModules, ...collapsedModules]).filter((moduleId) =>
+      heavyWorkspaceModules.has(moduleId),
+    ),
+  };
 
   return {
     id: presetId,
@@ -894,6 +1038,12 @@ function buildFaceliftPresetDesign(presetId: WorkspacePresetId): FaceliftWorkspa
     },
     graphIntegration: override.graphIntegration,
     historyWorkflow: override.historyWorkflow,
+    studentCommand: override.studentCommand ?? defaultStudentCommands[presetId],
+    performanceBudget: {
+      ...defaultPerformanceBudget,
+      ...override.performanceBudget,
+      lazyModules: override.performanceBudget?.lazyModules ?? defaultPerformanceBudget.lazyModules,
+    },
     reasoning: override.reasoning ?? faceliftPresetReasoning[presetId],
   };
 }
@@ -1371,6 +1521,66 @@ export function getWorkspaceMobileModuleTabs(
       moduleId,
       label: mobileModuleLabels[moduleId] ?? moduleId,
     }));
+}
+
+export function getWorkspaceStarterChoices(options: {
+  binderSubject?: string | null;
+  historyEnabled?: boolean;
+} = {}): WorkspaceStarterChoice[] {
+  const subject = options.binderSubject?.toLowerCase() ?? "";
+  const isMath = subject.includes("math") || subject.includes("algebra") || subject.includes("geometry");
+  const isHistory = Boolean(options.historyEnabled) || subject.includes("history");
+  const choices: WorkspaceStarterChoice[] = [
+    {
+      id: "read",
+      label: "Read",
+      description: "Open a calm lesson-first workspace with only the essentials visible.",
+      presetId: "focused-reading",
+      presentation: "facelift-simple",
+      recommendedFor: "all",
+    },
+    {
+      id: "notes",
+      label: "Take notes",
+      description: "Put writing first while keeping the source close enough to reference.",
+      presetId: "notes-focus",
+      presentation: "facelift-simple",
+      recommendedFor: "all",
+    },
+  ];
+
+  if (isMath) {
+    choices.push({
+      id: "math",
+      label: "Work math",
+      description: "Start with the whiteboard, formulas, and graph-ready math tools.",
+      presetId: "math-practice-mode",
+      presentation: "facelift-simple",
+      recommendedFor: "math",
+    });
+  }
+
+  if (isHistory) {
+    choices.push({
+      id: "history",
+      label: "Build history",
+      description: "Move through source, timeline, evidence, and argument in a guided loop.",
+      presetId: "history-guided",
+      presentation: "facelift-simple",
+      recommendedFor: "history",
+    });
+  }
+
+  choices.push({
+    id: "canvas",
+    label: "Use canvas",
+    description: "Open the redesigned movable workspace when you want full layout power.",
+    presetId: isMath ? "math-graph-lab" : isHistory ? "history-full-studio" : "split-study",
+    presentation: "facelift-canvas",
+    recommendedFor: "all",
+  });
+
+  return choices;
 }
 
 const compactMobileToolModules = new Set<WorkspaceModuleId>([

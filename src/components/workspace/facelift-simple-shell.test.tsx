@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FaceliftSimpleShell } from "@/components/workspace/facelift-simple-shell";
@@ -22,9 +22,17 @@ vi.mock("@/components/workspace/workspace-modules", () => ({
       title: "Desmos graph",
       render: () => <section>Graph body</section>,
     },
+    "math-blocks": {
+      title: "Math blocks",
+      render: () => <section>Math blocks body</section>,
+    },
     "formula-sheet": {
       title: "Formula sheet",
       render: () => <section>Formula body</section>,
+    },
+    whiteboard: {
+      title: "Whiteboard",
+      render: () => <section>Whiteboard body</section>,
     },
   },
 }));
@@ -33,7 +41,10 @@ afterEach(() => {
   cleanup();
 });
 
-function renderFaceliftSimpleShell(overrides: Partial<WorkspacePreferences> = {}) {
+function renderFaceliftSimpleShell(
+  overrides: Partial<WorkspacePreferences> = {},
+  options: { isCompact?: boolean } = {},
+) {
   const preferences: WorkspacePreferences = {
     ...createDefaultWorkspacePreferences("user-1", "binder-1"),
     workspacePresentationMode: "facelift",
@@ -88,6 +99,7 @@ function renderFaceliftSimpleShell(overrides: Partial<WorkspacePreferences> = {}
       <FaceliftSimpleShell
         context={context}
         focusModeActive={false}
+        isCompact={options.isCompact}
         onChange={callbacks.onChange}
         onChangeView={callbacks.onChangeView}
         onCreateSticky={callbacks.onCreateSticky}
@@ -163,5 +175,30 @@ describe("FaceliftSimpleShell", () => {
     expect(screen.getAllByText(/source lesson/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/3 panels live/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/compact view/i)).toBeTruthy();
+  });
+
+  it("uses mobile module tabs and mounts only the active study surface on compact screens", () => {
+    renderFaceliftSimpleShell(
+      {
+        preset: "math-practice-mode",
+        enabledModules: ["whiteboard", "math-blocks", "private-notes", "formula-sheet"],
+        facelift: {
+          ...createDefaultWorkspacePreferences("user-1", "binder-1").facelift,
+          density: "comfortable",
+          surfaceMode: "simple",
+        },
+      },
+      { isCompact: true },
+    );
+
+    const mobileNav = screen.getByRole("navigation", { name: /mobile study modules/i });
+    expect(mobileNav).toBeTruthy();
+    expect(screen.getByText("Whiteboard body")).toBeTruthy();
+    expect(screen.queryByText("Notes body")).toBeNull();
+
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "Notes" }));
+
+    expect(screen.queryByText("Whiteboard body")).toBeNull();
+    expect(screen.getByText("Notes body")).toBeTruthy();
   });
 });

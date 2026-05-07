@@ -11,21 +11,24 @@ import {
 
 afterEach(() => {
   window.sessionStorage.clear();
+  window.localStorage.clear();
   cleanup();
 });
 
 describe("WorkspaceSettings appearance scope", () => {
-  it("shows Simple View, Study Panels, Canvas, and Facelift workspace view choices with Facelift-specific settings", () => {
+  it("shows exactly Canvas, Simple, Facelift, and Study Panels workspace view choices with Facelift-specific settings", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     const onChange = vi.fn();
     const { rerender } = render(
       <WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />,
     );
 
-    expect(screen.getByRole("button", { name: "Workspace view Simple View" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Workspace view Study Panels" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Workspace view Canvas" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Workspace view Facelift" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Workspace view / }).map((button) => button.textContent)).toEqual([
+      expect.stringContaining("Canvas"),
+      expect.stringContaining("Simple"),
+      expect.stringContaining("Facelift"),
+      expect.stringContaining("Study Panels"),
+    ]);
 
     fireEvent.click(screen.getByRole("button", { name: "Workspace view Facelift" }));
     const faceliftPreferences = onChange.mock.calls.at(-1)?.[0];

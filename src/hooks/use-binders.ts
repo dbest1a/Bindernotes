@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createComment,
   createHighlight,
+  createWorkspaceBinder,
+  createWorkspaceFolder,
   deleteHighlight,
   deleteComment,
   deleteLesson,
@@ -68,6 +70,47 @@ export function useDashboard(profile: Profile | null, options?: DashboardQueryOp
     staleTime: DEFAULT_QUERY_STALE_TIME,
     refetchOnWindowFocus: false,
   });
+}
+
+export function useDashboardWorkspaceMutations(profile: Profile | null) {
+  const queryClient = useQueryClient();
+
+  const invalidateDashboard = () => {
+    if (!profile) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "dashboard" &&
+        query.queryKey[1] === profile.id,
+    });
+  };
+
+  return {
+    createBinder: useMutation({
+      mutationFn: (input: {
+        description?: string | null;
+        folderId?: string | null;
+        subject?: string;
+        title: string;
+      }) =>
+        createWorkspaceBinder({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onSuccess: invalidateDashboard,
+    }),
+    createFolder: useMutation({
+      mutationFn: (input: { color?: string; name: string }) =>
+        createWorkspaceFolder({
+          ...input,
+          ownerId: profile!.id,
+        }),
+      onSuccess: invalidateDashboard,
+    }),
+  };
 }
 
 export function useBinderBundle(binderId: string | undefined, profile: Profile | null) {

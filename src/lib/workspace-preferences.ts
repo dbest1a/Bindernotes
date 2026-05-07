@@ -44,6 +44,7 @@ import type {
   WorkspaceVerticalSpace,
   WorkspaceWindowFrame,
   WorkspaceZone,
+  WorkspaceViewMode,
 } from "@/types";
 import { SYSTEM_BINDER_IDS, systemSuiteTemplates } from "@/lib/history-suite-seeds";
 import {
@@ -125,8 +126,6 @@ export type WorkspacePresentationModeOption = {
   name: string;
   description: string;
 };
-
-export type WorkspaceViewMode = WorkspaceMode | "facelift";
 
 export type WorkspaceViewModeOption = {
   id: WorkspaceViewMode;
@@ -231,24 +230,24 @@ export const workspacePresentationModeOptions: WorkspacePresentationModeOption[]
 
 export const workspaceViewModeOptions: WorkspaceViewModeOption[] = [
   {
-    id: "simple",
-    name: "Simple View",
-    description: "Clean fullscreen study view with reading, notes, and helper drawers.",
-  },
-  {
-    id: "modular",
-    name: "Study Panels",
-    description: "Structured preset panels for active study without full canvas editing.",
-  },
-  {
     id: "canvas",
     name: "Canvas",
-    description: "Advanced custom workspace with movable and resizable modules.",
+    description: "Advanced movable workspace for custom module layouts.",
+  },
+  {
+    id: "simple",
+    name: "Simple",
+    description: "Classic focused reading and notes with minimal layout controls.",
   },
   {
     id: "facelift",
     name: "Facelift",
     description: "Redesigned student workspace with guided hierarchy and polished module chrome.",
+  },
+  {
+    id: "modular",
+    name: "Study Panels",
+    description: "Structured resizable panels for active study without canvas editing.",
   },
 ];
 
@@ -1343,6 +1342,23 @@ export const workspaceThemes: WorkspaceTheme[] = [
     },
   },
   {
+    id: "prism-ink",
+    name: "Prism Ink",
+    description: "Interactive dark study surfaces with crisp teal and violet accents.",
+    vars: {
+      background: "232 22% 9%",
+      foreground: "45 36% 96%",
+      card: "232 18% 12%",
+      cardForeground: "45 36% 96%",
+      secondary: "238 18% 18%",
+      muted: "238 18% 18%",
+      mutedForeground: "228 12% 72%",
+      border: "238 14% 25%",
+      accent: "286 42% 23%",
+      primary: "167 82% 48%",
+    },
+  },
+  {
     id: "custom",
     name: "Custom",
     description: "A personal three-color palette used across app, study, and canvas views.",
@@ -1384,6 +1400,7 @@ const defaultAccentByTheme: Record<WorkspaceThemeId, AccentColor> = {
   ocean: "blue",
   "monochrome-pro": "graphite",
   aurora: "violet",
+  "prism-ink": "teal",
   custom: "custom",
 };
 

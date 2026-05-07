@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   loadWorkspacePresentationPreference,
+  loadWorkspaceViewPreference,
   subscribeWorkspacePresentationPreference,
 } from "@/lib/workspace-presentation-storage";
 
@@ -14,4 +15,16 @@ export function useWorkspacePresentationPreference() {
   }, []);
 
   return presentationMode;
+}
+
+export function useWorkspaceViewPreference() {
+  const [viewMode, setViewMode] = useState(loadWorkspaceViewPreference);
+
+  useEffect(() => {
+    return subscribeWorkspacePresentationPreference(() => {
+      setViewMode(loadWorkspaceViewPreference());
+    });
+  }, []);
+
+  return viewMode;
 }

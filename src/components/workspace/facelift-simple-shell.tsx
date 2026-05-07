@@ -17,7 +17,7 @@ import {
   Sparkles,
   StickyNote,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,20 +25,24 @@ import {
   workspaceModuleRegistry,
   type WorkspaceModuleContext,
 } from "@/components/workspace/workspace-modules";
+import { WorkspaceModeSwitcher } from "@/components/workspace/workspace-mode-switcher";
 import {
   getVisibleWorkspacePresets,
   workspacePresets,
 } from "@/lib/workspace-preferences";
 import {
   getFaceliftWorkspacePresetDesign,
+  getWorkspaceMobileModuleTabs,
   selectFaceliftSurfaceModules,
 } from "@/lib/workspace-preset-designs";
 import { getPrimaryFolder } from "@/lib/workspace-structure";
 import { cn } from "@/lib/utils";
 import type {
   FaceliftDensity,
+  WorkspaceModuleId,
   WorkspacePreferences,
   WorkspacePresetId,
+  WorkspaceViewMode,
 } from "@/types";
 
 type FaceliftSimpleShellProps = {
@@ -46,15 +50,18 @@ type FaceliftSimpleShellProps = {
   preferences: WorkspacePreferences;
   focusModeActive?: boolean;
   onChange: (preferences: WorkspacePreferences) => void;
+  onChangeWorkspaceViewMode?: (mode: WorkspaceViewMode) => void;
   onChangeView?: () => void;
   onCreateSticky?: () => void;
   onOpenSettings: () => void;
   onToggleFocus?: () => void;
+  isCompact?: boolean;
+  workspaceViewMode?: WorkspaceViewMode;
 };
 
 type OpenConsumerPanel = "study" | "tools" | "view" | "map" | "recent" | null;
 type WorkspacePresetOption = (typeof workspacePresets)[number];
-type StudyShortcutLabel = "Read" | "Notes" | "Graph";
+type StudyShortcutLabel = "Read" | "Notes" | "Graph" | "Board" | "Timeline" | "Evidence" | "Argument";
 
 const densityLabels: Record<FaceliftDensity, string> = {
   comfortable: "Comfortable",
@@ -104,6 +111,10 @@ const shortcutDetails: Record<StudyShortcutLabel, { hint: string; Icon: LucideIc
   Read: { hint: "Source", Icon: BookOpen },
   Notes: { hint: "Write", Icon: NotebookPen },
   Graph: { hint: "Visual", Icon: FunctionSquare },
+  Board: { hint: "Work", Icon: PanelLeft },
+  Timeline: { hint: "Sequence", Icon: MapIcon },
+  Evidence: { hint: "Proof", Icon: Layers3 },
+  Argument: { hint: "Claim", Icon: NotebookPen },
 };
 
 const presetGroups: Array<{ label: string; presetIds: WorkspacePresetId[] }> = [
@@ -146,12 +157,15 @@ function isWorkspacePresetOption(
 export function FaceliftSimpleShell({
   context,
   focusModeActive = false,
+  isCompact = false,
   onChange,
+  onChangeWorkspaceViewMode,
   onChangeView,
   onCreateSticky,
   onOpenSettings,
   onToggleFocus,
   preferences,
+  workspaceViewMode = "facelift",
 }: FaceliftSimpleShellProps) {
   const [openPanel, setOpenPanel] = useState<OpenConsumerPanel>(null);
   const design = getFaceliftWorkspacePresetDesign(preferences.preset);
@@ -169,6 +183,7 @@ export function FaceliftSimpleShell({
     enabledModules: preferences.enabledModules,
   });
   const visibleModuleSet = new Set(visibleModules);
+  const visibleModuleKey = visibleModules.join("|");
   const isGraphLabTwoPane =
     preferences.preset === "math-graph-lab" &&
     visibleModules.length === 2 &&
@@ -190,11 +205,33 @@ export function FaceliftSimpleShell({
     const graphPresetId: WorkspacePresetId = visiblePresetById.has("math-graph-lab")
       ? "math-graph-lab"
       : "math-study";
-    return [
+    const candidates: Array<{ label: StudyShortcutLabel; presetId: WorkspacePresetId }> = [
       { label: "Read", presetId: "focused-reading" as WorkspacePresetId },
       { label: "Notes", presetId: "notes-focus" as WorkspacePresetId },
-      { label: "Graph", presetId: graphPresetId },
-    ].filter((shortcut) => visiblePresetById.has(shortcut.presetId));
+      ...(visiblePresetById.has("math-practice-mode")
+        ? [{ label: "Board" as StudyShortcutLabel, presetId: "math-practice-mode" as WorkspacePresetId }]
+        : []),
+      ...(visiblePresetById.has(graphPresetId)
+        ? [{ label: "Graph" as StudyShortcutLabel, presetId: graphPresetId }]
+        : []),
+      ...(visiblePresetById.has("history-timeline-focus")
+        ? [{ label: "Timeline" as StudyShortcutLabel, presetId: "history-timeline-focus" as WorkspacePresetId }]
+        : []),
+      ...(visiblePresetById.has("history-source-evidence")
+        ? [{ label: "Evidence" as StudyShortcutLabel, presetId: "history-source-evidence" as WorkspacePresetId }]
+        : []),
+      ...(visiblePresetById.has("history-argument-builder")
+        ? [{ label: "Argument" as StudyShortcutLabel, presetId: "history-argument-builder" as WorkspacePresetId }]
+        : []),
+    ];
+    const unique = new Map<WorkspacePresetId, { label: StudyShortcutLabel; presetId: WorkspacePresetId }>();
+    candidates.forEach((shortcut) => {
+      if (visiblePresetById.has(shortcut.presetId) && !unique.has(shortcut.presetId)) {
+        unique.set(shortcut.presetId, shortcut);
+      }
+    });
+
+    return Array.from(unique.values()).slice(0, 4);
   }, [visiblePresetById]);
   const groupedVisiblePresets = useMemo(
     () =>
@@ -214,6 +251,34 @@ export function FaceliftSimpleShell({
   const nextBestStep = nextBestStepByPreset[preferences.preset] ?? design.purpose;
   const modeSummary = modeSummaryByPreset[preferences.preset] ?? design.purpose;
   const visiblePanelCountLabel = `${visibleModules.length} panel${visibleModules.length === 1 ? "" : "s"} live`;
+  const studentCommand = design.studentCommand;
+  const mobileTabs = useMemo(
+    () => {
+      const mobileVisibleModules = new Set(visibleModules);
+      return getWorkspaceMobileModuleTabs(
+        preferences.preset,
+        preferences.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
+      ).filter((tab) => mobileVisibleModules.has(tab.moduleId));
+    },
+    [preferences.enabledModules, preferences.preset, visibleModuleKey],
+  );
+  const [activeMobileModuleId, setActiveMobileModuleId] = useState<WorkspaceModuleId | null>(null);
+  const firstVisibleModuleId = visibleModules[0] ?? null;
+  const mobileActiveModuleId = mobileTabs.some((tab) => tab.moduleId === activeMobileModuleId)
+    ? activeMobileModuleId
+    : mobileTabs[0]?.moduleId ?? firstVisibleModuleId;
+  const renderedModules =
+    isCompact && mobileActiveModuleId
+      ? visibleModules.filter((moduleId) => moduleId === mobileActiveModuleId)
+      : visibleModules;
+
+  useEffect(() => {
+    setActiveMobileModuleId((current) =>
+      current && mobileTabs.some((tab) => tab.moduleId === current)
+        ? current
+        : mobileTabs[0]?.moduleId ?? firstVisibleModuleId,
+    );
+  }, [firstVisibleModuleId, mobileTabs]);
 
   const togglePanel = (panel: Exclude<OpenConsumerPanel, null>) => {
     setOpenPanel((current) => (current === panel ? null : panel));
@@ -238,6 +303,7 @@ export function FaceliftSimpleShell({
       )}
       data-facelift-density={preferences.facelift.density}
       data-facelift-module-chrome={preferences.facelift.moduleChrome}
+      data-facelift-mobile-active={mobileActiveModuleId ?? undefined}
       data-facelift-navigation={preferences.facelift.navigationMode}
       data-facelift-surface="simple"
       data-testid="facelift-simple-shell"
@@ -277,7 +343,7 @@ export function FaceliftSimpleShell({
           </div>
         </div>
 
-        <div className="facelift-consumer-mode">
+        <div className="facelift-consumer-mode" data-testid="facelift-study-command-bar">
           <button
             aria-expanded={openPanel === "study"}
             aria-label={`Study mode ${preset?.name ?? "Split Study"}`}
@@ -350,7 +416,7 @@ export function FaceliftSimpleShell({
         <div className="facelift-simple-shell__actions">
           <div className="facelift-quiet-status" aria-label="Saved status">
             <CheckCircle2 className="size-4" />
-            <span>Saved status</span>
+            <span>{context.noteSaveLabel ?? "Saved status"}</span>
           </div>
           {onToggleFocus ? (
             <Button className="facelift-primary-action" onClick={onToggleFocus} size="sm" type="button" variant="outline">
@@ -386,6 +452,12 @@ export function FaceliftSimpleShell({
                     </button>
                   ))}
                 </div>
+                {onChangeWorkspaceViewMode ? (
+                  <WorkspaceModeSwitcher
+                    currentMode={workspaceViewMode}
+                    onChangeMode={onChangeWorkspaceViewMode}
+                  />
+                ) : null}
                 {onChangeView ? (
                   <button className="facelift-menu-item" onClick={onChangeView} type="button">
                     <PanelLeft className="size-4" />
@@ -451,6 +523,26 @@ export function FaceliftSimpleShell({
       </header>
 
       <div className="facelift-simple-shell__body">
+        <section className="facelift-next-board" data-testid="facelift-next-board" aria-label="What to do next">
+          <div>
+            <span>{studentCommand.label}</span>
+            <strong>{studentCommand.primaryAction}</strong>
+            <p>{studentCommand.followUpAction}</p>
+          </div>
+          <div className="facelift-next-board__actions">
+            {nextLesson ? (
+              <button onClick={() => context.onSelectLesson(nextLesson)} type="button">
+                <ChevronRight className="size-4" />
+                Next document
+              </button>
+            ) : null}
+            <button onClick={() => context.onApplyPreset(preferences.preset)} type="button">
+              <Sparkles className="size-4" />
+              Keep studying
+            </button>
+          </div>
+        </section>
+
         <section className="facelift-guide-row" aria-label="Study guide">
           <button
             aria-expanded={openPanel === "map"}
@@ -542,13 +634,27 @@ export function FaceliftSimpleShell({
           )}
           data-facelift-preset={preferences.preset}
         >
+          {isCompact && mobileTabs.length > 1 ? (
+            <nav className="facelift-mobile-switcher" aria-label="Mobile study modules">
+              {mobileTabs.map((tab) => (
+                <button
+                  aria-current={mobileActiveModuleId === tab.moduleId ? "page" : undefined}
+                  key={tab.moduleId}
+                  onClick={() => setActiveMobileModuleId(tab.moduleId)}
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
           <section
             className="facelift-module-grid"
             data-facelift-graph-lab-layout={isGraphLabTwoPane ? "two-pane" : undefined}
-            data-facelift-module-count={visibleModules.length}
+            data-facelift-module-count={renderedModules.length}
             data-testid="facelift-module-grid"
           >
-            {visibleModules.map((moduleId) => (
+            {renderedModules.map((moduleId) => (
               <article
                 className={cn(
                   "facelift-module-cell",
@@ -557,7 +663,17 @@ export function FaceliftSimpleShell({
                 data-facelift-module={moduleId}
                 key={moduleId}
               >
-                {workspaceModuleRegistry[moduleId].render(context)}
+                {workspaceModuleRegistry[moduleId].render(
+                  moduleId === "whiteboard"
+                    ? {
+                        ...context,
+                        surface: "whiteboard",
+                        whiteboardCardDensity: "compact",
+                        whiteboardSourceDisplayMode: "summary",
+                        whiteboardShowMathInline: false,
+                      }
+                    : context,
+                )}
               </article>
             ))}
           </section>

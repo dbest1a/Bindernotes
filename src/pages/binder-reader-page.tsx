@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { WorkspaceRenderBoundary } from "@/components/workspace/workspace-render-boundary";
 import { FaceliftSimpleShell } from "@/components/workspace/facelift-simple-shell";
+import { StudyPanelsShell } from "@/components/workspace/study-panels-shell";
 import { WorkspaceStickyLayer } from "@/components/workspace/workspace-sticky-overlay";
 import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
 import { SimpleSettingsPanel } from "@/components/workspace/simple-settings-panel";
@@ -69,9 +70,10 @@ import {
 } from "@/lib/highlights";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
-import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
+import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 import {
   applyFocusModeToViewport,
+  applyFaceliftSurfaceModeToViewport,
   applyGlobalAppearanceToWorkspace,
   applyWorkspaceViewModeToViewport,
   applyWorkspaceModeToViewport,
@@ -89,6 +91,7 @@ import {
 } from "@/lib/workspace-preferences";
 import {
   buildFaceliftPresetFrames,
+  getWorkspaceStarterChoices,
   getWorkspaceMobileModuleTabs,
 } from "@/lib/workspace-preset-designs";
 import {
@@ -113,6 +116,7 @@ import type {
   WorkspacePresentationMode,
   WorkspacePreferences,
   WorkspacePresetId,
+  WorkspaceViewMode,
   WorkspaceWindowFrame,
 } from "@/types";
 
@@ -231,7 +235,7 @@ export function BinderReaderPage() {
   const isSimpleMode = workspaceViewMode === "simple";
   const isCanvasMode = workspaceViewMode === "canvas" || isFaceliftCanvas;
   const canEditWindowLayout = isCanvasMode;
-  const isWindowedWorkspace = isStudyPanelsMode || isCanvasMode;
+  const isWindowedWorkspace = isCanvasMode;
   const isLayoutEditing = layoutMode === "setup" && canEditWindowLayout;
   const isLayoutEditingRef = useRef(isLayoutEditing);
   const deferredNoteContent = useDeferredValue(noteContent);
@@ -1174,14 +1178,44 @@ export function BinderReaderPage() {
   );
 
   const applyModeChoice = useCallback(
-    (viewMode: (typeof workspaceViewModeOptions)[number]["id"]) => {
+    (viewMode: WorkspaceViewMode) => {
       const viewport = getWorkspaceViewport();
-      const presentationMode =
-        viewMode === "facelift" ? "facelift" : viewMode === "canvas" ? "canvas" : "simple";
-      saveWorkspacePresentationPreference(presentationMode);
+      saveWorkspaceViewPreference(viewMode);
       updateWorkspace((current) =>
         applyWorkspaceViewModeToViewport(current, viewMode, viewport),
       );
+      setPreferencesOpen(false);
+    },
+    [getWorkspaceViewport, updateWorkspace],
+  );
+
+  const applyStarterChoice = useCallback(
+    (choice: ReturnType<typeof getWorkspaceStarterChoices>[number]) => {
+      const viewport = getWorkspaceViewport();
+      const viewMode =
+        choice.presentation === "classic-canvas"
+          ? "canvas"
+          : choice.presentation.startsWith("facelift")
+            ? "facelift"
+            : "simple";
+      saveWorkspaceViewPreference(viewMode);
+      updateWorkspace((current) => {
+        const modeAdjusted =
+          choice.presentation === "facelift-simple"
+            ? applyFaceliftSurfaceModeToViewport(current, "simple", viewport)
+            : choice.presentation === "facelift-canvas"
+              ? applyFaceliftSurfaceModeToViewport(current, "canvas", viewport)
+              : applyWorkspaceViewModeToViewport(
+                  current,
+                  choice.presentation === "classic-canvas" ? "canvas" : "simple",
+                  viewport,
+                );
+        const presetAdjusted = applyPresetToViewport(modeAdjusted, choice.presetId, viewport);
+        return preserveClassicCanvasForFacelift(current, presetAdjusted, {
+          usePresetRecipe: choice.presentation.startsWith("facelift"),
+          viewport,
+        });
+      });
       setPreferencesOpen(false);
     },
     [getWorkspaceViewport, updateWorkspace],
@@ -2213,9 +2247,13 @@ export function BinderReaderPage() {
   });
   const showTopbarUtilityUi = isLayoutEditing;
   const workspaceModeLabel =
-    workspaceViewModeOptions.find((option) => option.id === workspaceViewMode)?.name ?? "Simple View";
+    workspaceViewModeOptions.find((option) => option.id === workspaceViewMode)?.name ?? "Simple";
   const activeFocusMode =
     isSimpleMode || isFaceliftSimple ? active.simple.focusMode : active.theme.focusMode;
+  const starterChoices = getWorkspaceStarterChoices({
+    binderSubject: binderQuery.data.binder.subject,
+    historyEnabled,
+  });
 
   const context: WorkspaceModuleContext = {
     ownerId,
@@ -2642,7 +2680,7 @@ export function BinderReaderPage() {
       data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
-      {!isFaceliftSimple ? (
+      {!isFaceliftSimple && !isStudyPanelsMode ? (
         <Breadcrumbs
           items={[
             { label: "Workspace", to: "/dashboard" },
@@ -2657,7 +2695,7 @@ export function BinderReaderPage() {
         className="workspace-topbar"
         data-layout-editing={isLayoutEditing ? "true" : "false"}
         data-utility-ui={showTopbarUtilityUi ? "true" : "false"}
-        hidden={isFaceliftSimple}
+      hidden={isFaceliftSimple || isStudyPanelsMode}
       >
         <div className="workspace-topbar__summary">
           <p className="workspace-topbar__eyebrow">
@@ -2840,24 +2878,45 @@ export function BinderReaderPage() {
       ) : null}
 
       {!active.styleChoiceCompleted ? (
-        <section className="grid gap-3 rounded-[22px] border border-border/70 bg-card/90 p-5 shadow-soft">
+        <section className="workspace-starter-panel grid gap-4 rounded-[22px] border border-border/70 bg-card/90 p-5 shadow-soft">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Choose your study view
+              Start studying
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-              Start with the amount of workspace control that feels right.
+              Pick what you want to do first.
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Simple keeps the classic lesson surface. Canvas keeps the classic movable workspace.
-              Study Panels keeps the structured preset workspace. Facelift opens the redesigned
-              student workspace. You can switch later in settings.
+              BinderNotes will choose the workspace, preset, and module balance for that job.
+              You can still switch Simple, Study Panels, Canvas, or Facelift later in settings.
             </p>
           </div>
-          <div className="grid gap-3 lg:grid-cols-4">
-            {workspaceViewModeOptions.map((option) => (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {starterChoices.map((choice) => (
               <button
                 className={`rounded-2xl border px-4 py-4 text-left transition ${
+                  active.preset === choice.presetId && workspaceViewMode === "facelift"
+                    ? "border-primary bg-accent/75"
+                    : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
+                }`}
+                data-testid="workspace-starter-choice"
+                key={choice.id}
+                onClick={() => applyStarterChoice(choice)}
+                type="button"
+              >
+                <p className="text-sm font-semibold">{choice.label}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{choice.description}</p>
+              </button>
+            ))}
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Or choose the workspace style yourself
+            </p>
+            <div className="grid gap-2 md:grid-cols-4">
+            {workspaceViewModeOptions.map((option) => (
+              <button
+                className={`rounded-xl border px-3 py-3 text-left transition ${
                   workspaceViewMode === option.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
@@ -2867,9 +2926,10 @@ export function BinderReaderPage() {
                 type="button"
               >
                 <p className="text-sm font-semibold">{option.name}</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.description}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
               </button>
             ))}
+            </div>
           </div>
         </section>
       ) : null}
@@ -2917,14 +2977,71 @@ export function BinderReaderPage() {
             <FaceliftSimpleShell
               context={context}
               focusModeActive={activeFocusMode}
+              isCompact={isCompact}
               onChange={commitWorkspacePreferences}
+              onChangeWorkspaceViewMode={applyModeChoice}
               onChangeView={enterLayoutEditMode}
               onCreateSticky={() => void createSticky(null, "")}
               onOpenSettings={() => setPreferencesOpen(true)}
               onToggleFocus={toggleFocusMode}
               preferences={active}
+              workspaceViewMode={workspaceViewMode}
             />
           </WorkspaceRenderBoundary>
+          </section>
+        </WorkspaceStickyLayer>
+      ) : isStudyPanelsMode ? (
+        <WorkspaceStickyLayer
+          comments={context.comments}
+          onDeleteSticky={context.onDeleteComment}
+          onLayoutChange={context.onStickyMove}
+          onSendToNotes={context.onSendStickyToNotes}
+          onUpdateSticky={context.onUpdateComment}
+          stickyLayouts={context.stickyLayouts}
+          surface="page"
+        >
+          <section className="study-panels-stage">
+            {preferencesOpen ? (
+              <>
+                <button
+                  aria-label="Close study panel settings"
+                  className="workspace-preferences-backdrop"
+                  onClick={() => setPreferencesOpen(false)}
+                  type="button"
+                />
+                <section className="workspace-preferences-popover">
+                  <WorkspaceSettings
+                    binderTitle={binderQuery.data.binder.title}
+                    binderSubject={binderQuery.data.binder.subject}
+                    historyEnabled={historyEnabled}
+                    isResettingHighlights={annotations.resetHighlights.isPending}
+                    lessonTitle={selectedLesson.title}
+                    mode="preferences"
+                    onChange={commitWorkspacePreferences}
+                    onClose={() => setPreferencesOpen(false)}
+                    onResetBinderHighlights={resetBinderHighlights}
+                    onResetLessonHighlights={resetCurrentLessonHighlights}
+                    preferences={active}
+                  />
+                </section>
+              </>
+            ) : null}
+            <WorkspaceRenderBoundary
+              resetKey={`${selectedLesson.id}:study-panels:${active.preset}:${active.modular.panelDensity}`}
+              title="This study panels workspace could not render"
+            >
+              <StudyPanelsShell
+                context={context}
+                currentViewMode={workspaceViewMode}
+                focusModeActive={activeFocusMode}
+                isCompact={isCompact}
+                onChangeMode={applyModeChoice}
+                onCreateSticky={() => void createSticky(null, "")}
+                onOpenSettings={() => setPreferencesOpen(true)}
+                onToggleFocus={toggleFocusMode}
+                preferences={active}
+              />
+            </WorkspaceRenderBoundary>
           </section>
         </WorkspaceStickyLayer>
       ) : isSimpleMode ? (

@@ -19,10 +19,11 @@ describe("WhiteboardToolbar", () => {
 
     const toolbar = screen.getByTestId("whiteboard-toolbar");
     expect(toolbar.className).toContain("right-3");
-    expect(toolbar.className).toContain("top-3");
-    expect(toolbar.className).toContain("max-w-[min(24rem,calc(100%-1.5rem))]");
+    expect(toolbar.className).toContain("bottom-3");
+    expect(toolbar.className).toContain("max-w-[min(20rem,calc(100%-1.5rem))]");
     expect(toolbar.className).not.toContain("left-4");
     expect(toolbar.className).not.toContain("right-4");
     expect(screen.getByRole("button", { name: "Save whiteboard now" })).toBeTruthy();
+    expect(screen.getByText("0 objects")).toBeTruthy();
   });
 });

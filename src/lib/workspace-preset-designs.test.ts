@@ -8,6 +8,7 @@ import {
   getFaceliftWorkspacePresetDesign,
   getWorkspaceMobileModuleTabs,
   getWorkspacePresetDesign,
+  getWorkspaceStarterChoices,
   selectFaceliftSurfaceModules,
   selectWorkspacePresetVisibleModules,
   validateDesignedLayout,
@@ -53,6 +54,12 @@ describe("workspace preset design catalog", () => {
       expect(design.layoutRecipe.laptop.trim().length, presetId).toBeGreaterThan(12);
       expect(design.layoutRecipe.tablet.trim().length, presetId).toBeGreaterThan(12);
       expect(design.layoutRecipe.phone.trim().length, presetId).toBeGreaterThan(12);
+      expect(design.studentCommand.label.trim().length, presetId).toBeGreaterThan(2);
+      expect(design.studentCommand.primaryAction.trim().length, presetId).toBeGreaterThan(8);
+      expect(design.studentCommand.followUpAction.trim().length, presetId).toBeGreaterThan(8);
+      expect(design.performanceBudget.maxComfortableModules, presetId).toBeGreaterThanOrEqual(3);
+      expect(design.performanceBudget.maxCompactModules, presetId).toBeLessThanOrEqual(3);
+      expect(design.performanceBudget.mobilePrimaryModule, presetId).toBeTruthy();
       expect(design.reasoning.trim().length, presetId).toBeGreaterThan(18);
       expect(design.visibleModules.length, presetId).toBeLessThanOrEqual(6);
     });
@@ -252,6 +259,39 @@ describe("workspace preset design catalog", () => {
         "private-notes",
       ]).map((tab) => tab.label),
     ).toEqual(["Argument", "Evidence", "Lesson", "Timeline", "Notes"]);
+  });
+
+  it("recommends first-time starter choices by subject without demo content", () => {
+    expect(getWorkspaceStarterChoices({ binderSubject: "Mathematics" }).map((choice) => choice.id)).toEqual([
+      "read",
+      "notes",
+      "math",
+      "canvas",
+    ]);
+    expect(getWorkspaceStarterChoices({ binderSubject: "World History", historyEnabled: true }).map((choice) => choice.id)).toEqual([
+      "read",
+      "notes",
+      "history",
+      "canvas",
+    ]);
+    expect(getWorkspaceStarterChoices().map((choice) => choice.presetId)).toEqual([
+      "focused-reading",
+      "notes-focus",
+      "split-study",
+    ]);
+  });
+
+  it("keeps heavy Facelift modules behind explicit visible or lazy budgets", () => {
+    const mathPractice = getFaceliftWorkspacePresetDesign("math-practice-mode");
+    const graphLab = getFaceliftWorkspacePresetDesign("math-graph-lab");
+
+    expect(mathPractice.performanceBudget.mobilePrimaryModule).toBe("whiteboard");
+    expect(mathPractice.performanceBudget.lazyModules).toEqual(
+      expect.arrayContaining(["whiteboard", "desmos-graph", "scientific-calculator"]),
+    );
+    expect(graphLab.performanceBudget.lazyModules).toEqual(
+      expect.arrayContaining(["desmos-graph", "whiteboard", "saved-graphs"]),
+    );
   });
 
   it("rejects offscreen, overlapped, bottom-strip, and unreadably small designed layouts", () => {

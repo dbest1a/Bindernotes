@@ -1,10 +1,12 @@
 import {
   useDeferredValue,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type FormEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -34,12 +36,18 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowRight,
+  BookPlus,
   BookCopy,
   Check,
   ChevronRight,
+  FileText,
+  FolderPlus,
   FolderOpen,
   GripVertical,
   LibraryBig,
+  Maximize2,
+  Minimize2,
+  Plus,
   RotateCcw,
   Save,
   Search,
@@ -51,6 +59,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { useDashboardWorkspaceMutations } from "@/hooks/use-binders";
+import {
+  dashboardWorkspaceScopeLabels,
+  useDashboardWorkspaceViewPreference,
+  type DashboardWorkspaceDensity,
+  type DashboardWorkspaceScope,
+  type DashboardWorkspaceSort,
+  type DashboardWorkspaceWidth,
+} from "@/hooks/use-dashboard-workspace-view";
 import type { Binder, BinderLesson, DashboardData, Folder, Profile } from "@/types";
 import {
   createDashboardOrganizationDraft,
@@ -329,6 +346,15 @@ export function AdminDashboardMakeover({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const debouncedQuery = useDebouncedValue(query);
   const deferredQuery = useDeferredValue(debouncedQuery);
+  const filebarRef = useRef<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [workspaceView, updateWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
+  const workspaceMutations = useDashboardWorkspaceMutations(profile);
+  const [openCommandMenu, setOpenCommandMenu] = useState<"new" | "browse" | "open" | "view" | null>(null);
+  const [createKind, setCreateKind] = useState<"folder" | "binder" | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftFolderId, setDraftFolderId] = useState("");
+  const [dashboardNotice, setDashboardNotice] = useState<string | null>(null);
 
   useEffect(() => {
     markDevPerformance(isEditing ? "admin-dashboard-organize-render" : "admin-dashboard-render");
@@ -365,6 +391,30 @@ export function AdminDashboardMakeover({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!openCommandMenu) {
+      return;
+    }
+
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!filebarRef.current?.contains(event.target as Node)) {
+        setOpenCommandMenu(null);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenCommandMenu(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openCommandMenu]);
 
   useEffect(() => {
     if (!dragPreview) {
@@ -432,6 +482,15 @@ export function AdminDashboardMakeover({
     () => new Map(data.folders.map((folder) => [folder.id, folder])),
     [data.folders],
   );
+  const notesByBinderId = useMemo(
+    () =>
+      data.notes.reduce<Record<string, typeof data.notes>>((groups, note) => {
+        groups[note.binder_id] = groups[note.binder_id] ?? [];
+        groups[note.binder_id].push(note);
+        return groups;
+      }, {}),
+    [data.notes],
+  );
 
   const normalizedQuery = useMemo(() => deferredQuery.trim().toLowerCase(), [deferredQuery]);
   const orderedFolders = useMemo(
@@ -452,20 +511,31 @@ export function AdminDashboardMakeover({
         `${folder.name} ${(draft.folderBinderOrderByFolderId[folder.id] ?? [])
           .map((binderId) => {
             const binder = binderById.get(binderId);
-            return binder ? deriveBinderTitle(binder, lessonsByBinderId[binderId] ?? []) : "";
+            const lessonTitles = (lessonsByBinderId[binderId] ?? []).map(deriveLessonTitle).join(" ");
+            const noteTitles = (notesByBinderId[binderId] ?? []).map((note) => note.title).join(" ");
+            return binder
+              ? `${deriveBinderTitle(binder, lessonsByBinderId[binderId] ?? [])} ${lessonTitles} ${noteTitles}`
+              : "";
           })
           .join(" ")}`.toLowerCase().includes(normalizedQuery),
       ),
-    [binderById, draft.folderBinderOrderByFolderId, lessonsByBinderId, normalizedQuery, orderedFolders],
+    [
+      binderById,
+      draft.folderBinderOrderByFolderId,
+      lessonsByBinderId,
+      normalizedQuery,
+      notesByBinderId,
+      orderedFolders,
+    ],
   );
   const filteredBinders = useMemo(
     () =>
       orderedBinders.filter((binder) =>
-        `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description}`
+        `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description} ${(lessonsByBinderId[binder.id] ?? []).map(deriveLessonTitle).join(" ")} ${(notesByBinderId[binder.id] ?? []).map((note) => note.title).join(" ")}`
           .toLowerCase()
           .includes(normalizedQuery),
       ),
-    [lessonsByBinderId, normalizedQuery, orderedBinders],
+    [lessonsByBinderId, normalizedQuery, notesByBinderId, orderedBinders],
   );
   const recentDocumentSearchTextById = useMemo(
     () =>
@@ -511,6 +581,163 @@ export function AdminDashboardMakeover({
       ) as Record<string, number>,
     [data.notes, draft.folderBinderOrderByFolderId, orderedFolders],
   );
+  const sortedFolders = useMemo(() => {
+    const folders = [...filteredFolders];
+    if (workspaceView.sort === "name") {
+      return folders.sort((left, right) =>
+        getDisplayTitle(left.name, "Recovered Folder").localeCompare(
+          getDisplayTitle(right.name, "Recovered Folder"),
+        ),
+      );
+    }
+    if (workspaceView.sort === "documents") {
+      return folders.sort(
+        (left, right) =>
+          (documentCountByFolderId[right.id] ?? 0) - (documentCountByFolderId[left.id] ?? 0),
+      );
+    }
+    return folders;
+  }, [documentCountByFolderId, filteredFolders, workspaceView.sort]);
+  const sortedBinders = useMemo(() => {
+    const binders = [...filteredBinders];
+    if (workspaceView.sort === "name") {
+      return binders.sort((left, right) =>
+        deriveBinderTitle(left, lessonsByBinderId[left.id] ?? []).localeCompare(
+          deriveBinderTitle(right, lessonsByBinderId[right.id] ?? []),
+        ),
+      );
+    }
+    if (workspaceView.sort === "documents") {
+      return binders.sort(
+        (left, right) =>
+          (lessonsByBinderId[right.id]?.length ?? 0) - (lessonsByBinderId[left.id]?.length ?? 0),
+      );
+    }
+    return binders;
+  }, [filteredBinders, lessonsByBinderId, workspaceView.sort]);
+  const showFolders = workspaceView.scope === "all" || workspaceView.scope === "folders";
+  const showBinders = workspaceView.scope === "all" || workspaceView.scope === "binders";
+  const showDocuments =
+    workspaceView.showRecentDocuments &&
+    (workspaceView.scope === "all" || workspaceView.scope === "documents");
+  const showWorkspaceMap = workspaceView.scope === "all" || workspaceView.scope === "folders";
+  const visibleFolders = showFolders ? sortedFolders : [];
+  const visibleBinders = showBinders ? sortedBinders : [];
+  const visibleRecentDocuments = showDocuments ? recentDocuments : [];
+  const firstFolder = sortedFolders[0] ?? null;
+  const firstBinder = sortedBinders[0] ?? null;
+  const nextDocument = recentDocuments[0] ?? null;
+  const createPending =
+    workspaceMutations.createBinder.isPending || workspaceMutations.createFolder.isPending;
+
+  const focusDashboardSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  const changeScope = useCallback(
+    (scope: DashboardWorkspaceScope, options?: { focusSearch?: boolean }) => {
+      updateWorkspaceView({
+        scope,
+        ...(scope === "documents" ? { showRecentDocuments: true } : {}),
+      });
+      setOpenCommandMenu(null);
+      setDashboardNotice(`Showing ${dashboardWorkspaceScopeLabels[scope]}.`);
+      if (options?.focusSearch) {
+        window.setTimeout(focusDashboardSearch, 0);
+      }
+    },
+    [focusDashboardSearch, updateWorkspaceView],
+  );
+
+  const changeDensity = useCallback(
+    (density: DashboardWorkspaceDensity) => {
+      updateWorkspaceView({ density });
+      setOpenCommandMenu(null);
+      setDashboardNotice(
+        density === "compact"
+          ? "Compact command center is on. More workspace items fit on screen."
+          : "Comfortable command center is on. Cards have more breathing room.",
+      );
+    },
+    [updateWorkspaceView],
+  );
+
+  const changeSort = useCallback(
+    (sort: DashboardWorkspaceSort) => {
+      updateWorkspaceView({ sort });
+      setOpenCommandMenu(null);
+      setDashboardNotice(
+        sort === "name"
+          ? "Sorted by name."
+          : sort === "documents"
+            ? "Sorted by document count."
+            : "Using your saved admin order.",
+      );
+    },
+    [updateWorkspaceView],
+  );
+
+  const changeWidth = useCallback(
+    (width: DashboardWorkspaceWidth) => {
+      updateWorkspaceView({ width });
+      setOpenCommandMenu(null);
+      setDashboardNotice(
+        width === "full"
+          ? "Full width is on. Admin Makeover now uses the whole browser."
+          : "Focused width is on. Admin Makeover is back to the centered premium layout.",
+      );
+    },
+    [updateWorkspaceView],
+  );
+
+  const toggleRecentDocuments = useCallback(
+    (showRecentDocuments: boolean) => {
+      updateWorkspaceView({ showRecentDocuments });
+      setOpenCommandMenu(null);
+      setDashboardNotice(
+        showRecentDocuments
+          ? "Recent documents are visible."
+          : "Recent documents are hidden. Folders and binders stay in focus.",
+      );
+    },
+    [updateWorkspaceView],
+  );
+
+  const beginCreate = (kind: "folder" | "binder") => {
+    setCreateKind(kind);
+    setDraftTitle(kind === "folder" ? "New folder" : "New binder");
+    setDraftFolderId(firstFolder?.id ?? "");
+    setOpenCommandMenu(null);
+    setDashboardNotice(null);
+  };
+
+  const submitCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!createKind) {
+      return;
+    }
+
+    const title = draftTitle.trim();
+    if (!title) {
+      setDashboardNotice("Add a name before creating it.");
+      return;
+    }
+
+    if (createKind === "folder") {
+      await workspaceMutations.createFolder.mutateAsync({ name: title, color: "teal" });
+      setDashboardNotice(`Created folder "${title}".`);
+    } else {
+      await workspaceMutations.createBinder.mutateAsync({
+        folderId: draftFolderId || null,
+        subject: "General",
+        title,
+      });
+      setDashboardNotice(`Created binder "${title}".`);
+    }
+
+    setCreateKind(null);
+    setDraftTitle("");
+  };
 
   const onDragStart = (event: DragStartEvent) => {
     const activeId = String(event.active.id);
@@ -657,6 +884,11 @@ export function AdminDashboardMakeover({
     <main
       className="admin-dashboard-makeover"
       data-admin-dragging={activeDragId ? "active" : isEditing ? "ready" : "off"}
+      data-admin-dashboard-density={workspaceView.density}
+      data-admin-dashboard-recent-documents={workspaceView.showRecentDocuments ? "visible" : "hidden"}
+      data-admin-dashboard-scope={workspaceView.scope}
+      data-admin-dashboard-sort={workspaceView.sort}
+      data-admin-dashboard-width={workspaceView.width}
       data-admin-scrolling="idle"
       data-testid="admin-dashboard-makeover"
       ref={dashboardRef}
@@ -680,7 +912,8 @@ export function AdminDashboardMakeover({
             <Input
               className="pl-11"
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search folders, binders, documents"
+              placeholder="Search folders, binders, documents, lessons"
+              ref={searchInputRef}
               value={query}
             />
           </div>
@@ -723,6 +956,231 @@ export function AdminDashboardMakeover({
         </div>
       </section>
 
+      <section className="admin-dashboard-command-bar" data-testid="admin-dashboard-command-bar">
+        <div className="admin-dashboard-command-bar__signal">
+          <Sparkles data-icon="inline-start" />
+          <span>Live workspace controls</span>
+          <strong>{dashboardWorkspaceScopeLabels[workspaceView.scope]}</strong>
+        </div>
+
+        <nav
+          aria-label="Admin workspace file controls"
+          className="admin-dashboard-filebar"
+          data-testid="admin-dashboard-filebar"
+          ref={filebarRef}
+        >
+          <div className="admin-dashboard-filebar__new">
+            <button
+              aria-expanded={openCommandMenu === "new"}
+              className="admin-dashboard-new-button"
+              data-testid="admin-dashboard-new-button"
+              onClick={() => setOpenCommandMenu((current) => (current === "new" ? null : "new"))}
+              type="button"
+            >
+              <Plus className="size-4" />
+              New
+            </button>
+            {openCommandMenu === "new" ? (
+              <div className="admin-dashboard-filebar__menu" role="menu">
+                <button onClick={() => beginCreate("folder")} role="menuitem" type="button">
+                  <FolderPlus className="size-4" />
+                  Folder
+                </button>
+                <button onClick={() => beginCreate("binder")} role="menuitem" type="button">
+                  <BookPlus className="size-4" />
+                  Binder
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="admin-dashboard-filebar__menus">
+            {[
+              { id: "browse" as const, label: "Browse" },
+              { id: "open" as const, label: "Open" },
+              { id: "view" as const, label: "View" },
+            ].map((menu) => (
+              <div className="admin-dashboard-filebar__menu-wrap" key={menu.id}>
+                <button
+                  aria-expanded={openCommandMenu === menu.id}
+                  className="admin-dashboard-filebar__trigger"
+                  onClick={() => setOpenCommandMenu((current) => (current === menu.id ? null : menu.id))}
+                  type="button"
+                >
+                  {menu.label}
+                </button>
+                {openCommandMenu === menu.id ? (
+                  <div className="admin-dashboard-filebar__menu" role="menu">
+                    {menu.id === "browse" ? (
+                      <>
+                        <button onClick={() => changeScope("all")} role="menuitem" type="button">
+                          <FolderOpen className="size-4" />
+                          All files
+                        </button>
+                        <button onClick={() => changeScope("folders")} role="menuitem" type="button">
+                          <FolderOpen className="size-4" />
+                          Folders
+                        </button>
+                        <button onClick={() => changeScope("binders")} role="menuitem" type="button">
+                          <LibraryBig className="size-4" />
+                          Binders
+                        </button>
+                        <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                          <BookCopy className="size-4" />
+                          Recent documents
+                        </button>
+                      </>
+                    ) : null}
+                    {menu.id === "open" ? (
+                      <>
+                        <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                          <Search className="size-4" />
+                          Show recent documents
+                        </button>
+                        {firstFolder ? (
+                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/folders/${firstFolder.id}`}>
+                            <FolderOpen className="size-4" />
+                            {getDisplayTitle(firstFolder.name, "First folder")}
+                          </Link>
+                        ) : null}
+                        {firstBinder ? (
+                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/binders/${firstBinder.id}`}>
+                            <LibraryBig className="size-4" />
+                            {deriveBinderTitle(firstBinder, lessonsByBinderId[firstBinder.id] ?? [])}
+                          </Link>
+                        ) : null}
+                        {nextDocument ? (
+                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+                            <FileText className="size-4" />
+                            {deriveLessonTitle(nextDocument)}
+                          </Link>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {menu.id === "view" ? (
+                      <>
+                        <button onClick={() => changeWidth("full")} role="menuitem" type="button">
+                          <Maximize2 className="size-4" />
+                          Full width
+                        </button>
+                        <button onClick={() => changeWidth("focused")} role="menuitem" type="button">
+                          <Minimize2 className="size-4" />
+                          Focused width
+                        </button>
+                        <button onClick={() => changeDensity("compact")} role="menuitem" type="button">
+                          <GripVertical className="size-4" />
+                          Compact rows
+                        </button>
+                        <button onClick={() => changeDensity("comfortable")} role="menuitem" type="button">
+                          <GripVertical className="size-4" />
+                          Comfortable rows
+                        </button>
+                        <button onClick={() => changeSort("custom")} role="menuitem" type="button">
+                          <GripVertical className="size-4" />
+                          Saved admin order
+                        </button>
+                        <button onClick={() => changeSort("name")} role="menuitem" type="button">
+                          <LibraryBig className="size-4" />
+                          Sort by name
+                        </button>
+                        <button onClick={() => changeSort("documents")} role="menuitem" type="button">
+                          <BookCopy className="size-4" />
+                          Sort by document count
+                        </button>
+                        <button
+                          onClick={() => toggleRecentDocuments(!workspaceView.showRecentDocuments)}
+                          role="menuitem"
+                          type="button"
+                        >
+                          <BookCopy className="size-4" />
+                          {workspaceView.showRecentDocuments ? "Hide recent documents" : "Show recent documents"}
+                        </button>
+                        <button onClick={() => changeScope("all", { focusSearch: true })} role="menuitem" type="button">
+                          <Search className="size-4" />
+                          Search everything
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          <ol className="admin-dashboard-filebar__path" aria-label="Current admin workspace path">
+            <li>My Drive</li>
+            <li>{dashboardWorkspaceScopeLabels[workspaceView.scope]}</li>
+            {query.trim() ? <li>Search: {query.trim()}</li> : null}
+          </ol>
+
+          <div className="admin-dashboard-filebar__primary">
+            {nextDocument ? (
+              <Button asChild size="sm" type="button">
+                <Link data-testid="admin-dashboard-open-next" to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+                  Open next
+                  <ChevronRight className="size-4" />
+                </Link>
+              </Button>
+            ) : firstBinder ? (
+              <Button asChild size="sm" type="button">
+                <Link data-testid="admin-dashboard-open-next" to={`/binders/${firstBinder.id}`}>
+                  Open binder
+                  <ChevronRight className="size-4" />
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </nav>
+      </section>
+
+      {createKind ? (
+        <form className="admin-dashboard-create-card" data-testid="admin-dashboard-create-card" onSubmit={submitCreate}>
+          <div>
+            <span className="admin-dashboard-kicker">{createKind === "folder" ? "New folder" : "New binder"}</span>
+            <label>
+              <span>Name</span>
+              <Input
+                autoFocus
+                onChange={(event) => setDraftTitle(event.target.value)}
+                value={draftTitle}
+              />
+            </label>
+          </div>
+          {createKind === "binder" ? (
+            <label>
+              <span>Folder</span>
+              <select
+                className="appearance-select"
+                onChange={(event) => setDraftFolderId(event.target.value)}
+                value={draftFolderId}
+              >
+                <option value="">No folder</option>
+                {sortedFolders.map((folder) => (
+                  <option key={folder.id} value={folder.id}>
+                    {getDisplayTitle(folder.name, "Recovered Folder")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <div className="admin-dashboard-create-card__actions">
+            <Button disabled={createPending} size="sm" type="submit">
+              {createPending ? "Creating..." : createKind === "folder" ? "Create folder" : "Create binder"}
+            </Button>
+            <Button onClick={() => setCreateKind(null)} size="sm" type="button" variant="outline">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
+      {dashboardNotice ? (
+        <div className="admin-dashboard-save-pulse" data-testid="admin-dashboard-notice" role="status">
+          <Sparkles data-icon="inline-start" />
+          {dashboardNotice}
+        </div>
+      ) : null}
+
       {isEditing ? (
         <section className="admin-dashboard-editbar" aria-live="polite">
           <div>
@@ -760,8 +1218,8 @@ export function AdminDashboardMakeover({
           clearDragState={clearDragState}
           documentCountByFolderId={documentCountByFolderId}
           draft={draft}
-          filteredBinders={filteredBinders}
-          filteredFolders={filteredFolders}
+          filteredBinders={visibleBinders}
+          filteredFolders={visibleFolders}
           folderById={folderById}
           lessonsByBinderId={lessonsByBinderId}
           noteCountByFolderId={noteCountByFolderId}
@@ -772,21 +1230,25 @@ export function AdminDashboardMakeover({
           orderedBinders={orderedBinders}
           orderedFolders={orderedFolders}
           overDragId={overDragId}
-          recentDocuments={recentDocuments}
+          recentDocuments={visibleRecentDocuments}
+          showRecentDocuments={showDocuments}
+          showWorkspaceMap={showWorkspaceMap}
         />
       ) : (
         <AdminDashboardReadOnlySections
           binderById={binderById}
           documentCountByFolderId={documentCountByFolderId}
           draft={draft}
-          filteredBinders={filteredBinders}
-          filteredFolders={filteredFolders}
+          filteredBinders={visibleBinders}
+          filteredFolders={visibleFolders}
           folderById={folderById}
           lessonsByBinderId={lessonsByBinderId}
           noteCountByFolderId={noteCountByFolderId}
           orderedBinders={orderedBinders}
           orderedFolders={orderedFolders}
-          recentDocuments={recentDocuments}
+          recentDocuments={visibleRecentDocuments}
+          showRecentDocuments={showDocuments}
+          showWorkspaceMap={showWorkspaceMap}
         />
       )}
       {dragPreview ? (
@@ -816,6 +1278,8 @@ type AdminDashboardSectionsProps = {
   orderedBinders: Binder[];
   orderedFolders: Folder[];
   recentDocuments: BinderLesson[];
+  showRecentDocuments: boolean;
+  showWorkspaceMap: boolean;
 };
 
 type AdminDashboardEditableSectionsProps = AdminDashboardSectionsProps & {
@@ -840,10 +1304,12 @@ function AdminDashboardReadOnlySections({
   orderedBinders,
   orderedFolders,
   recentDocuments,
+  showRecentDocuments,
+  showWorkspaceMap,
 }: AdminDashboardSectionsProps) {
   return (
     <>
-      <RecentDocumentsSection recentDocuments={recentDocuments} />
+      {showRecentDocuments ? <RecentDocumentsSection recentDocuments={recentDocuments} /> : null}
 
       <section className="admin-dashboard-section">
         <div className="admin-dashboard-section__header">
@@ -894,6 +1360,7 @@ function AdminDashboardReadOnlySections({
         </div>
       </section>
 
+      {showWorkspaceMap ? (
       <section className="admin-dashboard-section">
         <div className="admin-dashboard-section__header">
           <div>
@@ -918,6 +1385,7 @@ function AdminDashboardReadOnlySections({
           />
         </div>
       </section>
+      ) : null}
     </>
   );
 }
@@ -941,6 +1409,8 @@ function AdminDashboardEditableSections({
   orderedFolders,
   overDragId,
   recentDocuments,
+  showRecentDocuments,
+  showWorkspaceMap,
 }: AdminDashboardEditableSectionsProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -957,7 +1427,7 @@ function AdminDashboardEditableSections({
       onDragStart={onDragStart}
       sensors={sensors}
     >
-      <RecentDocumentsSection recentDocuments={recentDocuments} />
+      {showRecentDocuments ? <RecentDocumentsSection recentDocuments={recentDocuments} /> : null}
 
       <section className="admin-dashboard-section">
         <div className="admin-dashboard-section__header">
@@ -1021,6 +1491,7 @@ function AdminDashboardEditableSections({
         </SortableContext>
       </section>
 
+      {showWorkspaceMap ? (
       <section className="admin-dashboard-section">
         <div className="admin-dashboard-section__header">
           <div>
@@ -1047,6 +1518,7 @@ function AdminDashboardEditableSections({
           />
         </div>
       </section>
+      ) : null}
     </DndContext>
   );
 }
@@ -1146,7 +1618,7 @@ function AdminDashboardDragPreview({
 
 function RecentDocumentsSection({ recentDocuments }: { recentDocuments: BinderLesson[] }) {
   return (
-    <section className="admin-dashboard-section">
+    <section className="admin-dashboard-section" data-testid="admin-dashboard-recent-section">
       <div className="admin-dashboard-section__header">
         <div>
           <span className="admin-dashboard-kicker">Quick Access</span>

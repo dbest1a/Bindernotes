@@ -55,6 +55,10 @@ type PointerStart = {
 
 type StylePatch = Partial<Record<"left" | "top" | "width" | "height" | "transform", string>>;
 
+const WHITEBOARD_MODULE_BASE_LAYER_MAX = 70;
+const WHITEBOARD_MODULE_FOREGROUND_LAYER_BASE = 80;
+const WHITEBOARD_MODULE_FOREGROUND_LAYER_MAX = 98;
+
 function isPinned(moduleElement: WhiteboardModuleElement) {
   return getWhiteboardModuleAnchorMode(moduleElement) !== "viewport";
 }
@@ -117,6 +121,63 @@ function getModuleCardStyle(
   };
 }
 
+function getFiniteVisualZIndex(zIndex: number) {
+  return Number.isFinite(zIndex) ? Math.max(0, Math.floor(zIndex)) : 0;
+}
+
+function getModuleCardVisualZIndex(zIndex: number, foreground: boolean) {
+  const safeZIndex = getFiniteVisualZIndex(zIndex);
+  if (foreground) {
+    return Math.min(
+      WHITEBOARD_MODULE_FOREGROUND_LAYER_BASE + safeZIndex,
+      WHITEBOARD_MODULE_FOREGROUND_LAYER_MAX,
+    );
+  }
+
+  return Math.min(safeZIndex, WHITEBOARD_MODULE_BASE_LAYER_MAX);
+}
+
+function applyStylePatch(root: HTMLElement, patch: StylePatch) {
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) {
+      root.style.setProperty(key, value);
+    }
+  }
+}
+
+function getPointerStylePatch(active: PointerStart, dx: number, dy: number): StylePatch {
+  if (active.action === "drag") {
+    const baseFrame = getModuleScreenFrame(active.frame, active.viewportTransform);
+    if (isWhiteboardModuleZoomScaled(active.frame)) {
+      return {
+        transform: getBoardObjectTransform(
+          {
+            ...baseFrame,
+            x: baseFrame.x + dx,
+            y: baseFrame.y + dy,
+          },
+          active.viewportTransform,
+        ),
+      };
+    }
+
+    return {
+      left: `${baseFrame.x + dx}px`,
+      top: `${baseFrame.y + dy}px`,
+    };
+  }
+
+  const zoomScaled = isWhiteboardModuleZoomScaled(active.frame);
+  const sizeDelta = zoomScaled
+    ? screenDeltaToBoardDelta({ x: dx, y: dy }, active.viewportTransform)
+    : { x: dx, y: dy };
+  const minSize = getWhiteboardModuleMinimumSize(active.frame.moduleId, active.frame.mode);
+  return {
+    width: `${Math.max(minSize.width, active.frame.width + sizeDelta.x)}px`,
+    height: `${Math.max(minSize.height, active.frame.height + sizeDelta.y)}px`,
+  };
+}
+
 const anchorLabels: Record<WhiteboardModuleAnchorMode, string> = {
   board: "Pin to board",
   "board-fixed-size": "Pin to board, keep size",
@@ -166,7 +227,7 @@ export function WhiteboardModuleCard({
   const foreground = selected || anchorMenuOpen || optionsMenuOpen;
   const cardStyle = {
     ...getModuleCardStyle(moduleElement, screenFrame, viewportTransform),
-    zIndex: foreground ? 10000 + moduleElement.zIndex : moduleElement.zIndex,
+    zIndex: getModuleCardVisualZIndex(moduleElement.zIndex, foreground),
   };
 
   useEffect(
@@ -216,11 +277,7 @@ export function WhiteboardModuleCard({
       styleRafRef.current = null;
       const nextPatch = pendingStyleRef.current;
       pendingStyleRef.current = {};
-      for (const [key, value] of Object.entries(nextPatch)) {
-        if (value) {
-          root.style.setProperty(key, value);
-        }
-      }
+      applyStylePatch(root, nextPatch);
     });
   };
 
@@ -298,39 +355,7 @@ export function WhiteboardModuleCard({
 
     const dx = event.clientX - active.startX;
     const dy = event.clientY - active.startY;
-    if (active.action === "drag") {
-      const baseFrame = getModuleScreenFrame(active.frame, active.viewportTransform);
-      if (isWhiteboardModuleZoomScaled(active.frame)) {
-        scheduleStylePatch({
-          transform: getBoardObjectTransform(
-            {
-              ...baseFrame,
-              x: baseFrame.x + dx,
-              y: baseFrame.y + dy,
-            },
-            active.viewportTransform,
-          ),
-        });
-      } else {
-        scheduleStylePatch({
-          left: `${baseFrame.x + dx}px`,
-          top: `${baseFrame.y + dy}px`,
-        });
-      }
-      return;
-    }
-
-    const zoomScaled = isWhiteboardModuleZoomScaled(active.frame);
-    const sizeDelta = zoomScaled
-      ? screenDeltaToBoardDelta({ x: dx, y: dy }, active.viewportTransform)
-      : { x: dx, y: dy };
-    const minSize = getWhiteboardModuleMinimumSize(active.frame.moduleId, active.frame.mode);
-    const nextWidth = Math.max(minSize.width, active.frame.width + sizeDelta.x);
-    const nextHeight = Math.max(minSize.height, active.frame.height + sizeDelta.y);
-    scheduleStylePatch({
-      width: `${nextWidth}px`,
-      height: `${nextHeight}px`,
-    });
+    scheduleStylePatch(getPointerStylePatch(active, dx, dy));
   };
 
   const finishPointerAction = (event: React.PointerEvent) => {
@@ -342,12 +367,14 @@ export function WhiteboardModuleCard({
 
     const dx = event.clientX - active.startX;
     const dy = event.clientY - active.startY;
+    const finalStylePatch = getPointerStylePatch(active, dx, dy);
     pointerRef.current = null;
     if (styleRafRef.current) {
       window.cancelAnimationFrame(styleRafRef.current);
       styleRafRef.current = null;
     }
     pendingStyleRef.current = {};
+    applyStylePatch(root, finalStylePatch);
     const positionDelta = isWhiteboardModuleBoardPositioned(active.frame)
       ? screenDeltaToBoardDelta({ x: dx, y: dy }, active.viewportTransform)
       : { x: dx, y: dy };
@@ -535,10 +562,12 @@ export function WhiteboardModuleCard({
       data-whiteboard-card="true"
       data-whiteboard-board-object="true"
       data-whiteboard-floating-tool={floatingTool ? moduleElement.moduleId : undefined}
+      data-whiteboard-module-layer="window"
       data-whiteboard-module-anchor={anchorMode}
       data-whiteboard-module={moduleElement.moduleId}
       data-whiteboard-module-pinned={String(pinned)}
       data-whiteboard-module-presentation={presentation}
+      data-window-module-id={moduleElement.moduleId}
       data-testid={`whiteboard-module-card-${moduleElement.id}`}
       onDoubleClick={() => {
         if (moduleElement.mode === "live") {

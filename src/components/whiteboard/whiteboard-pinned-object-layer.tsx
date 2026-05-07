@@ -1051,6 +1051,7 @@ export function WhiteboardPinnedObjectLayer({
   return (
     <div
       className={cn("pointer-events-none inset-0 z-[55]", fixed ? "fixed" : "absolute")}
+      data-whiteboard-window-layer="modules"
       data-whiteboard-viewport-scroll-x={viewportTransform.scrollX}
       data-whiteboard-viewport-scroll-y={viewportTransform.scrollY}
       data-whiteboard-viewport-zoom={viewportTransform.zoom}

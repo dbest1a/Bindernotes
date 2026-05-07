@@ -10,6 +10,15 @@ describe("whiteboard contrast styles", () => {
     expect(css).toContain("--color-primary:");
   });
 
+  it("keeps Excalidraw drawing toolbar above whiteboard module windows", () => {
+    expect(css).toContain("--whiteboard-module-layer: 55");
+    expect(css).toContain("--whiteboard-module-active-layer: 80");
+    expect(css).toContain("--whiteboard-toolbar-layer: 120");
+    expect(css).toContain('[data-whiteboard-window-layer="modules"]');
+    expect(css).toContain('.whiteboard-excalidraw-host[data-board-toolbar-layer="true"] .excalidraw');
+    expect(css).toMatch(/--zIndex-layerUI:\s*var\(--whiteboard-toolbar-layer\)/);
+  });
+
   it("keeps whiteboard module cards opaque and tokenized instead of gray glass", () => {
     const cardBlock = css.slice(css.indexOf(".whiteboard-module-card {"), css.indexOf(".bindernotes-whiteboard-lab .excalidraw"));
 

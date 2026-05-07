@@ -27,6 +27,8 @@ import {
   workspaceModules,
   workspacePresentationModeOptions,
   workspacePresets,
+  workspaceThemes,
+  workspaceViewModeOptions,
 } from "@/lib/workspace-preferences";
 import {
   getWorkspaceModuleMinimumSize,
@@ -44,7 +46,22 @@ afterEach(() => {
 });
 
 describe("workspace preferences", () => {
-  it("exposes Simple, Canvas, and Facelift as the public workspace presentation choices", () => {
+  it("exposes Canvas, Simple, Facelift, and Study Panels as the user-facing workspace view choices", () => {
+    expect(workspaceViewModeOptions.map((option) => option.id)).toEqual([
+      "canvas",
+      "simple",
+      "facelift",
+      "modular",
+    ]);
+    expect(workspaceViewModeOptions.map((option) => option.name)).toEqual([
+      "Canvas",
+      "Simple",
+      "Facelift",
+      "Study Panels",
+    ]);
+  });
+
+  it("keeps the legacy presentation choices separate from first-class Study Panels", () => {
     expect(workspacePresentationModeOptions.map((option) => option.id)).toEqual([
       "simple",
       "canvas",
@@ -253,6 +270,25 @@ describe("workspace preferences", () => {
     expect(next.appearance.appTheme).toBe("ocean");
     expect(next.theme.id).toBe("ocean");
     expect(next.theme.accent).toBe("193 86% 32%");
+  });
+
+  it("offers Prism Ink as an interactive built-in color scheme", () => {
+    const prismInk = workspaceThemes.find((theme) => theme.id === "prism-ink");
+    const next = updateWorkspaceAppearance(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      { appTheme: "prism-ink" },
+    );
+
+    expect(prismInk).toMatchObject({
+      name: "Prism Ink",
+      vars: expect.objectContaining({
+        accent: "286 42% 23%",
+        primary: "167 82% 48%",
+      }),
+    });
+    expect(next.appearance.appTheme).toBe("prism-ink");
+    expect(next.theme.id).toBe("prism-ink");
+    expect(next.theme.accentColor).toBe("teal");
   });
 
   it("preserves unlocked edit draft frames below the first viewport instead of clamping them back", () => {

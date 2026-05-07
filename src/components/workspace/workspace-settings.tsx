@@ -38,7 +38,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { saveWorkspacePresentationPreference } from "@/lib/workspace-presentation-storage";
+import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 
 type WorkspaceSettingsProps = {
   preferences: WorkspacePreferences;
@@ -486,13 +486,12 @@ export function WorkspaceSettings({
   };
 
   const changeWorkspaceViewMode = (viewMode: (typeof workspaceViewModeOptions)[number]["id"]) => {
-    const presentationMode =
-      viewMode === "facelift" ? "facelift" : viewMode === "canvas" ? "canvas" : "simple";
-    saveWorkspacePresentationPreference(presentationMode);
+    saveWorkspaceViewPreference(viewMode);
     setNext(applyWorkspaceViewModeToViewport(preferences, viewMode, getWorkspaceSettingsViewport()));
   };
 
   const changeFaceliftSurfaceMode = (surfaceMode: FaceliftSurfaceMode) => {
+    saveWorkspaceViewPreference("facelift");
     setNext(applyFaceliftSurfaceModeToViewport(preferences, surfaceMode, getWorkspaceSettingsViewport()));
   };
 

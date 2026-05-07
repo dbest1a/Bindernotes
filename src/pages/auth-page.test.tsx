@@ -65,7 +65,8 @@ describe("AuthPage", () => {
     );
 
     expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
-    expect(screen.getByText("Supabase configuration required")).toBeTruthy();
+    expect(screen.getByText("Account sign-in is not ready")).toBeTruthy();
+    expect(document.querySelector("[data-auth-config-missing='true']")).toBeTruthy();
     const submitButton = screen
       .getAllByRole("button", { name: "Login" })
       .find((button) => button.getAttribute("type") === "submit");

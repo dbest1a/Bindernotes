@@ -488,6 +488,7 @@ export type WorkspacePresetId =
 export type WorkspaceStyle = "guided" | "flexible" | "full-studio";
 export type WorkspaceMode = "simple" | "modular" | "canvas";
 export type WorkspacePresentationMode = "simple" | "canvas" | "facelift";
+export type WorkspaceViewMode = WorkspaceMode | "facelift";
 export type FaceliftSurfaceMode = "simple" | "canvas";
 export type FaceliftDensity = "comfortable" | "compact" | "focus";
 export type FaceliftNavigationMode = "map" | "sidebar" | "topline";
@@ -534,6 +535,7 @@ export type WorkspaceThemeId =
   | "ocean"
   | "monochrome-pro"
   | "aurora"
+  | "prism-ink"
   | "custom";
 
 export type WorkspaceDensity = "compact" | "cozy";

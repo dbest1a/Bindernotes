@@ -61,7 +61,7 @@ export function BinderPage() {
         ) : null}
         <EmptyState
           description={error instanceof Error ? error.message : "This binder is unavailable."}
-          title="Binder unavailable"
+          title="Binder could not open"
         />
       </main>
     );

@@ -146,6 +146,7 @@ describe("security deployment guards", () => {
 
     expect(verifier).toContain("--dump-dom");
     expect(verifier).toContain("normalizedDom.includes");
+    expect(verifier).toContain("data-auth-config-missing");
   });
 });
 

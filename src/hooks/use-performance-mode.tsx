@@ -23,11 +23,16 @@ function getPrefersReducedMotion() {
   return hasWindow() && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
-function writePerformanceModeAttributes(effectivePerformanceMode: boolean, prefersReducedMotion: boolean) {
+function writePerformanceModeAttributes(
+  effectivePerformanceMode: boolean,
+  prefersReducedMotion: boolean,
+  enhancedModeEnabled: boolean,
+) {
   if (typeof document === "undefined") {
     return;
   }
 
+  document.documentElement.dataset.enhancedMode = enhancedModeEnabled ? "true" : "false";
   document.documentElement.dataset.performanceMode = effectivePerformanceMode ? "on" : "off";
   document.documentElement.dataset.reducedMotion = prefersReducedMotion ? "system" : "none";
 }
@@ -51,8 +56,8 @@ export function usePerformanceMode() {
   }, []);
 
   useEffect(() => {
-    writePerformanceModeAttributes(effectivePerformanceMode, prefersReducedMotion);
-  }, [effectivePerformanceMode, prefersReducedMotion]);
+    writePerformanceModeAttributes(effectivePerformanceMode, prefersReducedMotion, preference.enabled);
+  }, [effectivePerformanceMode, preference.enabled, prefersReducedMotion]);
 
   useEffect(() => {
     if (!hasWindow()) {

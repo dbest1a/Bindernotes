@@ -59,10 +59,32 @@ import {
 
 describe("useWorkspacePreferences", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     mocks.clearThemeOverride.mockReset();
     mocks.getWorkspacePreferencesRecord.mockReset();
     mocks.setTheme.mockReset();
     mocks.upsertWorkspacePreferencesRecord.mockReset();
+  });
+
+  it("boots directly into the locally cached workspace view before account preferences resolve", () => {
+    mocks.getWorkspacePreferencesRecord.mockReturnValue(new Promise(() => {}));
+
+    for (const [storedMode, expected] of [
+      ["facelift", { activeMode: "simple", workspacePresentationMode: "facelift" }],
+      ["modular", { activeMode: "modular", workspacePresentationMode: "simple" }],
+      ["canvas", { activeMode: "canvas", workspacePresentationMode: "canvas" }],
+      ["simple", { activeMode: "simple", workspacePresentationMode: "simple" }],
+      ["standard", { activeMode: "simple", workspacePresentationMode: "simple" }],
+    ] as const) {
+      window.localStorage.setItem("bindernotes.workspace.view-mode", storedMode);
+      const { result, unmount } = renderHook(() =>
+        useWorkspacePreferences("user-1", "binder-1", null),
+      );
+
+      expect(result.current.active).toEqual(expect.objectContaining(expected));
+      unmount();
+      window.localStorage.clear();
+    }
   });
 
   it("normalizes legacy saved preferences before the document reads focus mode", async () => {

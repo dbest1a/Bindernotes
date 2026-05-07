@@ -62,6 +62,7 @@ describe("AppShell profile settings", () => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");
     document.documentElement.removeAttribute("data-admin-dashboard");
+    document.documentElement.removeAttribute("data-enhanced-mode");
     document.documentElement.removeAttribute("data-performance-mode");
     document.documentElement.removeAttribute("data-motion-intensity");
     document.documentElement.removeAttribute("data-motion-speed");
@@ -79,10 +80,43 @@ describe("AppShell profile settings", () => {
     };
   });
 
-  it("shows Admin Motion Lab controls only for admins", async () => {
+  it("opens a full searchable settings window from the profile menu", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByTestId("app-settings-window")).toBeTruthy();
+    expect(screen.getByLabelText("Search settings")).toBeTruthy();
+    expect(screen.getByTestId("app-settings-section-account")).toBeTruthy();
+    expect(screen.getByTestId("app-settings-section-appearance")).toBeTruthy();
+    expect(screen.getByTestId("app-settings-section-learning")).toBeTruthy();
+    expect(screen.getByTestId("app-settings-section-performance")).toBeTruthy();
+  });
+
+  it("searches the full settings window without leaving the profile menu overloaded", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+
+    expect(screen.getByTestId("profile-settings-popover")).toBeTruthy();
+    expect(screen.queryByTestId("tutorial-prompts-section")).toBeNull();
+    expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+    fireEvent.change(screen.getByLabelText("Search settings"), {
+      target: { value: "motion" },
+    });
+
+    expect(screen.getByTestId("admin-motion-lab")).toBeTruthy();
+    expect(screen.queryByTestId("personal-notes-quick-access-section")).toBeNull();
+  });
+
+  it("shows Admin Motion Lab controls only for admins inside the settings window", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
 
     expect(screen.getByTestId("admin-motion-lab")).toBeTruthy();
 
@@ -98,6 +132,7 @@ describe("AppShell profile settings", () => {
 
     renderShell();
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
 
     expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
   });
@@ -138,6 +173,19 @@ describe("AppShell profile settings", () => {
     expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
       "admin-makeover",
     );
+  });
+
+  it("uses the cached Minimal dashboard shell while the profile is still loading", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+    authMock.profile = null;
+
+    renderShell();
+
+    expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("minimal");
+    expect(screen.getByText("Workspace body")).toBeTruthy();
   });
 
   it("offers Normal, Admin Makeover, and Minimal dashboard appearances", async () => {
@@ -186,10 +234,11 @@ describe("AppShell profile settings", () => {
     );
   });
 
-  it("shows tutorial prompt controls in the profile menu for admins and learners", async () => {
+  it("shows tutorial prompt controls in the settings window for admins and learners", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
 
     expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
     expect(screen.getByTestId("tutorial-prompts-toggle")).toBeTruthy();
@@ -206,15 +255,17 @@ describe("AppShell profile settings", () => {
 
     renderShell();
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
 
     expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
     expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
   });
 
-  it("persists tutorial prompt preference from the profile menu", async () => {
+  it("persists tutorial prompt preference from the settings window", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
     fireEvent.click(screen.getByTestId("tutorial-prompts-toggle"));
 
     expect(screen.getByTestId("tutorial-prompts-section")).toBeTruthy();
@@ -224,7 +275,7 @@ describe("AppShell profile settings", () => {
     );
   });
 
-  it("keeps the solid settings menu and adds a persisted Quick Access toggle between Tutorials and Enhanced Mode", async () => {
+  it("keeps a compact solid quick settings menu with account actions", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
@@ -232,13 +283,11 @@ describe("AppShell profile settings", () => {
     const popover = screen.getByTestId("profile-settings-popover");
     expect(popover.className).toContain("bg-popover");
     expect(popover.className).not.toContain("backdrop-blur");
+    expect(screen.getByTestId("profile-open-settings")).toBeTruthy();
     expect(screen.getByTestId("personal-notes-quick-access-section")).toBeTruthy();
-    expect(popover.textContent?.indexOf("Tutorials")).toBeLessThan(
-      popover.textContent?.indexOf("Quick Access") ?? -1,
-    );
-    expect(popover.textContent?.indexOf("Quick Access")).toBeLessThan(
-      popover.textContent?.indexOf("Enhanced Mode") ?? -1,
-    );
+    expect(screen.getByTestId("performance-mode-section")).toBeTruthy();
+    expect(screen.queryByTestId("tutorial-prompts-section")).toBeNull();
+    expect(screen.queryByTestId("admin-motion-lab")).toBeNull();
 
     fireEvent.click(screen.getByTestId("personal-notes-quick-access-toggle"));
 
@@ -257,6 +306,7 @@ describe("AppShell profile settings", () => {
       "false",
     );
     expect(screen.getByText("Enhanced Mode")).toBeTruthy();
+    expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("false");
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toBeNull();
 
@@ -265,6 +315,7 @@ describe("AppShell profile settings", () => {
     expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
       "true",
     );
+    expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("true");
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
       '"enabled":true',
@@ -275,6 +326,7 @@ describe("AppShell profile settings", () => {
     expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
       "false",
     );
+    expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("false");
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
       '"enabled":false',
@@ -285,6 +337,7 @@ describe("AppShell profile settings", () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
     fireEvent.click(screen.getByTestId("admin-motion-toggle"));
     fireEvent.change(screen.getByTestId("admin-motion-intensity"), { target: { value: "party" } });
@@ -300,6 +353,7 @@ describe("AppShell profile settings", () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
     fireEvent.click(screen.getByTestId("admin-motion-toggle"));
     fireEvent.change(screen.getByTestId("admin-page-transition"), { target: { value: "slide-pop" } });
 
@@ -331,5 +385,31 @@ describe("AppShell profile settings", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.queryByTestId("profile-settings-popover")).toBeNull();
+  });
+
+  it("finds drawing and whiteboard performance controls through settings search", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+    fireEvent.change(screen.getByLabelText("Search settings"), {
+      target: { value: "smooth drawing whiteboard" },
+    });
+
+    expect(screen.getByTestId("app-settings-section-performance")).toBeTruthy();
+    expect(screen.getByText(/Prioritizes speed, smoother drawing, and lower CPU usage/i)).toBeTruthy();
+    expect(screen.queryByTestId("app-settings-empty")).toBeNull();
+  });
+
+  it("closes the full settings window with Escape", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+    expect(screen.getByTestId("app-settings-window")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByTestId("app-settings-window")).toBeNull();
   });
 });

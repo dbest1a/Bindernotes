@@ -41,4 +41,10 @@ describe("admin perceived performance styles", () => {
     expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-dashboard-glow[\s\S]*display:\s*none\s*!important/s);
     expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-doc-card:hover[\s\S]*transform:\s*none\s*!important/s);
   });
+
+  it("adds Performance Mode overrides for whiteboard drawing surfaces", () => {
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-excalidraw-host[\s\S]*transition:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-module-card::before[\s\S]*display:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-toolbox-panel[\s\S]*backdrop-filter:\s*none\s*!important/s);
+  });
 });

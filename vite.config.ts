@@ -9,7 +9,6 @@ export default defineConfig({
       output: {
         onlyExplicitManualChunks: true,
         manualChunks(id) {
-          if (id.includes("node_modules/@tiptap")) return "editor";
           if (id.includes("node_modules/@excalidraw")) return "whiteboard-engine";
           if (id.includes("node_modules/@dnd-kit")) return "drag-drop";
           if (id.includes("node_modules/katex")) return "math";

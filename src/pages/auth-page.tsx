@@ -123,7 +123,7 @@ export function AuthPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <Badge className="w-fit" variant="outline">
-              {isConfigured ? "Supabase Auth" : "Auth setup required"}
+              {isConfigured ? "Supabase Auth" : "Account sign-in unavailable"}
             </Badge>
             <CardTitle className="text-3xl sm:text-4xl">Open Binder Notes</CardTitle>
             <CardDescription>
@@ -133,11 +133,14 @@ export function AuthPage() {
           </CardHeader>
           <CardContent>
             {!isConfigured ? (
-              <p className="mb-5 flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p
+                className="mb-5 flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                data-auth-config-missing="true"
+              >
                 <AlertCircle className="mt-0.5 shrink-0" data-icon="inline-start" />
                 <span>
-                  <strong className="block">Supabase configuration required</strong>
-                  Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before account sign-in can run.
+                  <strong className="block">Account sign-in is not ready</strong>
+                  Required account service settings are missing. Configure client auth before releasing sign-in.
                 </span>
               </p>
             ) : null}
