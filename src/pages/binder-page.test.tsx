@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BinderOverviewData, Profile, SeedHealth } from "@/types";
@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
     authState: {
       profile: learner,
     },
+    createDocumentMutation: vi.fn(),
     binderState: {
       data,
       isLoading: false,
@@ -76,6 +77,11 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 vi.mock("@/hooks/use-binders", () => ({
+  useDashboardWorkspaceMutations: () => ({
+    createBinder: { mutateAsync: vi.fn(), isPending: false },
+    createDocument: { mutateAsync: mocks.createDocumentMutation, isPending: false },
+    createFolder: { mutateAsync: vi.fn(), isPending: false },
+  }),
   useBinderOverview: () => mocks.binderState,
 }));
 
@@ -86,6 +92,18 @@ describe("BinderPage", () => {
     mocks.authState.profile = mocks.learner;
     mocks.binderState.error = null;
     mocks.binderState.isLoading = false;
+    mocks.createDocumentMutation.mockReset();
+    mocks.createDocumentMutation.mockResolvedValue({
+      id: "lesson-created",
+      binder_id: "binder-algebra-foundations",
+      title: "Chemistry Warmup",
+      order_index: 1,
+      content: { type: "doc", content: [] },
+      math_blocks: [],
+      is_preview: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    });
   });
 
   it("hides seed status from normal users by default", () => {
@@ -115,5 +133,32 @@ describe("BinderPage", () => {
 
     expect(screen.getAllByText("Seed status").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expected version").length).toBeGreaterThan(0);
+  });
+
+  it("lets admins create a document directly inside the open binder", async () => {
+    mocks.authState.profile = mocks.admin;
+
+    render(
+      <MemoryRouter initialEntries={["/binders/binder-algebra-foundations"]}>
+        <Routes>
+          <Route path="/binders/:binderId" element={<BinderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "New document" })[0]);
+    fireEvent.change(screen.getByLabelText("Document title"), {
+      target: { value: "Chemistry Warmup" },
+    });
+    fireEvent.submit(screen.getByLabelText("Document title").closest("form")!);
+
+    await waitFor(() => {
+      expect(mocks.createDocumentMutation).toHaveBeenCalledWith({
+        binderId: "binder-algebra-foundations",
+        orderIndex: 1,
+        title: "Chemistry Warmup",
+      });
+    });
+    expect(await screen.findByText('Created document "Chemistry Warmup".')).toBeTruthy();
   });
 });

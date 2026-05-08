@@ -1092,6 +1092,17 @@ function resolvePrimaryModule(
     "math-proof-concept": ["lesson", "related-concepts", "private-notes"],
     "math-practice-mode": ["private-notes", "formula-sheet", "desmos-graph"],
     "full-math-canvas": ["desmos-graph", "lesson", "private-notes"],
+    "chem-guided-study": ["lesson", "private-notes", "chem-concept-cards"],
+    "chem-element-explorer": ["chem-periodic-table", "chem-element-builder", "lesson"],
+    "chem-bonding-studio": ["chem-molecule-builder", "chem-geometry-viewer", "lesson"],
+    "chem-reaction-studio": ["chem-tri-reaction-view", "chem-reaction-balancer", "lesson"],
+    "chem-stoichiometry-lab": ["chem-stoichiometry-coach", "chem-molar-mass-calculator", "lesson"],
+    "chem-solutions-molarity-lab": ["chem-solution-mixer", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    "chem-acid-base-titration-lab": ["chem-titration-lab", "chem-desmos-titration-curve", "chem-ph-calculator"],
+    "chem-kinetics-graph-lab": ["chem-desmos-kinetics-plot", "chem-kinetics-simulator", "chem-data-table"],
+    "chem-thermochemistry-studio": ["chem-calorimetry-lab", "chem-energy-diagram", "chem-lab-notebook"],
+    "chem-full-studio": ["chem-periodic-table", "chem-reaction-balancer", "lesson"],
+    "chemistry-lab": ["chem-titration-lab", "chem-lab-notebook", "lesson"],
     "history-guided": ["history-timeline", "lesson", "history-evidence"],
     "history-timeline-focus": ["history-timeline", "history-evidence", "history-argument"],
     "history-source-evidence": ["history-evidence", "lesson", "history-timeline"],
@@ -1116,6 +1127,18 @@ function inferPresetForModules(moduleIds: WorkspaceModuleId[]): WorkspacePresetI
   }
   if (moduleIds.includes("desmos-graph")) {
     return "math-graph-lab";
+  }
+  if (moduleIds.includes("chem-periodic-table")) {
+    return "chem-element-explorer";
+  }
+  if (moduleIds.includes("chem-molecule-builder")) {
+    return "chem-bonding-studio";
+  }
+  if (moduleIds.includes("chem-reaction-balancer") || moduleIds.includes("chem-tri-reaction-view")) {
+    return "chem-reaction-studio";
+  }
+  if (moduleIds.includes("chem-titration-lab") || moduleIds.includes("chem-stoichiometry-coach")) {
+    return "chemistry-lab";
   }
   if (moduleIds.includes("private-notes")) {
     return "notes-focus";

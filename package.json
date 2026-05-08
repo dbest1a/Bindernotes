@@ -5,10 +5,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --configLoader runner --host 127.0.0.1",
     "build": "node scripts/build-client.mjs",
-    "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest --run",
+    "preview": "vite preview --configLoader runner --host 127.0.0.1",
+    "test": "vitest --run --configLoader runner",
     "typecheck": "tsc -b --pretty false",
     "scan:build": "node scripts/scan-build-assets.mjs",
     "seed:system": "tsx scripts/seed-system.ts",

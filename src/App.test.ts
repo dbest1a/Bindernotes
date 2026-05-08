@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearChunkRecoveryAttempts,
   isDynamicImportFailure,
   shouldRecoverFromDynamicImportFailure,
 } from "@/App";
@@ -37,5 +38,17 @@ describe("route chunk recovery", () => {
     expect(shouldRecoverFromDynamicImportFailure(error, "/math", storage)).toBe(true);
     expect(shouldRecoverFromDynamicImportFailure(error, "/math", storage)).toBe(false);
     expect(shouldRecoverFromDynamicImportFailure(error, "/admin", storage)).toBe(true);
+  });
+
+  it("clears chunk recovery markers when the user manually refreshes", () => {
+    const storage = createStorage();
+    const error = new TypeError("Importing a module script failed.");
+
+    expect(shouldRecoverFromDynamicImportFailure(error, "/dashboard", storage)).toBe(true);
+    expect(shouldRecoverFromDynamicImportFailure(error, "/dashboard", storage)).toBe(false);
+
+    clearChunkRecoveryAttempts(storage);
+
+    expect(shouldRecoverFromDynamicImportFailure(error, "/dashboard", storage)).toBe(true);
   });
 });

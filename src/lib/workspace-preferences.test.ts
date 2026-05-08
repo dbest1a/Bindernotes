@@ -675,6 +675,7 @@ describe("workspace preferences", () => {
       "math-proof-concept",
       "math-practice-mode",
       "full-math-canvas",
+      "chemistry-lab",
       "annotation-mode",
     ];
 
@@ -745,6 +746,11 @@ describe("workspace preferences", () => {
       expect(frameArea(annotation.windowLayout!.lesson!)).toBeGreaterThan(
         frameArea(annotation.windowLayout!["private-notes"]!) * 3,
       );
+
+      const chemistryLab = resolveWorkspacePresetLayout("chemistry-lab", style);
+      expect(frameArea(chemistryLab.windowLayout!["chem-titration-lab"]!)).toBeGreaterThan(
+        frameArea(chemistryLab.windowLayout!.lesson!),
+      );
     });
   });
 
@@ -807,6 +813,22 @@ describe("workspace preferences", () => {
     ]);
     expect(collapsedPresetModules("full-math-canvas")).toEqual(
       expect.arrayContaining(["saved-graphs", "scientific-calculator", "comments", "recent-highlights"]),
+    );
+  });
+
+  it("keeps chemistry lab work lab-first with optional tools collapsed", () => {
+    expect(visiblePresetModules("chemistry-lab")).toEqual([
+      "lesson",
+      "chem-titration-lab",
+      "chem-lab-notebook",
+    ]);
+    expect(collapsedPresetModules("chemistry-lab")).toEqual(
+      expect.arrayContaining([
+        "chem-stoichiometry-coach",
+        "chem-reference-safety",
+        "private-notes",
+        "recent-highlights",
+      ]),
     );
   });
 
@@ -965,6 +987,7 @@ describe("workspace preferences", () => {
       "math-proof-concept",
       "math-practice-mode",
       "full-math-canvas",
+      "chemistry-lab",
       "history-guided",
       "history-timeline-focus",
       "history-source-evidence",

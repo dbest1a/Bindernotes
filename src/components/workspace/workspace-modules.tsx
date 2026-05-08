@@ -80,6 +80,116 @@ const LazyMathBlocks = lazy(() =>
 const LazyWhiteboardModule = lazy(() =>
   import("@/components/whiteboard/whiteboard-module").then((module) => ({ default: module.WhiteboardModule })),
 );
+const LazyChemistryStoichiometryCoachModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryStoichiometryCoachModule,
+  })),
+);
+const LazyChemistryTitrationLabModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryTitrationLabModule,
+  })),
+);
+const LazyChemistryLabNotebookModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryLabNotebookModule,
+  })),
+);
+const LazyChemistryReferenceSafetyModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryReferenceSafetyModule,
+  })),
+);
+const LazyInteractivePeriodicTableModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.InteractivePeriodicTableModule,
+  })),
+);
+const LazyElementBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ElementBuilderModule,
+  })),
+);
+const LazyElectronConfigurationBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ElectronConfigurationBuilderModule,
+  })),
+);
+const LazyPeriodicTrendsGraphModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.PeriodicTrendsGraphModule,
+  })),
+);
+const LazyMoleculeLewisBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.MoleculeLewisBuilderModule,
+  })),
+);
+const LazyReactionBalancerModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ReactionBalancerModule,
+  })),
+);
+const LazyTriRepresentationReactionViewModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.TriRepresentationReactionViewModule,
+  })),
+);
+const LazyChemistryMolarMassCalculatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryMolarMassCalculatorModule,
+  })),
+);
+const LazySolutionMixerModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.SolutionMixerModule,
+  })),
+);
+const LazyAcidBaseCalculatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.AcidBaseCalculatorModule,
+  })),
+);
+const LazyChemistryGraphModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryGraphModule,
+  })),
+);
+const LazyKineticsSimulatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.KineticsSimulatorModule,
+  })),
+);
+const LazyThermochemistryModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ThermochemistryModule,
+  })),
+);
+const LazyChemistryConceptCardsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryConceptCardsModule,
+  })),
+);
+const LazyChemistryQuickToolsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryQuickToolsModule,
+  })),
+);
+const LazySafetyReagentCardsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.SafetyReagentCardsModule,
+  })),
+);
+const LazyChemistryChallengeReviewModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryChallengeReviewModule,
+  })),
+);
+const LazyChemistryDataTableModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryDataTableModule,
+  })),
+);
 
 export type WorkspaceLibraryContext = {
   folders: Folder[];
@@ -692,6 +802,286 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
             return workspaceModuleRegistry[moduleId]?.render(embeddedContext) ?? null;
           }}
         />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-concept-cards": {
+    id: "chem-concept-cards",
+    title: "Chemistry concept cards",
+    description: "Concept, formula, misconception, and alignment cards",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry concept cards">
+        <LazyChemistryConceptCardsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-quick-tools": {
+    id: "chem-quick-tools",
+    title: "Chemistry quick tools",
+    description: "Molar mass, ions, solubility, pH, and sig-fig helpers",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry quick tools">
+        <LazyChemistryQuickToolsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-periodic-table": {
+    id: "chem-periodic-table",
+    title: "Interactive periodic table",
+    description: "Search, compare, and explore periodic trends",
+    render: () => (
+      <LazyModuleBoundary title="Interactive periodic table">
+        <LazyInteractivePeriodicTableModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-element-builder": {
+    id: "chem-element-builder",
+    title: "Element builder",
+    description: "Build isotopes, ions, charge, and shell models",
+    render: () => (
+      <LazyModuleBoundary title="Element builder">
+        <LazyElementBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-electron-config-builder": {
+    id: "chem-electron-config-builder",
+    title: "Electron configuration builder",
+    description: "Aufbau-style orbital filling practice",
+    render: () => (
+      <LazyModuleBoundary title="Electron configuration builder">
+        <LazyElectronConfigurationBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-periodic-trends-graph": {
+    id: "chem-periodic-trends-graph",
+    title: "Periodic trends graph",
+    description: "Desmos-ready trend graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Periodic trends graph">
+        <LazyPeriodicTrendsGraphModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molecule-builder": {
+    id: "chem-molecule-builder",
+    title: "Molecule / Lewis builder",
+    description: "Lewis structures, valence, formal charge, and VSEPR MVP",
+    render: () => (
+      <LazyModuleBoundary title="Molecule / Lewis builder">
+        <LazyMoleculeLewisBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-geometry-viewer": {
+    id: "chem-geometry-viewer",
+    title: "Geometry viewer",
+    description: "Simple VSEPR geometry suggestions",
+    render: () => (
+      <LazyModuleBoundary title="Geometry viewer">
+        <LazyMoleculeLewisBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-reaction-balancer": {
+    id: "chem-reaction-balancer",
+    title: "Reaction balancer",
+    description: "Balance equations with conservation feedback",
+    render: () => (
+      <LazyModuleBoundary title="Reaction balancer">
+        <LazyReactionBalancerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-tri-reaction-view": {
+    id: "chem-tri-reaction-view",
+    title: "Tri-representation reaction view",
+    description: "Symbolic, particle, and macroscopic reaction views",
+    render: () => (
+      <LazyModuleBoundary title="Tri-representation reaction view">
+        <LazyTriRepresentationReactionViewModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-stoichiometry-coach": {
+    id: "chem-stoichiometry-coach",
+    title: "Chemistry Stoichiometry Coach",
+    description: "Deterministic equation, mole ratio, and unit ladder practice",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry Stoichiometry Coach">
+        <LazyChemistryStoichiometryCoachModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molar-mass-calculator": {
+    id: "chem-molar-mass-calculator",
+    title: "Molar mass calculator",
+    description: "Fast formula mass calculator",
+    render: () => (
+      <LazyModuleBoundary title="Molar mass calculator">
+        <LazyChemistryMolarMassCalculatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-solution-mixer": {
+    id: "chem-solution-mixer",
+    title: "Solution mixer",
+    description: "Molarity and dilution bench",
+    render: () => (
+      <LazyModuleBoundary title="Solution mixer">
+        <LazySolutionMixerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molarity-calculator": {
+    id: "chem-molarity-calculator",
+    title: "Molarity calculator",
+    description: "M1V1 and molarity calculations",
+    render: () => (
+      <LazyModuleBoundary title="Molarity calculator">
+        <LazySolutionMixerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-concentration-graph": {
+    id: "chem-desmos-concentration-graph",
+    title: "Desmos concentration graph",
+    description: "Concentration graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Desmos concentration graph">
+        <LazyChemistryGraphModule kind="concentration" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-ph-calculator": {
+    id: "chem-ph-calculator",
+    title: "pH calculator",
+    description: "Strong acid/base pH and buffer preview",
+    render: () => (
+      <LazyModuleBoundary title="pH calculator">
+        <LazyAcidBaseCalculatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-titration-lab": {
+    id: "chem-titration-lab",
+    title: "Acid-base titration lab",
+    description: "Controlled strong acid and base titration simulation",
+    render: () => (
+      <LazyModuleBoundary title="Acid-base titration lab">
+        <LazyChemistryTitrationLabModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-titration-curve": {
+    id: "chem-desmos-titration-curve",
+    title: "Desmos titration curve",
+    description: "Titration curve with compact fallback",
+    render: () => (
+      <LazyModuleBoundary title="Desmos titration curve">
+        <LazyChemistryGraphModule kind="titration" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-kinetics-simulator": {
+    id: "chem-kinetics-simulator",
+    title: "Kinetics simulator",
+    description: "Reaction order and concentration-time simulator",
+    render: () => (
+      <LazyModuleBoundary title="Kinetics simulator">
+        <LazyKineticsSimulatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-kinetics-plot": {
+    id: "chem-desmos-kinetics-plot",
+    title: "Desmos kinetics plot",
+    description: "Kinetics graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Desmos kinetics plot">
+        <LazyChemistryGraphModule kind="kinetics" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-data-table": {
+    id: "chem-data-table",
+    title: "Chemistry data table",
+    description: "Compact lab data table",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry data table">
+        <LazyChemistryDataTableModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-calorimetry-lab": {
+    id: "chem-calorimetry-lab",
+    title: "Calorimetry lab",
+    description: "q = mc delta T calculator and energy behavior",
+    render: () => (
+      <LazyModuleBoundary title="Calorimetry lab">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-energy-diagram": {
+    id: "chem-energy-diagram",
+    title: "Energy diagram",
+    description: "Endothermic and exothermic energy view",
+    render: () => (
+      <LazyModuleBoundary title="Energy diagram">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-calculation-sheet": {
+    id: "chem-calculation-sheet",
+    title: "Calculation sheet",
+    description: "Thermochemistry calculation sheet",
+    render: () => (
+      <LazyModuleBoundary title="Calculation sheet">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-safety-cards": {
+    id: "chem-safety-cards",
+    title: "Safety + reagent cards",
+    description: "Safety cards for virtual lab reagents",
+    render: () => (
+      <LazyModuleBoundary title="Safety + reagent cards">
+        <LazySafetyReagentCardsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-review-queue": {
+    id: "chem-review-queue",
+    title: "Chem challenge queue",
+    description: "Deterministic review challenges",
+    render: () => (
+      <LazyModuleBoundary title="Chem challenge queue">
+        <LazyChemistryChallengeReviewModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-lab-notebook": {
+    id: "chem-lab-notebook",
+    title: "Chemistry lab notebook",
+    description: "Structured hypothesis, data, calculations, and conclusion sections",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry lab notebook">
+        <LazyChemistryLabNotebookModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-reference-safety": {
+    id: "chem-reference-safety",
+    title: "Chemistry reference",
+    description: "Safety, conservation, and misconception tags",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry reference">
+        <LazyChemistryReferenceSafetyModule />
       </LazyModuleBoundary>
     ),
   },

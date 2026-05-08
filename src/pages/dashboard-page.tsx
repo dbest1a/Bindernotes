@@ -80,6 +80,21 @@ type DashboardFilteredData = {
 };
 
 const dashboardNoticeDismissMs = 10000;
+type WorkspaceCreateKind = "folder" | "binder" | "document";
+const workspaceSubjectOptions = ["General", "Chemistry", "Mathematics", "History", "Study Skills"] as const;
+
+function inferSubjectFromName(value: string | null | undefined) {
+  const normalized = (value ?? "").toLowerCase();
+  if (normalized.includes("chem")) return "Chemistry";
+  if (normalized.includes("math") || normalized.includes("algebra") || normalized.includes("calculus")) {
+    return "Mathematics";
+  }
+  if (normalized.includes("history") || normalized.includes("rome") || normalized.includes("revolution")) {
+    return "History";
+  }
+  if (normalized.includes("study") || normalized.includes("writing")) return "Study Skills";
+  return "General";
+}
 
 export function DashboardPage() {
   const { profile } = useAuth();
@@ -616,9 +631,11 @@ function MinimalDashboardView({
   const filebarRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [openDriveMenu, setOpenDriveMenu] = useState<"new" | "browse" | "open" | "view" | null>(null);
-  const [createKind, setCreateKind] = useState<"folder" | "binder" | null>(null);
+  const [createKind, setCreateKind] = useState<WorkspaceCreateKind | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const [draftBinderId, setDraftBinderId] = useState("");
   const [draftFolderId, setDraftFolderId] = useState("");
+  const [draftSubject, setDraftSubject] = useState<string>("General");
   const [dashboardNotice, setDashboardNotice] = useState<string | null>(null);
   const [workspaceView, updateWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
   const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
@@ -700,7 +717,9 @@ function MinimalDashboardView({
   const firstFolder = sortedFolderSummaries[0];
   const firstBinder = sortedStudyBinders[0];
   const createPending =
-    workspaceMutations.createBinder.isPending || workspaceMutations.createFolder.isPending;
+    workspaceMutations.createBinder.isPending ||
+    workspaceMutations.createDocument.isPending ||
+    workspaceMutations.createFolder.isPending;
 
   useEffect(() => {
     setFolderOrder(loadDashboardOrganizationDraft(profile.id, data).folderOrder);
@@ -781,10 +800,14 @@ function MinimalDashboardView({
     setDraggingFolderId(null);
   };
 
-  const beginCreate = (kind: "folder" | "binder") => {
+  const beginCreate = (kind: WorkspaceCreateKind) => {
     setCreateKind(kind);
-    setDraftTitle(kind === "folder" ? "New folder" : "New binder");
+    setDraftTitle(
+      kind === "folder" ? "New folder" : kind === "binder" ? "New binder" : "New document",
+    );
     setDraftFolderId(firstFolder?.folder.id ?? "");
+    setDraftBinderId(firstBinder?.id ?? "");
+    setDraftSubject(inferSubjectFromName(firstFolder?.folder.name));
     setOpenDriveMenu(null);
     setDashboardNotice(null);
   };
@@ -801,20 +824,42 @@ function MinimalDashboardView({
       return;
     }
 
-    if (createKind === "folder") {
-      await workspaceMutations.createFolder.mutateAsync({ name: title, color: "teal" });
-      setDashboardNotice(`Created folder "${title}".`);
-    } else {
-      await workspaceMutations.createBinder.mutateAsync({
-        title,
-        folderId: draftFolderId || null,
-        subject: "General",
-      });
-      setDashboardNotice(`Created binder "${title}".`);
+    try {
+      if (createKind === "folder") {
+        await workspaceMutations.createFolder.mutateAsync({ name: title, color: "teal" });
+        setDashboardNotice(`Created folder "${title}".`);
+      } else if (createKind === "binder") {
+        await workspaceMutations.createBinder.mutateAsync({
+          title,
+          folderId: draftFolderId || null,
+          subject: draftSubject,
+        });
+        setDashboardNotice(`Created binder "${title}".`);
+      } else {
+        const binderId = draftBinderId || firstBinder?.id || "";
+        if (!binderId) {
+          setDashboardNotice("Create or choose a binder before adding a document.");
+          return;
+        }
+        await workspaceMutations.createDocument.mutateAsync({
+          binderId,
+          orderIndex: (filtered.lessonsByBinderId[binderId]?.length ?? 0) + 1,
+          title,
+        });
+        setDashboardNotice(`Created document "${title}".`);
+      }
+    } catch (createError) {
+      setDashboardNotice(
+        createError instanceof Error
+          ? createError.message
+          : "BinderNotes could not create that item. Try again.",
+      );
+      return;
     }
 
     setCreateKind(null);
     setDraftTitle("");
+    setDraftBinderId("");
   };
 
   const focusDashboardSearch = () => {
@@ -980,6 +1025,10 @@ function MinimalDashboardView({
                 <BookPlus className="size-4" />
                 Binder
               </button>
+              <button onClick={() => beginCreate("document")} role="menuitem" type="button">
+                <FileText className="size-4" />
+                Document
+              </button>
             </div>
           ) : null}
         </div>
@@ -1125,7 +1174,13 @@ function MinimalDashboardView({
       {createKind ? (
         <form className="minimal-dashboard-create-card" data-testid={`${dashboardPrefix}-dashboard-create-card`} onSubmit={submitCreate}>
           <div>
-            <span className="page-kicker">{createKind === "folder" ? "New folder" : "New binder"}</span>
+            <span className="page-kicker">
+              {createKind === "folder"
+                ? "New folder"
+                : createKind === "binder"
+                  ? "New binder"
+                  : "New document"}
+            </span>
             <label>
               <span>Name</span>
               <Input
@@ -1152,9 +1207,50 @@ function MinimalDashboardView({
               </select>
             </label>
           ) : null}
+          {createKind === "binder" ? (
+            <label>
+              <span>Subject</span>
+              <select
+                className="appearance-select"
+                onChange={(event) => setDraftSubject(event.target.value)}
+                value={draftSubject}
+              >
+                {workspaceSubjectOptions.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {createKind === "document" ? (
+            <label>
+              <span>Binder</span>
+              <select
+                className="appearance-select"
+                onChange={(event) => setDraftBinderId(event.target.value)}
+                value={draftBinderId}
+              >
+                {sortedStudyBinders.length === 0 ? (
+                  <option value="">Create a binder first</option>
+                ) : null}
+                {sortedStudyBinders.map((binder) => (
+                  <option key={binder.id} value={binder.id}>
+                    {deriveBinderTitle(binder, filtered.lessonsByBinderId[binder.id] ?? [])}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <div className="minimal-dashboard-create-card__actions">
             <Button disabled={createPending} size="sm" type="submit">
-              {createPending ? "Creating..." : createKind === "folder" ? "Create folder" : "Create binder"}
+              {createPending
+                ? "Creating..."
+                : createKind === "folder"
+                  ? "Create folder"
+                  : createKind === "binder"
+                    ? "Create binder"
+                    : "Create document"}
             </Button>
             <Button onClick={() => setCreateKind(null)} size="sm" type="button" variant="outline">
               Cancel

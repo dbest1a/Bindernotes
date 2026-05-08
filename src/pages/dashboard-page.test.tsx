@@ -111,6 +111,9 @@ const mocks = vi.hoisted(() => {
 
   return {
     profile,
+    createBinderMutation: vi.fn(),
+    createDocumentMutation: vi.fn(),
+    createFolderMutation: vi.fn(),
     dashboardState: {
       data,
       isLoading: false,
@@ -146,8 +149,9 @@ vi.mock("@/hooks/use-auth", () => ({
 vi.mock("@/hooks/use-binders", () => ({
   useDashboard: () => mocks.dashboardState,
   useDashboardWorkspaceMutations: () => ({
-    createBinder: { mutateAsync: vi.fn(), isPending: false },
-    createFolder: { mutateAsync: vi.fn(), isPending: false },
+    createBinder: { mutateAsync: mocks.createBinderMutation, isPending: false },
+    createDocument: { mutateAsync: mocks.createDocumentMutation, isPending: false },
+    createFolder: { mutateAsync: mocks.createFolderMutation, isPending: false },
   }),
 }));
 
@@ -194,6 +198,33 @@ describe("DashboardPage", () => {
     mocks.dashboardState.error = null;
     mocks.dashboardState.isLoading = false;
     mocks.profile.role = "admin";
+    mocks.createBinderMutation.mockReset();
+    mocks.createBinderMutation.mockResolvedValue({
+      ...mocks.dashboardState.data.binders[0],
+      id: "binder-created",
+      title: "Created Binder",
+    });
+    mocks.createDocumentMutation.mockReset();
+    mocks.createDocumentMutation.mockResolvedValue({
+      id: "lesson-created",
+      binder_id: "binder-real",
+      title: "Created Document",
+      order_index: 2,
+      content: { type: "doc", content: [] },
+      math_blocks: [],
+      is_preview: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    });
+    mocks.createFolderMutation.mockReset();
+    mocks.createFolderMutation.mockResolvedValue({
+      id: "folder-created",
+      owner_id: "user-1",
+      name: "Created Folder",
+      color: "teal",
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    });
     dndMocks.dndContextRender.mockClear();
     dndMocks.lastDndContextProps = null;
     dndMocks.useDroppable.mockClear();
@@ -267,6 +298,40 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("admin-dashboard-open-next").getAttribute("href")).toBe(
       "/binders/binder-real/documents/lesson-real",
     );
+  });
+
+  it("lets Admin Makeover create a new document inside an existing binder", async () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId("admin-dashboard-makeover")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("admin-dashboard-new-button"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Document" }));
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Chemistry Lab Notes" },
+    });
+    fireEvent.change(screen.getByLabelText("Binder"), {
+      target: { value: "binder-real" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create document" }));
+
+    await waitFor(() => {
+      expect(mocks.createDocumentMutation).toHaveBeenCalledWith({
+        binderId: "binder-real",
+        orderIndex: 2,
+        title: "Chemistry Lab Notes",
+      });
+    });
+    expect(await screen.findByText('Created document "Chemistry Lab Notes".')).toBeTruthy();
   });
 
   it("lets Admin Makeover View menu persist full width and toggle Recent Documents", async () => {
@@ -693,6 +758,30 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: "Open" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "View" })).toBeTruthy();
     expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+  });
+
+  it("lets Normal create a new document from the New menu", async () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId("normal-dashboard-new-button"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Document" }));
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Chemistry Practice" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create document" }));
+
+    await waitFor(() => {
+      expect(mocks.createDocumentMutation).toHaveBeenCalledWith({
+        binderId: "binder-real",
+        orderIndex: 2,
+        title: "Chemistry Practice",
+      });
+    });
+    expect(await screen.findByText('Created document "Chemistry Practice".')).toBeTruthy();
   });
 
   it("lets the Normal Browse menu change the visible workspace scope", () => {

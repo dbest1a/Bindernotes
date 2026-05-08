@@ -1,4 +1,5 @@
 import katex from "katex";
+import "katex/dist/katex.min.css";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {

@@ -1,14 +1,16 @@
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, ChevronRight, FileText, FolderTree, NotebookPen } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
-import { useBinderOverview } from "@/hooks/use-binders";
+import { useBinderOverview, useDashboardWorkspaceMutations } from "@/hooks/use-binders";
 import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presentation-preference";
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
@@ -19,7 +21,11 @@ export function BinderPage() {
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useBinderOverview(binderId, profile);
+  const workspaceMutations = useDashboardWorkspaceMutations(profile);
   const workspacePresentation = useWorkspacePresentationPreference();
+  const [createDocumentOpen, setCreateDocumentOpen] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("New document");
+  const [notice, setNotice] = useState<string | null>(null);
   const debugModeEnabled = searchParams.get("debug") === "system";
   const showSystemDiagnostics =
     debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
@@ -27,6 +33,8 @@ export function BinderPage() {
     error && showSystemDiagnostics
       ? classifyRuntimeError("binders", error)
       : [];
+  const primaryFolder = data?.folders[0] ?? null;
+  const canManageWorkspace = profile?.role === "admin";
 
   if (!profile) {
     return <Navigate replace to="/auth" />;
@@ -67,8 +75,36 @@ export function BinderPage() {
     );
   }
 
-  const primaryFolder = data.folders[0];
   const documents = getBinderDocumentSummaries(data.lessons, data.notes);
+
+  const submitCreateDocument = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canManageWorkspace) {
+      return;
+    }
+    const title = draftTitle.trim();
+    if (!title) {
+      setNotice("Add a document title before creating it.");
+      return;
+    }
+
+    try {
+      await workspaceMutations.createDocument.mutateAsync({
+        binderId: data.binder.id,
+        orderIndex: data.lessons.length + 1,
+        title,
+      });
+      setNotice(`Created document "${title}".`);
+      setCreateDocumentOpen(false);
+      setDraftTitle("New document");
+    } catch (createError) {
+      setNotice(
+        createError instanceof Error
+          ? createError.message
+          : "BinderNotes could not create that document. Try again.",
+      );
+    }
+  };
 
   return (
     <main className="app-page" data-workspace-presentation={workspacePresentation}>
@@ -91,6 +127,14 @@ export function BinderPage() {
             <Badge variant="outline">Binder</Badge>
             <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">{data.binder.title}</h1>
             <p className="mt-4 max-w-2xl page-copy">{data.binder.description}</p>
+            {canManageWorkspace ? (
+              <div className="mt-6">
+                <Button onClick={() => setCreateDocumentOpen(true)} type="button">
+                  <FileText className="size-4" />
+                  New document
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -113,6 +157,37 @@ export function BinderPage() {
           ) : null}
         </aside>
       </section>
+
+      {createDocumentOpen ? (
+        <form className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={submitCreateDocument}>
+          <label>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Document title
+            </span>
+            <Input
+              aria-label="Document title"
+              autoFocus
+              className="mt-2"
+              onChange={(event) => setDraftTitle(event.target.value)}
+              value={draftTitle}
+            />
+          </label>
+          <div className="flex gap-2">
+            <Button disabled={workspaceMutations.createDocument.isPending} type="submit">
+              {workspaceMutations.createDocument.isPending ? "Creating..." : "Create document"}
+            </Button>
+            <Button onClick={() => setCreateDocumentOpen(false)} type="button" variant="outline">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
+      {notice ? (
+        <div className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground" role="status">
+          {notice}
+        </div>
+      ) : null}
 
       <section className="grid gap-4">
         <div>
@@ -148,6 +223,13 @@ export function BinderPage() {
           ))}
           {documents.length === 0 ? (
             <EmptyState
+              action={
+                canManageWorkspace ? (
+                  <Button onClick={() => setCreateDocumentOpen(true)} type="button">
+                    Create document
+                  </Button>
+                ) : undefined
+              }
               description="Add binder lessons first so this binder can contain actual documents."
               title="No documents in this binder"
             />

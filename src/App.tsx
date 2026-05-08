@@ -207,6 +207,7 @@ type RouteErrorBoundaryState = {
 };
 
 const chunkRecoveryStorageKey = "binder-notes:chunk-recovery:v1";
+const chunkRecoveryQueryParam = "bn_chunk_refresh";
 const dynamicImportFailurePatterns = [
   "failed to fetch dynamically imported module",
   "importing a module script failed",
@@ -250,6 +251,42 @@ export function shouldRecoverFromDynamicImportFailure(
   }
 }
 
+export function clearChunkRecoveryAttempts(
+  storage: Storage | undefined = typeof window === "undefined" ? undefined : window.sessionStorage,
+) {
+  if (!storage) {
+    return;
+  }
+
+  try {
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(chunkRecoveryStorageKey)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => storage.removeItem(key));
+  } catch {
+    // Best effort only. A normal reload is still better than a stuck route.
+  }
+}
+
+function chunkRecoveryUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set(chunkRecoveryQueryParam, String(Date.now()));
+  return url.toString();
+}
+
+function reloadAfterDynamicImportFailure({ clearAttempts = false }: { clearAttempts?: boolean } = {}) {
+  if (clearAttempts) {
+    clearChunkRecoveryAttempts();
+  }
+
+  window.location.replace(chunkRecoveryUrl());
+}
+
 class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
   state: RouteErrorBoundaryState = {
     error: null,
@@ -268,7 +305,7 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
         this.props.resetKey || window.location.pathname,
       )
     ) {
-      window.location.reload();
+      reloadAfterDynamicImportFailure();
     }
   }
 
@@ -294,7 +331,10 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
             title={isChunkFailure ? "This page needs a refresh" : "This page could not render"}
             action={
               isChunkFailure ? (
-                <Button onClick={() => window.location.reload()} type="button">
+                <Button
+                  onClick={() => reloadAfterDynamicImportFailure({ clearAttempts: true })}
+                  type="button"
+                >
                   Refresh page
                 </Button>
               ) : null

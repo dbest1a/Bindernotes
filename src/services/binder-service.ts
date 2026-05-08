@@ -57,6 +57,12 @@ import {
   getWorkspaceFolderArtifactsForBinder,
   normalizeWorkspaceFolderId,
 } from "@/lib/workspace-records";
+import {
+  chemistryShowcaseBinder,
+  chemistryShowcaseFolder,
+  chemistryShowcaseFolderLink,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 import type {
   Binder,
   BinderOverviewData,
@@ -195,7 +201,7 @@ type WorkspacePreferencesRecord = {
 };
 
 function getLocalBundledFolders() {
-  return [...demoFolders, localHistorySuiteSeed.folder];
+  return [...demoFolders, localHistorySuiteSeed.folder, chemistryShowcaseFolder];
 }
 
 function getLocalBundledFolderLinks(): FolderBinderLink[] {
@@ -209,15 +215,16 @@ function getLocalBundledFolderLinks(): FolderBinderLink[] {
       created_at: localHistorySuiteSeed.folder.created_at,
       updated_at: localHistorySuiteSeed.folder.updated_at,
     },
+    chemistryShowcaseFolderLink,
   ];
 }
 
 function getLocalBundledLessons() {
-  return [...demoLessons, ...localHistorySuiteSeed.lessons];
+  return [...demoLessons, ...localHistorySuiteSeed.lessons, ...chemistryShowcaseLessons];
 }
 
 function getLocalBundledBinders() {
-  return [...demoBinders, localHistorySuiteSeed.binder];
+  return [...demoBinders, localHistorySuiteSeed.binder, chemistryShowcaseBinder];
 }
 
 const SYSTEM_BINDER_ID_SET = new Set<string>(Object.values(SYSTEM_BINDER_IDS));
@@ -2717,6 +2724,31 @@ export async function createWorkspaceBinder(input: {
   }
 
   return binder;
+}
+
+export async function createWorkspaceDocument(input: {
+  binderId: string;
+  orderIndex?: number;
+  title: string;
+}): Promise<BinderLesson> {
+  const binderId = input.binderId.trim();
+  if (!binderId) {
+    throw new Error("Choose a binder before creating a document.");
+  }
+
+  const title = input.title.trim();
+  if (!title) {
+    throw new Error("Document title is required before saving.");
+  }
+
+  return upsertLesson({
+    binder_id: binderId,
+    title,
+    order_index: Math.max(1, input.orderIndex ?? 1),
+    content: emptyDoc("Start writing this document."),
+    math_blocks: [],
+    is_preview: false,
+  });
 }
 
 export async function upsertLesson(input: Partial<UpsertLessonInput>): Promise<BinderLesson> {

@@ -28,6 +28,17 @@ const designedPresetIds: WorkspacePresetId[] = [
   "math-proof-concept",
   "math-practice-mode",
   "full-math-canvas",
+  "chem-guided-study",
+  "chem-element-explorer",
+  "chem-bonding-studio",
+  "chem-reaction-studio",
+  "chem-stoichiometry-lab",
+  "chem-solutions-molarity-lab",
+  "chem-acid-base-titration-lab",
+  "chem-kinetics-graph-lab",
+  "chem-thermochemistry-studio",
+  "chem-full-studio",
+  "chemistry-lab",
   "history-guided",
   "history-timeline-focus",
   "history-source-evidence",
@@ -139,6 +150,17 @@ describe("workspace preset design catalog", () => {
       "math-proof-concept": "lesson",
       "math-practice-mode": "whiteboard",
       "full-math-canvas": "desmos-graph",
+      "chem-guided-study": "lesson",
+      "chem-element-explorer": "chem-periodic-table",
+      "chem-bonding-studio": "chem-molecule-builder",
+      "chem-reaction-studio": "chem-tri-reaction-view",
+      "chem-stoichiometry-lab": "chem-stoichiometry-coach",
+      "chem-solutions-molarity-lab": "chem-solution-mixer",
+      "chem-acid-base-titration-lab": "chem-titration-lab",
+      "chem-kinetics-graph-lab": "chem-desmos-kinetics-plot",
+      "chem-thermochemistry-studio": "chem-calorimetry-lab",
+      "chem-full-studio": "chem-periodic-table",
+      "chemistry-lab": "chem-titration-lab",
       "annotation-mode": "lesson",
     };
 
@@ -201,6 +223,48 @@ describe("workspace preset design catalog", () => {
     expect(getWorkspacePresetDesign("math-graph-lab").collapsedByDefault).toContain("whiteboard");
     expect(getWorkspacePresetDesign("math-practice-mode").defaultVisible).toContain("whiteboard");
     expect(getWorkspacePresetDesign("full-math-canvas").defaultVisible).toContain("whiteboard");
+  });
+
+  it("adds a chemistry lab preset with lab-first modules and phone-friendly tabs", () => {
+    const design = getFaceliftWorkspacePresetDesign("chemistry-lab");
+    const frames = buildFaceliftPresetFrames("chemistry-lab", { width: 1440, height: 820 });
+
+    expect(getWorkspacePresetDesign("chemistry-lab").defaultVisible).toEqual([
+      "lesson",
+      "chem-titration-lab",
+      "chem-lab-notebook",
+    ]);
+    expect(design.primaryModule).toBe("chem-titration-lab");
+    expect(design.performanceBudget.lazyModules).toContain("chem-titration-lab");
+    expect(frames["chem-titration-lab"]?.w).toBeGreaterThan(frames.lesson?.w ?? 0);
+    expect(
+      getWorkspaceMobileModuleTabs("chemistry-lab", [
+        "lesson",
+        "chem-titration-lab",
+        "chem-lab-notebook",
+        "chem-reference-safety",
+      ]).map((tab) => tab.label),
+    ).toEqual(["Lesson", "Lab", "Notes", "Tools"]);
+  });
+
+  it("adds chemistry showcase presets without smashing flagship modules", () => {
+    const elementExplorer = getFaceliftWorkspacePresetDesign("chem-element-explorer");
+    const titration = getFaceliftWorkspacePresetDesign("chem-acid-base-titration-lab");
+    const frames = buildFaceliftPresetFrames("chem-element-explorer", { width: 1440, height: 820 });
+
+    expect(elementExplorer.primaryModule).toBe("chem-periodic-table");
+    expect(titration.visibleModules).toContain("chem-desmos-titration-curve");
+    expect(frames["chem-periodic-table"]?.w).toBeGreaterThanOrEqual(520);
+    expect(
+      getWorkspaceMobileModuleTabs("chem-full-studio", [
+        "lesson",
+        "private-notes",
+        "chem-periodic-table",
+        "chem-titration-lab",
+        "chem-desmos-titration-curve",
+        "chem-quick-tools",
+      ]).map((tab) => tab.label),
+    ).toEqual(["Lesson", "Notes", "Table", "Lab", "Curve", "Tools"]);
   });
 
   it("places the Facelift Math Practice whiteboard as the usable primary surface", () => {

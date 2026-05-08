@@ -1,5 +1,3 @@
-@import "katex/dist/katex.min.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11139,5 +11137,344 @@
   .dashboard-page[data-workspace-presentation="facelift"] .dashboard-hero,
   .app-page[data-workspace-presentation="facelift"] .hero-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Chemistry showcase modules */
+.chem-showcase-module {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.chem-showcase-toolbar,
+.chem-comparison-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chem-showcase-search {
+  min-width: min(100%, 18rem);
+}
+
+.chem-showcase-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chem-periodic-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: 1rem;
+  min-height: 0;
+}
+
+.chem-periodic-grid {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(2.75rem, 1fr));
+  grid-auto-rows: minmax(3.5rem, auto);
+  gap: 0.35rem;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0.25rem;
+}
+
+.chem-element-cell {
+  min-width: 2.75rem;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 0.75rem;
+  background: hsl(var(--card) / 0.82);
+  color: hsl(var(--foreground));
+  text-align: left;
+  padding: 0.4rem;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chem-element-cell:hover,
+.chem-element-cell:focus-visible {
+  transform: translateY(-2px) scale(1.03);
+  border-color: hsl(var(--primary) / 0.7);
+  outline: none;
+}
+
+.chem-element-cell span,
+.chem-element-cell small {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.62rem;
+  line-height: 1.05;
+}
+
+.chem-element-cell strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.chem-element-cell[data-category="alkali-metal"] { background: color-mix(in srgb, #60a5fa 22%, hsl(var(--card))); }
+.chem-element-cell[data-category="alkaline-earth-metal"] { background: color-mix(in srgb, #34d399 20%, hsl(var(--card))); }
+.chem-element-cell[data-category="transition-metal"] { background: color-mix(in srgb, #f59e0b 18%, hsl(var(--card))); }
+.chem-element-cell[data-category="post-transition-metal"] { background: color-mix(in srgb, #94a3b8 22%, hsl(var(--card))); }
+.chem-element-cell[data-category="metalloid"] { background: color-mix(in srgb, #a78bfa 18%, hsl(var(--card))); }
+.chem-element-cell[data-category="reactive-nonmetal"] { background: color-mix(in srgb, #2dd4bf 18%, hsl(var(--card))); }
+.chem-element-cell[data-category="halogen"] { background: color-mix(in srgb, #fb7185 18%, hsl(var(--card))); }
+.chem-element-cell[data-category="noble-gas"] { background: color-mix(in srgb, #38bdf8 16%, hsl(var(--card))); }
+.chem-element-cell[data-category="lanthanide"] { background: color-mix(in srgb, #c084fc 18%, hsl(var(--card))); }
+.chem-element-cell[data-category="actinide"] { background: color-mix(in srgb, #f472b6 18%, hsl(var(--card))); }
+
+.chem-element-detail,
+.chem-comparison-card,
+.chem-concept-card,
+.chem-tool-card,
+.chem-reagent-card,
+.chem-review-card,
+.chem-tri-card {
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 1rem;
+  background: hsl(var(--card) / 0.82);
+  padding: 1rem;
+}
+
+.chem-comparison-card,
+.chem-tool-card,
+.chem-reagent-card,
+.chem-review-card {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.chem-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.chem-stat-grid article,
+.chem-result-tile {
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 0.875rem;
+  background: hsl(var(--background) / 0.7);
+  padding: 0.85rem;
+}
+
+.chem-stat-grid span,
+.chem-reagent-card span,
+.chem-tool-card span,
+.chem-comparison-card small {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.chem-atom-display,
+.chem-molecule-stage {
+  position: relative;
+  display: grid;
+  min-height: 13rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 1.25rem;
+  background: radial-gradient(circle at center, hsl(var(--primary) / 0.16), transparent 60%);
+}
+
+.chem-nucleus,
+.chem-molecule-node {
+  z-index: 2;
+  display: grid;
+  width: 5rem;
+  height: 5rem;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 18px 45px hsl(var(--primary) / 0.28);
+}
+
+.chem-nucleus span {
+  font-size: 0.8rem;
+}
+
+.chem-shell-ring {
+  position: absolute;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid hsl(var(--primary) / 0.38);
+  border-radius: 999px;
+}
+
+.chem-shell-ring-secondary {
+  width: 12rem;
+  height: 12rem;
+  opacity: 0.55;
+}
+
+.chem-orbital-ladder,
+.chem-data-table,
+.chem-card-stack,
+.chem-reagent-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chem-orbital-row,
+.chem-data-table > div,
+.chem-review-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid hsl(var(--border) / 0.65);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.chem-orbital-row > div {
+  width: 60%;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.5);
+}
+
+.chem-orbital-row > div.is-filled {
+  background: hsl(var(--primary));
+}
+
+.chem-showcase-chart {
+  width: 100%;
+  min-height: 14rem;
+  overflow: visible;
+  border: 1px solid hsl(var(--border) / 0.65);
+  border-radius: 1rem;
+  background: hsl(var(--background) / 0.72);
+  padding: 0.75rem;
+}
+
+.chem-molecule-node-small {
+  position: absolute;
+  width: 3rem;
+  height: 3rem;
+  transform: translate(5rem, -2rem);
+}
+
+.chem-bond-line {
+  position: absolute;
+  width: 6rem;
+  height: 2px;
+  background: hsl(var(--foreground) / 0.45);
+  transform: rotate(-28deg) translateX(3rem);
+}
+
+.chem-bond-line-alt {
+  transform: rotate(34deg) translateX(-3rem);
+}
+
+.chem-conservation-meter,
+.chem-ph-scale,
+.chem-energy-diagram,
+.chem-beaker {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 1rem;
+  background: hsl(var(--background) / 0.72);
+}
+
+.chem-conservation-meter,
+.chem-energy-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 4rem;
+  padding: 1rem;
+}
+
+.chem-conservation-meter > span {
+  width: 70%;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+}
+
+.chem-ph-scale {
+  height: 1.25rem;
+  background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e, #38bdf8, #6366f1);
+}
+
+.chem-ph-scale span {
+  position: absolute;
+  top: -0.25rem;
+  width: 0.35rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: hsl(var(--foreground));
+}
+
+.chem-beaker {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  min-height: 12rem;
+  padding: 1rem;
+}
+
+.chem-beaker span {
+  display: block;
+  width: min(70%, 14rem);
+  border-radius: 0 0 1rem 1rem;
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.35), hsl(var(--primary) / 0.85));
+  transition: height 180ms ease;
+}
+
+.chem-particles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chem-particles span {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  animation: chem-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes chem-pulse {
+  50% { transform: translateY(-4px); opacity: 0.65; }
+}
+
+.chem-select {
+  min-height: 2.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 0 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .chem-periodic-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .chem-periodic-grid {
+    grid-template-columns: repeat(6, minmax(3.2rem, 1fr));
+  }
+
+  .chem-element-cell {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chem-element-cell,
+  .chem-beaker span,
+  .chem-particles span {
+    animation: none;
+    transition: none;
   }
 }

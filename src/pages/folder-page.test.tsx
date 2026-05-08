@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FolderWorkspaceData, Profile, SeedHealth } from "@/types";
@@ -37,7 +37,23 @@ const mocks = vi.hoisted(() => {
       created_at: new Date(0).toISOString(),
       updated_at: new Date(0).toISOString(),
     },
-    binders: [],
+    binders: [
+      {
+        id: "binder-chemistry",
+        owner_id: "admin-1",
+        title: "Chemistry",
+        slug: "chemistry",
+        description: "Chemistry test binder.",
+        subject: "Chemistry",
+        level: "Personal",
+        status: "draft",
+        price_cents: 0,
+        cover_url: null,
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+    ],
     folderBinders: [],
     notes: [],
     lessons: [],
@@ -46,6 +62,8 @@ const mocks = vi.hoisted(() => {
 
   return {
     profile,
+    createBinderMutation: vi.fn(),
+    createDocumentMutation: vi.fn(),
     state: {
       data,
       isLoading: false,
@@ -61,6 +79,11 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 vi.mock("@/hooks/use-binders", () => ({
+  useDashboardWorkspaceMutations: () => ({
+    createBinder: { mutateAsync: mocks.createBinderMutation, isPending: false },
+    createDocument: { mutateAsync: mocks.createDocumentMutation, isPending: false },
+    createFolder: { mutateAsync: vi.fn(), isPending: false },
+  }),
   useFolderWorkspace: () => mocks.state,
 }));
 
@@ -70,6 +93,25 @@ describe("FolderPage", () => {
   beforeEach(() => {
     mocks.state.error = null;
     mocks.state.isLoading = false;
+    mocks.profile.role = "admin";
+    mocks.createBinderMutation.mockReset();
+    mocks.createBinderMutation.mockResolvedValue({
+      ...mocks.state.data.binders[0],
+      id: "binder-new",
+      title: "New Chemistry Binder",
+    });
+    mocks.createDocumentMutation.mockReset();
+    mocks.createDocumentMutation.mockResolvedValue({
+      id: "lesson-new",
+      binder_id: "binder-chemistry",
+      title: "Titration Practice",
+      order_index: 1,
+      content: { type: "doc", content: [] },
+      math_blocks: [],
+      is_preview: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    });
   });
 
   it("keeps seed status hidden by default", () => {
@@ -96,5 +138,33 @@ describe("FolderPage", () => {
 
     expect(screen.getAllByText("Seed status").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expected version").length).toBeGreaterThan(0);
+  });
+
+  it("lets admins create a new document inside a binder from the folder page", async () => {
+    render(
+      <MemoryRouter initialEntries={["/folders/folder-history"]}>
+        <Routes>
+          <Route path="/folders/:folderId" element={<FolderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "New document" })[0]);
+    fireEvent.change(screen.getByLabelText("Document title"), {
+      target: { value: "Titration Practice" },
+    });
+    fireEvent.change(screen.getByLabelText("Binder"), {
+      target: { value: "binder-chemistry" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create document" }));
+
+    await waitFor(() => {
+      expect(mocks.createDocumentMutation).toHaveBeenCalledWith({
+        binderId: "binder-chemistry",
+        orderIndex: 1,
+        title: "Titration Practice",
+      });
+    });
+    expect(await screen.findByText('Created document "Titration Practice".')).toBeTruthy();
   });
 });

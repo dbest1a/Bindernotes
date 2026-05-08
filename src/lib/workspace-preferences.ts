@@ -69,7 +69,7 @@ export type WorkspacePreset = {
   description: string;
 };
 
-type WorkspacePresetSubject = "general" | "math" | "history";
+type WorkspacePresetSubject = "general" | "math" | "history" | "chemistry";
 
 type WorkspacePresetVisibility = {
   subject: WorkspacePresetSubject;
@@ -167,6 +167,10 @@ export const workspaceModules: {
   { id: "scientific-calculator", name: "Scientific calculator", description: "Desmos scientific calculator and fallback tools." },
   { id: "saved-graphs", name: "Saved graphs", description: "Named graph states and snapshots." },
   { id: "whiteboard", name: "Whiteboard", description: "A graph-paper study board for drawing, templates, and live BinderNotes modules." },
+  { id: "chem-stoichiometry-coach", name: "Chemistry Stoichiometry Coach", description: "Balanced equations, mole bridges, and unit ladder checks.", steady: true },
+  { id: "chem-titration-lab", name: "Chemistry Titration Lab", description: "A deterministic acid-base titration lab with pH curve and data table.", steady: true },
+  { id: "chem-lab-notebook", name: "Chemistry Lab Notebook", description: "Structured hypothesis, data, calculations, and conclusion sections.", steady: true },
+  { id: "chem-reference-safety", name: "Chemistry Reference/Safety Card", description: "Safety reminders, conservation checks, and misconception tags.", steady: true },
   { id: "recent-highlights", name: "Recent highlights", description: "Saved anchors and takeaways." },
   { id: "tasks", name: "Tasks/checklist", description: "A focused study checklist." },
   { id: "related-concepts", name: "Related concepts", description: "Connected concepts and references." },
@@ -378,6 +382,34 @@ const defaultModuleLayout: WorkspacePreferences["moduleLayout"] = {
   "scientific-calculator": { span: "wide" },
   "saved-graphs": { span: "medium" },
   whiteboard: { span: "full" },
+  "chem-concept-cards": { span: "medium" },
+  "chem-quick-tools": { span: "medium" },
+  "chem-periodic-table": { span: "full", pinned: true },
+  "chem-element-builder": { span: "wide", pinned: true },
+  "chem-electron-config-builder": { span: "wide" },
+  "chem-periodic-trends-graph": { span: "wide" },
+  "chem-molecule-builder": { span: "full", pinned: true },
+  "chem-geometry-viewer": { span: "medium" },
+  "chem-reaction-balancer": { span: "wide", pinned: true },
+  "chem-tri-reaction-view": { span: "full", pinned: true },
+  "chem-stoichiometry-coach": { span: "wide", pinned: true },
+  "chem-molar-mass-calculator": { span: "medium" },
+  "chem-solution-mixer": { span: "full", pinned: true },
+  "chem-molarity-calculator": { span: "medium" },
+  "chem-desmos-concentration-graph": { span: "wide" },
+  "chem-ph-calculator": { span: "medium" },
+  "chem-titration-lab": { span: "full", pinned: true },
+  "chem-desmos-titration-curve": { span: "wide" },
+  "chem-kinetics-simulator": { span: "wide" },
+  "chem-desmos-kinetics-plot": { span: "wide" },
+  "chem-data-table": { span: "medium" },
+  "chem-calorimetry-lab": { span: "full", pinned: true },
+  "chem-energy-diagram": { span: "wide" },
+  "chem-calculation-sheet": { span: "wide" },
+  "chem-safety-cards": { span: "medium" },
+  "chem-review-queue": { span: "medium" },
+  "chem-lab-notebook": { span: "wide", pinned: true },
+  "chem-reference-safety": { span: "medium" },
   tasks: { span: "medium" },
   "related-concepts": { span: "medium" },
   flashcards: { span: "medium" },
@@ -436,6 +468,61 @@ export const workspacePresets: WorkspacePreset[] = [
     description: "A full modular math canvas with graph, notes, formulas, calculator, saved states, and concept support.",
   },
   {
+    id: "chem-guided-study",
+    name: "Chem Guided Study",
+    description: "A chemistry reading preset with notes, concept cards, and quick tools close by.",
+  },
+  {
+    id: "chem-element-explorer",
+    name: "Element Explorer",
+    description: "A periodic table-first preset for atoms, ions, isotopes, and trends.",
+  },
+  {
+    id: "chem-bonding-studio",
+    name: "Bonding Studio",
+    description: "A Lewis structure and molecular geometry workspace.",
+  },
+  {
+    id: "chem-reaction-studio",
+    name: "Reaction Studio",
+    description: "A balancing, conservation, and particle-view chemistry workspace.",
+  },
+  {
+    id: "chem-stoichiometry-lab",
+    name: "Stoichiometry Lab",
+    description: "A mole bridge and molar mass preset for stoichiometry practice.",
+  },
+  {
+    id: "chem-solutions-molarity-lab",
+    name: "Solutions + Molarity Lab",
+    description: "A solution mixer, molarity, concentration graph, and notebook preset.",
+  },
+  {
+    id: "chem-acid-base-titration-lab",
+    name: "Acid-Base Titration Lab",
+    description: "A titration bench, pH, curve, and notebook preset.",
+  },
+  {
+    id: "chem-kinetics-graph-lab",
+    name: "Kinetics Graph Lab",
+    description: "A rate simulator, graph, data, and lesson preset.",
+  },
+  {
+    id: "chem-thermochemistry-studio",
+    name: "Thermochemistry Studio",
+    description: "A calorimetry, energy diagram, calculation, and notebook preset.",
+  },
+  {
+    id: "chem-full-studio",
+    name: "Full Chemistry Studio",
+    description: "A readable advanced chemistry studio with major tools available.",
+  },
+  {
+    id: "chemistry-lab",
+    name: "Chemistry Lab",
+    description: "A lab-first chemistry workspace with lesson context, titration, stoichiometry, and structured notebook capture.",
+  },
+  {
     id: "annotation-mode",
     name: "Annotation Mode",
     description: "A capture-heavy workspace where the lesson stays central and annotations stack around it.",
@@ -478,6 +565,17 @@ const workspacePresetVisibility: Record<WorkspacePresetId, WorkspacePresetVisibi
   "math-proof-concept": { subject: "math", modes: ["modular", "canvas"] },
   "math-practice-mode": { subject: "math", modes: ["modular", "canvas"] },
   "full-math-canvas": { subject: "math", modes: ["canvas"], advanced: true },
+  "chem-guided-study": { subject: "chemistry", modes: ["simple", "modular", "canvas"] },
+  "chem-element-explorer": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-bonding-studio": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-reaction-studio": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-stoichiometry-lab": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-solutions-molarity-lab": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-acid-base-titration-lab": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-kinetics-graph-lab": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-thermochemistry-studio": { subject: "chemistry", modes: ["modular", "canvas"] },
+  "chem-full-studio": { subject: "chemistry", modes: ["canvas"], advanced: true },
+  "chemistry-lab": { subject: "chemistry", modes: ["modular", "canvas"] },
   "annotation-mode": { subject: "general", modes: ["modular", "canvas"], advanced: true },
   "history-guided": { subject: "history", modes: ["modular", "canvas"] },
   "history-timeline-focus": { subject: "history", modes: ["modular", "canvas"] },
@@ -545,6 +643,11 @@ export function getTopbarWorkspacePresetRecommendations(
     "math-proof-concept",
     "math-practice-mode",
   ];
+  const preferredChemistryPresetOrder: WorkspacePresetId[] = [
+    "split-study",
+    "chemistry-lab",
+    "notes-focus",
+  ];
   const orderedVisiblePresets =
     activeSubject === "math"
       ? [
@@ -553,7 +656,14 @@ export function getTopbarWorkspacePresetRecommendations(
             .filter((preset): preset is WorkspacePreset => Boolean(preset)),
           ...visiblePresets.filter((preset) => !preferredMathPresetOrder.includes(preset.id)),
         ]
-      : visiblePresets;
+      : activeSubject === "chemistry"
+        ? [
+            ...preferredChemistryPresetOrder
+              .map((presetId) => visiblePresets.find((preset) => preset.id === presetId))
+              .filter((preset): preset is WorkspacePreset => Boolean(preset)),
+            ...visiblePresets.filter((preset) => !preferredChemistryPresetOrder.includes(preset.id)),
+          ]
+        : visiblePresets;
   const activePreset = visiblePresets.find((preset) => preset.id === preferences.preset);
   const recommendations = [
     ...(activePreset ? [activePreset] : []),
@@ -580,6 +690,14 @@ function resolvePresetSubject(
     normalized.includes("statistics")
   ) {
     return "math";
+  }
+
+  if (
+    normalized.includes("chem") ||
+    normalized.includes("stoich") ||
+    normalized.includes("titration")
+  ) {
+    return "chemistry";
   }
 
   return "general";
@@ -1173,6 +1291,78 @@ const workspacePresetLayouts: Partial<
         "scientific-calculator": frame(900, 980, 1000, 420, 8),
       },
       moduleLayout: defaultModuleLayout,
+    },
+  ),
+  "chemistry-lab": presetStyles(
+    {
+      enabledModules: ["lesson", "chem-titration-lab", "chem-lab-notebook", "chem-reference-safety"],
+      zones: zones(["lesson"], ["chem-titration-lab"], ["chem-lab-notebook"], ["chem-reference-safety"]),
+      paneLayout: paneLayout(27, 44, 21, 8),
+      windowLayout: {
+        lesson: frame(20, 20, 500, 600, 1),
+        "chem-titration-lab": frame(540, 20, 840, 980, 2),
+        "chem-lab-notebook": frame(1400, 20, 500, 980, 3),
+        "chem-reference-safety": frame(20, 640, 500, 420, 4),
+      },
+      moduleLayout: {
+        lesson: { span: "wide", pinned: true },
+        "chem-titration-lab": { span: "full", pinned: true },
+        "chem-lab-notebook": { span: "wide", pinned: true },
+        "chem-reference-safety": { span: "medium" },
+      },
+    },
+    {
+      enabledModules: [
+        "lesson",
+        "chem-stoichiometry-coach",
+        "chem-titration-lab",
+        "chem-lab-notebook",
+        "chem-reference-safety",
+      ],
+      zones: zones(["lesson", "chem-reference-safety"], ["chem-titration-lab"], ["chem-lab-notebook"], [], ["chem-stoichiometry-coach"]),
+      paneLayout: paneLayout(24, 46, 30, 0),
+      windowLayout: {
+        lesson: frame(20, 20, 460, 460, 1),
+        "chem-reference-safety": frame(20, 500, 460, 340, 2),
+        "chem-titration-lab": frame(500, 20, 880, 920, 3),
+        "chem-lab-notebook": frame(1400, 20, 500, 920, 4),
+        "chem-stoichiometry-coach": frame(500, 960, 880, 420, 5),
+      },
+      moduleLayout: {
+        lesson: { span: "wide", pinned: true },
+        "chem-stoichiometry-coach": { span: "wide", pinned: true },
+        "chem-titration-lab": { span: "full", pinned: true },
+        "chem-lab-notebook": { span: "wide", pinned: true },
+        "chem-reference-safety": { span: "medium" },
+      },
+    },
+    {
+      enabledModules: [
+        "lesson",
+        "chem-stoichiometry-coach",
+        "chem-titration-lab",
+        "chem-lab-notebook",
+        "chem-reference-safety",
+        "private-notes",
+      ],
+      zones: zones(["lesson", "chem-reference-safety"], ["chem-titration-lab"], ["chem-lab-notebook", "private-notes"], [], ["chem-stoichiometry-coach"]),
+      paneLayout: paneLayout(22, 46, 32, 0),
+      windowLayout: {
+        lesson: frame(20, 20, 420, 420, 1),
+        "chem-reference-safety": frame(20, 460, 420, 360, 2),
+        "chem-titration-lab": frame(460, 20, 880, 980, 3),
+        "chem-lab-notebook": frame(1360, 20, 540, 560, 4),
+        "private-notes": frame(1360, 600, 540, 420, 5),
+        "chem-stoichiometry-coach": frame(460, 1020, 880, 400, 6),
+      },
+      moduleLayout: {
+        lesson: { span: "wide", pinned: true },
+        "chem-stoichiometry-coach": { span: "wide", pinned: true },
+        "chem-titration-lab": { span: "full", pinned: true },
+        "chem-lab-notebook": { span: "wide", pinned: true },
+        "chem-reference-safety": { span: "medium" },
+        "private-notes": { span: "wide", pinned: true },
+      },
     },
   ),
   "annotation-mode": presetStyles(

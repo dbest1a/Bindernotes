@@ -10,6 +10,7 @@ export type WorkspacePresetLayoutRecipe =
   | "concept-primary-rail"
   | "practice-primary-rail"
   | "math-studio-zones"
+  | "chemistry-lab-zones"
   | "history-guided-zones"
   | "timeline-primary-rail"
   | "source-evidence-zones"
@@ -64,7 +65,7 @@ export type FaceliftWorkspacePresetDesign = {
     studentGoal: string;
   };
   studentCommand: {
-    intent: "read" | "write" | "graph" | "work" | "argue" | "timeline" | "evidence";
+    intent: "read" | "write" | "graph" | "work" | "lab" | "argue" | "timeline" | "evidence";
     label: string;
     primaryAction: string;
     followUpAction: string;
@@ -90,12 +91,12 @@ export type WorkspaceMobileModuleTab = {
 };
 
 export type WorkspaceStarterChoice = {
-  id: "read" | "notes" | "math" | "history" | "canvas";
+  id: "read" | "notes" | "math" | "chemistry" | "history" | "canvas";
   label: string;
   description: string;
   presetId: WorkspacePresetId;
   presentation: "facelift-simple" | "facelift-canvas" | "classic-simple" | "classic-canvas";
-  recommendedFor: "all" | "math" | "history";
+  recommendedFor: "all" | "math" | "chemistry" | "history";
 };
 
 type MinimumSize = {
@@ -127,6 +128,52 @@ const moduleMinimumSizes: Partial<
     primary: { width: 640, height: 480 },
     secondary: { width: 520, height: 360 },
   },
+  "chem-concept-cards": { width: 340, height: 260 },
+  "chem-quick-tools": { width: 340, height: 260 },
+  "chem-periodic-table": {
+    primary: { width: 760, height: 520 },
+    secondary: { width: 560, height: 380 },
+  },
+  "chem-element-builder": { width: 460, height: 360 },
+  "chem-electron-config-builder": { width: 460, height: 360 },
+  "chem-periodic-trends-graph": { width: 520, height: 340 },
+  "chem-molecule-builder": {
+    primary: { width: 620, height: 460 },
+    secondary: { width: 460, height: 340 },
+  },
+  "chem-geometry-viewer": { width: 420, height: 320 },
+  "chem-reaction-balancer": { width: 520, height: 360 },
+  "chem-tri-reaction-view": {
+    primary: { width: 620, height: 420 },
+    secondary: { width: 480, height: 320 },
+  },
+  "chem-stoichiometry-coach": { width: 520, height: 360 },
+  "chem-molar-mass-calculator": { width: 340, height: 240 },
+  "chem-solution-mixer": {
+    primary: { width: 620, height: 440 },
+    secondary: { width: 460, height: 340 },
+  },
+  "chem-molarity-calculator": { width: 360, height: 260 },
+  "chem-desmos-concentration-graph": { width: 520, height: 360 },
+  "chem-ph-calculator": { width: 420, height: 320 },
+  "chem-titration-lab": {
+    primary: { width: 640, height: 520 },
+    secondary: { width: 520, height: 380 },
+  },
+  "chem-desmos-titration-curve": { width: 520, height: 360 },
+  "chem-kinetics-simulator": { width: 520, height: 360 },
+  "chem-desmos-kinetics-plot": { width: 520, height: 360 },
+  "chem-data-table": { width: 360, height: 260 },
+  "chem-calorimetry-lab": {
+    primary: { width: 560, height: 420 },
+    secondary: { width: 420, height: 320 },
+  },
+  "chem-energy-diagram": { width: 420, height: 320 },
+  "chem-calculation-sheet": { width: 420, height: 320 },
+  "chem-safety-cards": { width: 340, height: 260 },
+  "chem-review-queue": { width: 360, height: 280 },
+  "chem-lab-notebook": { width: 420, height: 360 },
+  "chem-reference-safety": { width: 320, height: 260 },
   "history-timeline": { width: 420, height: 340 },
   "history-evidence": { width: 420, height: 320 },
   "history-argument": {
@@ -331,6 +378,160 @@ export const workspacePresetDesigns = {
     smallScreenRecipe: "math-studio-zones",
     fitStrategy: "preserve-composition",
   },
+  "chem-guided-study": {
+    id: "chem-guided-study",
+    purpose: "Study chemistry with a readable source, private notes, concept cards, and compact quick tools.",
+    primary: ["lesson"],
+    secondary: ["private-notes", "chem-concept-cards", "chem-quick-tools"],
+    optional: ["chem-periodic-table", "chem-desmos-titration-curve", "chem-titration-lab", "chem-reaction-balancer"],
+    defaultVisible: ["lesson", "private-notes", "chem-concept-cards", "chem-quick-tools"],
+    compactVisible: ["lesson", "private-notes", "chem-concept-cards"],
+    smallScreenVisible: ["lesson", "private-notes", "chem-quick-tools"],
+    collapsedByDefault: ["chem-periodic-table", "chem-desmos-titration-curve", "chem-titration-lab", "chem-reaction-balancer"],
+    desktopRecipe: "lesson-primary-rail",
+    smallScreenRecipe: "lesson-primary-rail",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-element-explorer": {
+    id: "chem-element-explorer",
+    purpose: "Explore atoms, ions, isotopes, electron configuration, and periodic trends from one flagship table.",
+    primary: ["chem-periodic-table"],
+    secondary: ["chem-element-builder", "chem-periodic-trends-graph", "lesson"],
+    optional: ["private-notes", "chem-electron-config-builder", "chem-molecule-builder"],
+    defaultVisible: ["chem-periodic-table", "chem-element-builder", "chem-periodic-trends-graph", "lesson"],
+    compactVisible: ["chem-periodic-table", "chem-element-builder", "lesson"],
+    smallScreenVisible: ["chem-periodic-table", "chem-element-builder"],
+    collapsedByDefault: ["private-notes", "chem-electron-config-builder", "chem-molecule-builder"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-bonding-studio": {
+    id: "chem-bonding-studio",
+    purpose: "Build Lewis structures and geometry with source and notes support nearby.",
+    primary: ["chem-molecule-builder"],
+    secondary: ["chem-geometry-viewer", "lesson", "private-notes"],
+    optional: ["chem-quick-tools", "chem-concept-cards", "chem-review-queue"],
+    defaultVisible: ["chem-molecule-builder", "chem-geometry-viewer", "lesson", "private-notes"],
+    compactVisible: ["chem-molecule-builder", "lesson", "private-notes"],
+    smallScreenVisible: ["chem-molecule-builder", "lesson"],
+    collapsedByDefault: ["chem-quick-tools", "chem-concept-cards", "chem-review-queue"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-reaction-studio": {
+    id: "chem-reaction-studio",
+    purpose: "Balance reactions and connect symbolic equations to particle and observation views.",
+    primary: ["chem-tri-reaction-view"],
+    secondary: ["chem-reaction-balancer", "lesson", "private-notes"],
+    optional: ["chem-stoichiometry-coach", "chem-quick-tools", "chem-concept-cards"],
+    defaultVisible: ["chem-tri-reaction-view", "chem-reaction-balancer", "lesson", "private-notes"],
+    compactVisible: ["chem-tri-reaction-view", "chem-reaction-balancer", "lesson"],
+    smallScreenVisible: ["chem-tri-reaction-view", "chem-reaction-balancer"],
+    collapsedByDefault: ["chem-stoichiometry-coach", "chem-quick-tools", "chem-concept-cards"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-stoichiometry-lab": {
+    id: "chem-stoichiometry-lab",
+    purpose: "Give the mole bridge, molar mass, source, and notes enough room for calculation practice.",
+    primary: ["chem-stoichiometry-coach"],
+    secondary: ["chem-molar-mass-calculator", "lesson", "private-notes"],
+    optional: ["chem-reaction-balancer", "chem-quick-tools", "chem-review-queue"],
+    defaultVisible: ["chem-stoichiometry-coach", "chem-molar-mass-calculator", "lesson", "private-notes"],
+    compactVisible: ["chem-stoichiometry-coach", "lesson", "private-notes"],
+    smallScreenVisible: ["chem-stoichiometry-coach", "lesson"],
+    collapsedByDefault: ["chem-reaction-balancer", "chem-quick-tools", "chem-review-queue"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-solutions-molarity-lab": {
+    id: "chem-solutions-molarity-lab",
+    purpose: "Practice solution preparation with a bench, concentration graph, and notebook capture.",
+    primary: ["chem-solution-mixer"],
+    secondary: ["chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    optional: ["lesson", "chem-safety-cards", "chem-reference-safety"],
+    defaultVisible: ["chem-solution-mixer", "chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    compactVisible: ["chem-solution-mixer", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    smallScreenVisible: ["chem-solution-mixer", "chem-lab-notebook"],
+    collapsedByDefault: ["lesson", "chem-safety-cards", "chem-reference-safety"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-acid-base-titration-lab": {
+    id: "chem-acid-base-titration-lab",
+    purpose: "Run acid-base titrations with pH, curve, safety, and notebook surfaces visible.",
+    primary: ["chem-titration-lab"],
+    secondary: ["chem-desmos-titration-curve", "chem-ph-calculator", "chem-lab-notebook"],
+    optional: ["lesson", "chem-safety-cards", "chem-reference-safety"],
+    defaultVisible: ["chem-titration-lab", "chem-desmos-titration-curve", "chem-ph-calculator", "chem-lab-notebook"],
+    compactVisible: ["chem-titration-lab", "chem-desmos-titration-curve", "chem-lab-notebook"],
+    smallScreenVisible: ["chem-titration-lab", "chem-desmos-titration-curve"],
+    collapsedByDefault: ["lesson", "chem-safety-cards", "chem-reference-safety"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-kinetics-graph-lab": {
+    id: "chem-kinetics-graph-lab",
+    purpose: "Explore reaction rates with simulator controls, data, graph, and source context.",
+    primary: ["chem-desmos-kinetics-plot"],
+    secondary: ["chem-kinetics-simulator", "chem-data-table", "lesson"],
+    optional: ["private-notes", "chem-concept-cards", "chem-review-queue"],
+    defaultVisible: ["chem-desmos-kinetics-plot", "chem-kinetics-simulator", "chem-data-table", "lesson"],
+    compactVisible: ["chem-desmos-kinetics-plot", "chem-kinetics-simulator", "lesson"],
+    smallScreenVisible: ["chem-kinetics-simulator", "chem-desmos-kinetics-plot"],
+    collapsedByDefault: ["private-notes", "chem-concept-cards", "chem-review-queue"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-thermochemistry-studio": {
+    id: "chem-thermochemistry-studio",
+    purpose: "Connect calorimetry calculations, energy diagrams, and lab-notebook reasoning.",
+    primary: ["chem-calorimetry-lab"],
+    secondary: ["chem-energy-diagram", "chem-calculation-sheet", "chem-lab-notebook"],
+    optional: ["lesson", "chem-desmos-concentration-graph", "chem-safety-cards"],
+    defaultVisible: ["chem-calorimetry-lab", "chem-energy-diagram", "chem-calculation-sheet", "chem-lab-notebook"],
+    compactVisible: ["chem-calorimetry-lab", "chem-calculation-sheet", "chem-lab-notebook"],
+    smallScreenVisible: ["chem-calorimetry-lab", "chem-lab-notebook"],
+    collapsedByDefault: ["lesson", "chem-desmos-concentration-graph", "chem-safety-cards"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chem-full-studio": {
+    id: "chem-full-studio",
+    purpose: "Offer an advanced chemistry studio while keeping visible modules readable instead of smashed.",
+    primary: ["chem-periodic-table", "chem-reaction-balancer"],
+    secondary: ["lesson", "private-notes", "chem-desmos-titration-curve", "chem-lab-notebook"],
+    optional: ["chem-element-builder", "chem-molecule-builder", "chem-stoichiometry-coach", "chem-ph-calculator", "chem-safety-cards", "chem-review-queue"],
+    defaultVisible: ["lesson", "private-notes", "chem-periodic-table", "chem-reaction-balancer", "chem-desmos-titration-curve", "chem-lab-notebook"],
+    compactVisible: ["chem-periodic-table", "chem-reaction-balancer", "lesson", "private-notes"],
+    smallScreenVisible: ["chem-periodic-table", "lesson", "private-notes"],
+    collapsedByDefault: ["chem-element-builder", "chem-molecule-builder", "chem-stoichiometry-coach", "chem-ph-calculator", "chem-safety-cards", "chem-review-queue"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "chemistry-lab": {
+    id: "chemistry-lab",
+    purpose: "Run a chemistry lab or stoichiometry check with source context and structured notebook capture.",
+    primary: ["chem-titration-lab"],
+    secondary: ["lesson", "chem-lab-notebook", "chem-stoichiometry-coach"],
+    optional: ["chem-reference-safety", "private-notes", "recent-highlights"],
+    defaultVisible: ["lesson", "chem-titration-lab", "chem-lab-notebook"],
+    compactVisible: ["chem-titration-lab", "chem-lab-notebook", "lesson"],
+    smallScreenVisible: ["chem-titration-lab"],
+    collapsedByDefault: ["chem-stoichiometry-coach", "chem-reference-safety", "private-notes", "recent-highlights"],
+    desktopRecipe: "chemistry-lab-zones",
+    smallScreenRecipe: "chemistry-lab-zones",
+    fitStrategy: "preserve-composition",
+  },
   "history-guided": {
     id: "history-guided",
     purpose: "Study history through source, chronology, evidence, and note capture in a calm loop.",
@@ -419,6 +620,17 @@ const faceliftPresetReasoning: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Concept and proof work needs reasoning space, related ideas, and notes more than calculator clutter.",
   "math-practice-mode": "Problem solving gets the primary working area, with formula and lesson references opening when useful.",
   "full-math-canvas": "The full math canvas can expose more power, but optional tools stay collapsed before panels become tiny.",
+  "chem-guided-study": "Chemistry guided study keeps the lesson and notes central while concept cards and quick tools stay compact.",
+  "chem-element-explorer": "Element exploration should make the periodic table the flagship surface with builder and trend tools supporting it.",
+  "chem-bonding-studio": "Bonding work needs the molecule builder dominant while source, geometry, and notes stay readable.",
+  "chem-reaction-studio": "Reaction study connects symbolic balancing to particle-level and observable evidence without clutter.",
+  "chem-stoichiometry-lab": "Stoichiometry needs the unit ladder primary, with molar mass, source context, and notes close by.",
+  "chem-solutions-molarity-lab": "Solution work needs a virtual bench, concentration graph, and notebook checkpoint surface.",
+  "chem-acid-base-titration-lab": "Titration work needs the bench and curve visible together with pH and notebook support.",
+  "chem-kinetics-graph-lab": "Kinetics study centers graph and data interpretation while simulator controls stay nearby.",
+  "chem-thermochemistry-studio": "Thermochemistry pairs calorimetry calculation with energy diagrams and lab reasoning.",
+  "chem-full-studio": "The full chemistry studio exposes major tools while preserving readable zones and collapsing optional tools first.",
+  "chemistry-lab": "Chemistry work needs a live lab or stoichiometry surface, a readable source, and structured notebook capture without saving every small interaction.",
   "history-guided": "History study works best as source, chronology, evidence, and notes in one readable loop.",
   "history-timeline-focus": "Timeline is the anchor, while source and notes explain chronology without competing for the main surface.",
   "history-source-evidence": "Close reading and evidence collection stay primary, with timeline and argument tools available on demand.",
@@ -480,6 +692,12 @@ const faceliftRecipeLabels: Record<WorkspacePresetLayoutRecipe, FaceliftWorkspac
     laptop: "Studio zones collapse optional tools before shrinking core math surfaces.",
     tablet: "Math studio becomes ordered sections instead of tiny desktop windows.",
     phone: "Subject tabs replace the full freeform studio.",
+  },
+  "chemistry-lab-zones": {
+    desktop: "Lab work sits at the center with source context and notebook capture beside it.",
+    laptop: "Lab, notes, and source keep priority while optional reference tools collapse.",
+    tablet: "Chemistry work stacks into lab, notes, and lesson sections before shrinking.",
+    phone: "Lesson, Lab, Notes, and Tools tabs replace the full desktop lab canvas.",
   },
   "history-guided-zones": {
     desktop: "Source, timeline, evidence, and notes form the primary history loop.",
@@ -554,6 +772,17 @@ const heavyWorkspaceModules = new Set<WorkspaceModuleId>([
   "scientific-calculator",
   "saved-graphs",
   "whiteboard",
+  "chem-periodic-table",
+  "chem-periodic-trends-graph",
+  "chem-molecule-builder",
+  "chem-tri-reaction-view",
+  "chem-solution-mixer",
+  "chem-desmos-concentration-graph",
+  "chem-titration-lab",
+  "chem-desmos-titration-curve",
+  "chem-kinetics-simulator",
+  "chem-desmos-kinetics-plot",
+  "chem-calorimetry-lab",
   "history-timeline",
   "history-evidence",
   "history-argument",
@@ -626,6 +855,72 @@ const defaultStudentCommands: Record<WorkspacePresetId, FaceliftWorkspacePresetD
     label: "Math studio",
     primaryAction: "Use the largest work surface first",
     followUpAction: "Open extra tools only when they answer the next question.",
+  },
+  "chem-guided-study": {
+    intent: "lab",
+    label: "Chem guide",
+    primaryAction: "Read the next chemistry idea",
+    followUpAction: "Use one concept card and write the rule in your own words.",
+  },
+  "chem-element-explorer": {
+    intent: "lab",
+    label: "Explore elements",
+    primaryAction: "Select an element and inspect its trend behavior",
+    followUpAction: "Build the isotope or ion that matches the lesson prompt.",
+  },
+  "chem-bonding-studio": {
+    intent: "work",
+    label: "Build bonds",
+    primaryAction: "Build the Lewis structure",
+    followUpAction: "Check geometry and formal charge before moving on.",
+  },
+  "chem-reaction-studio": {
+    intent: "work",
+    label: "React",
+    primaryAction: "Balance the equation",
+    followUpAction: "Explain the same reaction in particle and observation views.",
+  },
+  "chem-stoichiometry-lab": {
+    intent: "work",
+    label: "Mole bridge",
+    primaryAction: "Complete the unit ladder",
+    followUpAction: "Check that every unit cancels before rounding.",
+  },
+  "chem-solutions-molarity-lab": {
+    intent: "lab",
+    label: "Mix solution",
+    primaryAction: "Calculate the stock volume",
+    followUpAction: "Record the dilution setup and safety note.",
+  },
+  "chem-acid-base-titration-lab": {
+    intent: "lab",
+    label: "Titrate",
+    primaryAction: "Add a controlled titrant increment",
+    followUpAction: "Record the pH change and endpoint evidence.",
+  },
+  "chem-kinetics-graph-lab": {
+    intent: "graph",
+    label: "Rate graph",
+    primaryAction: "Change one kinetics variable",
+    followUpAction: "Record which graph shape or linearization changed.",
+  },
+  "chem-thermochemistry-studio": {
+    intent: "lab",
+    label: "Heat flow",
+    primaryAction: "Calculate q from calorimetry data",
+    followUpAction: "Classify the process as endothermic or exothermic.",
+  },
+  "chem-full-studio": {
+    intent: "lab",
+    label: "Chem studio",
+    primaryAction: "Start with the main challenge card",
+    followUpAction: "Open optional tools only when the challenge needs them.",
+  },
+  "chemistry-lab": {
+    intent: "lab",
+    label: "Run lab",
+    primaryAction: "Add one controlled titrant increment",
+    followUpAction: "Record the pH change and explain the endpoint evidence.",
   },
   "history-guided": {
     intent: "timeline",
@@ -1114,6 +1409,14 @@ export function buildFaceliftPresetFrames(
     return buildFullMathCanvasFrames(width, height);
   }
 
+  if (presetId === "chemistry-lab") {
+    return buildChemistryLabFrames(width, height);
+  }
+
+  if (presetId.startsWith("chem-")) {
+    return buildChemistryShowcaseFrames(presetId, width, height);
+  }
+
   if (presetId === "history-guided") {
     return buildHistoryGuidedFrames(width, height);
   }
@@ -1302,6 +1605,78 @@ function buildFullMathCanvasFrames(width: number, height: number): Partial<Recor
       rightWidth,
       height - Math.round(height * 0.52) - gap,
       6,
+    ),
+  };
+}
+
+function buildChemistryShowcaseFrames(
+  presetId: WorkspacePresetId,
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+  const design = getWorkspacePresetDesign(presetId);
+  const visible = design.defaultVisible.slice(0, 6);
+  const gap = 16;
+  const frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = {};
+  const primary = design.primary[0] ?? visible[0];
+  const leftWidth = Math.max(360, Math.round(width * 0.28));
+  const rightWidth = Math.max(360, Math.round(width * 0.28));
+  const centerWidth = Math.max(520, width - leftWidth - rightWidth - gap * 2);
+  const leftModules = visible.filter((moduleId) => moduleId !== primary).slice(0, 2);
+  const rightModules = visible.filter((moduleId) => moduleId !== primary && !leftModules.includes(moduleId)).slice(0, 3);
+
+  frames[primary] = faceliftFrame(leftWidth + gap, 0, centerWidth, height, 3);
+
+  leftModules.forEach((moduleId, index) => {
+    frames[moduleId] = faceliftFrame(
+      0,
+      index === 0 ? 0 : Math.round(height * 0.52) + gap,
+      leftWidth,
+      index === 0 ? Math.round(height * 0.52) : Math.max(260, Math.round(height * 0.48) - gap),
+      index + 1,
+    );
+  });
+
+  rightModules.forEach((moduleId, index) => {
+    const slotHeight = Math.max(220, Math.floor((height - gap * (rightModules.length - 1)) / Math.max(rightModules.length, 1)));
+    frames[moduleId] = faceliftFrame(
+      leftWidth + centerWidth + gap * 2,
+      index * (slotHeight + gap),
+      rightWidth,
+      slotHeight,
+      index + 4,
+    );
+  });
+
+  return frames;
+}
+
+function buildChemistryLabFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+  const gap = 16;
+  const compact = width < 1280;
+  const sourceWidth = compact ? Math.max(360, Math.round(width * 0.28)) : Math.max(420, Math.round(width * 0.26));
+  const notebookWidth = compact ? Math.max(360, Math.round(width * 0.28)) : Math.max(460, Math.round(width * 0.28));
+  const labWidth = Math.max(520, width - sourceWidth - notebookWidth - gap * 2);
+  const notebookX = sourceWidth + labWidth + gap * 2;
+  const sourceHeight = Math.max(320, Math.round(height * 0.58));
+
+  return {
+    lesson: faceliftFrame(0, 0, sourceWidth, sourceHeight, 1),
+    "chem-reference-safety": faceliftFrame(
+      0,
+      sourceHeight + gap,
+      sourceWidth,
+      Math.max(260, height - sourceHeight - gap),
+      2,
+    ),
+    "chem-titration-lab": faceliftFrame(sourceWidth + gap, 0, labWidth, height, 3),
+    "chem-lab-notebook": faceliftFrame(notebookX, 0, Math.max(0, width - notebookX), height, 4),
+    "chem-stoichiometry-coach": faceliftFrame(
+      sourceWidth + gap,
+      Math.max(0, Math.round(height * 0.58)),
+      labWidth,
+      Math.max(320, Math.round(height * 0.4)),
+      5,
     ),
   };
 }
@@ -1529,6 +1904,7 @@ export function getWorkspaceStarterChoices(options: {
 } = {}): WorkspaceStarterChoice[] {
   const subject = options.binderSubject?.toLowerCase() ?? "";
   const isMath = subject.includes("math") || subject.includes("algebra") || subject.includes("geometry");
+  const isChemistry = subject.includes("chem") || subject.includes("stoich") || subject.includes("titration");
   const isHistory = Boolean(options.historyEnabled) || subject.includes("history");
   const choices: WorkspaceStarterChoice[] = [
     {
@@ -1560,6 +1936,17 @@ export function getWorkspaceStarterChoices(options: {
     });
   }
 
+  if (isChemistry) {
+    choices.push({
+      id: "chemistry",
+      label: "Chemistry tools",
+      description: "Open the new chemistry showcase tools with source context and notes.",
+      presetId: "chem-guided-study",
+      presentation: "facelift-simple",
+      recommendedFor: "chemistry",
+    });
+  }
+
   if (isHistory) {
     choices.push({
       id: "history",
@@ -1575,7 +1962,7 @@ export function getWorkspaceStarterChoices(options: {
     id: "canvas",
     label: "Use canvas",
     description: "Open the redesigned movable workspace when you want full layout power.",
-    presetId: isMath ? "math-graph-lab" : isHistory ? "history-full-studio" : "split-study",
+    presetId: isMath ? "math-graph-lab" : isChemistry ? "chem-full-studio" : isHistory ? "history-full-studio" : "split-study",
     presentation: "facelift-canvas",
     recommendedFor: "all",
   });
@@ -1607,6 +1994,34 @@ const mobileModuleLabels: Partial<Record<WorkspaceModuleId, string>> = {
   "desmos-graph": "Graph",
   "scientific-calculator": "Calculator",
   "saved-graphs": "Saved",
+  "chem-concept-cards": "Review",
+  "chem-quick-tools": "Tools",
+  "chem-periodic-table": "Table",
+  "chem-element-builder": "Element",
+  "chem-electron-config-builder": "Orbitals",
+  "chem-periodic-trends-graph": "Trends",
+  "chem-molecule-builder": "Builder",
+  "chem-geometry-viewer": "Geometry",
+  "chem-reaction-balancer": "Balance",
+  "chem-tri-reaction-view": "Reaction",
+  "chem-stoichiometry-coach": "Tools",
+  "chem-molar-mass-calculator": "Mass",
+  "chem-solution-mixer": "Lab",
+  "chem-molarity-calculator": "Molarity",
+  "chem-desmos-concentration-graph": "Graph",
+  "chem-ph-calculator": "pH",
+  "chem-titration-lab": "Lab",
+  "chem-desmos-titration-curve": "Curve",
+  "chem-kinetics-simulator": "Sim",
+  "chem-desmos-kinetics-plot": "Graph",
+  "chem-data-table": "Data",
+  "chem-calorimetry-lab": "Lab",
+  "chem-energy-diagram": "Energy",
+  "chem-calculation-sheet": "Calc",
+  "chem-safety-cards": "Safety",
+  "chem-review-queue": "Review",
+  "chem-lab-notebook": "Notes",
+  "chem-reference-safety": "Tools",
   "history-timeline": "Timeline",
   "history-evidence": "Evidence",
   "history-argument": "Argument",
@@ -1618,6 +2033,25 @@ const mobileModuleLabels: Partial<Record<WorkspaceModuleId, string>> = {
 };
 
 function getMobileModuleOrder(presetId: WorkspacePresetId): WorkspaceModuleId[] {
+  if (presetId === "chemistry-lab" || presetId.startsWith("chem-")) {
+    return [
+      "lesson",
+      "private-notes",
+      "chem-periodic-table",
+      "chem-element-builder",
+      "chem-molecule-builder",
+      "chem-reaction-balancer",
+      "chem-titration-lab",
+      "chem-desmos-titration-curve",
+      "chem-solution-mixer",
+      "chem-kinetics-simulator",
+      "chem-lab-notebook",
+      "chem-stoichiometry-coach",
+      "chem-quick-tools",
+      "chem-reference-safety",
+    ];
+  }
+
   if (presetId.startsWith("math-")) {
     if (presetId === "math-graph-lab" || presetId === "math-study" || presetId === "full-math-canvas") {
       return [

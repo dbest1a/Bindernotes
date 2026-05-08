@@ -81,11 +81,22 @@ const nextBestStepByPreset: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Name the rule, explain why it works, then test it against one example.",
   "math-practice-mode": "Solve one problem, check the formula, then write the step that made it work.",
   "full-math-canvas": "Use the big work surface first; open extra tools only when they answer a question.",
+  "chem-guided-study": "Read the chemistry idea, use one concept card, then write the rule in your own words.",
+  "chem-element-explorer": "Pick an element, inspect the trend, then build the matching atom or ion.",
+  "chem-bonding-studio": "Build the Lewis structure, then check geometry and formal charge.",
+  "chem-reaction-studio": "Balance the equation, then explain it in particle and observation views.",
+  "chem-stoichiometry-lab": "Complete the mole bridge and check that every unit cancels.",
+  "chem-solutions-molarity-lab": "Calculate the dilution, then record the setup and safety note.",
+  "chem-acid-base-titration-lab": "Add titrant carefully, then record the pH evidence near the endpoint.",
+  "chem-kinetics-graph-lab": "Change one rate variable, then explain the graph shape.",
+  "chem-thermochemistry-studio": "Calculate q, then classify the heat flow from the data.",
+  "chem-full-studio": "Start from the challenge card and open only the chemistry tools you need.",
   "history-guided": "Read the source, place it in time, then save the evidence that proves the point.",
   "history-timeline-focus": "Find the next event, explain what changed, then connect it back to the source.",
   "history-source-evidence": "Collect one strong source detail, then explain what it proves.",
   "history-argument-builder": "Write the claim first, then attach the evidence that actually supports it.",
   "history-full-studio": "Move from timeline to source to evidence, then shape the argument.",
+  "chemistry-lab": "Run the lab, record the measurements that matter, then write the conclusion from the data.",
 };
 
 const modeSummaryByPreset: Record<WorkspacePresetId, string> = {
@@ -100,11 +111,22 @@ const modeSummaryByPreset: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Reason through rules and examples.",
   "math-practice-mode": "Practice problems with formulas close by.",
   "full-math-canvas": "Full math workspace without crowding.",
+  "chem-guided-study": "Lesson, notes, concepts, and quick tools.",
+  "chem-element-explorer": "Periodic table, atom builder, and trends.",
+  "chem-bonding-studio": "Lewis structures, geometry, and notes.",
+  "chem-reaction-studio": "Balance, particles, observations, notes.",
+  "chem-stoichiometry-lab": "Mole bridge, mass, source, notes.",
+  "chem-solutions-molarity-lab": "Solution bench, graph, notebook.",
+  "chem-acid-base-titration-lab": "Titration bench, curve, pH, notebook.",
+  "chem-kinetics-graph-lab": "Rate simulator, graph, data.",
+  "chem-thermochemistry-studio": "Calorimetry, energy, calculation, notebook.",
+  "chem-full-studio": "Full chemistry workspace, organized.",
   "history-guided": "Source, timeline, evidence, notes.",
   "history-timeline-focus": "Timeline first, source beside it.",
   "history-source-evidence": "Close-read and collect proof.",
   "history-argument-builder": "Build the claim from evidence.",
   "history-full-studio": "Full history workspace, organized.",
+  "chemistry-lab": "Lab, notebook, stoichiometry, and safety.",
 };
 
 const shortcutDetails: Record<StudyShortcutLabel, { hint: string; Icon: LucideIcon }> = {
@@ -134,6 +156,17 @@ const presetGroups: Array<{ label: string; presetIds: WorkspacePresetId[] }> = [
     ],
   },
   {
+    label: "Chemistry",
+    presetIds: [
+      "chem-guided-study",
+      "chem-element-explorer",
+      "chem-bonding-studio",
+      "chem-reaction-studio",
+      "chem-stoichiometry-lab",
+      "chem-acid-base-titration-lab",
+    ],
+  },
+  {
     label: "History",
     presetIds: [
       "history-guided",
@@ -144,7 +177,7 @@ const presetGroups: Array<{ label: string; presetIds: WorkspacePresetId[] }> = [
   },
   {
     label: "More power",
-    presetIds: ["annotation-mode", "full-math-canvas", "history-full-studio"],
+    presetIds: ["annotation-mode", "full-math-canvas", "chem-full-studio", "history-full-studio"],
   },
 ];
 

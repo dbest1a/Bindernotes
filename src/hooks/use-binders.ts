@@ -4,6 +4,7 @@ import {
   createComment,
   createHighlight,
   createWorkspaceBinder,
+  createWorkspaceDocument,
   createWorkspaceFolder,
   deleteHighlight,
   deleteComment,
@@ -75,7 +76,7 @@ export function useDashboard(profile: Profile | null, options?: DashboardQueryOp
 export function useDashboardWorkspaceMutations(profile: Profile | null) {
   const queryClient = useQueryClient();
 
-  const invalidateDashboard = () => {
+  const invalidateWorkspaceQueries = (binderId?: string) => {
     if (!profile) {
       return;
     }
@@ -86,6 +87,16 @@ export function useDashboardWorkspaceMutations(profile: Profile | null) {
         query.queryKey[0] === "dashboard" &&
         query.queryKey[1] === profile.id,
     });
+    void queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        ["folder", "binder", "binder-overview"].includes(String(query.queryKey[0] ?? "")) &&
+        query.queryKey.includes(profile.id),
+    });
+    if (binderId) {
+      void queryClient.invalidateQueries({ queryKey: ["binder", binderId, profile.id] });
+      void queryClient.invalidateQueries({ queryKey: ["binder-overview", binderId, profile.id] });
+    }
   };
 
   return {
@@ -100,7 +111,12 @@ export function useDashboardWorkspaceMutations(profile: Profile | null) {
           ...input,
           ownerId: profile!.id,
         }),
-      onSuccess: invalidateDashboard,
+      onSuccess: (binder) => invalidateWorkspaceQueries(binder.id),
+    }),
+    createDocument: useMutation({
+      mutationFn: (input: { binderId: string; orderIndex?: number; title: string }) =>
+        createWorkspaceDocument(input),
+      onSuccess: (lesson) => invalidateWorkspaceQueries(lesson.binder_id),
     }),
     createFolder: useMutation({
       mutationFn: (input: { color?: string; name: string }) =>
@@ -108,7 +124,7 @@ export function useDashboardWorkspaceMutations(profile: Profile | null) {
           ...input,
           ownerId: profile!.id,
         }),
-      onSuccess: invalidateDashboard,
+      onSuccess: () => invalidateWorkspaceQueries(),
     }),
   };
 }
