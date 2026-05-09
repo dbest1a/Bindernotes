@@ -251,6 +251,7 @@ const defaultCanvasFrames: Record<WorkspaceModuleId, WorkspaceWindowFrame> = {
   "chem-geometry-viewer": { x: 0, y: 0, w: 0, h: 0, z: 0 },
   "chem-reaction-balancer": { x: 0, y: 0, w: 0, h: 0, z: 0 },
   "chem-tri-reaction-view": { x: 0, y: 0, w: 0, h: 0, z: 0 },
+  "chem-lab-coach": { x: 0, y: 0, w: 0, h: 0, z: 0 },
   "chem-stoichiometry-coach": { x: 0, y: 0, w: 0, h: 0, z: 0 },
   "chem-molar-mass-calculator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
   "chem-solution-mixer": { x: 0, y: 0, w: 0, h: 0, z: 0 },

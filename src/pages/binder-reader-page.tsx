@@ -26,6 +26,7 @@ import { WindowedWorkspace } from "@/components/workspace/windowed-workspace";
 import { WorkspaceRenderBoundary } from "@/components/workspace/workspace-render-boundary";
 import { FaceliftSimpleShell } from "@/components/workspace/facelift-simple-shell";
 import { StudyPanelsShell } from "@/components/workspace/study-panels-shell";
+import { WorkspaceModeSwitcher } from "@/components/workspace/workspace-mode-switcher";
 import { WorkspaceStickyLayer } from "@/components/workspace/workspace-sticky-overlay";
 import { SimplePresentationShell } from "@/components/workspace/simple-presentation-shell";
 import { SimpleSettingsPanel } from "@/components/workspace/simple-settings-panel";
@@ -35,6 +36,7 @@ import {
   workspaceModuleRegistry,
 } from "@/components/workspace/workspace-modules";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   useAnnotationMutations,
   useBinderBundle,
@@ -72,7 +74,6 @@ import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/study-references";
 import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 import {
-  applyFocusModeToViewport,
   applyFaceliftSurfaceModeToViewport,
   applyGlobalAppearanceToWorkspace,
   applyWorkspaceViewModeToViewport,
@@ -99,6 +100,10 @@ import {
   WORKSPACE_MAX_CANVAS_HEIGHT,
 } from "@/lib/workspace-layout-engine";
 import { emptyDoc } from "@/lib/utils";
+import {
+  scheduleUserRecentItem,
+  scheduleWorkspaceActivityEvent,
+} from "@/services/activity-service";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
   BinderNotebookLessonEntry,
@@ -170,6 +175,7 @@ export function BinderReaderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
+  const betaFeatures = useBetaFeatures(profile?.id);
   const { globalTheme, setGlobalTheme } = useTheme();
   const binderQuery = useBinderBundle(binderId, profile);
   const noteMutation = useLearnerNoteMutation(profile, binderId);
@@ -194,6 +200,7 @@ export function BinderReaderPage() {
   const [mobileModule, setMobileModule] = useState<WorkspaceModuleId>("lesson");
   const [layoutMode, setLayoutMode] = useState<"study" | "setup">("study");
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [workspaceFocusMode, setWorkspaceFocusMode] = useState(false);
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<{
     id: string;
@@ -241,6 +248,15 @@ export function BinderReaderPage() {
   const isCompact = responsiveDevice.isMobileWorkspace;
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
+  const compactStudyChrome = betaFeatures.isFeatureEnabled("compactStudyChrome");
+  const compactWhiteboardTools = betaFeatures.isFeatureEnabled("compactWhiteboardTools");
+  const canvasStarterLayouts = betaFeatures.isFeatureEnabled("canvasStarterLayouts");
+  const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("mathPerformanceLazyLoading");
+  const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
+  const studentCalmMode = betaFeatures.isFeatureEnabled("studentCalmMode");
+  const studentPreviewAdminChromeGuard = betaFeatures.isFeatureEnabled(
+    "studentPreviewAdminChromeGuard",
+  );
   const workspaceViewMode = active ? getWorkspaceViewMode(active) : "simple";
   const effectivePresentationMode: WorkspacePresentationMode =
     workspaceViewMode === "facelift"
@@ -269,6 +285,9 @@ export function BinderReaderPage() {
     () => lessons.find((lesson) => lesson.id === lessonId) ?? lessons[0],
     [lessonId, lessons],
   );
+  const activeBinder = binderQuery.data?.binder ?? null;
+  const recentFolderId = binderQuery.data?.folders[0]?.id ?? null;
+  const activityUserId = profile?.id ?? null;
   const historyTimelineStatus = useSaveStatus(
     `history-timeline:${binderId ?? "none"}:${profile?.id ?? "anon"}`,
   );
@@ -287,6 +306,44 @@ export function BinderReaderPage() {
       : "highlight:none";
   const highlightStatus = useSaveStatus(highlightScopeKey);
   const historyData = historyQuery.data;
+
+  useEffect(() => {
+    if (!activityUserId || !binderId || !selectedLesson || !activeBinder) {
+      return;
+    }
+
+    scheduleUserRecentItem({
+      userId: activityUserId,
+      itemType: "lesson",
+      itemId: selectedLesson.id,
+      binderId,
+      folderId: recentFolderId,
+      lessonId: selectedLesson.id,
+      titleSnapshot: selectedLesson.title,
+      metadata: {
+        route: "binder-reader",
+        subject: activeBinder.subject,
+      },
+    });
+
+    scheduleWorkspaceActivityEvent({
+      userId: activityUserId,
+      binderId,
+      lessonId: selectedLesson.id,
+      moduleId: "lesson",
+      eventType: "lesson_opened",
+      metadata: {
+        workspaceViewMode,
+      },
+    });
+  }, [
+    activeBinder,
+    activityUserId,
+    binderId,
+    recentFolderId,
+    selectedLesson,
+    workspaceViewMode,
+  ]);
 
   useEffect(() => {
     isLayoutEditingRef.current = isLayoutEditing;
@@ -734,6 +791,26 @@ export function BinderReaderPage() {
     }));
   }, [active, updateWorkspace]);
 
+  const trackWorkspaceModuleOpen = useCallback(
+    (moduleId: WorkspaceModuleId, eventType = "module_opened") => {
+      if (!ownerId || !binderId || !selectedLesson) {
+        return;
+      }
+
+      scheduleWorkspaceActivityEvent({
+        userId: ownerId,
+        binderId,
+        lessonId: selectedLesson.id,
+        moduleId,
+        eventType,
+        metadata: {
+          workspaceViewMode,
+        },
+      });
+    },
+    [binderId, ownerId, selectedLesson, workspaceViewMode],
+  );
+
   const openWorkspaceModule = useCallback(
     (moduleId: WorkspaceModuleId) => {
       if (!active || active.activeMode !== "canvas") {
@@ -770,8 +847,9 @@ export function BinderReaderPage() {
 
         return preserveClassicCanvasForFacelift(current, next);
       });
+      trackWorkspaceModuleOpen(moduleId);
     },
-    [active, getWorkspaceCanvasView, updateWorkspace],
+    [active, getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
   );
 
   const toggleWorkspaceModuleCollapsed = useCallback(
@@ -795,8 +873,11 @@ export function BinderReaderPage() {
           : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
         return preserveClassicCanvasForFacelift(current, restored);
       });
+      if (!collapsed) {
+        trackWorkspaceModuleOpen(moduleId, "module_expanded");
+      }
     },
-    [getWorkspaceCanvasView, updateWorkspace],
+    [getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
   );
 
   const ensureModulesVisible = useCallback(
@@ -862,16 +943,8 @@ export function BinderReaderPage() {
 
   const enterNotebookFocus = useCallback(() => {
     const viewport = getWorkspaceViewport();
-    updateWorkspace((current) => {
-      const next = applyPresetToViewport(current, "notes-focus", viewport);
-      return {
-        ...next,
-        theme: {
-          ...next.theme,
-          focusMode: true,
-        },
-      };
-    });
+    updateWorkspace((current) => applyPresetToViewport(current, "notes-focus", viewport));
+    setWorkspaceFocusMode(true);
   }, [getWorkspaceViewport, updateWorkspace]);
 
   const selectHistoryEvent = useCallback((eventId: string) => {
@@ -1257,74 +1330,52 @@ export function BinderReaderPage() {
   );
 
   const toggleFocusMode = useCallback(() => {
-    const viewport = getWorkspaceViewport();
-    updateWorkspace((current) => {
-      const currentViewMode = getWorkspaceViewMode(current);
-      const nextFocusMode =
-        currentViewMode === "simple" ||
-        (currentViewMode === "facelift" && current.facelift.surfaceMode === "simple")
-          ? !current.simple.focusMode
-          : !current.theme.focusMode;
-      return applyFocusModeToViewport(current, nextFocusMode, viewport);
-    });
-  }, [getWorkspaceViewport, updateWorkspace]);
+    setWorkspaceFocusMode((current) => !current);
+  }, []);
+
+  const enterWorkspaceFocus = useCallback(() => {
+    setWorkspaceFocusMode(true);
+  }, []);
+
+  const exitWorkspaceFocus = useCallback(() => {
+    setWorkspaceFocusMode(false);
+  }, []);
 
   useEffect(() => {
-    const node = workspaceRootRef.current;
-    if (!node || typeof document === "undefined") {
+    if (typeof document === "undefined") {
       return;
     }
 
-    const syncFocusState = () => {
-      if (document.fullscreenElement === node) {
-        return;
-      }
+    document.documentElement.dataset.workspaceFocusMode = workspaceFocusMode ? "on" : "off";
 
-      const focusMode =
-        active?.activeMode === "simple" ? active.simple.focusMode : active?.theme.focusMode;
-
-      if (focusMode) {
-        updateWorkspace((current) =>
-          current.activeMode === "simple" && current.simple.focusMode
-            ? {
-                ...current,
-                simple: {
-                  ...current.simple,
-                  focusMode: false,
-                },
-              }
-            : current.theme.focusMode
-              ? {
-                  ...current,
-                  theme: {
-                    ...current.theme,
-                    focusMode: false,
-                  },
-                }
-              : current,
-        );
+    return () => {
+      if (workspaceFocusMode) {
+        document.documentElement.dataset.workspaceFocusMode = "off";
       }
     };
+  }, [workspaceFocusMode]);
 
-    document.addEventListener("fullscreenchange", syncFocusState);
-
-    const focusMode =
-      active?.activeMode === "simple" ? active.simple.focusMode : active?.theme.focusMode;
-
-    if (focusMode) {
-      if (document.fullscreenElement !== node && node.requestFullscreen) {
-        void node.requestFullscreen().catch(() => {
-          // Keep the CSS-driven focus fallback even if the browser fullscreen request is denied.
-        });
-      }
-    } else if (document.fullscreenElement === node && document.exitFullscreen) {
-      void document.exitFullscreen().catch(() => {
-        // If exit fails we leave the browser fullscreen state alone instead of interrupting the page.
-      });
+  useEffect(() => {
+    if (!active || (!active.theme.focusMode && !active.simple.focusMode)) {
+      return;
     }
 
-    return () => document.removeEventListener("fullscreenchange", syncFocusState);
-  }, [active?.activeMode, active?.simple.focusMode, active?.theme.focusMode, updateWorkspace]);
+    updateWorkspace((current) => ({
+      ...current,
+      theme: current.theme.focusMode
+        ? {
+            ...current.theme,
+            focusMode: false,
+          }
+        : current.theme,
+      simple: current.simple.focusMode
+        ? {
+            ...current.simple,
+            focusMode: false,
+          }
+        : current.simple,
+    }));
+  }, [active, active?.simple.focusMode, active?.theme.focusMode, updateWorkspace]);
 
   const ensureMathWorkspaceVisible = useCallback(
     (options?: { enterLayoutWhenAdded?: boolean }) => {
@@ -2283,8 +2334,9 @@ export function BinderReaderPage() {
   const showTopbarUtilityUi = isLayoutEditing;
   const workspaceModeLabel =
     workspaceViewModeOptions.find((option) => option.id === workspaceViewMode)?.name ?? "Simple";
-  const activeFocusMode =
-    isSimpleMode || isFaceliftSimple ? active.simple.focusMode : active.theme.focusMode;
+  const activeFocusMode = workspaceFocusMode;
+  const showCompactModeSwitcher = compactStudyChrome && !isLayoutEditing;
+  const hideDuplicateSimpleTopbarActions = (compactStudyChrome || studentCalmMode) && isSimpleMode;
   const starterChoices = getWorkspaceStarterChoices({
     binderSubject: binderQuery.data.binder.subject,
     historyEnabled,
@@ -2323,6 +2375,13 @@ export function BinderReaderPage() {
     canRetryNoteSave,
     noteInsertRequest,
     mathModules,
+    compactWhiteboardTools,
+    canvasStarterLayouts,
+    mathPerformanceLazyLoading,
+    recallLabEnabled,
+    studentCalmMode,
+    onEnterWhiteboardFocus: activeFocusMode ? undefined : enterWorkspaceFocus,
+    onExitWhiteboardFocus: activeFocusMode ? exitWorkspaceFocus : undefined,
     stickyManagerVisible,
     hasUnsavedNoteChanges: hasUnsavedChanges,
     history: {
@@ -2704,7 +2763,13 @@ export function BinderReaderPage() {
   return (
     <main
       className="workspace-page"
+      data-canvas-starter-layouts={canvasStarterLayouts ? "true" : "false"}
+      data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
+      data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}
       data-maximize-module-space={active.theme.compactMode ? "true" : "false"}
+      data-math-performance-lazy-loading={mathPerformanceLazyLoading ? "true" : "false"}
+      data-student-calm-mode={studentCalmMode ? "true" : "false"}
+      data-student-preview-admin-chrome={studentPreviewAdminChromeGuard ? "true" : "false"}
       data-facelift-density={isFaceliftMode ? active.facelift.density : undefined}
       data-facelift-module-chrome={isFaceliftMode ? active.facelift.moduleChrome : undefined}
       data-facelift-surface={isFaceliftMode ? active.facelift.surfaceMode : undefined}
@@ -2717,7 +2782,7 @@ export function BinderReaderPage() {
       data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
-      {!isFaceliftSimple && !isStudyPanelsMode ? (
+      {!compactStudyChrome && !isFaceliftSimple && !isStudyPanelsMode ? (
         <Breadcrumbs
           items={[
             { label: "Workspace", to: "/dashboard" },
@@ -2730,11 +2795,17 @@ export function BinderReaderPage() {
 
       <section
         className="workspace-topbar"
+        data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
         data-layout-editing={isLayoutEditing ? "true" : "false"}
         data-utility-ui={showTopbarUtilityUi ? "true" : "false"}
       hidden={isFaceliftSimple || isStudyPanelsMode}
       >
         <div className="workspace-topbar__summary">
+          {compactStudyChrome ? (
+            <p className="workspace-topbar__crumb">
+              Workspace / {binderQuery.data.binder.title}
+            </p>
+          ) : null}
           <p className="workspace-topbar__eyebrow">
             {binderQuery.data.binder.title}
           </p>
@@ -2742,7 +2813,7 @@ export function BinderReaderPage() {
           <p className="workspace-topbar__copy">
             {workspaceModeLabel}
             {" • "}
-            {isSimpleMode ? "Learning module" : currentPresetLabel}
+            {isSimpleMode ? "Source + notes" : currentPresetLabel}
             {" • "}
             {isLayoutEditing
               ? "Layout editing"
@@ -2792,55 +2863,117 @@ export function BinderReaderPage() {
           </div>
         ) : null}
         <div className="workspace-topbar__actions">
+          {showCompactModeSwitcher ? (
+            <WorkspaceModeSwitcher
+              className="workspace-topbar__mode-switcher"
+              currentMode={workspaceViewMode}
+              onChangeMode={applyModeChoice}
+            />
+          ) : null}
           {activeFocusMode ? (
-            <Button onClick={toggleFocusMode} size="sm" type="button" variant="default">
+            <Button
+              aria-label="Exit focus"
+              onClick={toggleFocusMode}
+              size="sm"
+              title="Exit focus"
+              type="button"
+              variant="default"
+            >
               <Minimize2 data-icon="inline-start" />
-              Exit focus
+              <span className="workspace-compact-action-label">Exit focus</span>
             </Button>
           ) : (
             <>
               <Button asChild size="sm" type="button" variant="outline">
                 <Link aria-label="Workspace home" to="/dashboard">
                   <Home data-icon="inline-start" />
-                  Workspace
+                  <span className="workspace-compact-action-label">Workspace</span>
                 </Link>
               </Button>
-              <Button onClick={toggleFocusMode} size="sm" type="button" variant="outline">
-                <Maximize2 data-icon="inline-start" />
-                {isSimpleMode || isFaceliftSimple
-                  ? "Focus"
-                  : isStudyPanelsMode
-                    ? "Focus panels"
-                    : "Focus canvas"}
-              </Button>
-              {!isLayoutEditing ? (
+              {!hideDuplicateSimpleTopbarActions ? (
                 <Button
+                  aria-label={
+                    isSimpleMode || isFaceliftSimple
+                      ? "Focus"
+                      : isStudyPanelsMode
+                        ? "Focus panels"
+                        : "Focus canvas"
+                  }
+                  onClick={toggleFocusMode}
+                  size="sm"
+                  title={
+                    isSimpleMode || isFaceliftSimple
+                      ? "Focus"
+                      : isStudyPanelsMode
+                        ? "Focus panels"
+                        : "Focus canvas"
+                  }
+                  type="button"
+                  variant="outline"
+                >
+                  <Maximize2 data-icon="inline-start" />
+                  <span className="workspace-compact-action-label">
+                    {isSimpleMode || isFaceliftSimple
+                      ? "Focus"
+                      : isStudyPanelsMode
+                        ? "Focus panels"
+                        : "Focus canvas"}
+                  </span>
+                </Button>
+              ) : null}
+              {!hideDuplicateSimpleTopbarActions && !isLayoutEditing ? (
+                <Button
+                  aria-label="Settings"
                   onClick={toggleWorkspacePreferences}
                   onFocus={preloadWorkspaceSettings}
                   onMouseEnter={preloadWorkspaceSettings}
                   size="sm"
+                  title="Settings"
                   type="button"
                   variant={preferencesOpen ? "default" : "outline"}
                 >
                   <SlidersHorizontal data-icon="inline-start" />
-                  Settings
+                  <span className="workspace-compact-action-label">Settings</span>
                 </Button>
               ) : null}
-              {!isLayoutEditing ? (
+              {!hideDuplicateSimpleTopbarActions && !isLayoutEditing ? (
                 <Button
+                  aria-label={
+                    compactStudyChrome && (isSimpleMode || isFaceliftSimple)
+                      ? "Workspace mode"
+                      : isSimpleMode || isFaceliftSimple
+                        ? "Change view"
+                        : isStudyPanelsMode
+                          ? "Adjust panels"
+                          : "Edit layout"
+                  }
                   onClick={enterLayoutEditMode}
                   size="sm"
+                  title={
+                    compactStudyChrome && (isSimpleMode || isFaceliftSimple)
+                      ? "Workspace mode"
+                      : isSimpleMode || isFaceliftSimple
+                        ? "Change view"
+                        : isStudyPanelsMode
+                          ? "Adjust panels"
+                          : "Edit layout"
+                  }
                   type="button"
                   variant="outline"
                 >
                   <LayoutPanelLeft data-icon="inline-start" />
-                  {isSimpleMode || isFaceliftSimple
-                    ? "Change view"
-                    : isStudyPanelsMode
-                      ? "Adjust panels"
-                      : "Edit layout"}
+                  <span className="workspace-compact-action-label">
+                    {compactStudyChrome && (isSimpleMode || isFaceliftSimple)
+                      ? "Workspace mode"
+                      : isSimpleMode || isFaceliftSimple
+                        ? "Change view"
+                        : isStudyPanelsMode
+                          ? "Adjust panels"
+                          : "Edit layout"}
+                  </span>
                 </Button>
-              ) : (
+              ) : null}
+              {isLayoutEditing ? (
                 <>
                   <Button onClick={saveUnlockedLayout} size="sm" type="button" variant="outline">
                     <Save data-icon="inline-start" />
@@ -2881,7 +3014,7 @@ export function BinderReaderPage() {
                     Safe edge {active.canvas.safeEdgePadding ? "on" : "off"}
                   </Button>
                 </>
-              )}
+              ) : null}
               {isWindowedWorkspace ? (
                 <>
                   <Button onClick={fitWorkspaceToScreen} size="sm" type="button" variant="outline">
@@ -2898,10 +3031,19 @@ export function BinderReaderPage() {
                   </Button>
                 </>
               ) : null}
-              <Button onClick={() => void createSticky(null, "")} size="sm" type="button" variant="outline">
-                <StickyNote data-icon="inline-start" />
-                New sticky
-              </Button>
+              {!hideDuplicateSimpleTopbarActions ? (
+                <Button
+                  aria-label="New sticky"
+                  onClick={() => void createSticky(null, "")}
+                  size="sm"
+                  title="New sticky"
+                  type="button"
+                  variant="outline"
+                >
+                  <StickyNote data-icon="inline-start" />
+                  <span className="workspace-compact-action-label">New sticky</span>
+                </Button>
+              ) : null}
             </>
           )}
         </div>
@@ -3014,6 +3156,7 @@ export function BinderReaderPage() {
             title="This facelift study view could not render"
           >
             <FaceliftSimpleShell
+              compactStudyChrome={compactStudyChrome}
               context={context}
               focusModeActive={activeFocusMode}
               isCompact={isCompact}
@@ -3024,6 +3167,7 @@ export function BinderReaderPage() {
               onOpenSettings={openWorkspacePreferences}
               onToggleFocus={toggleFocusMode}
               preferences={active}
+              studentCalmMode={studentCalmMode}
               workspaceViewMode={workspaceViewMode}
             />
           </WorkspaceRenderBoundary>
@@ -3070,6 +3214,7 @@ export function BinderReaderPage() {
               title="This study panels workspace could not render"
             >
               <StudyPanelsShell
+                compactStudyChrome={compactStudyChrome}
                 context={context}
                 currentViewMode={workspaceViewMode}
                 focusModeActive={activeFocusMode}
@@ -3120,6 +3265,7 @@ export function BinderReaderPage() {
               onChange={commitWorkspacePreferences}
               onOpenSettings={openWorkspacePreferences}
               preferences={active}
+              studentCalmMode={studentCalmMode}
             />
           </WorkspaceRenderBoundary>
           </section>
@@ -3170,7 +3316,10 @@ export function BinderReaderPage() {
             {mobileTabs.map((tab) => (
               <Button
                 key={tab.moduleId}
-                onClick={() => setMobileModule(tab.moduleId)}
+                onClick={() => {
+                  setMobileModule(tab.moduleId);
+                  trackWorkspaceModuleOpen(tab.moduleId, "mobile_module_opened");
+                }}
                 size="sm"
                 type="button"
                 variant={mobileModule === tab.moduleId ? "default" : "outline"}
@@ -3245,12 +3394,18 @@ export function BinderReaderPage() {
               title="This document workspace could not render"
             >
               <WindowedWorkspace
+                canvasStarterLayouts={canvasStarterLayouts}
                 context={context}
+                layoutScope="lesson"
                 mode={isLayoutEditing ? "setup" : "study"}
+                onApplyStarterPreset={applyWorkspacePreset}
+                onBackToSimple={() => applyModeChoice("simple")}
                 onCanvasHeightChange={handleWorkspaceCanvasHeightChange}
                 onCommitFrame={handleWorkspaceFrameCommit}
                 onFitViewport={handleWorkspaceFitViewport}
                 onOpenModule={openWorkspaceModule}
+                onResetLayout={resetWorkspaceLayout}
+                onResetView={fitWorkspaceToScreen}
                 onToggleCollapsed={toggleWorkspaceModuleCollapsed}
                 preferences={getWindowedWorkspaceRenderPreferences(active)}
               />

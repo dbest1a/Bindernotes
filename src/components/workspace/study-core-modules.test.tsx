@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PrivateNotesModule, SourceLessonModule } from "@/components/workspace/study-core-modules";
+import { extractPlainText } from "@/lib/math-detection";
+import { emptyDoc } from "@/lib/utils";
 import type { Binder, BinderLesson, SaveStatusSnapshot } from "@/types";
 
 const idleStatus: SaveStatusSnapshot = {
@@ -199,5 +201,55 @@ describe("study core module headers", () => {
     expect(document.querySelector("[data-maximize-module-space-target='source-body']")).toBeTruthy();
     expect(document.querySelector("[data-maximize-module-space-target='notes-shell']")).toBeTruthy();
     expect(document.querySelector("[data-maximize-module-space-target='notes-editor']")).toBeTruthy();
+  });
+
+  it("prompts before cleaning an accidental-looking note prefix and does not delete automatically", () => {
+    const onNoteContentChange = vi.fn();
+    render(
+      <PrivateNotesModule
+        autosaveStatus="unsaved"
+        canRetryNoteSave={false}
+        currentNotebookSection={null}
+        hasUnsavedNoteChanges
+        mathSuggestions={[]}
+        noteContent={emptyDoc(";;;'';;mm Rigid motion notes stay here.")}
+        noteInsertRequest={null}
+        noteMath={[]}
+        noteSaveDetail="Unsaved changes"
+        noteSaveError={null}
+        noteSaveLabel="Unsaved"
+        noteTitle=""
+        onAcceptMathSuggestion={vi.fn()}
+        onCreateSticky={vi.fn()}
+        onDismissMathSuggestion={vi.fn()}
+        onEnterNotebookFocus={vi.fn()}
+        onGraphMathSuggestion={vi.fn()}
+        onInsertCallout={vi.fn()}
+        onInsertChecklist={vi.fn()}
+        onInsertDefinition={vi.fn()}
+        onInsertFormulaReference={vi.fn()}
+        onInsertGraphBlock={vi.fn()}
+        onInsertGraphNote={vi.fn()}
+        onInsertMathBlock={vi.fn()}
+        onInsertProof={vi.fn()}
+        onInsertTheorem={vi.fn()}
+        onInsertWorkedExample={vi.fn()}
+        onNoteContentChange={onNoteContentChange}
+        onNoteInsertApplied={vi.fn()}
+        onNoteMathChange={vi.fn()}
+        onNoteTitleChange={vi.fn()}
+        onRetryNoteSave={vi.fn()}
+        onSaveNoteNow={vi.fn()}
+        selectedLessonTitle={lesson.title}
+        studentCalmMode
+      />,
+    );
+
+    expect(screen.getByText(/This note starts with accidental-looking text/i)).toBeTruthy();
+    expect(onNoteContentChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove junk prefix/i }));
+
+    expect(extractPlainText(onNoteContentChange.mock.calls[0][0])).toBe("Rigid motion notes stay here.");
   });
 });

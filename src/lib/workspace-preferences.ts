@@ -174,7 +174,7 @@ export const workspaceModules: {
   { id: "recent-highlights", name: "Recent highlights", description: "Saved anchors and takeaways." },
   { id: "tasks", name: "Tasks/checklist", description: "A focused study checklist." },
   { id: "related-concepts", name: "Related concepts", description: "Connected concepts and references." },
-  { id: "flashcards", name: "Flashcards", description: "Recall cards placeholder." },
+  { id: "flashcards", name: "Recall Lab", description: "Source-linked cards, draft review, and due practice." },
   { id: "mini-tools", name: "Mini tools", description: "Timer, focus, and utility actions." },
 ];
 
@@ -552,6 +552,11 @@ export const workspacePresets: WorkspacePreset[] = [
     name: "History Full Studio",
     description: "A full history study workspace that balances source, timeline, argument, and myth checks.",
   },
+  {
+    id: "recall-lab",
+    name: "Recall Lab",
+    description: "A full-screen source-linked active recall preset with due cards, drafts, source context, and mistake review.",
+  },
 ];
 
 const workspacePresetVisibility: Record<WorkspacePresetId, WorkspacePresetVisibility> = {
@@ -565,6 +570,7 @@ const workspacePresetVisibility: Record<WorkspacePresetId, WorkspacePresetVisibi
   "math-proof-concept": { subject: "math", modes: ["modular", "canvas"] },
   "math-practice-mode": { subject: "math", modes: ["modular", "canvas"] },
   "full-math-canvas": { subject: "math", modes: ["canvas"], advanced: true },
+  "recall-lab": { subject: "general", modes: ["modular", "canvas", "simple"] },
   "chem-guided-study": { subject: "chemistry", modes: ["simple", "modular", "canvas"] },
   "chem-element-explorer": { subject: "chemistry", modes: ["modular", "canvas"] },
   "chem-bonding-studio": { subject: "chemistry", modes: ["modular", "canvas"] },
@@ -1291,6 +1297,65 @@ const workspacePresetLayouts: Partial<
         "scientific-calculator": frame(900, 980, 1000, 420, 8),
       },
       moduleLayout: defaultModuleLayout,
+    },
+  ),
+  "recall-lab": presetStyles(
+    {
+      enabledModules: ["flashcards", "lesson", "private-notes", "recent-highlights"],
+      zones: zones(["lesson"], ["flashcards"], ["private-notes"], ["recent-highlights"]),
+      paneLayout: paneLayout(16, 54, 20, 10),
+      windowLayout: {
+        flashcards: frame(320, 20, 1040, 1040, 1),
+        lesson: frame(20, 20, 280, 1040, 2),
+        "private-notes": frame(1380, 20, 420, 640, 3),
+        "recent-highlights": frame(1380, 680, 420, 360, 4),
+      },
+      moduleLayout: {
+        flashcards: { span: "full", pinned: true },
+        lesson: { span: "medium" },
+        "private-notes": { span: "wide" },
+        "recent-highlights": { span: "medium" },
+      },
+    },
+    {
+      enabledModules: ["flashcards", "lesson", "private-notes", "recent-highlights", "comments"],
+      zones: zones(["lesson"], ["flashcards"], ["private-notes"], ["recent-highlights", "comments"]),
+      paneLayout: paneLayout(14, 56, 20, 10),
+      windowLayout: {
+        flashcards: frame(300, 20, 1080, 1100, 1),
+        lesson: frame(20, 20, 260, 1100, 2),
+        "private-notes": frame(1400, 20, 400, 560, 3),
+        "recent-highlights": frame(1400, 600, 400, 300, 4),
+        comments: frame(1400, 920, 400, 280, 5),
+      },
+      moduleLayout: {
+        flashcards: { span: "full", pinned: true },
+        lesson: { span: "medium" },
+        "private-notes": { span: "wide" },
+        "recent-highlights": { span: "medium" },
+        comments: { span: "medium" },
+      },
+    },
+    {
+      enabledModules: ["flashcards", "lesson", "private-notes", "recent-highlights", "comments", "binder-notebook"],
+      zones: zones(["lesson", "binder-notebook"], ["flashcards"], ["private-notes"], ["recent-highlights", "comments"]),
+      paneLayout: paneLayout(14, 54, 22, 10),
+      windowLayout: {
+        flashcards: frame(300, 20, 1040, 1180, 1),
+        lesson: frame(20, 20, 260, 580, 2),
+        "binder-notebook": frame(20, 620, 260, 440, 3),
+        "private-notes": frame(1360, 20, 420, 600, 4),
+        "recent-highlights": frame(1360, 640, 420, 300, 5),
+        comments: frame(1360, 960, 420, 260, 6),
+      },
+      moduleLayout: {
+        flashcards: { span: "full", pinned: true },
+        lesson: { span: "medium" },
+        "binder-notebook": { span: "medium" },
+        "private-notes": { span: "wide" },
+        "recent-highlights": { span: "medium" },
+        comments: { span: "medium" },
+      },
     },
   ),
   "chemistry-lab": presetStyles(
@@ -2389,6 +2454,7 @@ export function createDefaultModularStudySettings(
     motionLevel: defaultThemeSettings.animationLevel,
     colorPreset: defaultThemeSettings.id,
     saveLayoutPerBinder: true,
+    showSecondaryPresetStrip: false,
   };
 }
 
@@ -2605,6 +2671,7 @@ export function applyWorkspacePresentationModeToViewport(
   return {
     ...next,
     workspacePresentationMode: presentationMode,
+    canvas: presentationMode === "canvas" ? preferences.canvas : next.canvas,
     facelift: normalizeFaceliftWorkspaceSettings(preferences.facelift),
     updatedAt: new Date().toISOString(),
   };
@@ -3020,6 +3087,18 @@ export function createStickyNoteLayout(index: number): StickyNoteLayout {
   };
 }
 
+function isFaceliftCanvasWorkspace(preferences: WorkspacePreferences) {
+  return preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas";
+}
+
+function hasStoredCanvasPanelPositions(preferences: WorkspacePreferences) {
+  const positions = isFaceliftCanvasWorkspace(preferences)
+    ? preferences.facelift.canvas.panelPositions
+    : preferences.canvas.panelPositions;
+
+  return Object.keys(positions).length > 0;
+}
+
 export function fitWorkspaceToViewport(
   preferences: WorkspacePreferences,
   viewport: { width: number; height: number },
@@ -3056,7 +3135,10 @@ export function fitWorkspaceToViewport(
     Math.abs(previousViewport.height - height) > 120;
   const force = options.force ?? false;
   const hasDesignedPreset = Boolean(getWorkspacePresetDesign(composedPreferences.preset));
-  const layoutResult = hasDesignedPreset
+  const preserveManualCanvasComposition =
+    composedPreferences.activeMode === "canvas" &&
+    hasStoredCanvasPanelPositions(composedPreferences);
+  const layoutResult = hasDesignedPreset && !preserveManualCanvasComposition
     ? tidyWorkspaceFrames({
         frames: composedPreferences.windowLayout,
         moduleIds: visibleModules,
@@ -3070,6 +3152,7 @@ export function fitWorkspaceToViewport(
         moduleIds: visibleModules,
         presetId: composedPreferences.preset,
         safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+        usePresetDesign: !preserveManualCanvasComposition,
         viewport: { width, height },
       });
   const shouldFitSplitCanvasHeight =
@@ -3121,14 +3204,42 @@ export function fitWorkspaceToViewport(
     return visibilityChanged ? composedPreferences : preferences;
   }
 
-  return {
-    ...composedPreferences,
-    canvas: shouldFitSplitCanvasHeight
+  const nextCanvas =
+    composedPreferences.activeMode === "canvas" && !isFaceliftCanvasWorkspace(composedPreferences)
       ? {
           ...composedPreferences.canvas,
-          canvasHeight: height,
+          canvasHeight: shouldFitSplitCanvasHeight ? height : composedPreferences.canvas.canvasHeight,
+          panelPositions: preserveManualCanvasComposition
+            ? {
+                ...composedPreferences.canvas.panelPositions,
+                ...nextWindowLayout,
+              }
+            : composedPreferences.canvas.panelPositions,
         }
-      : composedPreferences.canvas,
+      : composedPreferences.canvas;
+  const nextFacelift =
+    isFaceliftCanvasWorkspace(composedPreferences)
+      ? {
+          ...composedPreferences.facelift,
+          canvas: {
+            ...composedPreferences.facelift.canvas,
+            canvasHeight: shouldFitSplitCanvasHeight
+              ? height
+              : composedPreferences.facelift.canvas.canvasHeight,
+            panelPositions: preserveManualCanvasComposition
+              ? {
+                  ...composedPreferences.facelift.canvas.panelPositions,
+                  ...nextWindowLayout,
+                }
+              : composedPreferences.facelift.canvas.panelPositions,
+          },
+        }
+      : composedPreferences.facelift;
+
+  return {
+    ...composedPreferences,
+    canvas: nextCanvas,
+    facelift: nextFacelift,
     windowLayout: nextWindowLayout,
     stickyNotes: nextStickyNotes,
     viewportFit: {
@@ -3158,11 +3269,15 @@ export function tidyWorkspaceLayout(
       composedPreferences.windowLayout[moduleId] &&
       !composedPreferences.moduleLayout[moduleId]?.collapsed,
   );
+  const preserveManualCanvasComposition =
+    composedPreferences.activeMode === "canvas" &&
+    hasStoredCanvasPanelPositions(composedPreferences);
   const result = tidyWorkspaceFrames({
     frames: composedPreferences.windowLayout,
     moduleIds: visibleModules,
     presetId: composedPreferences.preset,
     safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+    usePresetDesign: !preserveManualCanvasComposition,
     viewport: { width, height },
   });
   const shouldFitSplitCanvasHeight =
@@ -3181,19 +3296,42 @@ export function tidyWorkspaceLayout(
     ]),
   ) as WorkspacePreferences["windowLayout"];
 
+  const nextCanvas =
+    composedPreferences.activeMode === "canvas" && !isFaceliftCanvasWorkspace(composedPreferences)
+      ? {
+          ...composedPreferences.canvas,
+          canvasHeight: shouldFitSplitCanvasHeight ? height : composedPreferences.canvas.canvasHeight,
+          panelPositions: preserveManualCanvasComposition
+            ? {
+                ...composedPreferences.canvas.panelPositions,
+                ...windowLayout,
+              }
+            : composedPreferences.canvas.panelPositions,
+        }
+      : composedPreferences.canvas;
+  const nextFacelift =
+    isFaceliftCanvasWorkspace(composedPreferences)
+      ? {
+          ...composedPreferences.facelift,
+          canvas: {
+            ...composedPreferences.facelift.canvas,
+            canvasHeight: shouldFitSplitCanvasHeight
+              ? height
+              : composedPreferences.facelift.canvas.canvasHeight,
+            panelPositions: preserveManualCanvasComposition
+              ? {
+                  ...composedPreferences.facelift.canvas.panelPositions,
+                  ...windowLayout,
+                }
+              : composedPreferences.facelift.canvas.panelPositions,
+          },
+        }
+      : composedPreferences.facelift;
+
   return {
     ...composedPreferences,
-    canvas:
-      composedPreferences.activeMode === "canvas"
-        ? {
-            ...composedPreferences.canvas,
-            canvasHeight: shouldFitSplitCanvasHeight ? height : composedPreferences.canvas.canvasHeight,
-            panelPositions: {
-              ...composedPreferences.canvas.panelPositions,
-              ...windowLayout,
-            },
-          }
-        : composedPreferences.canvas,
+    canvas: nextCanvas,
+    facelift: nextFacelift,
     windowLayout,
     viewportFit: {
       width,
@@ -3786,6 +3924,10 @@ function normalizeModularStudySettings(
       typeof settings?.saveLayoutPerBinder === "boolean"
         ? settings.saveLayoutPerBinder
         : fallback.saveLayoutPerBinder,
+    showSecondaryPresetStrip:
+      typeof settings?.showSecondaryPresetStrip === "boolean"
+        ? settings.showSecondaryPresetStrip
+        : fallback.showSecondaryPresetStrip,
   };
 }
 

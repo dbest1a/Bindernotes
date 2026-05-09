@@ -46,6 +46,7 @@ import type {
 } from "@/types";
 
 type FaceliftSimpleShellProps = {
+  compactStudyChrome?: boolean;
   context: WorkspaceModuleContext;
   preferences: WorkspacePreferences;
   focusModeActive?: boolean;
@@ -56,6 +57,7 @@ type FaceliftSimpleShellProps = {
   onOpenSettings: () => void;
   onToggleFocus?: () => void;
   isCompact?: boolean;
+  studentCalmMode?: boolean;
   workspaceViewMode?: WorkspaceViewMode;
 };
 
@@ -81,6 +83,7 @@ const nextBestStepByPreset: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Name the rule, explain why it works, then test it against one example.",
   "math-practice-mode": "Solve one problem, check the formula, then write the step that made it work.",
   "full-math-canvas": "Use the big work surface first; open extra tools only when they answer a question.",
+  "recall-lab": "Review due cards, clean up drafts, then open the source for anything that feels weak.",
   "chem-guided-study": "Read the chemistry idea, use one concept card, then write the rule in your own words.",
   "chem-element-explorer": "Pick an element, inspect the trend, then build the matching atom or ion.",
   "chem-bonding-studio": "Build the Lewis structure, then check geometry and formal charge.",
@@ -111,6 +114,7 @@ const modeSummaryByPreset: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Reason through rules and examples.",
   "math-practice-mode": "Practice problems with formulas close by.",
   "full-math-canvas": "Full math workspace without crowding.",
+  "recall-lab": "Source-linked recall cards with due review.",
   "chem-guided-study": "Lesson, notes, concepts, and quick tools.",
   "chem-element-explorer": "Periodic table, atom builder, and trends.",
   "chem-bonding-studio": "Lewis structures, geometry, and notes.",
@@ -188,6 +192,7 @@ function isWorkspacePresetOption(
 }
 
 export function FaceliftSimpleShell({
+  compactStudyChrome = false,
   context,
   focusModeActive = false,
   isCompact = false,
@@ -198,9 +203,11 @@ export function FaceliftSimpleShell({
   onOpenSettings,
   onToggleFocus,
   preferences,
+  studentCalmMode = false,
   workspaceViewMode = "facelift",
 }: FaceliftSimpleShellProps) {
   const [openPanel, setOpenPanel] = useState<OpenConsumerPanel>(null);
+  const [nextStepExpanded, setNextStepExpanded] = useState(!studentCalmMode);
   const design = getFaceliftWorkspacePresetDesign(preferences.preset);
   const preset = workspacePresets.find((candidate) => candidate.id === preferences.preset);
   const folder = context.library
@@ -222,6 +229,7 @@ export function FaceliftSimpleShell({
     visibleModules.length === 2 &&
     visibleModuleSet.has("desmos-graph") &&
     visibleModuleSet.has("formula-sheet");
+  const isBoardPrimaryLayout = design.primaryModule === "whiteboard" && visibleModuleSet.has("whiteboard");
   const collapsedModules = Array.from(new Set(design.collapsedModules)).filter(
     (moduleId) => workspaceModuleRegistry[moduleId] && !visibleModuleSet.has(moduleId),
   );
@@ -278,6 +286,37 @@ export function FaceliftSimpleShell({
         .filter((group) => group.presets.length > 0),
     [visiblePresetById],
   );
+  const toolLaunchers = useMemo(() => {
+    const toolModuleIds = Array.from(new Set([...collapsedModules, ...preferences.enabledModules])).filter(
+      (moduleId) =>
+        workspaceModuleRegistry[moduleId] &&
+        moduleId !== "lesson" &&
+        moduleId !== "private-notes",
+    );
+
+    return toolModuleIds.slice(0, 10).map((moduleId) => {
+      const targetPreset =
+        visiblePresets.find(
+          (candidate) =>
+            candidate.id !== preferences.preset &&
+            selectFaceliftSurfaceModules(candidate.id, {
+              density: preferences.facelift.density,
+              enabledModules: preferences.enabledModules,
+            }).includes(moduleId),
+        ) ??
+        visiblePresets.find(
+          (candidate) =>
+            candidate.id !== preferences.preset &&
+            getFaceliftWorkspacePresetDesign(candidate.id).visibleModules.includes(moduleId),
+        );
+
+      return {
+        moduleId,
+        targetPreset,
+        title: workspaceModuleRegistry[moduleId].title,
+      };
+    });
+  }, [collapsedModules, preferences.enabledModules, preferences.facelift.density, preferences.preset, visiblePresets]);
   const selectedOrder = context.selectedLesson.order_index ?? 0;
   const nextLesson = context.lessons.find((lesson) => (lesson.order_index ?? 0) > selectedOrder);
   const primaryModuleTitle = workspaceModuleRegistry[design.primaryModule]?.title ?? "Study surface";
@@ -326,6 +365,21 @@ export function FaceliftSimpleShell({
       },
     });
   };
+  const openToolSurface = (launcher: (typeof toolLaunchers)[number]) => {
+    if (launcher.targetPreset && launcher.targetPreset.id !== preferences.preset) {
+      context.onApplyPreset(launcher.targetPreset.id);
+      setOpenPanel(null);
+      return;
+    }
+
+    onChange({
+      ...preferences,
+      enabledModules: preferences.enabledModules.includes(launcher.moduleId)
+        ? preferences.enabledModules
+        : [...preferences.enabledModules, launcher.moduleId],
+    });
+    setOpenPanel(null);
+  };
 
   return (
     <section
@@ -339,6 +393,8 @@ export function FaceliftSimpleShell({
       data-facelift-mobile-active={mobileActiveModuleId ?? undefined}
       data-facelift-navigation={preferences.facelift.navigationMode}
       data-facelift-surface="simple"
+      data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
+      data-student-calm-mode={studentCalmMode ? "true" : "false"}
       data-testid="facelift-simple-shell"
       data-workspace-presentation="facelift"
     >
@@ -451,6 +507,18 @@ export function FaceliftSimpleShell({
             <CheckCircle2 className="size-4" />
             <span>{context.noteSaveLabel ?? "Saved status"}</span>
           </div>
+          {compactStudyChrome && onChangeWorkspaceViewMode ? (
+            <WorkspaceModeSwitcher
+              className="facelift-simple-shell__mode-switcher"
+              currentMode={workspaceViewMode}
+              onChangeMode={onChangeWorkspaceViewMode}
+            />
+          ) : null}
+          {studentCalmMode && onChangeWorkspaceViewMode && workspaceViewMode !== "simple" ? (
+            <Button onClick={() => onChangeWorkspaceViewMode("simple")} size="sm" type="button" variant="outline">
+              Back to Simple
+            </Button>
+          ) : null}
           {onToggleFocus ? (
             <Button className="facelift-primary-action" onClick={onToggleFocus} size="sm" type="button" variant="outline">
               {focusModeActive ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
@@ -485,7 +553,7 @@ export function FaceliftSimpleShell({
                     </button>
                   ))}
                 </div>
-                {onChangeWorkspaceViewMode ? (
+                {!compactStudyChrome && onChangeWorkspaceViewMode ? (
                   <WorkspaceModeSwitcher
                     currentMode={workspaceViewMode}
                     onChangeMode={onChangeWorkspaceViewMode}
@@ -494,7 +562,7 @@ export function FaceliftSimpleShell({
                 {onChangeView ? (
                   <button className="facelift-menu-item" onClick={onChangeView} type="button">
                     <PanelLeft className="size-4" />
-                    Change view
+                    {compactStudyChrome ? "Edit layout" : "Change view"}
                   </button>
                 ) : null}
               </div>
@@ -513,24 +581,55 @@ export function FaceliftSimpleShell({
             </Button>
             {openPanel === "tools" ? (
               <div className="facelift-menu" role="menu" aria-label="Study tools">
-                <button className="facelift-menu-item" onClick={context.onSaveNoteNow} type="button">
-                  <Save className="size-4" />
-                  Save now
-                </button>
-                <button className="facelift-menu-item" onClick={context.onEnterNotebookFocus} type="button">
-                  <NotebookPen className="size-4" />
-                  Notebook focus
-                </button>
-                {onCreateSticky ? (
-                  <button className="facelift-menu-item" onClick={onCreateSticky} type="button">
-                    <StickyNote className="size-4" />
-                    New sticky
-                  </button>
+                <div className="facelift-menu__group">
+                  <span>Quick actions</span>
+                  <div>
+                    <button className="facelift-menu-item" onClick={context.onSaveNoteNow} type="button">
+                      <Save className="size-4" />
+                      Save now
+                    </button>
+                    <button className="facelift-menu-item" onClick={context.onEnterNotebookFocus} type="button">
+                      <NotebookPen className="size-4" />
+                      Notebook focus
+                    </button>
+                    {onCreateSticky ? (
+                      <button className="facelift-menu-item" onClick={onCreateSticky} type="button">
+                        <StickyNote className="size-4" />
+                        New sticky
+                      </button>
+                    ) : null}
+                    <Link className="facelift-menu-item" to={`/binders/${context.binder.id}`}>
+                      <BookOpen className="size-4" />
+                      Open binder
+                    </Link>
+                  </div>
+                </div>
+                {toolLaunchers.length > 0 ? (
+                  <div className="facelift-menu__group">
+                    <span>Open tool surfaces</span>
+                    <div className="facelift-menu__tool-grid">
+                      {toolLaunchers.map((launcher) => (
+                        <button
+                          aria-label={`Open ${launcher.title}`}
+                          className="facelift-menu-item facelift-menu-item--tool"
+                          key={launcher.moduleId}
+                          onClick={() => openToolSurface(launcher)}
+                          type="button"
+                        >
+                          <Layers3 className="size-4" />
+                          <span>
+                            <strong>{launcher.title}</strong>
+                            <small>
+                              {launcher.targetPreset
+                                ? `Switch to ${launcher.targetPreset.name}`
+                                : "Add to this workspace"}
+                            </small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
-                <Link className="facelift-menu-item" to={`/binders/${context.binder.id}`}>
-                  <BookOpen className="size-4" />
-                  Open binder
-                </Link>
               </div>
             ) : null}
           </div>
@@ -556,13 +655,23 @@ export function FaceliftSimpleShell({
       </header>
 
       <div className="facelift-simple-shell__body">
-        <section className="facelift-next-board" data-testid="facelift-next-board" aria-label="What to do next">
+        <section
+          className={cn("facelift-next-board", studentCalmMode && "facelift-next-board--calm")}
+          data-collapsed={studentCalmMode && !nextStepExpanded ? "true" : "false"}
+          data-testid="facelift-next-board"
+          aria-label="What to do next"
+        >
           <div>
             <span>{studentCommand.label}</span>
             <strong>{studentCommand.primaryAction}</strong>
-            <p>{studentCommand.followUpAction}</p>
+            {nextStepExpanded ? <p>{studentCommand.followUpAction}</p> : null}
           </div>
           <div className="facelift-next-board__actions">
+            {studentCalmMode ? (
+              <button onClick={() => setNextStepExpanded((current) => !current)} type="button">
+                {nextStepExpanded ? "Hide step" : "Show step"}
+              </button>
+            ) : null}
             {nextLesson ? (
               <button onClick={() => context.onSelectLesson(nextLesson)} type="button">
                 <ChevronRight className="size-4" />
@@ -683,6 +792,7 @@ export function FaceliftSimpleShell({
           ) : null}
           <section
             className="facelift-module-grid"
+            data-facelift-board-primary-layout={isBoardPrimaryLayout ? "dominant" : undefined}
             data-facelift-graph-lab-layout={isGraphLabTwoPane ? "two-pane" : undefined}
             data-facelift-module-count={renderedModules.length}
             data-testid="facelift-module-grid"
@@ -704,6 +814,8 @@ export function FaceliftSimpleShell({
                         whiteboardCardDensity: "compact",
                         whiteboardSourceDisplayMode: "summary",
                         whiteboardShowMathInline: false,
+                        onExitWhiteboardFocus:
+                          focusModeActive && onToggleFocus ? onToggleFocus : context.onExitWhiteboardFocus,
                       }
                     : context,
                 )}
@@ -722,7 +834,12 @@ export function FaceliftSimpleShell({
                   <button
                     className="facelift-collapsed-chip"
                     key={moduleId}
-                    onClick={() => context.onApplyPreset(preferences.preset)}
+                    onClick={() => {
+                      const launcher = toolLaunchers.find((candidate) => candidate.moduleId === moduleId);
+                      if (launcher) {
+                        openToolSurface(launcher);
+                      }
+                    }}
                     type="button"
                   >
                     <Layers3 className="size-3.5" />

@@ -41,6 +41,17 @@ describe("whiteboard module registry", () => {
     expect(getWhiteboardModuleDefinition("whiteboard")).toBeNull();
   });
 
+  it("keeps whiteboard launchers subject-aware without mounting unrelated heavy tools", () => {
+    expect(getEmbeddableWhiteboardModules("general").map((module) => module.moduleId)).toEqual(
+      expect.arrayContaining(["lesson", "private-notes", "comments", "recent-highlights"]),
+    );
+    expect(getEmbeddableWhiteboardModules("general").map((module) => module.moduleId)).not.toContain("desmos-graph");
+    expect(getEmbeddableWhiteboardModules("history").map((module) => module.moduleId)).toEqual(
+      expect.arrayContaining(["history-timeline", "history-evidence", "history-argument"]),
+    );
+    expect(getEmbeddableWhiteboardModules("history").map((module) => module.moduleId)).not.toContain("desmos-graph");
+  });
+
   it("keeps always-live tools mounted unless collapsed while regular modules still honor visibility", () => {
     expect(shouldRenderWhiteboardModuleLive(element("desmos-graph", "preview"), { visible: true })).toBe(true);
     expect(shouldRenderWhiteboardModuleLive(element("scientific-calculator", "preview"), { visible: false })).toBe(true);

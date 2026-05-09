@@ -4,18 +4,44 @@ import { mathWhiteboardTemplates } from "@/lib/whiteboards/whiteboard-templates"
 import type { WhiteboardTemplate } from "@/lib/whiteboards/whiteboard-types";
 
 type WhiteboardTemplatePickerProps = {
+  compact?: boolean;
   onCreateFromTemplate: (template: WhiteboardTemplate) => void;
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
+  templates?: WhiteboardTemplate[];
 };
 
-export function WhiteboardTemplatePicker({ onCreateFromTemplate }: WhiteboardTemplatePickerProps) {
+export function WhiteboardTemplatePicker({
+  compact = false,
+  onCreateFromTemplate,
+  onOpenChange,
+  open = true,
+  templates = mathWhiteboardTemplates,
+}: WhiteboardTemplatePickerProps) {
+  if (compact && !open) {
+    return (
+      <Button
+        aria-label="Open whiteboard templates"
+        className="justify-start"
+        data-testid="whiteboard-templates-toggle"
+        onClick={() => onOpenChange?.(true)}
+        type="button"
+        variant="outline"
+      >
+        <LayoutTemplate data-icon="inline-start" />
+        Templates
+      </Button>
+    );
+  }
+
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2" data-testid={compact ? "whiteboard-templates-panel" : undefined}>
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         <LayoutTemplate className="size-3.5" />
         Math templates
       </p>
-      <div className="grid max-h-72 gap-2 overflow-auto pr-1">
-        {mathWhiteboardTemplates.map((template) => (
+      <div className={compact ? "grid gap-2" : "grid max-h-72 gap-2 overflow-auto pr-1"}>
+        {templates.map((template) => (
           <button
             className="rounded-xl border border-border/70 bg-background/70 p-3 text-left transition hover:border-primary/45 hover:bg-card"
             key={template.id}
@@ -27,9 +53,11 @@ export function WhiteboardTemplatePicker({ onCreateFromTemplate }: WhiteboardTem
           </button>
         ))}
       </div>
-      <Button onClick={() => onCreateFromTemplate(mathWhiteboardTemplates[0])} type="button" variant="outline">
-        New blank board
-      </Button>
+      {!compact ? (
+        <Button onClick={() => onCreateFromTemplate(mathWhiteboardTemplates[0])} type="button" variant="outline">
+          New blank board
+        </Button>
+      ) : null}
     </div>
   );
 }

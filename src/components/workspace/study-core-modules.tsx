@@ -26,10 +26,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
+import {
+  cleanAccidentalNotePrefix,
+  detectAccidentalNotePrefix,
+} from "@/lib/note-hygiene";
 import type { MathSuggestion } from "@/lib/math-detection";
 import { extractPlainText } from "@/lib/math-detection";
 import type { NoteInsertRequest } from "@/lib/note-blocks";
-import { cn } from "@/lib/utils";
+import { cn, emptyDoc } from "@/lib/utils";
 import type {
   Binder,
   BinderLesson,
@@ -276,6 +280,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   onSaveNoteNow,
   onSendToGraph,
   surface = "workspace",
+  studentCalmMode = false,
 }: {
   autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error";
   canRetryNoteSave: boolean;
@@ -314,12 +319,14 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   onSaveNoteNow: () => void;
   onSendToGraph?: (expression: string) => void;
   surface?: "workspace" | "whiteboard";
+  studentCalmMode?: boolean;
 }) {
   const [showGuide, setShowGuide] = useState(true);
   const [showInsertTools, setShowInsertTools] = useState(false);
   const [showSlashCommands, setShowSlashCommands] = useState(false);
   const [commandValue, setCommandValue] = useState("");
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const [ignoredHygienePromptKey, setIgnoredHygienePromptKey] = useState<string | null>(null);
 
   const noteLooksBlank = useMemo(() => {
     if (noteMath.length > 0 || noteTitle.trim().length > 0) {
@@ -328,6 +335,22 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
 
     return extractPlainText(noteContent).trim().length === 0;
   }, [noteContent, noteMath.length, noteTitle]);
+  const accidentalPrefix = useMemo(
+    () => (studentCalmMode ? detectAccidentalNotePrefix(noteContent) : null),
+    [noteContent, studentCalmMode],
+  );
+  const hygienePromptKey = accidentalPrefix
+    ? `${selectedLessonTitle}:${accidentalPrefix.prefix}`
+    : null;
+  const showHygienePrompt = Boolean(accidentalPrefix && hygienePromptKey !== ignoredHygienePromptKey);
+  const saveButtonTitle =
+    autosaveStatus === "saving"
+      ? "Saving..."
+      : hasUnsavedNoteChanges
+        ? "Save now"
+        : autosaveStatus === "saved"
+          ? "No changes to save"
+          : "Already saved";
 
   useEffect(() => {
     setShowGuide(noteLooksBlank);
@@ -468,15 +491,33 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               ) : null}
               {noteMath.length > 0 ? <Badge variant="secondary">{noteMath.length} math blocks</Badge> : null}
               <Button
+                aria-label={saveButtonTitle}
                 disabled={autosaveStatus === "saving" || !hasUnsavedNoteChanges}
                 onClick={onSaveNoteNow}
                 size="sm"
+                title={saveButtonTitle}
                 type="button"
                 variant={hasUnsavedNoteChanges ? "default" : "outline"}
               >
                 <Save data-icon="inline-start" />
-                Save now
+                {hasUnsavedNoteChanges ? "Save now" : saveButtonTitle}
               </Button>
+              {studentCalmMode && !noteLooksBlank ? (
+                <Button
+                  aria-label="Reset current lesson note"
+                  onClick={() => {
+                    onNoteTitleChange("");
+                    onNoteContentChange(emptyDoc());
+                    onNoteMathChange([]);
+                  }}
+                  size="sm"
+                  title="Reset only this lesson note"
+                  type="button"
+                  variant="outline"
+                >
+                  Reset note
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -517,6 +558,42 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               </Button>
             ) : null}
           </div>
+          {showHygienePrompt && accidentalPrefix ? (
+            <div className="note-hygiene-prompt mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm">
+              <p className="font-semibold">This note starts with accidental-looking text. Clean it up?</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                BinderNotes will only remove the short junk prefix if you choose to clean it.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    onNoteContentChange(cleanAccidentalNotePrefix(noteContent, accidentalPrefix.prefix));
+                    setIgnoredHygienePromptKey(hygienePromptKey);
+                  }}
+                  size="sm"
+                  type="button"
+                >
+                  Remove junk prefix
+                </Button>
+                <Button
+                  onClick={() => setIgnoredHygienePromptKey(hygienePromptKey)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Ignore
+                </Button>
+                <Button
+                  onClick={() => setIgnoredHygienePromptKey(hygienePromptKey)}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Don't show again for this note
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div

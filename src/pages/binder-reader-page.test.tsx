@@ -4,7 +4,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyWorkspaceMode, createDefaultWorkspacePreferences } from "@/lib/workspace-preferences";
+import {
+  applyWorkspaceMode,
+  applyWorkspaceViewModeToViewport,
+  createDefaultWorkspacePreferences,
+} from "@/lib/workspace-preferences";
 import { emptyDoc } from "@/lib/utils";
 import type { BinderBundle, Profile } from "@/types";
 
@@ -308,6 +312,7 @@ describe("BinderReaderPage", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.unstubAllGlobals();
   });
 
@@ -527,6 +532,59 @@ describe("BinderReaderPage", () => {
     expect(next.moduleLayout.whiteboard?.collapsed).toBe(false);
   });
 
+  it("does not restore saved workspace focus as an automatic fullscreen state", async () => {
+    const originalRequestFullscreen = HTMLElement.prototype.requestFullscreen;
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.commit.mockClear();
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      preset: "math-practice-mode",
+      styleChoiceCompleted: true,
+      theme: {
+        ...preferences.theme,
+        focusMode: true,
+      },
+      simple: {
+        ...preferences.simple,
+        focusMode: true,
+      },
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle("Jacob Math Notes", "Geometry Diagram");
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-workspace-active-focus")).toBe("false");
+    expect(requestFullscreen).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(mocks.workspacePreferences.commit).toHaveBeenCalled();
+    });
+    const next = mocks.workspacePreferences.commit.mock.calls.at(-1)?.[0];
+    expect(next?.theme.focusMode).toBe(false);
+    expect(next?.simple.focusMode).toBe(false);
+
+    if (originalRequestFullscreen) {
+      Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+        configurable: true,
+        value: originalRequestFullscreen,
+      });
+    } else {
+      const prototypeWithFullscreen = HTMLElement.prototype as Partial<HTMLElement> & {
+        requestFullscreen?: HTMLElement["requestFullscreen"];
+      };
+      delete prototypeWithFullscreen.requestFullscreen;
+    }
+  });
+
   it("marks the rendered workspace root when maximize module space is enabled", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.workspacePreferences.active = {
@@ -741,6 +799,120 @@ describe("BinderReaderPage", () => {
     expect(container.querySelector(".workspace-topbar")?.hasAttribute("hidden")).toBe(true);
     expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
     expect(container.querySelector(".simple-presentation-shell")).toBeNull();
+  });
+
+  it("uses Compact Study Chrome markers and a visible Workspace mode switcher in Canvas", () => {
+    setTestViewportWidth(1181);
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, compactStudyChrome: true }),
+    );
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      activeMode: "canvas",
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe("true");
+    expect(container.querySelector(".workspace-topbar")?.getAttribute("data-compact-study-chrome")).toBe("true");
+    expect(screen.getByRole("button", { name: /workspace mode canvas/i })).toBeTruthy();
+    expect(screen.queryByText("Change view")).toBeNull();
+  });
+
+  it("keeps non-beta workspace chrome unchanged when Compact Study Chrome is off", () => {
+    setTestViewportWidth(1181);
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "simple",
+    );
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe("false");
+    expect(screen.getByText("Change view")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /workspace mode simple/i })).toBeNull();
+  });
+
+  it("keeps the Workspace mode switcher visible in Simple and Facelift when Compact Study Chrome is on", () => {
+    setTestViewportWidth(1181);
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, compactStudyChrome: true }),
+    );
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const simplePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "simple",
+    );
+    mocks.workspacePreferences.active = {
+      ...simplePreferences,
+      styleChoiceCompleted: true,
+    };
+    const simpleRender = renderReaderPage("/binders/binder-1/documents/lesson-1");
+    expect(screen.getByRole("button", { name: /workspace mode simple/i })).toBeTruthy();
+    simpleRender.unmount();
+
+    const faceliftPreferences = applyWorkspaceViewModeToViewport(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "facelift",
+      { width: 1440, height: 900 },
+    );
+    mocks.workspacePreferences.active = {
+      ...faceliftPreferences,
+      styleChoiceCompleted: true,
+    };
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+    expect(screen.getByRole("button", { name: /workspace mode facelift/i })).toBeTruthy();
+  });
+
+  it("compacts Study Panels controls without duplicate labels when Compact Study Chrome is on", () => {
+    setTestViewportWidth(1181);
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, compactStudyChrome: true }),
+    );
+
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "modular",
+    );
+    mocks.workspacePreferences.active = {
+      ...preferences,
+      styleChoiceCompleted: true,
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle();
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-compact-study-chrome")).toBe("true");
+    expect(screen.getByRole("button", { name: /workspace mode study panels/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /settings/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^focus panel$/i })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /^tools$/i })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /tools/i })).toBeNull();
+    expect(screen.getByRole("tab", { name: /extras/i })).toBeTruthy();
+    expect(container.querySelector(".workspace-topbar")?.hasAttribute("hidden")).toBe(true);
   });
 
   it("uses responsive module tabs on tablet portrait widths instead of tiny desktop windows", () => {

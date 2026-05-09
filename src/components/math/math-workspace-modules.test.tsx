@@ -1,12 +1,30 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DesmosGraphModule,
   ScientificCalculatorModule,
   type MathWorkspaceModuleBindings,
 } from "@/components/math/math-workspace-modules";
 import type { MathWorkspaceController } from "@/hooks/use-math-workspace";
+
+vi.mock("@/components/math/desmos-graph", () => ({
+  Desmos3DGraph: ({ showKeypad }: { showKeypad?: boolean }) => (
+    <div data-testid="desmos-3d-graph" data-show-keypad={String(showKeypad)} />
+  ),
+  DesmosGraph: ({ showKeypad }: { showKeypad?: boolean }) => (
+    <div data-testid="desmos-graph" data-show-keypad={String(showKeypad)} />
+  ),
+}));
+
+vi.mock("@/lib/desmos-loader", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/desmos-loader")>("@/lib/desmos-loader");
+  return {
+    ...actual,
+    hasDesmosApiKey: () => true,
+  };
+});
 
 vi.mock("@/components/math/desmos-scientific-calculator", () => ({
   DesmosScientificCalculator: ({
@@ -83,5 +101,29 @@ describe("ScientificCalculatorModule", () => {
     render(<ScientificCalculatorModule bindings={bindings()} />);
 
     expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe("clamp(520px, 68vh, 720px)");
+  });
+});
+
+describe("DesmosGraphModule", () => {
+  afterEach(() => cleanup());
+
+  it("keeps Desmos unmounted until the student opens the graph in math performance mode", () => {
+    render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    expect(screen.queryByTestId("desmos-graph")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Open graph/i }));
+
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
+  });
+
+  it("keeps the Desmos keypad unmounted until explicitly opened in math performance mode", () => {
+    render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Open graph/i }));
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: /Show keypad/i }));
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("true");
   });
 });

@@ -35,7 +35,13 @@ import {
   getWorkspacePresetDesign,
   selectWorkspacePresetVisibleModules,
 } from "@/lib/workspace-preset-designs";
-import type { WorkspaceModuleId, WorkspacePresetId, WorkspaceStyle, WorkspaceWindowFrame } from "@/types";
+import type {
+  WorkspaceModuleId,
+  WorkspacePreferences,
+  WorkspacePresetId,
+  WorkspaceStyle,
+  WorkspaceWindowFrame,
+} from "@/types";
 
 beforeEach(() => {
   vi.stubEnv("VITE_DESMOS_API_KEY", "test-desmos-key");
@@ -106,6 +112,28 @@ describe("workspace preferences", () => {
     expect(preferences.theme.focusMode).toBe(false);
     expect(preferences.theme.animationLevel).toBe("none");
     expect(preferences.theme.reducedChrome).toBe(true);
+    expect(preferences.modular.showSecondaryPresetStrip).toBe(false);
+  });
+
+  it("keeps the secondary Study Panels preset strip hidden by default while preserving saved choices", () => {
+    const basePreferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const defaultPreferences = normalizeWorkspacePreferences({
+      ...basePreferences,
+      modular: {
+        ...basePreferences.modular,
+        selectedPreset: "split-study",
+      },
+    });
+    const savedPreferences = normalizeWorkspacePreferences({
+      ...basePreferences,
+      modular: {
+        ...basePreferences.modular,
+        showSecondaryPresetStrip: true,
+      },
+    });
+
+    expect(defaultPreferences.modular.showSecondaryPresetStrip).toBe(false);
+    expect(savedPreferences.modular.showSecondaryPresetStrip).toBe(true);
   });
 
   it("registers Whiteboard as a math workspace module without changing Split Study defaults", () => {
@@ -117,6 +145,23 @@ describe("workspace preferences", () => {
       // Whiteboard should be available from settings/module launchers but not injected into the core two-pane preset.
       createDefaultWorkspacePreferences("user-1", "binder-1").enabledModules,
     ).not.toContain("whiteboard");
+  });
+
+  it("registers Recall Lab as a beta-ready full-screen recall preset", () => {
+    expect(workspaceModules.find((module) => module.id === "flashcards")).toMatchObject({
+      name: "Recall Lab",
+    });
+    expect(workspacePresets.find((preset) => preset.id === "recall-lab")?.description).toContain("source-linked");
+
+    const layout = resolveWorkspacePresetLayout("recall-lab", "guided");
+    expect(layout.enabledModules[0]).toBe("flashcards");
+    expect(layout.moduleLayout?.flashcards).toMatchObject({ span: "full", pinned: true });
+    expect(getWorkspacePresetDesign("recall-lab").defaultVisible).toEqual([
+      "flashcards",
+      "lesson",
+      "private-notes",
+      "recent-highlights",
+    ]);
   });
 
   it("can switch workspace styles without replacing the shared engine", () => {
@@ -1064,6 +1109,72 @@ describe("workspace preferences", () => {
       fitted.windowLayout.lesson!.w,
     );
     expect(hasTinyBottomStrip(visibleFrames)).toBe(false);
+  });
+
+  it("fits visible canvas windows without snapping manual placements back to the preset recipe", () => {
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const manualWindowLayout: WorkspacePreferences["windowLayout"] = {
+      "math-blocks": { x: 40, y: 40, w: 460, h: 380, z: 1 },
+      "private-notes": { x: 40, y: 444, w: 460, h: 380, z: 2 },
+      whiteboard: { x: 540, y: 72, w: 620, h: 520, z: 3 },
+      "formula-sheet": { x: 1180, y: 72, w: 360, h: 380, z: 4 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...base,
+      preset: "math-practice-mode",
+      enabledModules: ["math-blocks", "private-notes", "whiteboard", "formula-sheet"],
+      moduleLayout: {
+        ...base.moduleLayout,
+        "math-blocks": { span: "medium", collapsed: false },
+        "private-notes": { span: "medium", collapsed: false },
+        whiteboard: { span: "wide", collapsed: false },
+        "formula-sheet": { span: "medium", collapsed: false },
+      },
+      canvas: {
+        ...base.canvas,
+        panelPositions: manualWindowLayout,
+      },
+      windowLayout: manualWindowLayout,
+    };
+
+    const fitted = fitWorkspaceToViewport(preferences, { width: 1440, height: 900 }, { force: true });
+
+    expect(fitted.windowLayout.whiteboard!.x).toBeGreaterThan(fitted.windowLayout["math-blocks"]!.x);
+    expect(fitted.windowLayout.whiteboard!.x).toBeGreaterThan(fitted.windowLayout["private-notes"]!.x);
+    expect(fitted.canvas.panelPositions.whiteboard).toEqual(fitted.windowLayout.whiteboard);
+  });
+
+  it("tidies visible canvas windows without snapping manual placements back to the preset recipe", () => {
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const manualWindowLayout: WorkspacePreferences["windowLayout"] = {
+      "math-blocks": { x: 40, y: 40, w: 460, h: 380, z: 1 },
+      "private-notes": { x: 40, y: 444, w: 460, h: 380, z: 2 },
+      whiteboard: { x: 540, y: 72, w: 620, h: 520, z: 3 },
+      "formula-sheet": { x: 1180, y: 72, w: 360, h: 380, z: 4 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...base,
+      preset: "math-practice-mode",
+      enabledModules: ["math-blocks", "private-notes", "whiteboard", "formula-sheet"],
+      moduleLayout: {
+        ...base.moduleLayout,
+        "math-blocks": { span: "medium", collapsed: false },
+        "private-notes": { span: "medium", collapsed: false },
+        whiteboard: { span: "wide", collapsed: false },
+        "formula-sheet": { span: "medium", collapsed: false },
+      },
+      canvas: {
+        ...base.canvas,
+        panelPositions: manualWindowLayout,
+      },
+      windowLayout: manualWindowLayout,
+    };
+
+    const tidied = tidyWorkspaceLayout(preferences, { width: 1440, height: 900 });
+
+    expect(tidied.windowLayout.whiteboard!.x).toBeGreaterThan(tidied.windowLayout["math-blocks"]!.x);
+    expect(tidied.windowLayout.whiteboard!.x).toBeGreaterThan(tidied.windowLayout["private-notes"]!.x);
+    expect(tidied.canvas.panelPositions.whiteboard).toEqual(tidied.windowLayout.whiteboard);
   });
 
   it("fits tall preset layouts into the visible viewport without unreadable panels", () => {

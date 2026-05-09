@@ -197,6 +197,8 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     mocks.dashboardState.error = null;
     mocks.dashboardState.isLoading = false;
+    mocks.dashboardState.data.notes = [];
+    mocks.dashboardState.data.recentLessons = mocks.dashboardState.data.lessons;
     mocks.profile.role = "admin";
     mocks.createBinderMutation.mockReset();
     mocks.createBinderMutation.mockResolvedValue({
@@ -469,6 +471,7 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
       "minimal",
     );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("drive");
     expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
     expect(screen.getByTestId("minimal-dashboard-command-bar")).toBeTruthy();
     expect(screen.getByTestId("minimal-dashboard-filebar")).toBeTruthy();
@@ -488,6 +491,7 @@ describe("DashboardPage", () => {
     expect(screen.queryByText("Recovered Binder")).toBeNull();
     expect(screen.queryByText("Write a clear promise for this binder.")).toBeNull();
     expect(screen.getAllByTestId("minimal-document-row").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("minimal-binder-card").className).toContain("minimal-binder-card--drive-row");
   });
 
   it("keeps Minimal folder, binder, and document links usable", () => {
@@ -751,6 +755,8 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
       "normal",
     );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("visual");
+    expect(screen.getByTestId("normal-folder-card").className).toContain("dashboard-life-card");
     expect(screen.getByTestId("normal-dashboard-command-bar")).toBeTruthy();
     expect(screen.getByTestId("normal-dashboard-filebar")).toBeTruthy();
     expect(screen.getByTestId("normal-dashboard-search")).toBeTruthy();
@@ -758,6 +764,73 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: "Open" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "View" })).toBeTruthy();
     expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+  });
+
+  it("keeps beta dashboard shelf and document health badges hidden when Beta Features are off", () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("normal-dashboard-continue-shelf")).toBeNull();
+    expect(screen.queryByTestId("normal-document-health-badge")).toBeNull();
+  });
+
+  it("shows Continue Studying and conservative document health badges when Beta Features are on", () => {
+    window.localStorage.setItem("bindernotes:beta-features:user-1", JSON.stringify({ enabled: true }));
+    mocks.dashboardState.data.notes = [
+      {
+        id: "note-real",
+        owner_id: "user-1",
+        binder_id: "binder-real",
+        lesson_id: "lesson-real",
+        folder_id: "folder-real",
+        title: "Founding Myth notes",
+        content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Review Alba Longa." }] }] },
+        math_blocks: [],
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(1).toISOString(),
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-beta-dashboard-polish")).toBe("on");
+    expect(screen.getByTestId("normal-dashboard-continue-shelf")).toBeTruthy();
+    expect(screen.getByText("Continue studying")).toBeTruthy();
+    expect(screen.getByTestId("normal-dashboard-continue-link").getAttribute("href")).toBe(
+      "/binders/binder-real/documents/lesson-real",
+    );
+    expect(screen.getAllByTestId("normal-document-health-badge").map((badge) => badge.textContent)).toContain(
+      "Notes added",
+    );
+    expect(document.body.textContent).not.toMatch(/demo|learner demo|admin demo/i);
+  });
+
+  it("keeps the beta Continue Studying shelf compact in Minimal Drive mode", () => {
+    window.localStorage.setItem("bindernotes:beta-features:user-1", JSON.stringify({ enabled: true }));
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("minimal-dashboard-continue-shelf")).toBeTruthy();
+    expect(screen.getByTestId("minimal-dashboard-continue-shelf").getAttribute("data-dashboard-continue-density")).toBe(
+      "compact",
+    );
+    expect(screen.getAllByTestId("minimal-document-health-badge").length).toBeGreaterThan(0);
   });
 
   it("lets Normal create a new document from the New menu", async () => {

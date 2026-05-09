@@ -33,6 +33,14 @@ vi.mock("@/components/workspace/workspace-modules", () => ({
       title: "Math Whiteboard",
       render: () => <section>Whiteboard body</section>,
     },
+    "history-timeline": {
+      title: "History timeline",
+      render: () => <section>History body</section>,
+    },
+    "chem-titration-lab": {
+      title: "Acid-base titration lab",
+      render: () => <section>Chemistry body</section>,
+    },
   },
 }));
 
@@ -162,7 +170,7 @@ describe("WindowedWorkspace", () => {
     expect(root?.getAttribute("data-facelift-module-chrome")).toBe("minimal");
   });
 
-  it("uses the Facelift Canvas preset recipe in locked study mode instead of stale saved frames", () => {
+  it("uses saved Facelift Canvas frames in locked study mode so manual canvas edits do not snap back to presets", () => {
     const basePreferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
       "canvas",
@@ -172,10 +180,6 @@ describe("WindowedWorkspace", () => {
       workspacePresentationMode: "facelift",
       preset: "math-practice-mode",
       locked: true,
-      facelift: {
-        ...basePreferences.facelift,
-        surfaceMode: "canvas",
-      },
       enabledModules: ["whiteboard", "math-blocks", "private-notes", "formula-sheet", "desmos-graph"],
       moduleLayout: {
         ...basePreferences.moduleLayout,
@@ -187,8 +191,19 @@ describe("WindowedWorkspace", () => {
       },
       windowLayout: {
         ...basePreferences.windowLayout,
-        whiteboard: { x: 240, y: 120, w: 620, h: 500, z: 1 },
+        whiteboard: { x: 123, y: 45, w: 620, h: 500, z: 1 },
         "desmos-graph": { x: 0, y: 0, w: 1100, h: 740, z: 9 },
+      },
+      facelift: {
+        ...basePreferences.facelift,
+        surfaceMode: "canvas",
+        canvas: {
+          ...basePreferences.facelift.canvas,
+          panelPositions: {
+            whiteboard: { x: 123, y: 45, w: 620, h: 500, z: 1 },
+            "desmos-graph": { x: 0, y: 0, w: 1100, h: 740, z: 9 },
+          },
+        },
       },
     };
 
@@ -205,10 +220,9 @@ describe("WindowedWorkspace", () => {
 
     const whiteboard = container.querySelector<HTMLElement>('[data-window-module-id="whiteboard"]');
     const graph = container.querySelector<HTMLElement>('[data-window-module-id="desmos-graph"]');
-    expect(whiteboard?.style.left).toBe("256px");
-    expect(whiteboard?.style.top).toBe("0px");
-    expect(graph?.style.left).not.toBe("0px");
-    expect(Number.parseInt(graph?.style.left ?? "0", 10)).toBeGreaterThanOrEqual(800);
+    expect(whiteboard?.style.left).toBe("123px");
+    expect(whiteboard?.style.top).toBe("45px");
+    expect(graph?.style.left).toBe("0px");
   });
 
   it("auto-fits locked Split Study when the measured canvas is wider than the saved fit", () => {
@@ -345,6 +359,83 @@ describe("WindowedWorkspace", () => {
     );
 
     expect(screen.getByDisplayValue("Connect this to epsilon-delta later.")).toBeTruthy();
+  });
+
+  it("keeps the Jacob Geometry starter strip hidden in study mode so the canvas keeps the space", () => {
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-jacob-math-notes"), "canvas"),
+      enabledModules: ["lesson", "private-notes", "formula-sheet", "whiteboard", "desmos-graph", "math-blocks"],
+    };
+
+    const { container } = render(
+      <WindowedWorkspace
+        canvasStarterLayouts
+        context={
+          {
+            binder: {
+              id: "binder-jacob-math-notes",
+              subject: "Mathematics",
+              title: "Jacob Math Notes",
+            },
+            selectedLesson: {
+              id: "lesson-geometry",
+              title: "Geometry Language, Rigid Motions, and Dilation",
+            },
+          } as WorkspaceModuleContext
+        }
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(screen.queryByTestId("canvas-starter-layouts")).toBeNull();
+    expect(screen.queryByText("Starter layouts keep the board calm.")).toBeNull();
+    expect(container.querySelector('[data-canvas-starter-layouts="true"]')).toBeTruthy();
+  });
+
+  it("keeps history and chemistry tools out of the Jacob Math canvas launcher when Canvas Starter Layouts is on", () => {
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-jacob-math-notes"), "canvas"),
+      locked: false,
+      enabledModules: ["lesson", "private-notes"],
+      theme: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-jacob-math-notes").theme,
+        showUtilityUi: true,
+      },
+    };
+
+    render(
+      <WindowedWorkspace
+        canvasStarterLayouts
+        context={
+          {
+            binder: {
+              id: "binder-jacob-math-notes",
+              subject: "Mathematics",
+              title: "Jacob Math Notes",
+            },
+            selectedLesson: {
+              id: "lesson-geometry",
+              title: "Geometry Language, Rigid Motions, and Dilation",
+            },
+          } as WorkspaceModuleContext
+        }
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(screen.getByText("Module launcher")).toBeTruthy();
+    expect(screen.getByText("Math Whiteboard")).toBeTruthy();
+    expect(screen.queryByText("History timeline")).toBeNull();
+    expect(screen.queryByText("Acid-base titration lab")).toBeNull();
   });
 
   it("cancels a pending locked-study auto-fit when the user enters setup mode", () => {

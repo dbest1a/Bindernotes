@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, BookPlus, ChevronRight, FileText, FolderOpen, LibraryBig } from "lucide-react";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presen
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
+import { scheduleUserRecentItem } from "@/services/activity-service";
 import type { FolderWorkspaceData } from "@/types";
 
 type FolderCreateKind = "binder" | "document";
@@ -50,6 +51,7 @@ export function FolderPage() {
     error && showSystemDiagnostics
       ? classifyRuntimeError("folders", error)
       : [];
+  const profileId = profile?.id ?? null;
   const canManageWorkspace = profile?.role === "admin";
   const firstBinderId = data?.binders[0]?.id ?? "";
   const lessonsByBinderId = useMemo(() => {
@@ -64,6 +66,23 @@ export function FolderPage() {
   }, [data]);
   const createPending =
     workspaceMutations.createBinder.isPending || workspaceMutations.createDocument.isPending;
+
+  useEffect(() => {
+    if (!profileId || !data) {
+      return;
+    }
+
+    scheduleUserRecentItem({
+      userId: profileId,
+      itemType: "folder",
+      itemId: data.folder.id,
+      folderId: data.folder.id,
+      titleSnapshot: data.folder.name,
+      metadata: {
+        route: "folder",
+      },
+    });
+  }, [data, profileId]);
 
   if (!profile) {
     return <Navigate replace to="/auth" />;

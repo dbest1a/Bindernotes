@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Calculator,
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
-import { MathBlocks } from "@/components/math/math-blocks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,16 +39,22 @@ import { cn } from "@/lib/utils";
 import type { MathBlock, SimplePresentationTheme, WorkspacePreferences } from "@/types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 
+const LazyMathBlocks = lazy(() =>
+  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
+);
+
 export function SimplePresentationShell({
   context,
   onChange,
   onOpenSettings,
   preferences,
+  studentCalmMode = false,
 }: {
   context: WorkspaceModuleContext;
   preferences: WorkspacePreferences;
   onChange: (preferences: WorkspacePreferences) => void;
   onOpenSettings: () => void;
+  studentCalmMode?: boolean;
 }) {
   const settings = preferences.simple;
   const lessonIndex = Math.max(
@@ -123,6 +128,7 @@ export function SimplePresentationShell({
       data-simple-font-size={settings.fontSize}
       data-simple-motion={settings.motion}
       data-simple-reading-width={settings.readingWidth}
+      data-student-calm-mode={studentCalmMode ? "true" : "false"}
       data-simple-theme={settings.theme}
       data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
       data-testid="simple-presentation-shell"
@@ -175,19 +181,23 @@ export function SimplePresentationShell({
                       ))}
                     </select>
                   </label>
-                  <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
-                    <Settings2 data-icon="inline-start" />
-                    Settings
-                  </Button>
-                  <Button
-                    onClick={() => setSimple({ focusMode: true })}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Maximize2 data-icon="inline-start" />
-                    Focus
-                  </Button>
+                  {!studentCalmMode ? (
+                    <>
+                      <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
+                        <Settings2 data-icon="inline-start" />
+                        Settings
+                      </Button>
+                      <Button
+                        onClick={() => setSimple({ focusMode: true })}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Maximize2 data-icon="inline-start" />
+                        Focus
+                      </Button>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
@@ -310,11 +320,12 @@ export function SimplePresentationShell({
                     timelineEvents={timelineEvents}
                   />
                 ) : (
-                  <MathStudyDrawer
-                    context={context}
-                    formulaBlocks={formulaBlocks}
-                    graphBlocks={graphBlocks}
-                  />
+          <MathStudyDrawer
+            context={context}
+            formulaBlocks={formulaBlocks}
+            graphBlocks={graphBlocks}
+            studentCalmMode={studentCalmMode}
+          />
                 )}
               </section>
             ) : null}
@@ -429,10 +440,12 @@ function MathStudyDrawer({
   context,
   formulaBlocks,
   graphBlocks,
+  studentCalmMode,
 }: {
   context: WorkspaceModuleContext;
   formulaBlocks: Extract<MathBlock, { type: "latex" }>[];
   graphBlocks: Extract<MathBlock, { type: "graph" }>[];
+  studentCalmMode?: boolean;
 }) {
   return (
     <>
@@ -444,19 +457,27 @@ function MathStudyDrawer({
         <Badge variant="secondary">{formulaBlocks.length + graphBlocks.length} blocks</Badge>
       </div>
       {formulaBlocks.length > 0 ? (
-        <div className="simple-reference-card">
+        <div className={cn("simple-reference-card", studentCalmMode && "simple-reference-card--calm-formulas")}>
           <p className="simple-presentation-kicker">Formula cards</p>
-          <MathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading formula cards...</p>}>
+            <LazyMathBlocks
+              blocks={formulaBlocks}
+              onJumpToSource={context.onJumpToMathSource}
+              onSendFormulaToNotes={context.onSendSelectionToNotes}
+            />
+          </Suspense>
         </div>
       ) : null}
       {graphBlocks.length > 0 ? (
         <div className="simple-reference-card">
           <p className="simple-presentation-kicker">Graphs</p>
-          <MathBlocks
-            blocks={graphBlocks}
-            onOpenGraphBlock={context.onOpenGraphBlock}
-            onSendToGraph={context.mathModules?.pushExpressionToGraph}
-          />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading graph cards...</p>}>
+            <LazyMathBlocks
+              blocks={graphBlocks}
+              onOpenGraphBlock={context.onOpenGraphBlock}
+              onSendToGraph={context.mathModules?.pushExpressionToGraph}
+            />
+          </Suspense>
         </div>
       ) : (
         <article className="simple-reference-card">

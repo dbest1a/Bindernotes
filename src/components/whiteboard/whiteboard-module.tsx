@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
-import { TriangleAlert } from "lucide-react";
+import {
+  BookOpen,
+  Calculator,
+  Home,
+  LineChart,
+  Maximize2,
+  NotebookText,
+  PanelLeftClose,
+  PanelLeftOpen,
+  TriangleAlert,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -38,6 +48,7 @@ import {
   AUTOSAVE_DEBOUNCE_MS,
   MAX_OBJECTS_WARNING,
   MAX_WHITEBOARD_DESMOS_GRAPHS,
+  MAX_WHITEBOARDS_PER_USER,
 } from "@/lib/whiteboards/whiteboard-limits";
 import {
   WHITEBOARD_LIMIT_MESSAGE,
@@ -60,6 +71,8 @@ import type {
 } from "@/lib/whiteboards/whiteboard-types";
 import {
   getDefaultWhiteboardModuleAnchorMode,
+  getWhiteboardModuleDefinition,
+  type WhiteboardModuleContextKind,
   type WhiteboardModuleDefinition,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import { mathWhiteboardTemplates } from "@/lib/whiteboards/whiteboard-templates";
@@ -170,11 +183,66 @@ function countDesmosGraphModules(modules: WhiteboardModuleElement[]) {
   return modules.filter((moduleElement) => moduleElement.moduleId === "desmos-graph").length;
 }
 
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement
+    ? Boolean(target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']"))
+    : false;
+}
+
+function getWhiteboardContextKind(context: WorkspaceModuleContext): WhiteboardModuleContextKind {
+  const subject = context.binder.subject?.toLowerCase() ?? "";
+  if (context.history?.enabled || subject.includes("history")) {
+    return "history";
+  }
+
+  if (
+    subject.includes("math") ||
+    subject.includes("geometry") ||
+    subject.includes("algebra") ||
+    subject.includes("calculus")
+  ) {
+    return "math";
+  }
+
+  return "general";
+}
+
+function getSidebarRailModuleIds(contextKind: WhiteboardModuleContextKind): Array<WhiteboardModuleElement["moduleId"]> {
+  if (contextKind === "history") {
+    return ["lesson", "private-notes", "history-timeline", "history-evidence"];
+  }
+
+  if (contextKind === "math") {
+    return ["lesson", "private-notes", "desmos-graph", "scientific-calculator"];
+  }
+
+  return ["lesson", "private-notes", "comments"];
+}
+
+const sidebarRailIcons: Partial<Record<WhiteboardModuleElement["moduleId"], typeof BookOpen>> = {
+  lesson: BookOpen,
+  "private-notes": NotebookText,
+  "desmos-graph": LineChart,
+  "scientific-calculator": Calculator,
+  comments: NotebookText,
+  "history-timeline": LineChart,
+  "history-evidence": BookOpen,
+};
+
 export function WhiteboardModule({ context, onBack, renderModule, variant = "module" }: WhiteboardModuleProps) {
   const ownerId = context.ownerId;
   const labMode = variant === "lab";
+  const compactWhiteboardTools = Boolean(context.compactWhiteboardTools);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    Boolean(compactWhiteboardTools || context.whiteboardSidebarDefaultCollapsed),
+  );
+  const [templatesOpen, setTemplatesOpen] = useState(() => !compactWhiteboardTools);
   const [browserFullscreen, setBrowserFullscreen] = useState(false);
+  const enterWhiteboardFocus = context.onEnterWhiteboardFocus;
+  const exitWhiteboardFocus = onBack ?? context.onExitWhiteboardFocus;
+  const [showFocusExitHint, setShowFocusExitHint] = useState(() => Boolean(exitWhiteboardFocus));
+  const moduleContextKind = useMemo(() => getWhiteboardContextKind(context), [context]);
   const scope = useMemo<WhiteboardScope | null>(
     () =>
       ownerId
@@ -207,6 +275,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
     defaultWhiteboardViewportTransform,
   );
+
+  useEffect(() => {
+    if (!compactWhiteboardTools) {
+      return;
+    }
+
+    setSidebarCollapsed(true);
+    setTemplatesOpen(false);
+  }, [compactWhiteboardTools]);
 
   const repairBoardModules = useCallback(
     (board: BinderWhiteboard): BinderWhiteboard => {
@@ -305,7 +382,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           });
         }
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(result.message);
+        setSaveMessage(result.backend === "supabase" ? "Loaded from Supabase" : "Local draft");
         setWarning(result.error ? result.message : null);
       });
     },
@@ -342,18 +419,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (result.boards.length > 0) {
         applyWhiteboardListResult(result.boards, boardRef.current?.id);
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(result.message);
+        setSaveMessage(result.backend === "supabase" ? "Loaded from Supabase" : "Local draft");
       } else if (!currentBoard) {
         applyWhiteboardListResult([], undefined);
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(result.backend === "supabase" ? "Supabase ready" : result.message);
+        setSaveMessage(result.backend === "supabase" ? "Loaded from Supabase" : "Local draft");
       } else {
         setBoards((currentBoards) => {
           const withoutCurrent = currentBoards.filter((candidate) => candidate.id !== currentBoard.id);
           return [currentBoard, ...withoutCurrent].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
         });
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(result.message);
+        setSaveMessage(result.backend === "supabase" ? "Loaded from Supabase" : "Local draft");
       }
       if (result.error && result.backend === "local") {
         setWarning(result.message);
@@ -379,6 +456,34 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     [],
   );
 
+  useEffect(() => {
+    if (!exitWhiteboardFocus) {
+      setShowFocusExitHint(false);
+      return;
+    }
+
+    setShowFocusExitHint(true);
+    const timeout = window.setTimeout(() => setShowFocusExitHint(false), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [exitWhiteboardFocus]);
+
+  useEffect(() => {
+    if (!exitWhiteboardFocus) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      exitWhiteboardFocus();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [exitWhiteboardFocus]);
+
   const persistBoard = useCallback(
     (board: BinderWhiteboard) => {
       try {
@@ -397,7 +502,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             boardRef.current = nextBoard;
             rememberBoardPinnedGeometry(nextBoard.modules);
             setSaveStatus(mapSaveResultStatus(result.status));
-            setSaveMessage(result.message);
+            setSaveMessage(result.status === "saved" ? "Saved" : result.message);
             if (result.status !== "saved") {
               setWarning(result.message);
             } else {
@@ -582,7 +687,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         boardRef.current = repaired;
         rememberBoardPinnedGeometry(repaired.modules);
         setSaveStatus(repaired.storageMode === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(repaired.storageMode === "supabase" ? "Saved to Supabase" : "Local draft");
+        setSaveMessage(repaired.storageMode === "supabase" ? "Loaded from Supabase" : "Local draft");
       }
       void loadWhiteboard(scope, boardId).then((result) => {
         const remoteLoaded = result.boards[0];
@@ -596,7 +701,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         boardRef.current = nextBoard;
         rememberBoardPinnedGeometry(nextBoard.modules);
         setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(result.message);
+        setSaveMessage(result.backend === "supabase" ? "Loaded from Supabase" : "Local draft");
       });
     },
     [boards, handleViewportChange, rememberBoardPinnedGeometry, repairBoardModules, scope],
@@ -876,6 +981,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );
 
+  const addModuleById = useCallback(
+    (moduleId: WhiteboardModuleElement["moduleId"]) => {
+      const definition = getWhiteboardModuleDefinition(moduleId);
+      if (!definition) {
+        return;
+      }
+
+      addModule(definition);
+    },
+    [addModule],
+  );
+
   const addLinkedModule = useCallback(
     (patch: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">) => {
       const current = boardRef.current;
@@ -973,6 +1090,28 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       >
         {activeBoard ? (
           <>
+            {exitWhiteboardFocus ? (
+              <Button
+                className="whiteboard-focus-exit whiteboard-focus-exit--floating pointer-events-auto fixed bottom-4 left-1/2 z-[160] -translate-x-1/2"
+                data-testid="whiteboard-focus-exit"
+                onClick={exitWhiteboardFocus}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                <Home className="size-4" />
+                Back to workspace
+              </Button>
+            ) : null}
+            {showFocusExitHint ? (
+              <div
+                className="whiteboard-focus-exit-hint pointer-events-none fixed left-1/2 top-16 z-[160] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-popover/95 px-4 py-3 text-center text-sm text-popover-foreground shadow-xl"
+                data-testid="whiteboard-focus-exit-hint"
+                role="status"
+              >
+                Whiteboard focus is on. Use Back to workspace or Esc to return to your menus.
+              </div>
+            ) : null}
             <WhiteboardCanvas
               board={activeBoard}
               fullscreen
@@ -1006,9 +1145,10 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               browserFullscreen={browserFullscreen}
               boards={boards}
               drawerOpen={drawerOpen}
+              moduleContextKind={moduleContextKind}
               onAddModule={addModule}
               onArchiveBoard={archiveBoardById}
-              onBack={onBack}
+              onBack={exitWhiteboardFocus}
               onCreateBoard={createBlankBoard}
               onDrawerOpenChange={setDrawerOpen}
               onSaveNow={saveLatestBoard}
@@ -1146,27 +1286,181 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       description="Local review draft with graph-paper drawing and live BinderNotes modules"
       title="Math Whiteboard"
     >
-      <div className="whiteboard-module-layout grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
-        <aside className="grid min-h-0 content-start gap-3 overflow-auto rounded-xl border border-border/70 bg-background/60 p-3">
+      <div
+        className={`whiteboard-module-layout grid h-full min-h-0 gap-3 ${sidebarCollapsed ? "whiteboard-module-layout--sidebar-collapsed" : ""}`}
+        data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}
+        data-whiteboard-performance-shell="true"
+        data-whiteboard-sidebar={sidebarCollapsed ? "collapsed" : "expanded"}
+      >
+        {sidebarCollapsed ? (
+          <aside
+            className="whiteboard-module-sidebar-rail flex min-h-0 flex-col items-center gap-2 rounded-xl border border-border/70 bg-background/70 p-2"
+            data-testid="whiteboard-sidebar-rail"
+          >
+            {exitWhiteboardFocus ? (
+              <Button
+                aria-label="Back to workspace"
+                className="whiteboard-focus-exit"
+                data-testid="whiteboard-focus-exit"
+                onClick={exitWhiteboardFocus}
+                size="icon"
+                type="button"
+                variant="secondary"
+              >
+                <Home className="size-4" />
+              </Button>
+            ) : null}
+            {!exitWhiteboardFocus && enterWhiteboardFocus ? (
+              <Button
+                aria-label="Open full board"
+                data-testid="whiteboard-enter-focus"
+                onClick={enterWhiteboardFocus}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <Maximize2 className="size-4" />
+              </Button>
+            ) : null}
+            <Button
+              aria-label="Expand toolbox"
+              data-testid="whiteboard-sidebar-expand"
+              onClick={() => setSidebarCollapsed(false)}
+              size={compactWhiteboardTools ? "sm" : "icon"}
+              type="button"
+              variant="ghost"
+            >
+              <PanelLeftOpen className="size-4" />
+              {compactWhiteboardTools ? <span className="sr-only sm:not-sr-only">Expand toolbox</span> : null}
+            </Button>
+            <span className="writing-mode-vertical text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Modules
+            </span>
+            <div className="mt-1 grid gap-1">
+              {getSidebarRailModuleIds(moduleContextKind).map((moduleId) => {
+                const definition = getWhiteboardModuleDefinition(moduleId);
+                if (!definition) {
+                  return null;
+                }
+                const Icon = sidebarRailIcons[moduleId] ?? BookOpen;
+                return (
+                  <Button
+                    aria-label={`Open ${definition.label}`}
+                    data-testid={`whiteboard-sidebar-rail-${moduleId}`}
+                    key={moduleId}
+                    onClick={() => addModuleById(moduleId)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Icon className="size-4" />
+                  </Button>
+                );
+              })}
+            </div>
+          </aside>
+        ) : (
+        <aside
+          className={`whiteboard-module-sidebar grid min-h-0 content-start gap-3 rounded-xl border border-border/70 bg-background/60 p-3 ${compactWhiteboardTools ? "whiteboard-module-sidebar--compact overflow-hidden" : "overflow-auto"}`}
+          data-testid="whiteboard-sidebar"
+        >
           <div>
             <div className="flex items-center justify-between gap-2">
               <Badge variant="outline">Local draft</Badge>
-              <Badge variant="secondary">Math</Badge>
+              <div className="flex items-center gap-1">
+                {exitWhiteboardFocus ? (
+                  <Button
+                    aria-label="Back to workspace"
+                    className="whiteboard-focus-exit"
+                    data-testid="whiteboard-focus-exit"
+                    onClick={exitWhiteboardFocus}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    <Home className="size-4" />
+                    Back
+                  </Button>
+                ) : null}
+                {!exitWhiteboardFocus && enterWhiteboardFocus ? (
+                  <Button
+                    aria-label="Open full board"
+                    data-testid="whiteboard-enter-focus"
+                    onClick={enterWhiteboardFocus}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Maximize2 className="size-4" />
+                    Full board
+                  </Button>
+                ) : null}
+                <Badge variant="secondary">{context.binder.subject ?? "Workspace"}</Badge>
+                <Button
+                  aria-label="Collapse toolbox"
+                  data-testid="whiteboard-sidebar-collapse"
+                  onClick={() => setSidebarCollapsed(true)}
+                  size={compactWhiteboardTools ? "sm" : "icon"}
+                  type="button"
+                  variant="ghost"
+                >
+                  <PanelLeftClose className="size-4" />
+                  {compactWhiteboardTools ? <span>Collapse toolbox</span> : null}
+                </Button>
+              </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Draw, organize math work, and open live BinderNotes modules on top of the board. Remote Supabase storage is prepared for a later approved migration.
+              {compactWhiteboardTools
+                ? "Board first. Open templates or modules only when you need them."
+                : "Keep the board beside your lesson, notes, and live tools while you work."}
             </p>
           </div>
           <WhiteboardBoardList
             activeBoardId={activeBoard?.id ?? null}
             boards={boards}
+            compact={compactWhiteboardTools}
             onArchiveBoard={archiveBoardById}
+            onCreateBlankBoard={compactWhiteboardTools ? createBlankBoard : undefined}
             onSelectBoard={selectBoard}
+            showLimitStatus={saveStatus === "limit" || (compactWhiteboardTools && templatesOpen && boards.length >= MAX_WHITEBOARDS_PER_USER)}
           />
-          <WhiteboardTemplatePicker onCreateFromTemplate={createBoardFromTemplate} />
+          <WhiteboardTemplatePicker
+            compact={compactWhiteboardTools}
+            onCreateFromTemplate={createBoardFromTemplate}
+            onOpenChange={setTemplatesOpen}
+            open={templatesOpen}
+            templates={templatesOpen ? mathWhiteboardTemplates : []}
+          />
+          <section className="whiteboard-sidebar-modules rounded-xl border border-border/70 bg-card/45 p-3" aria-label="Whiteboard modules">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Modules</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Open notes, source, graph, calculator, or history tools without leaving the board.
+                </p>
+              </div>
+            </div>
+            <WhiteboardModuleLauncher
+              compact={compactWhiteboardTools}
+              contextKind={moduleContextKind}
+              defaultOpen={!compactWhiteboardTools}
+              onAddModule={addModule}
+              placement="panel"
+            />
+          </section>
         </aside>
+        )}
 
         <div className="whiteboard-module-surface relative h-full min-h-0 overflow-hidden rounded-xl border border-border/70 bg-[#10131a]">
+          {showFocusExitHint ? (
+            <div
+              className="whiteboard-focus-exit-hint pointer-events-none absolute left-1/2 top-3 z-[160] w-[min(24rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg border border-border bg-popover/95 px-3 py-2 text-center text-xs font-medium text-popover-foreground shadow-xl"
+              data-testid="whiteboard-focus-exit-hint"
+              role="status"
+            >
+              Whiteboard focus is on. Use Back to workspace or Esc to return to your menus.
+            </div>
+          ) : null}
           {activeBoard ? (
             <div className="whiteboard-module-board relative h-full min-h-0 min-w-0 overflow-hidden">
               <WhiteboardCanvas
@@ -1202,7 +1496,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 title={activeBoard.title}
                 warning={warning}
               />
-              <WhiteboardModuleLauncher onAddModule={addModule} />
+              <WhiteboardModuleLauncher compact={compactWhiteboardTools} contextKind={moduleContextKind} onAddModule={addModule} />
             </div>
           ) : (
             <div className="grid h-full min-h-[24rem] place-items-center p-6">

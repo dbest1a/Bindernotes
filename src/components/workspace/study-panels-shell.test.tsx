@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StudyPanelsShell } from "@/components/workspace/study-panels-shell";
 import {
@@ -23,16 +23,69 @@ vi.mock("@/components/workspace/workspace-modules", () => {
       "private-notes": module("Private notes", "Notes body"),
       "recent-highlights": module("Highlights", "Highlights body"),
       comments: module("Sticky notes", "Sticky notes body"),
+      flashcards: module("Recall Lab", "Recall Lab body"),
       "lesson-outline": module("Lesson outline", "Outline body"),
       search: module("Search", "Search body"),
-      "desmos-graph": module("Desmos graph", "Graph body"),
+      "desmos-graph": {
+        title: "Desmos graph",
+        render: (context: { graphKeypad?: boolean }) => (
+          <section data-graph-keypad={context.graphKeypad === false ? "hidden" : "visible"} data-testid="desmos-graph-module">
+            Graph body
+            {context.graphKeypad === false ? null : <span>Full graph keypad</span>}
+          </section>
+        ),
+      },
       "formula-sheet": module("Formula sheet", "Formula body"),
       "scientific-calculator": module("Scientific calculator", "Calculator body"),
       "saved-graphs": module("Saved graphs", "Saved graphs body"),
-      whiteboard: module("Whiteboard", "Whiteboard body"),
+      whiteboard: {
+        title: "Whiteboard",
+        render: (context: { onExitWhiteboardFocus?: () => void; whiteboardSidebarDefaultCollapsed?: boolean }) => (
+          <section
+            data-testid="whiteboard-module"
+            data-whiteboard-default-sidebar={context.whiteboardSidebarDefaultCollapsed ? "rail" : "expanded"}
+          >
+            Whiteboard body
+            {context.onExitWhiteboardFocus ? (
+              <button onClick={context.onExitWhiteboardFocus} type="button">
+                Back to workspace
+              </button>
+            ) : null}
+          </section>
+        ),
+      },
       "history-timeline": module("Timeline", "Timeline body"),
       "history-evidence": module("Evidence", "Evidence body"),
       "history-argument": module("Argument", "Argument body"),
+      "chem-concept-cards": module("Chemistry concept cards", "Concept cards body"),
+      "chem-lab-coach": module("Chemistry Lab Coach", "Lab Coach body"),
+      "chem-quick-tools": module("Chemistry quick tools", "Quick tools body"),
+      "chem-periodic-table": module("Interactive periodic table", "Periodic table body"),
+      "chem-element-builder": module("Element builder", "Element builder body"),
+      "chem-electron-config-builder": module("Electron configuration builder", "Electron config body"),
+      "chem-periodic-trends-graph": module("Periodic trends graph", "Trends graph body"),
+      "chem-molecule-builder": module("Molecule / Lewis builder", "Molecule builder body"),
+      "chem-geometry-viewer": module("Geometry viewer", "Geometry body"),
+      "chem-reaction-balancer": module("Reaction balancer", "Reaction balancer body"),
+      "chem-tri-reaction-view": module("Tri-representation reaction view", "Reaction view body"),
+      "chem-stoichiometry-coach": module("Chemistry Stoichiometry Coach", "Stoichiometry body"),
+      "chem-molar-mass-calculator": module("Molar mass calculator", "Molar mass body"),
+      "chem-solution-mixer": module("Solution mixer", "Solution mixer body"),
+      "chem-molarity-calculator": module("Molarity calculator", "Molarity body"),
+      "chem-desmos-concentration-graph": module("Desmos concentration graph", "Concentration graph body"),
+      "chem-ph-calculator": module("pH calculator", "pH calculator body"),
+      "chem-titration-lab": module("Acid-base titration lab", "Titration lab body"),
+      "chem-desmos-titration-curve": module("Desmos titration curve", "Titration curve body"),
+      "chem-kinetics-simulator": module("Kinetics simulator", "Kinetics body"),
+      "chem-desmos-kinetics-plot": module("Desmos kinetics plot", "Kinetics graph body"),
+      "chem-data-table": module("Chemistry data table", "Data table body"),
+      "chem-calorimetry-lab": module("Calorimetry lab", "Calorimetry body"),
+      "chem-energy-diagram": module("Energy diagram", "Energy diagram body"),
+      "chem-calculation-sheet": module("Calculation sheet", "Calculation body"),
+      "chem-safety-cards": module("Safety cards", "Safety body"),
+      "chem-review-queue": module("Chemistry review queue", "Review queue body"),
+      "chem-lab-notebook": module("Chemistry lab notebook", "Lab notebook body"),
+      "chem-reference-safety": module("Chemistry reference", "Reference body"),
     },
   };
 });
@@ -59,15 +112,24 @@ afterEach(() => {
 });
 
 function renderStudyPanelsShell(
-  preferenceOverrides: Partial<WorkspacePreferences> = {},
+  preferenceOverrides: Partial<Omit<WorkspacePreferences, "modular">> & {
+    modular?: Partial<WorkspacePreferences["modular"]>;
+  } = {},
   contextOverrides: Partial<WorkspaceModuleContext> = {},
 ) {
   const base = createDefaultWorkspacePreferences("user-1", "binder-1");
-  const preferences: WorkspacePreferences = {
+  const basePreferences: WorkspacePreferences = {
     ...applyWorkspaceMode(applyPreset(base, "split-study"), "modular"),
     enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet", "recent-highlights"],
     styleChoiceCompleted: true,
+  };
+  const preferences: WorkspacePreferences = {
+    ...basePreferences,
     ...preferenceOverrides,
+    modular: {
+      ...basePreferences.modular,
+      ...preferenceOverrides.modular,
+    },
   };
   const context = {
     binder: {
@@ -88,11 +150,15 @@ function renderStudyPanelsShell(
     history: {
       enabled: false,
     },
+    ownerId: "user-1",
     noteSaveLabel: "Saved to account",
     onApplyPreset: vi.fn(),
     onEnterNotebookFocus: vi.fn(),
+    onCreateQuoteExcerpt: vi.fn(),
+    onPrepareComment: vi.fn(),
     onSaveNoteNow: vi.fn(),
     onSelectLesson: vi.fn(),
+    onSendSelectionToNotes: vi.fn(),
     ...contextOverrides,
   } as unknown as WorkspaceModuleContext;
   const callbacks = {
@@ -124,6 +190,8 @@ describe("StudyPanelsShell", () => {
     const { container } = renderStudyPanelsShell();
 
     expect(screen.getByTestId("study-panels-shell")).toBeTruthy();
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe("hidden");
+    expect(screen.queryByLabelText(/study panel presets/i)).toBeNull();
     expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
     expect(screen.getByText("Lesson body")).toBeTruthy();
     expect(screen.getByText("Notes body")).toBeTruthy();
@@ -204,5 +272,547 @@ describe("StudyPanelsShell", () => {
       "scientific-calculator",
     );
     expect(screen.getByText("Calculator body")).toBeTruthy();
+  });
+
+  it("opens the study tools drawer from the Tools tab as well as the header button", () => {
+    const { container } = renderStudyPanelsShell();
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+
+    expect(screen.getByLabelText(/study tools/i)).toBeTruthy();
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBeTruthy();
+  });
+
+  it("routes every top Study Panels mode to a visible surface instead of a decorative active state", () => {
+    const { container } = renderStudyPanelsShell();
+
+    fireEvent.click(screen.getByRole("tab", { name: /notes/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "private-notes",
+    );
+    expect(screen.getByText("Notes body")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /highlights/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "recent-highlights",
+    );
+    expect(screen.getByText("Highlights body")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+    expect(screen.getByLabelText(/study tools/i)).toBeTruthy();
+    expect(screen.getByTestId("study-tool-preview-private-notes")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /lesson/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(screen.getByText("Lesson body")).toBeTruthy();
+  });
+
+  it("renders subject-aware math tool preview cards and opens only the selected tool", () => {
+    const { container } = renderStudyPanelsShell();
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+
+    const desmosCard = screen.getByTestId("study-tool-preview-desmos-graph");
+    expect(desmosCard.textContent).toContain("Graph equations and compare functions.");
+    expect(screen.getByTestId("study-tool-preview-formula-sheet")).toBeTruthy();
+    expect(screen.getByTestId("study-tool-preview-scientific-calculator")).toBeTruthy();
+    expect(screen.queryByText("Graph body")).toBeNull();
+
+    fireEvent.click(within(desmosCard).getByRole("button", { name: /open desmos graph/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBe(
+      "desmos-graph",
+    );
+    expect(screen.getByText("Graph body")).toBeTruthy();
+  });
+
+  it("uses history context to show history preview cards with real launch actions", () => {
+    const { container } = renderStudyPanelsShell(
+      {
+        preset: "history-source-evidence",
+        enabledModules: ["lesson", "private-notes", "history-timeline", "history-evidence", "history-argument"],
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "World History",
+          subject: "History",
+        } as WorkspaceModuleContext["binder"],
+        history: {
+          enabled: true,
+        } as WorkspaceModuleContext["history"],
+      },
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+
+    const timelineCard = screen.getByTestId("study-tool-preview-history-timeline");
+    expect(timelineCard.textContent).toContain("Place events in order and connect cause/effect.");
+    expect(screen.getByTestId("study-tool-preview-history-evidence")).toBeTruthy();
+    expect(screen.getByTestId("study-tool-preview-history-argument")).toBeTruthy();
+
+    fireEvent.click(within(timelineCard).getByRole("button", { name: /open timeline/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBe(
+      "history-timeline",
+    );
+    expect(screen.getByText("Timeline body")).toBeTruthy();
+  });
+
+  it("keeps unfinished chemistry preview tools behind Beta Features while leaving stable tools available", () => {
+    renderStudyPanelsShell(
+      {
+        ...applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "chem-guided-study"),
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "chem-quick-tools",
+          "chem-lab-coach",
+          "chem-periodic-table",
+          "chem-titration-lab",
+          "chem-reference-safety",
+        ],
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "Chemistry binder",
+          subject: "Chemistry",
+        } as WorkspaceModuleContext["binder"],
+      },
+    );
+
+    fireEvent.click(
+      within(screen.getByRole("tablist", { name: /study panel modules/i })).getByRole("tab", {
+        name: /^ToolsExtra$/i,
+      }),
+    );
+
+    expect(screen.getByTestId("study-tool-preview-chem-reference-safety")).toBeTruthy();
+    expect(screen.queryByTestId("study-tool-preview-chem-lab-coach")).toBeNull();
+    expect(screen.queryByTestId("study-tool-preview-chem-periodic-table")).toBeNull();
+    expect(screen.queryByTestId("study-tool-preview-chem-titration-lab")).toBeNull();
+  });
+
+  it("shows beta chemistry tool previews with beta badges when Beta Features is enabled", () => {
+    window.localStorage.setItem("bindernotes:beta-features:user-1", JSON.stringify({ enabled: true }));
+
+    renderStudyPanelsShell(
+      {
+        ...applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "chem-guided-study"),
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "chem-quick-tools",
+          "chem-lab-coach",
+          "chem-periodic-table",
+          "chem-titration-lab",
+          "chem-reference-safety",
+        ],
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "Chemistry binder",
+          subject: "Chemistry",
+        } as WorkspaceModuleContext["binder"],
+      },
+    );
+
+    fireEvent.click(
+      within(screen.getByRole("tablist", { name: /study panel modules/i })).getByRole("tab", {
+        name: /^ToolsExtra$/i,
+      }),
+    );
+
+    const labCoachCard = screen.getByTestId("study-tool-preview-chem-lab-coach");
+    expect(labCoachCard.textContent).toContain("Chemistry Lab Coach");
+    expect(labCoachCard.textContent).toContain("Beta");
+    fireEvent.click(within(labCoachCard).getByRole("button", { name: /open chemistry lab coach/i }));
+    expect(screen.getByText("Lab Coach body")).toBeTruthy();
+
+    const elementCard = screen.getByTestId("study-tool-preview-chem-periodic-table");
+    expect(elementCard.textContent).toContain("Element Explorer");
+    expect(elementCard.textContent).toContain("Beta");
+    expect(screen.getByTestId("study-tool-preview-chem-titration-lab").textContent).toContain("Titration Lab");
+  });
+
+  it("keeps Recall Lab hidden until its beta flag is enabled", () => {
+    renderStudyPanelsShell();
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+
+    expect(screen.queryByTestId("study-tool-preview-flashcards")).toBeNull();
+  });
+
+  it("shows Recall Lab preview and opens the real module when its beta flag is enabled", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, recallLab: true }),
+    );
+    const { container } = renderStudyPanelsShell({
+      enabledModules: ["lesson", "private-notes", "flashcards", "recent-highlights"],
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+
+    const recallCard = screen.getByTestId("study-tool-preview-flashcards");
+    expect(recallCard.textContent).toContain("Recall Lab");
+    expect(recallCard.textContent).toContain("source-linked recall cards");
+
+    fireEvent.click(within(recallCard).getByRole("button", { name: /open recall lab/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBe(
+      "flashcards",
+    );
+    expect(screen.getByText("Recall Lab body")).toBeTruthy();
+  });
+
+  it("uses Chem Guided Study and Element Explorer chips to focus real beta chemistry surfaces", () => {
+    window.localStorage.setItem("bindernotes:beta-features:user-1", JSON.stringify({ enabled: true }));
+    const { container, context } = renderStudyPanelsShell(
+      {
+        preset: "split-study",
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "chem-lab-coach",
+          "chem-quick-tools",
+          "chem-periodic-table",
+          "chem-element-builder",
+          "chem-periodic-trends-graph",
+        ],
+        modular: {
+          showSecondaryPresetStrip: true,
+        },
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "Chemistry binder",
+          subject: "Chemistry",
+        } as WorkspaceModuleContext["binder"],
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /chem guided study/i }));
+
+    expect(context.onApplyPreset).toHaveBeenCalledWith("chem-guided-study");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "chem-lab-coach",
+    );
+    expect(screen.getByText("Lab Coach body")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /element explorer/i }));
+
+    expect(context.onApplyPreset).toHaveBeenCalledWith("chem-element-explorer");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "chem-periodic-table",
+    );
+    expect(screen.getByText("Periodic table body")).toBeTruthy();
+  });
+
+  it("shows guided Split Study actions that call existing note and sticky handlers", () => {
+    const { context } = renderStudyPanelsShell({
+      preset: "split-study",
+    });
+
+    expect(screen.getByRole("region", { name: /guided split study actions/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /quote to note/i }));
+    expect(context.onCreateQuoteExcerpt).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /pin question/i }));
+    expect(context.onPrepareComment).toHaveBeenCalledWith("Question to revisit");
+
+    fireEvent.click(screen.getByRole("button", { name: /send highlight to notes/i }));
+    expect(context.onSendSelectionToNotes).toHaveBeenCalled();
+  });
+
+  it("re-centers the active surface when the current Study Panels preset chip is clicked", () => {
+    const { container } = renderStudyPanelsShell({
+      modular: {
+        showSecondaryPresetStrip: true,
+      },
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: /notes/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "private-notes",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^split study$/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(screen.getByRole("status").textContent).toContain("Split Study is already active");
+  });
+
+  it("shows the secondary preset strip only when the workspace preference is enabled", () => {
+    const { unmount } = renderStudyPanelsShell();
+
+    expect(screen.queryByLabelText(/study panel presets/i)).toBeNull();
+    unmount();
+
+    renderStudyPanelsShell({
+      modular: {
+        showSecondaryPresetStrip: true,
+      },
+    });
+
+    const presetStrip = screen.getByLabelText(/study panel presets/i);
+    expect(presetStrip).toBeTruthy();
+    expect(within(presetStrip).getByRole("button", { name: /^split study$/i })).toBeTruthy();
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe("visible");
+  });
+
+  it("lets focus mode stretch the active module across the full single-panel stage", () => {
+    const { context, preferences, unmount } = renderStudyPanelsShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet"],
+    });
+    unmount();
+
+    render(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive
+        isCompact={false}
+        onChangeMode={vi.fn()}
+        onOpenSettings={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /board/i }));
+
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-focus-mode-active")).toBe("true");
+    expect(screen.getByText("Whiteboard body")).toBeTruthy();
+    expect(document.querySelector(".study-panels-single > .study-panels-card")).toBeTruthy();
+  });
+
+  it("gives the focused whiteboard a real back control that exits focus mode", () => {
+    const { context, preferences, unmount } = renderStudyPanelsShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet"],
+    });
+    unmount();
+
+    const onToggleFocus = vi.fn();
+    render(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive
+        isCompact={false}
+        onChangeMode={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onToggleFocus={onToggleFocus}
+        preferences={preferences}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /board/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back to workspace/i }));
+
+    expect(onToggleFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("changes the visible surface when the selected preset changes", async () => {
+    const { callbacks, container, context, preferences, rerender } = renderStudyPanelsShell();
+
+    fireEvent.click(screen.getByRole("tab", { name: /notes/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "private-notes",
+    );
+
+    rerender(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive={false}
+        isCompact={false}
+        onChangeMode={callbacks.onChangeMode}
+        onCreateSticky={callbacks.onCreateSticky}
+        onOpenSettings={callbacks.onOpenSettings}
+        onToggleFocus={callbacks.onToggleFocus}
+        preferences={applyPreset(preferences, "math-graph-lab")}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+        "desmos-graph",
+      );
+    });
+  });
+
+  it("gives chemistry presets real chemistry tabs and jumps Element Explorer to the periodic table", async () => {
+    const chemistryEnabled = [
+      "lesson",
+      "private-notes",
+      "recent-highlights",
+      "chem-concept-cards",
+      "chem-quick-tools",
+      "chem-periodic-table",
+      "chem-element-builder",
+      "chem-periodic-trends-graph",
+      "chem-electron-config-builder",
+    ] as WorkspacePreferences["enabledModules"];
+    const { callbacks, container, context, preferences, rerender } = renderStudyPanelsShell(
+      {
+        ...applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "chem-guided-study"),
+        enabledModules: chemistryEnabled,
+        workspacePresentationMode: "facelift",
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "Chemistry binder",
+          subject: "Chemistry",
+        } as WorkspaceModuleContext["binder"],
+      },
+    );
+
+    expect(screen.getByRole("tab", { name: /concepts/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /quick/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: /notes/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "private-notes",
+    );
+
+    rerender(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive={false}
+        isCompact={false}
+        onChangeMode={callbacks.onChangeMode}
+        onCreateSticky={callbacks.onCreateSticky}
+        onOpenSettings={callbacks.onOpenSettings}
+        onToggleFocus={callbacks.onToggleFocus}
+        preferences={{
+          ...applyPreset(preferences, "chem-element-explorer"),
+          enabledModules: chemistryEnabled,
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+        "chem-periodic-table",
+      );
+    });
+    expect(screen.getByRole("tab", { name: /^TableElements$/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /^ElementBuild$/i })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /^TrendsGraph$/i })).toBeTruthy();
+    expect(screen.getByText("Periodic table body")).toBeTruthy();
+  });
+
+  it("keeps classic Study Panels rendering when Study Panels v2 is off", () => {
+    const { container } = renderStudyPanelsShell();
+
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-study-panels-v2")).toBe("false");
+    expect(screen.getByRole("tab", { name: /lesson/i }).textContent).toContain("Read");
+    expect(container.querySelector("[data-study-panel-secondary-toggle]")).toBeNull();
+  });
+
+  it("enables slimmer Study Panels v2 tabs and per-tab secondary controls only when the beta flag is on", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    const { container } = renderStudyPanelsShell();
+    const shell = screen.getByTestId("study-panels-shell");
+
+    expect(shell.getAttribute("data-study-panels-v2")).toBe("true");
+    expect(shell.getAttribute("data-study-panels-tab-strip")).toBe("visible");
+    expect(screen.getByRole("tab", { name: /^lesson$/i })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /lesson read/i })).toBeNull();
+    expect(container.querySelector("[data-study-panel-secondary-toggle]")).toBeTruthy();
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "private-notes",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /hide secondary panel for lesson/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-secondary-panel-hidden")).toBe(
+      "true",
+    );
+    expect(screen.queryByText("Notes body")).toBeNull();
+    expect(screen.getByRole("button", { name: /show secondary panel for lesson/i })).toBeTruthy();
+  });
+
+  it("uses v2 tab hierarchy so lesson, notes, graph, and board get focused primary surfaces", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    const { container } = renderStudyPanelsShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: /^notes$/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "private-notes",
+    );
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe("lesson");
+
+    fireEvent.click(screen.getByRole("tab", { name: /^graph$/i }));
+    expect(screen.getByTestId("desmos-graph-module").getAttribute("data-graph-keypad")).toBe("hidden");
+    expect(screen.queryByText("Full graph keypad")).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: /^board$/i }));
+    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe("rail");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "whiteboard",
+    );
+  });
+
+  it("renames the Tools tab, avoids repeated source content, and disables selection actions until text is selected in v2", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    renderStudyPanelsShell();
+
+    expect(screen.getByRole("tab", { name: /extras/i })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /^tools$/i })).toBeNull();
+    expect((screen.getByRole("button", { name: /quote to note/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /send highlight to notes/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /highlights/i }));
+
+    expect(screen.getByText("Highlights body")).toBeTruthy();
+    expect(screen.queryByText("Lesson body")).toBeNull();
+  });
+
+  it("persists Study Panels v2 split widths separately for each tab", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    window.localStorage.setItem(
+      "bindernotes.study-panels.layout:binder-1:lesson-1:lesson",
+      JSON.stringify({ primary: 68, secondary: 32 }),
+    );
+    window.localStorage.setItem(
+      "bindernotes.study-panels.layout:binder-1:lesson-1:notes",
+      JSON.stringify({ primary: 72, secondary: 28 }),
+    );
+    const { container } = renderStudyPanelsShell();
+
+    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe("68/32");
+
+    fireEvent.click(screen.getByRole("tab", { name: /^notes$/i }));
+
+    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe("72/28");
+    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-storage-key")).toContain(
+      ":notes",
+    );
   });
 });

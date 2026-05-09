@@ -21,14 +21,14 @@ import {
   getWorkspaceModuleMinimumSize,
   type WorkspaceSnapGuide,
 } from "@/lib/workspace-layout-engine";
-import { buildFaceliftPresetFrames } from "@/lib/workspace-preset-designs";
 import { resolveVerticalWorkspaceMetrics } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
-import type { WorkspaceModuleId, WorkspacePreferences, WorkspaceWindowFrame } from "@/types";
+import type { WorkspaceModuleId, WorkspacePreferences, WorkspacePresetId, WorkspaceWindowFrame } from "@/types";
 
 const EDIT_LAYOUT_HINT_DURATION_MS = 30_000;
 
 export function WindowedWorkspace({
+  canvasStarterLayouts = false,
   context,
   mode,
   preferences,
@@ -38,13 +38,19 @@ export function WindowedWorkspace({
   onOpenModule,
   onToggleCollapsed,
 }: {
+  canvasStarterLayouts?: boolean;
   context: WorkspaceModuleContext;
+  layoutScope?: "global" | "binder" | "lesson";
   mode: "study" | "setup";
+  onApplyStarterPreset?: (presetId: WorkspacePresetId) => void;
+  onBackToSimple?: () => void;
   preferences: WorkspacePreferences;
   onCanvasHeightChange?: (canvasHeight: number) => void;
   onCommitFrame: (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => void;
   onFitViewport: (viewport: { width: number; height: number }) => void;
   onOpenModule?: (moduleId: WorkspaceModuleId) => void;
+  onResetLayout?: () => void;
+  onResetView?: () => void;
   onToggleCollapsed: (moduleId: WorkspaceModuleId, collapsed: boolean) => void;
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -110,19 +116,6 @@ export function WindowedWorkspace({
 
   const shouldLockSplitCanvasToViewport =
     mode === "study" && preferences.locked && preferences.preset === "split-study";
-  const shouldUseFaceliftViewportLayout =
-    isFaceliftCanvas &&
-    mode === "study" &&
-    preferences.locked &&
-    viewportSize.width > 0 &&
-    viewportSize.height > 0;
-  const faceliftViewportLayout = useMemo(
-    () =>
-      shouldUseFaceliftViewportLayout
-        ? buildFaceliftPresetFrames(preferences.preset, viewportSize)
-        : null,
-    [preferences.preset, shouldUseFaceliftViewportLayout, viewportSize],
-  );
   const splitStudyViewportLayout = useMemo(
     () =>
       shouldLockSplitCanvasToViewport && viewportSize.width > 0 && viewportSize.height > 0
@@ -132,10 +125,9 @@ export function WindowedWorkspace({
   );
   const getRenderFrame = useCallback(
     (moduleId: WorkspaceModuleId) =>
-      faceliftViewportLayout?.[moduleId] ??
       splitStudyViewportLayout?.[moduleId] ??
       preferences.windowLayout[moduleId],
-    [faceliftViewportLayout, preferences.windowLayout, splitStudyViewportLayout],
+    [preferences.windowLayout, splitStudyViewportLayout],
   );
 
   const visibleModules = useMemo(
@@ -157,6 +149,17 @@ export function WindowedWorkspace({
   const allModuleIds = useMemo(
     () => Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[],
     [],
+  );
+  const isJacobMathCanvasContext = useMemo(
+    () => canvasStarterLayouts && isJacobMathContext(context),
+    [canvasStarterLayouts, context],
+  );
+  const launcherModuleIds = useMemo(
+    () =>
+      isJacobMathCanvasContext
+        ? allModuleIds.filter((moduleId) => !isIrrelevantJacobMathModule(moduleId))
+        : allModuleIds,
+    [allModuleIds, isJacobMathCanvasContext],
   );
   const showCollapsedWindowTray =
     collapsedModules.length > 0 && !preferences.theme.focusMode && !isFaceliftCanvas;
@@ -198,7 +201,7 @@ export function WindowedWorkspace({
     preferences.theme.verticalSpace,
     viewportSize.height,
   );
-  const shouldLockCanvasToViewport = shouldLockSplitCanvasToViewport || shouldUseFaceliftViewportLayout;
+  const shouldLockCanvasToViewport = shouldLockSplitCanvasToViewport;
   const canvasWidth = shouldLockCanvasToViewport
     ? Math.max(viewportSize.width > 0 ? viewportSize.width : 0, frameBounds.maxX)
     : Math.max(
@@ -366,6 +369,7 @@ export function WindowedWorkspace({
       data-workspace-snap-mode={snapBehavior}
       data-workspace-focus-mode={preferences.theme.focusMode ? "on" : "off"}
       data-workspace-edit-hints={showEditHints ? "on" : "off"}
+      data-canvas-starter-layouts={canvasStarterLayouts ? "true" : "false"}
     >
       {mode === "setup" && preferences.theme.showUtilityUi ? (
         <section className="workspace-layout-builder-panel" aria-label="Edit layout module launcher">
@@ -379,7 +383,7 @@ export function WindowedWorkspace({
               </p>
             </div>
             <div className="workspace-layout-builder-panel__modules">
-              {allModuleIds.map((moduleId) => {
+              {launcherModuleIds.map((moduleId) => {
                 const module = workspaceModuleRegistry[moduleId];
                 const enabled = preferences.enabledModules.includes(moduleId);
                 const collapsed = collapsedModules.includes(moduleId);
@@ -728,4 +732,21 @@ function createSplitStudyViewportLayout(
       z: frames["private-notes"]?.z ?? 2,
     },
   };
+}
+
+function isJacobMathContext(context: WorkspaceModuleContext) {
+  const binderTitle = context.binder?.title?.toLowerCase() ?? "";
+  const binderSubject = context.binder?.subject?.toLowerCase() ?? "";
+  const lessonTitle = context.selectedLesson?.title?.toLowerCase() ?? "";
+
+  return (
+    binderTitle.includes("jacob") ||
+    binderSubject.includes("math") ||
+    binderSubject.includes("geometry") ||
+    lessonTitle.includes("geometry")
+  );
+}
+
+function isIrrelevantJacobMathModule(moduleId: WorkspaceModuleId) {
+  return moduleId.startsWith("history-") || moduleId.startsWith("chem-");
 }

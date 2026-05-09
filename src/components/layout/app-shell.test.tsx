@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
+import { betaFeatureFlagDefinitions } from "@/lib/beta-features";
 import { loadPersonalNotesPreferences } from "@/lib/personal-notes";
 import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
 
@@ -62,7 +63,12 @@ describe("AppShell profile settings", () => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");
     document.documentElement.removeAttribute("data-admin-dashboard");
+    document.documentElement.removeAttribute("data-beta-features");
+    for (const flag of betaFeatureFlagDefinitions) {
+      document.documentElement.removeAttribute(flag.dataAttribute);
+    }
     document.documentElement.removeAttribute("data-enhanced-mode");
+    document.documentElement.removeAttribute("data-enhanced-visuals");
     document.documentElement.removeAttribute("data-performance-mode");
     document.documentElement.removeAttribute("data-motion-intensity");
     document.documentElement.removeAttribute("data-motion-speed");
@@ -294,7 +300,7 @@ describe("AppShell profile settings", () => {
     expect(loadPersonalNotesPreferences("user-1").showQuickAccess).toBe(false);
   });
 
-  it("defaults to Performance Mode while the Enhanced Mode switch controls enhanced visuals", async () => {
+  it("defaults to Performance Mode while the Enhanced Visuals switch controls richer visuals", async () => {
     window.localStorage.setItem("bindernotes:performance-mode:v1", '{"enabled":false}');
 
     renderShell();
@@ -302,32 +308,35 @@ describe("AppShell profile settings", () => {
     fireEvent.click(screen.getByTestId("profile-menu-button"));
 
     expect(screen.getByTestId("performance-mode-section")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("button", { name: /enhanced visuals/i }).getAttribute("aria-pressed")).toBe(
       "false",
     );
-    expect(screen.getByText("Enhanced Mode")).toBeTruthy();
+    expect(screen.getByText("Enhanced Visuals")).toBeTruthy();
     expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("false");
-    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-enhanced-visuals")).toBe("false");
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toBeNull();
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
-    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("button", { name: /enhanced visuals/i }).getAttribute("aria-pressed")).toBe(
       "true",
     );
     expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("true");
-    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("off");
+    expect(document.documentElement.getAttribute("data-enhanced-visuals")).toBe("true");
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("false");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
       '"enabled":true',
     );
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
-    expect(screen.getByRole("button", { name: /enhanced mode/i }).getAttribute("aria-pressed")).toBe(
+    expect(screen.getByRole("button", { name: /enhanced visuals/i }).getAttribute("aria-pressed")).toBe(
       "false",
     );
     expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("false");
-    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-enhanced-visuals")).toBe("false");
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
     expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
       '"enabled":false',
     );
@@ -357,7 +366,7 @@ describe("AppShell profile settings", () => {
     fireEvent.click(screen.getByTestId("admin-motion-toggle"));
     fireEvent.change(screen.getByTestId("admin-page-transition"), { target: { value: "slide-pop" } });
 
-    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
     expect(document.documentElement.getAttribute("data-admin-motion")).toBe("off");
     expect(document.documentElement.getAttribute("data-page-transition")).toBe("off");
   });
@@ -372,7 +381,7 @@ describe("AppShell profile settings", () => {
 
     renderShell();
 
-    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("on");
+    expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
     expect(document.documentElement.getAttribute("data-reduced-motion")).toBe("system");
   });
 
@@ -392,13 +401,151 @@ describe("AppShell profile settings", () => {
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
-    fireEvent.change(screen.getByLabelText("Search settings"), {
-      target: { value: "smooth drawing whiteboard" },
-    });
+    for (const query of ["performance", "lag", "smooth", "animation", "whiteboard menu"]) {
+      fireEvent.change(screen.getByLabelText("Search settings"), {
+        target: { value: query },
+      });
 
-    expect(screen.getByTestId("app-settings-section-performance")).toBeTruthy();
-    expect(screen.getByText(/Prioritizes speed, smoother drawing, and lower CPU usage/i)).toBeTruthy();
-    expect(screen.queryByTestId("app-settings-empty")).toBeNull();
+      expect(screen.getByTestId("app-settings-section-performance")).toBeTruthy();
+      expect(screen.getByText(/Performance Mode active/i)).toBeTruthy();
+      expect(screen.queryByTestId("app-settings-empty")).toBeNull();
+    }
+  });
+
+  it("uses real settings sidebar buttons that jump to Beta Features and mark it active", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    const betaNavItem = screen.getByRole("button", { name: /^beta features$/i });
+    expect(betaNavItem).toBeTruthy();
+
+    fireEvent.click(betaNavItem);
+
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(betaNavItem.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByTestId("app-settings-section-beta-features")).toBeTruthy();
+  });
+
+  it("uses real settings sidebar buttons for every visible settings section", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    for (const label of [
+      "Account",
+      "Appearance",
+      "Learning",
+      "Personal Notes",
+      "Performance",
+      "Beta Features",
+      "Admin Motion",
+    ]) {
+      const navItem = screen.getByRole("button", { name: new RegExp(`^${label}$`, "i") });
+      fireEvent.click(navItem);
+      expect(navItem.getAttribute("aria-current")).toBe("page");
+    }
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(7);
+  });
+
+  it("finds Beta Features through settings search aliases", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    for (const query of [
+      "beta",
+      "experimental",
+      "preview",
+      "early access",
+      "emotional design",
+      "chemistry",
+      "compact study chrome",
+      "study panels v2",
+      "whiteboard tools",
+      "canvas starter layouts",
+      "lazy loading",
+      "student calm",
+      "admin chrome guard",
+      "jacob geometry",
+    ]) {
+      fireEvent.change(screen.getByLabelText("Search settings"), {
+        target: { value: query },
+      });
+
+      expect(screen.getByTestId("app-settings-section-beta-features")).toBeTruthy();
+      expect(screen.queryByTestId("app-settings-empty")).toBeNull();
+    }
+  });
+
+  it("persists the Beta Features toggle and only shows beta previews when enabled", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByRole("button", { name: /^beta features$/i })).toBeTruthy();
+    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.queryByTestId("beta-features-active-preview")).toBeNull();
+    expect(document.documentElement.getAttribute("data-beta-features")).toBe("off");
+
+    fireEvent.click(screen.getByTestId("beta-features-toggle"));
+
+    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("beta-features-active-preview")).toBeTruthy();
+    expect(document.documentElement.getAttribute("data-beta-features")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain('"enabled":true');
+
+    cleanup();
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("surfaces Jacob Geometry beta cleanup toggles with persistent inspectable markers", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    for (const flag of betaFeatureFlagDefinitions) {
+      expect(screen.getByTestId(`beta-flag-${flag.key}`)).toBeTruthy();
+      expect(screen.getByRole("button", { name: flag.label })).toBeTruthy();
+      expect(screen.getByText(flag.description)).toBeTruthy();
+      expect(document.documentElement.getAttribute(flag.dataAttribute)).toBe("off");
+    }
+
+    fireEvent.click(screen.getByTestId("beta-features-toggle"));
+    fireEvent.click(screen.getByTestId("beta-flag-toggle-compactStudyChrome"));
+
+    expect(screen.getByTestId("beta-flag-toggle-compactStudyChrome").getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.getAttribute("data-beta-compact-study-chrome")).toBe("on");
+    expect(screen.getByTestId("app-shell-root").getAttribute("data-beta-compact-study-chrome")).toBe("on");
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain(
+      '"compactStudyChrome":true',
+    );
+
+    cleanup();
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("beta-flag-toggle-compactStudyChrome").getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.getAttribute("data-beta-compact-study-chrome")).toBe("on");
+    expect(screen.queryByText(/demo mode|learner demo|admin demo/i)).toBeNull();
   });
 
   it("closes the full settings window with Escape", async () => {

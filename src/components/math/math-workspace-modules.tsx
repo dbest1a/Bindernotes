@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FunctionSquare } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import { GraphStateList } from "@/components/math/graph-state-list";
@@ -7,6 +7,7 @@ import { ScientificCalculator } from "@/components/math/scientific-calculator";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import type { GraphMode, MathWorkspaceController } from "@/hooks/use-math-workspace";
 import type { MathBlock } from "@/types";
 
@@ -44,20 +45,35 @@ export type MathWorkspaceModuleBindings = {
 export function DesmosGraphModule({
   bindings,
   description = "Live Desmos graphing calculator",
+  mathPerformanceLazyLoading = false,
+  showKeypad = true,
   surface = "workspace",
   title = "Desmos graph",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  mathPerformanceLazyLoading?: boolean;
+  showKeypad?: boolean;
   surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
   const { controller, onExpressionApplied, onGraphLoadApplied, pendingExpression, pendingGraphLoad = null } = bindings;
+  const [graphActivated, setGraphActivated] = useState(
+    () => !mathPerformanceLazyLoading || Boolean(pendingExpression || pendingGraphLoad || controller.state.currentGraphState),
+  );
+  const [keypadOpen, setKeypadOpen] = useState(() => !mathPerformanceLazyLoading && showKeypad);
+
   useEffect(() => {
     if (pendingGraphLoad?.graphMode) {
       controller.setGraphMode(pendingGraphLoad.graphMode);
     }
   }, [controller.setGraphMode, pendingGraphLoad?.graphMode, pendingGraphLoad?.id]);
+
+  useEffect(() => {
+    if (pendingExpression || pendingGraphLoad) {
+      setGraphActivated(true);
+    }
+  }, [pendingExpression, pendingGraphLoad]);
 
   const height =
     surface === "whiteboard"
@@ -66,11 +82,18 @@ export function DesmosGraphModule({
         ? "clamp(620px, 78vh, 860px)"
         : "clamp(540px, 70vh, 760px)";
   const activeModeLabel = controller.state.graphMode === "3d" ? "3D Graph" : "2D Graph";
+  const graphRuntimeVisible = controller.state.graphVisible && (!mathPerformanceLazyLoading || graphActivated);
+  const effectiveShowKeypad = showKeypad && (!mathPerformanceLazyLoading || keypadOpen);
+  const canUseDesmos = hasDesmosApiKey();
+  const activateGraph = () => {
+    setGraphActivated(true);
+    controller.setGraphVisible(true);
+  };
 
   return (
     <WorkspacePanel
       actions={
-        controller.state.graphVisible ? (
+        graphRuntimeVisible ? (
           <>
             <div className="flex items-center gap-1 rounded-md border border-border/70 bg-background/70 p-1">
               <Button
@@ -96,11 +119,16 @@ export function DesmosGraphModule({
             <Button onClick={controller.clearCurrentGraph} size="sm" type="button" variant="ghost">
               Reset
             </Button>
+            {mathPerformanceLazyLoading && showKeypad && !keypadOpen ? (
+              <Button onClick={() => setKeypadOpen(true)} size="sm" type="button" variant="outline">
+                Show keypad
+              </Button>
+            ) : null}
           </>
         ) : (
-          <Button onClick={() => controller.setGraphVisible(true)} size="sm" type="button" variant="outline">
+          <Button onClick={activateGraph} size="sm" type="button" variant="outline">
             <FunctionSquare data-icon="inline-start" />
-            Mount graph
+            Prepare graph
           </Button>
         )
       }
@@ -108,7 +136,9 @@ export function DesmosGraphModule({
       description={`${description} Current mode: ${activeModeLabel}.`}
       title={title}
     >
-      {controller.state.graphVisible ? (
+      {mathPerformanceLazyLoading && !canUseDesmos ? (
+        <CompactDesmosFallback />
+      ) : graphRuntimeVisible ? (
         controller.state.graphMode === "3d" ? (
           <Desmos3DGraph
             height={height}
@@ -117,6 +147,7 @@ export function DesmosGraphModule({
             onExpressionApplied={onExpressionApplied}
             onStateChange={controller.setCurrentGraphState}
             pendingExpression={pendingExpression}
+            showKeypad={effectiveShowKeypad}
             state={controller.state.currentGraphState}
           />
         ) : (
@@ -127,16 +158,54 @@ export function DesmosGraphModule({
             onExpressionApplied={onExpressionApplied}
             onStateChange={controller.setCurrentGraphState}
             pendingExpression={pendingExpression}
+            showKeypad={effectiveShowKeypad}
             state={controller.state.currentGraphState}
           />
         )
       ) : (
-        <EmptyState
-          description="The graph engine is unmounted while hidden so the workspace stays lighter."
-          title="Graph hidden"
-        />
+        <GraphPreview onOpen={activateGraph} />
       )}
     </WorkspacePanel>
+  );
+}
+
+function GraphPreview({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="math-graph-preview" data-math-lazy-preview="desmos">
+      <div className="math-graph-preview__plot" aria-hidden="true">
+        <svg viewBox="0 0 320 160" role="img">
+          <path d="M24 132H300" />
+          <path d="M48 18V142" />
+          <path d="M46 126C90 96 118 88 154 92C195 96 218 54 286 34" />
+        </svg>
+      </div>
+      <div>
+        <h4>Graph ready when you need it</h4>
+        <p>Desmos stays unmounted until you open it, keeping the study surface lighter.</p>
+        <Button onClick={onOpen} size="sm" type="button">
+          <FunctionSquare data-icon="inline-start" />
+          Open graph
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CompactDesmosFallback() {
+  return (
+    <div className="math-graph-preview math-graph-preview--fallback" data-desmos-compact-fallback="true">
+      <div className="math-graph-preview__plot" aria-hidden="true">
+        <svg viewBox="0 0 320 160" role="img">
+          <path d="M24 132H300" />
+          <path d="M48 18V142" />
+          <path d="M44 120C82 94 112 74 150 78C194 82 220 118 286 44" />
+        </svg>
+      </div>
+      <div>
+        <h4>Graph preview</h4>
+        <p>Desmos is unavailable in this environment. The graph slot stays compact instead of loading a broken tool.</p>
+      </div>
+    </div>
   );
 }
 

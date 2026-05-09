@@ -35,6 +35,7 @@ import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { useDashboard, useDashboardWorkspaceMutations } from "@/hooks/use-binders";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import {
@@ -79,6 +80,16 @@ type DashboardFilteredData = {
   studyReadyBinders: DashboardData["binders"];
 };
 
+type DocumentHealthStatus = "empty" | "started" | "notes-added" | "ready-to-review" | "needs-work";
+
+const documentHealthLabels: Record<DocumentHealthStatus, string> = {
+  empty: "Empty",
+  "needs-work": "Needs work",
+  "notes-added": "Notes added",
+  "ready-to-review": "Ready to review",
+  started: "Started",
+};
+
 const dashboardNoticeDismissMs = 10000;
 type WorkspaceCreateKind = "folder" | "binder" | "document";
 const workspaceSubjectOptions = ["General", "Chemistry", "Mathematics", "History", "Study Skills"] as const;
@@ -103,6 +114,7 @@ export function DashboardPage() {
   const isAdminProfile = profile?.role === "admin";
   const dashboardExperience = useDashboardExperience(profile ? isAdminProfile : undefined);
   const workspacePresentation = useWorkspacePresentationPreference();
+  const betaFeatures = useBetaFeatures(profile?.id);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query);
   const deferredQuery = useDeferredValue(debouncedQuery);
@@ -290,6 +302,7 @@ export function DashboardPage() {
         query={query}
         showSystemDiagnostics={showSystemDiagnostics}
         workspacePresentation={workspacePresentation}
+        betaFeaturesEnabled={betaFeatures.betaFeaturesEnabled}
       />
     );
   }
@@ -309,6 +322,7 @@ export function DashboardPage() {
         query={query}
         showSystemDiagnostics={showSystemDiagnostics}
         workspacePresentation={workspacePresentation}
+        betaFeaturesEnabled={betaFeatures.betaFeaturesEnabled}
       />
     );
   }
@@ -575,6 +589,7 @@ export function DashboardPage() {
 
 function MinimalDashboardView({
   appearance,
+  betaFeaturesEnabled,
   canOpenAdminMakeover,
   data,
   filtered,
@@ -588,6 +603,7 @@ function MinimalDashboardView({
   workspacePresentation,
 }: {
   appearance: "minimal" | "normal";
+  betaFeaturesEnabled: boolean;
   canOpenAdminMakeover: boolean;
   data: DashboardData;
   filtered: DashboardFilteredData;
@@ -610,6 +626,15 @@ function MinimalDashboardView({
       data.notes.reduce<Record<string, DashboardData["notes"]>>((groups, note) => {
         groups[note.binder_id] = groups[note.binder_id] ?? [];
         groups[note.binder_id].push(note);
+        return groups;
+      }, {}),
+    [data.notes],
+  );
+  const notesByLessonId = useMemo(
+    () =>
+      data.notes.reduce<Record<string, DashboardData["notes"]>>((groups, note) => {
+        groups[note.lesson_id] = groups[note.lesson_id] ?? [];
+        groups[note.lesson_id].push(note);
         return groups;
       }, {}),
     [data.notes],
@@ -662,6 +687,13 @@ function MinimalDashboardView({
       ? "Folders, binders, and recent documents in the quickest scan view."
       : "Browse folders, binders, and lesson documents from one organized workspace.";
   const nextDocument = filtered.recentDocuments[0];
+  const continueDocuments = useMemo(
+    () =>
+      filtered.recentDocuments
+        .filter((lesson) => Boolean(filtered.lessonsByBinderId[lesson.binder_id]))
+        .slice(0, isMinimalAppearance ? 3 : 4),
+    [filtered.lessonsByBinderId, filtered.recentDocuments, isMinimalAppearance],
+  );
   const folderSummaryById = useMemo(
     () => new Map(filtered.folderSummaries.map((summary) => [summary.folder.id, summary])),
     [filtered.folderSummaries],
@@ -928,10 +960,12 @@ function MinimalDashboardView({
       )}
       data-dashboard-appearance={appearance}
       data-dashboard-density={workspaceView.density}
+      data-dashboard-layout={isMinimalAppearance ? "drive" : "visual"}
       data-dashboard-recent-documents={workspaceView.showRecentDocuments ? "visible" : "hidden"}
       data-dashboard-scope={workspaceView.scope}
       data-dashboard-sort={workspaceView.sort}
       data-dashboard-width={workspaceView.width}
+      data-beta-dashboard-polish={betaFeaturesEnabled ? "on" : "off"}
       data-minimal-density={isMinimalAppearance ? workspaceView.density : undefined}
       data-minimal-recent-documents={
         isMinimalAppearance
@@ -1265,6 +1299,15 @@ function MinimalDashboardView({
         </div>
       ) : null}
 
+      {betaFeaturesEnabled ? (
+        <DashboardContinueShelf
+          documents={continueDocuments}
+          isCompact={isMinimalAppearance}
+          notesByLessonId={notesByLessonId}
+          prefix={dashboardPrefix}
+        />
+      ) : null}
+
       {showFolders ? (
       <section className="minimal-dashboard-section" id="minimal-folders">
         <div className="minimal-dashboard-section__heading">
@@ -1276,6 +1319,8 @@ function MinimalDashboardView({
             <Link
               className={cn(
                 "minimal-folder-card dashboard-folder-card ui-click-tile",
+                !isMinimalAppearance && "dashboard-life-card",
+                isMinimalAppearance && "minimal-folder-card--drive-tile",
                 canManageWorkspace && "minimal-folder-card--draggable",
                 draggingFolderId === summary.folder.id && "minimal-folder-card--dragging",
               )}
@@ -1353,7 +1398,10 @@ function MinimalDashboardView({
 
               return (
                 <Link
-                  className="minimal-binder-card dashboard-binder-card ui-click-tile"
+                  className={cn(
+                    "minimal-binder-card dashboard-binder-card ui-click-tile",
+                    isMinimalAppearance ? "minimal-binder-card--drive-row" : "dashboard-life-card",
+                  )}
                   data-testid={`${dashboardPrefix}-binder-card`}
                   key={binder.id}
                   to={`/binders/${binder.id}`}
@@ -1399,7 +1447,10 @@ function MinimalDashboardView({
           <div className="minimal-document-list" data-testid={`${dashboardPrefix}-document-list`}>
             {filtered.recentDocuments.map((lesson) => (
               <Link
-                className="minimal-document-row dashboard-recent-document ui-click-tile"
+                className={cn(
+                  "minimal-document-row dashboard-recent-document ui-click-tile",
+                  !isMinimalAppearance && "dashboard-life-card",
+                )}
                 data-testid={`${dashboardPrefix}-document-row`}
                 key={lesson.id}
                 to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
@@ -1407,7 +1458,16 @@ function MinimalDashboardView({
                 <BookCopy className="size-4 text-primary" />
                 <span>
                   <strong>{deriveLessonTitle(lesson)}</strong>
-                  <small>Open document</small>
+                  <small>
+                    Open document
+                    {betaFeaturesEnabled ? (
+                      <DocumentHealthBadge
+                        notes={notesByLessonId[lesson.id] ?? []}
+                        prefix={dashboardPrefix}
+                        lesson={lesson}
+                      />
+                    ) : null}
+                  </small>
                 </span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </Link>
@@ -1444,6 +1504,120 @@ function MinimalDashboardView({
       ) : null}
     </main>
   );
+}
+
+function DashboardContinueShelf({
+  documents,
+  isCompact,
+  notesByLessonId,
+  prefix,
+}: {
+  documents: DashboardData["recentLessons"];
+  isCompact: boolean;
+  notesByLessonId: Record<string, DashboardData["notes"]>;
+  prefix: "minimal" | "normal";
+}) {
+  return (
+    <section
+      className={cn("dashboard-continue-shelf", isCompact && "dashboard-continue-shelf--compact")}
+      data-dashboard-continue-density={isCompact ? "compact" : "comfortable"}
+      data-testid={`${prefix}-dashboard-continue-shelf`}
+    >
+      <div className="dashboard-continue-shelf__heading">
+        <span className="page-kicker">Beta preview</span>
+        <h2>Continue studying</h2>
+        <p>{isCompact ? "Your fastest next file." : "Recent real documents, ranked for quick return."}</p>
+      </div>
+      {documents.length ? (
+        <div className="dashboard-continue-shelf__items">
+          {documents.map((lesson, index) => (
+            <Link
+              className="dashboard-continue-card ui-click-tile"
+              data-testid={index === 0 ? `${prefix}-dashboard-continue-link` : undefined}
+              key={lesson.id}
+              to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
+            >
+              <FileText className="size-4 text-primary" />
+              <span>
+                <strong>{deriveLessonTitle(lesson)}</strong>
+                <small>{index === 0 ? "Resume" : "Open"}</small>
+              </span>
+              <DocumentHealthBadge
+                notes={notesByLessonId[lesson.id] ?? []}
+                prefix={prefix}
+                lesson={lesson}
+              />
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="dashboard-continue-empty">
+          <strong>No recent study target yet</strong>
+          <span>Open a real binder document and BinderNotes will use it here.</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DocumentHealthBadge({
+  lesson,
+  notes,
+  prefix,
+}: {
+  lesson: DashboardData["recentLessons"][number];
+  notes: DashboardData["notes"];
+  prefix: "minimal" | "normal";
+}) {
+  const status = deriveDocumentHealthStatus(lesson, notes);
+  if (!status) {
+    return null;
+  }
+
+  return (
+    <span
+      className="dashboard-health-badge"
+      data-document-health={status}
+      data-testid={`${prefix}-document-health-badge`}
+    >
+      {documentHealthLabels[status]}
+    </span>
+  );
+}
+
+function deriveDocumentHealthStatus(
+  lesson: DashboardData["recentLessons"][number],
+  notes: DashboardData["notes"],
+): DocumentHealthStatus | null {
+  const hasLessonBody = hasPortableContent(lesson.content) || lesson.math_blocks.length > 0;
+  const noteWithContent = notes.find((note) => hasPortableContent(note.content) || note.math_blocks.length > 0);
+  const anyNote = notes[0] ?? null;
+
+  if (noteWithContent) {
+    return noteWithContent.pinned ? "ready-to-review" : "notes-added";
+  }
+  if (anyNote) {
+    return "started";
+  }
+  if (!hasLessonBody) {
+    return "empty";
+  }
+  return lesson.is_preview ? "needs-work" : "started";
+}
+
+function hasPortableContent(content: unknown): boolean {
+  if (!content || typeof content !== "object") {
+    return false;
+  }
+  const node = content as { content?: unknown[]; text?: unknown };
+  if (typeof node.text === "string" && node.text.trim()) {
+    return true;
+  }
+  if (!Array.isArray(node.content)) {
+    return false;
+  }
+  return node.content.some((child) => hasPortableContent(child));
 }
 
 function Metric({

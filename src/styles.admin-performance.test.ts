@@ -35,16 +35,16 @@ describe("admin perceived performance styles", () => {
   });
 
   it("adds Performance Mode overrides for menu/dashboard/admin/tutorial pages", () => {
-    expect(css).toContain(':root[data-performance-mode="on"]');
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.app-route-transition-shell[\s\S]*animation:\s*none\s*!important/s);
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.page-shell[\s\S]*backdrop-filter:\s*none\s*!important/s);
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-dashboard-glow[\s\S]*display:\s*none\s*!important/s);
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.admin-doc-card:hover[\s\S]*transform:\s*none\s*!important/s);
+    expect(css).toContain(':root[data-performance-mode="true"]');
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.app-route-transition-shell[\s\S]*animation:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.page-shell[\s\S]*backdrop-filter:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.admin-dashboard-glow[\s\S]*display:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.admin-doc-card:hover[\s\S]*transform:\s*none\s*!important/s);
   });
 
   it("adds Performance Mode overrides for whiteboard drawing surfaces", () => {
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-excalidraw-host[\s\S]*transition:\s*none\s*!important/s);
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-module-card::before[\s\S]*display:\s*none\s*!important/s);
-    expect(css).toMatch(/:root\[data-performance-mode="on"\][\s\S]*\.whiteboard-toolbox-panel[\s\S]*backdrop-filter:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.whiteboard-excalidraw-host[\s\S]*transition:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.whiteboard-module-card::before[\s\S]*display:\s*none\s*!important/s);
+    expect(css).toMatch(/:root\[data-performance-mode="true"\][\s\S]*\.whiteboard-toolbox-panel[\s\S]*backdrop-filter:\s*none\s*!important/s);
   });
 });

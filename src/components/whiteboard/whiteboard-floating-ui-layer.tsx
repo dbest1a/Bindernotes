@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
 import type { BinderWhiteboard, WhiteboardSaveStatus } from "@/lib/whiteboards/whiteboard-types";
-import type { WhiteboardModuleDefinition } from "@/lib/whiteboards/whiteboard-module-registry";
+import type { WhiteboardModuleContextKind, WhiteboardModuleDefinition } from "@/lib/whiteboards/whiteboard-module-registry";
 
 type WhiteboardFloatingUiLayerProps = {
   activeBoard: BinderWhiteboard;
   browserFullscreen: boolean;
   boards: BinderWhiteboard[];
   drawerOpen: boolean;
+  moduleContextKind?: WhiteboardModuleContextKind;
   onAddModule: (definition: WhiteboardModuleDefinition) => void;
   onArchiveBoard: (boardId: string) => void;
   onBack?: () => void;
@@ -26,7 +27,7 @@ type WhiteboardFloatingUiLayerProps = {
 };
 
 const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
-  saved: "Saved to Supabase",
+  saved: "Saved",
   saving: "Saving...",
   "offline-draft": "Local draft",
   error: "Remote save failed",
@@ -40,6 +41,7 @@ export function WhiteboardFloatingUiLayer({
   browserFullscreen,
   boards,
   drawerOpen,
+  moduleContextKind = "math",
   onAddModule,
   onArchiveBoard,
   onBack,
@@ -176,18 +178,20 @@ export function WhiteboardFloatingUiLayer({
             {deleteConfirming ? "Confirm delete board" : "Delete broken board"}
           </Button>
           <div className="grid grid-cols-2 gap-2" data-testid="whiteboard-corner-controls">
-            <Button
-              aria-label="Home"
-              className="whiteboard-action-button whiteboard-nav-button whiteboard-nav-button--home justify-center gap-1.5"
-              data-testid="whiteboard-corner-back"
-              onClick={onBack}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Home className="size-4" />
-              <span>Home</span>
-            </Button>
+            {onBack ? (
+              <Button
+                aria-label="Home"
+                className="whiteboard-action-button whiteboard-nav-button whiteboard-nav-button--home justify-center gap-1.5"
+                data-testid="whiteboard-corner-back"
+                onClick={onBack}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Home className="size-4" />
+                <span>Home</span>
+              </Button>
+            ) : null}
             <Button
               aria-label={browserFullscreen ? "Exit fullscreen" : "Fullscreen"}
               className="whiteboard-action-button whiteboard-nav-button whiteboard-nav-button--fullscreen justify-center gap-1.5"
@@ -207,6 +211,7 @@ export function WhiteboardFloatingUiLayer({
 
       {drawerOpen && !controlsCollapsed ? (
         <WhiteboardModuleLauncher
+          contextKind={moduleContextKind}
           onAddModule={(definition) => {
             onAddModule(definition);
             onDrawerOpenChange(false);

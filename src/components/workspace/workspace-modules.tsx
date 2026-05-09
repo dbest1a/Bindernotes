@@ -85,6 +85,11 @@ const LazyChemistryStoichiometryCoachModule = lazy(() =>
     default: module.ChemistryStoichiometryCoachModule,
   })),
 );
+const LazyChemistryLabCoachModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryLabCoachModule,
+  })),
+);
 const LazyChemistryTitrationLabModule = lazy(() =>
   import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
     default: module.ChemistryTitrationLabModule,
@@ -190,6 +195,9 @@ const LazyChemistryDataTableModule = lazy(() =>
     default: module.ChemistryDataTableModule,
   })),
 );
+const LazyRecallLab = lazy(() =>
+  import("@/components/workspace/recall-lab").then((module) => ({ default: module.RecallLab })),
+);
 
 export type WorkspaceLibraryContext = {
   folders: Folder[];
@@ -240,6 +248,16 @@ export type WorkspaceModuleContext = {
   whiteboardCardDensity?: "compact" | "comfortable";
   whiteboardTextSize?: "small" | "normal" | "large";
   whiteboardShowMathInline?: boolean;
+  whiteboardSidebarDefaultCollapsed?: boolean;
+  compactWhiteboardTools?: boolean;
+  canvasStarterLayouts?: boolean;
+  graphKeypad?: boolean;
+  mathPerformanceLazyLoading?: boolean;
+  recallLabEnabled?: boolean;
+  studentCalmMode?: boolean;
+  studyPanelsV2?: boolean;
+  onEnterWhiteboardFocus?: () => void;
+  onExitWhiteboardFocus?: () => void;
   stickyManagerVisible: boolean;
   hasUnsavedNoteChanges: boolean;
   history: {
@@ -321,6 +339,7 @@ export type WorkspaceModuleContext = {
   ) => void;
   onUseHistoryEvidencePrompt: () => void;
   onCreateHistoryMythCheck: () => void;
+  onOpenWorkspaceTool?: (moduleId: WorkspaceModuleId) => void;
 };
 
 type WorkspaceModuleDefinition = {
@@ -420,6 +439,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         surface={context.surface ?? "workspace"}
+        studentCalmMode={context.studentCalmMode}
       />
     ),
   },
@@ -679,7 +699,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         <WorkspacePanel description="Reusable equations" title="Formula sheet">
           <div className="formula-sheet-readable">
             <LazyModuleBoundary title="Formula sheet">
-              <LazyMathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+              <LazyMathBlocks
+                blocks={formulaBlocks}
+                onJumpToSource={context.onJumpToMathSource}
+                onSendFormulaToNotes={context.onSendSelectionToNotes}
+              />
             </LazyModuleBoundary>
           </div>
           {formulaBlocks.length === 0 ? (
@@ -700,6 +724,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
             blocks={context.selectedLesson.math_blocks}
             onJumpToSource={context.onJumpToMathSource}
             onOpenGraphBlock={context.onOpenGraphBlock}
+            onSendFormulaToNotes={context.onSendSelectionToNotes}
             onSendToGraph={context.mathModules ? context.mathModules.pushExpressionToGraph : undefined}
           />
         </LazyModuleBoundary>
@@ -719,6 +744,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           <LazyDesmosGraphModule
             bindings={context.mathModules}
             description="Legacy graph cards now route through a real Desmos graphing surface."
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
             surface={context.surface ?? "workspace"}
             title="Interactive graph"
           />
@@ -739,7 +765,12 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Desmos graph">
-          <LazyDesmosGraphModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazyDesmosGraphModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            showKeypad={context.graphKeypad !== false}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Desmos graph">
@@ -902,6 +933,16 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: () => (
       <LazyModuleBoundary title="Tri-representation reaction view">
         <LazyTriRepresentationReactionViewModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-lab-coach": {
+    id: "chem-lab-coach",
+    title: "Chemistry Lab Coach",
+    description: "Guided lab steps with safety, observations, calculations, and tool handoffs",
+    render: (context) => (
+      <LazyModuleBoundary title="Chemistry Lab Coach">
+        <LazyChemistryLabCoachModule onOpenTool={context.onOpenWorkspaceTool} />
       </LazyModuleBoundary>
     ),
   },
@@ -1199,15 +1240,24 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
   },
   flashcards: {
     id: "flashcards",
-    title: "Flashcards",
-    description: "Recall practice",
-    render: () => (
-      <WorkspacePanel description="Future recall module" title="Flashcards">
-        <EmptyState
-          description="Turn highlights and private notes into recall cards in a later pass."
-          title="Flashcards placeholder"
+    title: "Recall Lab",
+    description: "Source-linked active recall",
+    render: (context) => (
+      <LazyModuleBoundary title="Recall Lab">
+        <LazyRecallLab
+          betaEnabled={context.recallLabEnabled}
+          binder={context.binder}
+          comments={context.comments}
+          highlights={context.highlights}
+          lesson={context.selectedLesson}
+          lessons={context.lessons}
+          noteContent={context.noteContent}
+          noteTitle={context.noteTitle}
+          onOpenSource={() => context.onOpenWorkspaceTool?.("lesson")}
+          subject={context.binder.subject}
+          userId={context.ownerId}
         />
-      </WorkspacePanel>
+      </LazyModuleBoundary>
     ),
   },
   "mini-tools": {

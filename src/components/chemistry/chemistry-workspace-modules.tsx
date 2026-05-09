@@ -38,6 +38,8 @@ import {
   createTitrationInitialState,
   titrationReducer,
 } from "@/lib/chemistry/titration-lab";
+import { hasDesmosApiKey } from "@/lib/desmos-loader";
+import type { WorkspaceModuleId } from "@/types";
 
 const stoichTemplate = {
   id: "template-water-from-hydrogen",
@@ -71,7 +73,7 @@ function Sparkline({
 }
 
 function desmosStatusCopy() {
-  const hasKey = Boolean(import.meta.env.VITE_DESMOS_API_KEY);
+  const hasKey = hasDesmosApiKey();
   return hasKey
     ? "Desmos key detected; this graph surface is ready to mount the live chemistry graph when selected."
     : "Desmos unavailable locally. Showing the lightweight fallback chart so the preset does not waste space.";
@@ -81,11 +83,82 @@ function elementSummary(element: PeriodicTableElement) {
   return `${element.name} (${element.symbol}) - group ${element.group}, period ${element.period}`;
 }
 
+function getValenceElectrons(element: PeriodicTableElement) {
+  if (element.group >= 1 && element.group <= 2) {
+    return element.group;
+  }
+
+  if (element.group >= 13 && element.group <= 18) {
+    return element.group - 10;
+  }
+
+  return element.symbol === "Fe" ? 2 : "varies";
+}
+
+function getBondingBehavior(element: PeriodicTableElement) {
+  const summaries: Partial<Record<string, string>> = {
+    H: "usually forms one bond and completes a duet.",
+    C: "usually forms four bonds, which makes it a backbone atom for many molecules.",
+    N: "usually forms three bonds and keeps one lone pair in simple neutral molecules.",
+    O: "usually forms two bonds and often carries two lone pairs.",
+    Na: "usually loses one electron to form Na+ in ionic compounds.",
+    Cl: "usually gains one electron or forms one covalent bond.",
+    Ca: "usually loses two electrons to form Ca2+.",
+    Fe: "often forms Fe2+ or Fe3+ depending on the reaction conditions.",
+  };
+
+  return (
+    summaries[element.symbol] ??
+    (element.category.includes("metal")
+      ? "often forms positive ions and participates in ionic bonding."
+      : "often shares or gains electrons to complete a valence shell.")
+  );
+}
+
+function getWhyElementMatters(element: PeriodicTableElement) {
+  return `${element.use} Study tip: ${element.studyTip}`;
+}
+
+function getTitrationObservation(progress: number) {
+  if (progress >= 0.96 && progress <= 1.04) {
+    return "Endpoint zone; pH jumps sharply near equivalence.";
+  }
+
+  if (progress < 0.96) {
+    return "acidic; keep adding titrant";
+  }
+
+  return "basic after endpoint; stop and evaluate overshoot";
+}
+
+function getTitrationHint(progress: number) {
+  if (progress === 0) {
+    return "Next: add titrant and record pH.";
+  }
+
+  if (progress >= 0.96 && progress <= 1.04) {
+    return "Endpoint zone. Equivalence point is near 25.00 mL.";
+  }
+
+  if (progress < 0.96) {
+    return "Approaching endpoint. Slow down near 25.00 mL.";
+  }
+
+  return "Past endpoint. Compare your overshoot to the measurement table.";
+}
+
 export function InteractivePeriodicTableModule() {
   const [query, setQuery] = useState("Carbon");
   const [trendMode, setTrendMode] = useState<TrendMode>("electronegativity");
   const [comparison, setComparison] = useState<PeriodicTableElement[]>([]);
   const selected = findElement(query) ?? periodicTableElements[5];
+  const schoolShortcuts = useMemo(
+    () =>
+      ["H", "C", "N", "O", "Na", "Cl", "Ca", "Fe"]
+        .map((symbol) => periodicTableElements.find((element) => element.symbol === symbol))
+        .filter((element): element is PeriodicTableElement => Boolean(element)),
+    [],
+  );
   const filteredElements = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
@@ -113,7 +186,12 @@ export function InteractivePeriodicTableModule() {
       description="Search, compare, and study periodic trends without leaving the chemistry workspace."
       title="Interactive periodic table"
     >
-      <div className="chem-showcase-module chem-periodic-table-module" data-chemistry-module="periodic-table">
+      <div
+        className="chem-showcase-module chem-periodic-table-module"
+        data-chem-layout="list-detail"
+        data-chemistry-module="periodic-table"
+        data-testid="chem-element-explorer-v2"
+      >
         <div className="chem-showcase-toolbar">
           <label className="chem-showcase-search text-sm">
             Element search
@@ -134,8 +212,35 @@ export function InteractivePeriodicTableModule() {
             )}
           </div>
         </div>
+        <div className="chem-element-shortcuts" aria-label="Common school chemistry element shortcuts">
+          {schoolShortcuts.map((element) => (
+            <Button
+              aria-label={`Shortcut ${element.name}`}
+              key={element.symbol}
+              onClick={() => setQuery(element.symbol)}
+              type="button"
+              variant={selected.symbol === element.symbol ? "default" : "outline"}
+            >
+              {element.symbol}
+            </Button>
+          ))}
+        </div>
 
         <div className="chem-periodic-layout">
+          <div className="chem-element-browser" aria-label="Filtered element browser">
+            {filteredElements.slice(0, 10).map((element) => (
+              <button
+                className="chem-element-browser-item"
+                key={element.symbol}
+                onClick={() => setQuery(element.symbol)}
+                type="button"
+              >
+                <strong>{element.symbol}</strong>
+                <span>{element.name}</span>
+                <small>#{element.atomicNumber}</small>
+              </button>
+            ))}
+          </div>
           <div className="chem-periodic-grid" aria-label="Periodic table element buttons">
             {periodicTableElements.map((element) => {
               const trendScore = getTrendScore(element, trendMode);
@@ -165,7 +270,7 @@ export function InteractivePeriodicTableModule() {
             })}
           </div>
 
-          <aside className="chem-element-detail">
+          <aside aria-label="Selected element details" className="chem-element-detail">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
@@ -178,8 +283,22 @@ export function InteractivePeriodicTableModule() {
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div>
+                <dt className="text-muted-foreground">Atomic number</dt>
+                <dd className="font-semibold">{selected.atomicNumber}</dd>
+              </div>
+              <div>
                 <dt className="text-muted-foreground">Atomic mass</dt>
                 <dd className="font-semibold">{selected.atomicMass}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Group / period</dt>
+                <dd className="font-semibold">
+                  {selected.group} / {selected.period}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Valence electrons</dt>
+                <dd className="font-semibold">{getValenceElectrons(selected)}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Electron config</dt>
@@ -194,7 +313,14 @@ export function InteractivePeriodicTableModule() {
                 <dd className="font-semibold">{selected.phase}</dd>
               </div>
             </dl>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">{selected.use}</p>
+            <section className="mt-4 rounded-xl border border-border/65 bg-background/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bonding behavior</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{getBondingBehavior(selected)}</p>
+            </section>
+            <section className="mt-3 rounded-xl border border-primary/20 bg-primary/10 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Why it matters</p>
+              <p className="mt-2 text-xs leading-5">{getWhyElementMatters(selected)}</p>
+            </section>
             <p className="mt-3 rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs leading-5">{selected.studyTip}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button onClick={() => toggleCompare(selected)} type="button" variant="outline">
@@ -870,9 +996,157 @@ export function ChemistryStoichiometryCoachModule() {
   );
 }
 
+const chemistryLabCoachSteps = [
+  {
+    title: "Read objective",
+    status: "Current lab goal",
+    detail: "Find the concentration pattern in a simplified acid-base titration and connect evidence to a claim.",
+    next: "check safety",
+  },
+  {
+    title: "Check safety",
+    status: "Safety ready",
+    detail: "Wear goggles, label acid/base solutions, and slow down near the expected endpoint.",
+    next: "write a hypothesis",
+  },
+  {
+    title: "Predict / hypothesis",
+    status: "Ready for prediction",
+    detail: "Predict where pH will change fastest before adding more titrant.",
+    next: "measure and observe",
+  },
+  {
+    title: "Measure / observe",
+    status: "Ready for observation",
+    detail: "Add titrant in controlled increments and watch the pH curve for a sharp jump.",
+    next: "record pH",
+  },
+  {
+    title: "Record data",
+    status: "Data checkpoint",
+    detail: "Copy the volume, pH, and observation into the table before moving on.",
+    next: "calculate and graph",
+  },
+  {
+    title: "Calculate / graph",
+    status: "Graph checkpoint",
+    detail: "Use the endpoint region to reason about moles acid and moles base.",
+    next: "explain result",
+  },
+  {
+    title: "Explain result",
+    status: "Reasoning checkpoint",
+    detail: "Connect your observation to the endpoint instead of only reporting a number.",
+    next: "write conclusion",
+  },
+  {
+    title: "Write conclusion",
+    status: "Conclusion ready",
+    detail: "Use claim, evidence, and reasoning to explain whether the data supports your hypothesis.",
+    next: "review your notebook",
+  },
+];
+
+export function ChemistryLabCoachModule({
+  onOpenTool,
+}: {
+  onOpenTool?: (moduleId: WorkspaceModuleId) => void;
+}) {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [status, setStatus] = useState("Ready to start the lab flow.");
+  const step = chemistryLabCoachSteps[stepIndex];
+  const progress = ((stepIndex + 1) / chemistryLabCoachSteps.length) * 100;
+
+  function moveStep(direction: -1 | 1) {
+    setStepIndex((current) => {
+      const next = Math.max(0, Math.min(chemistryLabCoachSteps.length - 1, current + direction));
+      const nextStep = chemistryLabCoachSteps[next];
+      setStatus(`Step complete: ${nextStep.title} is ready.`);
+      return next;
+    });
+  }
+
+  function openTool(moduleId: WorkspaceModuleId, label: string) {
+    onOpenTool?.(moduleId);
+    setStatus(`${label} opened from Chemistry Lab Coach.`);
+  }
+
+  return (
+    <WorkspacePanel description="Step-by-step chemistry lab guidance without AI or background writes." title="Chemistry Lab Coach">
+      <div className="chem-showcase-module chem-lab-coach" data-chemistry-module="lab-coach">
+        <header className="chem-lab-coach-hero">
+          <div>
+            <Badge variant="outline">Step {stepIndex + 1} of 8</Badge>
+            <h3 className="mt-3 text-lg font-semibold">{step.status}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.detail}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Next: {step.next}</p>
+          </div>
+          <div className="chem-lab-coach-orb" aria-hidden="true">
+            <FlaskConical />
+          </div>
+        </header>
+
+        <div className="chem-lab-coach-progress" aria-label="Chemistry Lab Coach progress">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+
+        <div className="chem-lab-step-grid">
+          {chemistryLabCoachSteps.map((candidate, index) => (
+            <button
+              className="chem-lab-step"
+              data-state={index === stepIndex ? "active" : index < stepIndex ? "complete" : "pending"}
+              key={candidate.title}
+              onClick={() => {
+                setStepIndex(index);
+                setStatus(`${candidate.title} selected.`);
+              }}
+              type="button"
+            >
+              <span>{index + 1}</span>
+              <strong>{candidate.title}</strong>
+            </button>
+          ))}
+        </div>
+
+        <section className="chem-lab-coach-actions" aria-label="Related chemistry tools">
+          <Button onClick={() => openTool("chem-titration-lab", "Titration Lab")} type="button">
+            Open Titration Lab
+          </Button>
+          <Button onClick={() => openTool("chem-periodic-table", "Element Explorer")} type="button" variant="outline">
+            Open Element Explorer
+          </Button>
+          <Button onClick={() => openTool("chem-safety-cards", "Safety cards")} type="button" variant="outline">
+            Open Safety Cards
+          </Button>
+          <Button onClick={() => openTool("private-notes", "Notes")} type="button" variant="outline">
+            Open Notes
+          </Button>
+        </section>
+
+        <footer className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <Button disabled={stepIndex === 0} onClick={() => moveStep(-1)} type="button" variant="outline">
+              Previous step
+            </Button>
+            <Button disabled={stepIndex === chemistryLabCoachSteps.length - 1} onClick={() => moveStep(1)} type="button">
+              Next step
+            </Button>
+          </div>
+          <p className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs" role="status">
+            {status}
+          </p>
+        </footer>
+      </div>
+    </WorkspacePanel>
+  );
+}
+
 export function ChemistryTitrationLabModule() {
   const [state, dispatch] = useReducer(titrationReducer, undefined, createTitrationInitialState);
   const points = state.measurements.length > 0 ? state.measurements : [{ titrantVolumeMl: 0, ph: state.ph, equivalenceProgress: 0 }];
+  const latestProgress = state.measurements.at(-1)?.equivalenceProgress ?? 0;
+  const endpointHint = getTitrationHint(latestProgress);
+  const desmosReady = hasDesmosApiKey();
   const path = points
     .map((point, index) => {
       const x = Math.min(100, (point.titrantVolumeMl / 50) * 100);
@@ -886,7 +1160,7 @@ export function ChemistryTitrationLabModule() {
       description="Strong acid and strong base titration with controlled checkpoints."
       title="Acid-base titration lab"
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="chem-titration-v2 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-3">
           <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -895,10 +1169,13 @@ export function ChemistryTitrationLabModule() {
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   Determine the endpoint for 25.00 mL of 0.100 M HCl using 0.100 M NaOH.
                 </p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                  Simplified strong acid/strong base model
+                </p>
               </div>
               <Badge variant="outline">{state.ph.toFixed(2)} pH</Badge>
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-4">
               {["0.50", "1.00", "5.00"].map((volume) => (
                 <Button
                   key={volume}
@@ -910,19 +1187,32 @@ export function ChemistryTitrationLabModule() {
                   Add {volume} mL
                 </Button>
               ))}
+              <Button onClick={() => dispatch({ type: "reset" })} type="button" variant="secondary">
+                Reset
+              </Button>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-card/85 p-4">
+          <div className="chem-titration-chart-card rounded-2xl border border-border/70 bg-card/85 p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold">Live titration curve</p>
               <span className="text-xs text-muted-foreground">{state.titrantAddedMl.toFixed(2)} mL NaOH</span>
             </div>
+            <p className="mt-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              {desmosReady ? "Desmos curve ready when this graph surface is selected." : "Fallback chart active"}
+            </p>
             <svg aria-label="Titration curve" className="mt-3 h-48 w-full overflow-visible rounded-xl bg-background/75" viewBox="0 0 100 100">
               <line stroke="currentColor" strokeOpacity="0.18" x1="0" x2="100" y1="50" y2="50" />
               <line stroke="currentColor" strokeOpacity="0.18" x1="50" x2="50" y1="0" y2="100" />
+              <line stroke="hsl(var(--primary))" strokeDasharray="3 4" strokeOpacity="0.55" x1="50" x2="50" y1="0" y2="100" />
               <path d={path} fill="none" stroke="hsl(var(--primary))" strokeLinecap="round" strokeWidth="3" />
             </svg>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={latestProgress >= 0.96 && latestProgress <= 1.04 ? "default" : "outline"}>
+                {latestProgress >= 0.96 && latestProgress <= 1.04 ? "Endpoint zone" : "Endpoint watch"}
+              </Badge>
+              <span className="text-xs text-muted-foreground">{endpointHint}</span>
+            </div>
           </div>
         </section>
 
@@ -940,15 +1230,39 @@ export function ChemistryTitrationLabModule() {
             <p className="text-sm font-semibold">Measurement table</p>
             <div className="mt-3 max-h-48 overflow-auto rounded-xl border border-border/60">
               {state.measurements.length === 0 ? (
-                <p className="p-3 text-xs text-muted-foreground">Add titrant to record the first checkpoint.</p>
+                <p className="p-3 text-xs text-muted-foreground">
+                  No measurements yet. Add titrant to record the first checkpoint.
+                </p>
               ) : (
                 state.measurements.map((measurement) => (
-                  <div className="grid grid-cols-2 border-b border-border/50 px-3 py-2 text-xs last:border-b-0" key={`${measurement.titrantVolumeMl}-${measurement.ph}`}>
+                  <div
+                    className="grid grid-cols-[80px_72px_minmax(0,1fr)] gap-2 border-b border-border/50 px-3 py-2 text-xs last:border-b-0"
+                    key={`${measurement.titrantVolumeMl}-${measurement.ph}`}
+                  >
                     <span>{measurement.titrantVolumeMl.toFixed(2)} mL</span>
-                    <span className="text-right font-medium">pH {measurement.ph.toFixed(2)}</span>
+                    <span className="font-medium">pH {measurement.ph.toFixed(2)}</span>
+                    <span className="text-muted-foreground">{getTitrationObservation(measurement.equivalenceProgress)}</span>
                   </div>
                 ))
               )}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
+            <p className="text-sm font-semibold">Notebook prompts</p>
+            <div className="mt-3 grid gap-2">
+              {[
+                "Hypothesis",
+                "Procedure",
+                "Data table",
+                "Calculations",
+                "Observations",
+                "Error analysis",
+                "Conclusion",
+              ].map((prompt) => (
+                <p className="rounded-xl border border-border/55 bg-card/70 px-3 py-2 text-xs" key={prompt}>
+                  {prompt}
+                </p>
+              ))}
             </div>
           </div>
         </aside>

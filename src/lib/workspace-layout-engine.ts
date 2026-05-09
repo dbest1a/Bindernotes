@@ -191,6 +191,7 @@ export function fitWindowFramesToViewport({
   moduleIds,
   presetId,
   safeEdgePadding,
+  usePresetDesign = true,
   viewport,
 }: {
   force?: boolean;
@@ -198,6 +199,7 @@ export function fitWindowFramesToViewport({
   moduleIds: WorkspaceModuleId[];
   presetId?: WorkspacePresetId;
   safeEdgePadding: boolean;
+  usePresetDesign?: boolean;
   viewport: Viewport;
 }) {
   const visibleModules = moduleIds.filter((moduleId) => frames[moduleId]);
@@ -272,6 +274,7 @@ export function fitWindowFramesToViewport({
       moduleIds: visibleModules,
       presetId: presetId ?? inferPresetForModules(visibleModules),
       safeEdgePadding,
+      usePresetDesign,
       viewport,
     });
   }
@@ -287,12 +290,14 @@ export function tidyWorkspaceFrames({
   moduleIds,
   presetId,
   safeEdgePadding,
+  usePresetDesign = true,
   viewport,
 }: {
   frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
   moduleIds: WorkspaceModuleId[];
   presetId: WorkspacePresetId;
   safeEdgePadding: boolean;
+  usePresetDesign?: boolean;
   viewport: Viewport;
 }) {
   const visibleModules = moduleIds.filter((moduleId) => frames[moduleId] || moduleIds.includes(moduleId));
@@ -307,6 +312,7 @@ export function tidyWorkspaceFrames({
   const nextFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = { ...frames };
 
   if (
+    usePresetDesign &&
     presetId === "split-study" &&
     visibleModules.includes("lesson") &&
     visibleModules.includes("private-notes")
@@ -327,21 +333,23 @@ export function tidyWorkspaceFrames({
     };
   }
 
-  const designedPreset = layoutDesignedPreset({
-    frames,
-    gap,
-    moduleIds: visibleModules,
-    padding,
-    presetId,
-    usableHeight,
-    usableWidth,
-  });
-  if (designedPreset) {
-    Object.assign(nextFrames, designedPreset);
-    return {
-      frames: nextFrames,
-      changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
-    };
+  if (usePresetDesign) {
+    const designedPreset = layoutDesignedPreset({
+      frames,
+      gap,
+      moduleIds: visibleModules,
+      padding,
+      presetId,
+      usableHeight,
+      usableWidth,
+    });
+    if (designedPreset) {
+      Object.assign(nextFrames, designedPreset);
+      return {
+        frames: nextFrames,
+        changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
+      };
+    }
   }
 
   const primary = resolvePrimaryModule(presetId, visibleModules);

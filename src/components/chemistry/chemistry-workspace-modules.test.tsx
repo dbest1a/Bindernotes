@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ElementBuilderModule,
+  ChemistryLabCoachModule,
   ChemistryLabNotebookModule,
   ChemistryConceptCardsModule,
   InteractivePeriodicTableModule,
@@ -16,10 +17,19 @@ import {
 import { workspaceModuleRegistry } from "@/components/workspace/workspace-modules";
 import { getWorkspaceMobileModuleTabs, getWorkspacePresetDesign } from "@/lib/workspace-preset-designs";
 
+vi.mock("@/lib/desmos-loader", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/desmos-loader")>();
+  return {
+    ...original,
+    hasDesmosApiKey: vi.fn(() => false),
+  };
+});
+
 describe("chemistry workspace modules", () => {
   afterEach(() => cleanup());
 
   it("registers the P0 chemistry modules in the workspace registry", () => {
+    expect(workspaceModuleRegistry["chem-lab-coach"].title).toBe("Chemistry Lab Coach");
     expect(workspaceModuleRegistry["chem-stoichiometry-coach"].title).toBe("Chemistry Stoichiometry Coach");
     expect(workspaceModuleRegistry["chem-periodic-table"].title).toBe("Interactive periodic table");
     expect(workspaceModuleRegistry["chem-element-builder"].title).toBe("Element builder");
@@ -48,6 +58,7 @@ describe("chemistry workspace modules", () => {
   it("renders the chemistry modules as student-facing tools", () => {
     render(
       <div>
+        <ChemistryLabCoachModule />
         <InteractivePeriodicTableModule />
         <ElementBuilderModule />
         <PeriodicTrendsGraphModule />
@@ -60,14 +71,81 @@ describe("chemistry workspace modules", () => {
       </div>,
     );
 
+    expect(screen.getByText(/chemistry lab coach/i)).toBeTruthy();
     expect(screen.getByText(/interactive periodic table/i)).toBeTruthy();
     expect(screen.getByText(/Build Carbon-14/i)).toBeTruthy();
     expect(screen.getAllByText(/fallback chart/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Balanced result/i)).toBeTruthy();
     expect(screen.getByText(/Effective nuclear charge/i)).toBeTruthy();
     expect(screen.getByText(/unit ladder/i)).toBeTruthy();
-    expect(screen.getByText(/acid-base titration/i)).toBeTruthy();
+    expect(screen.getAllByText(/acid-base titration/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/smart lab notebook/i)).toBeTruthy();
     expect(screen.getByText(/safety check/i)).toBeTruthy();
+  });
+
+  it("guides a chemistry lab flow with manual progress and related tool actions", () => {
+    const onOpenTool = vi.fn();
+
+    render(<ChemistryLabCoachModule onOpenTool={onOpenTool} />);
+
+    expect(screen.getByText(/step 1 of 8/i)).toBeTruthy();
+    expect(screen.getByText(/current lab goal/i)).toBeTruthy();
+    expect(screen.getByText(/next: check safety/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /next step/i }));
+
+    expect(screen.getByText(/step 2 of 8/i)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Step complete");
+
+    fireEvent.click(screen.getByRole("button", { name: /open titration lab/i }));
+    expect(onOpenTool).toHaveBeenCalledWith("chem-titration-lab");
+
+    fireEvent.click(screen.getByRole("button", { name: /open notes/i }));
+    expect(onOpenTool).toHaveBeenCalledWith("private-notes");
+  });
+
+  it("upgrades titration into a checkpoint lab with reset, observations, endpoint hint, and compact graph fallback", () => {
+    render(<ChemistryTitrationLabModule />);
+
+    expect(screen.getByText(/simplified strong acid\/strong base model/i)).toBeTruthy();
+    expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
+    expect(screen.getByText(/fallback chart active/i)).toBeTruthy();
+    expect(screen.getByText(/hypothesis/i)).toBeTruthy();
+    expect(screen.getByText(/error analysis/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /add 5.00 ml/i }));
+    expect(screen.getByText("5.00 mL")).toBeTruthy();
+    expect(screen.getByText(/acidic; keep adding titrant/i)).toBeTruthy();
+
+    for (let index = 0; index < 4; index += 1) {
+      fireEvent.click(screen.getByRole("button", { name: /add 5.00 ml/i }));
+    }
+
+    expect(screen.getAllByText(/endpoint zone/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/equivalence point is near 25.00 ml/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /reset/i }));
+    expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
+    expect(screen.queryByText("25.00 mL")).toBeNull();
+  });
+
+  it("makes Element Explorer useful with search, shortcuts, valence, bonding, and why-it-matters notes", () => {
+    render(<InteractivePeriodicTableModule />);
+
+    expect(screen.getByTestId("chem-element-explorer-v2").getAttribute("data-chem-layout")).toBe("list-detail");
+
+    fireEvent.change(screen.getByLabelText(/element search/i), { target: { value: "oxygen" } });
+    expect(screen.getByRole("heading", { name: /^O$/i })).toBeTruthy();
+    expect(screen.getByText(/valence electrons/i)).toBeTruthy();
+    const detail = screen.getByLabelText(/selected element details/i);
+    expect(within(detail).getByText(/^6$/)).toBeTruthy();
+    expect(screen.getByText(/usually forms two bonds/i)).toBeTruthy();
+    expect(screen.getByText(/why it matters/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /shortcut sodium/i }));
+    expect(screen.getByRole("heading", { name: /^Na$/i })).toBeTruthy();
+
+    expect(within(detail).getByText(/atomic number/i)).toBeTruthy();
+    expect(within(detail).getByText(/common ion/i)).toBeTruthy();
   });
 });

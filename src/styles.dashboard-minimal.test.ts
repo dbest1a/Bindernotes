@@ -85,6 +85,8 @@ describe("minimal dashboard appearance styles", () => {
   it("makes Normal richer than Minimal while keeping the same workspace controls", () => {
     expect(css).toContain(".normal-dashboard-page .minimal-dashboard-command-bar::before");
     expect(css).toContain(".normal-dashboard-page .minimal-dashboard-command-bar__identity .inline-flex");
+    expect(css).toContain(".normal-dashboard-page .dashboard-life-card:is(:hover, :focus-visible)");
+    expect(css).toContain('.normal-dashboard-page[data-beta-dashboard-polish="on"] .dashboard-life-card::after');
     expect(css).toMatch(
       /\.normal-dashboard-page \.minimal-dashboard-stat[\s\S]*background:\s*linear-gradient\(135deg,\s*hsl\(var\(--background\) \/ 0\.92\),\s*hsl\(var\(--accent\) \/ 0\.34\)\)/s,
     );
@@ -94,6 +96,18 @@ describe("minimal dashboard appearance styles", () => {
     expect(css).toMatch(
       /\.normal-dashboard-page \.minimal-binder-card__cover[\s\S]*background:\s*linear-gradient\(135deg,\s*hsl\(var\(--primary\) \/ 0\.22\),\s*hsl\(var\(--accent\) \/ 0\.76\),\s*hsl\(var\(--secondary\) \/ 0\.84\)\)/s,
     );
+  });
+
+  it("keeps Minimal Drive mode denser than Normal", () => {
+    expect(css).toContain(".minimal-dashboard-page .minimal-binder-card--drive-row");
+    expect(css).toMatch(
+      /\.minimal-dashboard-page \.minimal-binder-card--drive-row[\s\S]*min-height:\s*4\.85rem/s,
+    );
+    expect(css).toMatch(
+      /\.normal-dashboard-page \.minimal-binder-card[\s\S]*min-height:\s*9\.2rem/s,
+    );
+    expect(css).toContain(".dashboard-health-badge");
+    expect(css).toContain(".dashboard-continue-shelf");
   });
 
   it("lets the redesigned Normal dashboard persist full width and compact density", () => {
@@ -126,7 +140,7 @@ describe("minimal dashboard appearance styles", () => {
       /:root\[data-admin-motion="on"\] \.admin-dashboard-command-bar[\s\S]*admin-dashboard-land/s,
     );
     expect(css).toMatch(
-      /:root\[data-performance-mode="on"\] \.admin-dashboard-command-bar[\s\S]*animation:\s*none !important/s,
+      /:root\[data-performance-mode="true"\] \.admin-dashboard-command-bar[\s\S]*animation:\s*none !important/s,
     );
   });
 

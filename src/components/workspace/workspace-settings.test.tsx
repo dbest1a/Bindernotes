@@ -12,6 +12,9 @@ import {
 afterEach(() => {
   window.sessionStorage.clear();
   window.localStorage.clear();
+  document.documentElement.removeAttribute("data-enhanced-mode");
+  document.documentElement.removeAttribute("data-enhanced-visuals");
+  document.documentElement.removeAttribute("data-performance-mode");
   cleanup();
 });
 
@@ -269,6 +272,30 @@ describe("WorkspaceSettings appearance scope", () => {
     expect(screen.getByText("Whiteboard")).toBeTruthy();
   });
 
+  it("surfaces Enhanced Visuals from workspace search while Performance Mode stays default", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    render(<WorkspaceSettings mode="layout" onChange={vi.fn()} preferences={preferences} />);
+
+    for (const query of ["performance", "lag", "smooth", "animation", "whiteboard menu"]) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+
+      expect(screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded")).toBe(
+        "true",
+      );
+      expect(screen.getByText("Enhanced Visuals")).toBeTruthy();
+      expect(screen.getByRole("button", { name: /enhanced visuals/i }).getAttribute("aria-pressed")).toBe(
+        "false",
+      );
+      expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
+    }
+  });
+
   it("shows an empty state when settings search has no matches", () => {
     const preferences = applyWorkspaceMode(
       createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -407,6 +434,33 @@ describe("WorkspaceSettings appearance scope", () => {
       expect.objectContaining({
         modular: expect.objectContaining({ panelDensity: "compact" }),
         theme: expect.objectContaining({ compactMode: true }),
+      }),
+    );
+  });
+
+  it("finds and persists the secondary preset strip setting from search", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "modular",
+    );
+    const onChange = vi.fn();
+
+    render(<WorkspaceSettings onChange={onChange} preferences={preferences} />);
+
+    expect(screen.getByRole("button", { name: /show secondary preset strip/i }).textContent).toContain("Hidden");
+
+    for (const query of ["selector", "preset", "strip", "secondary"]) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+      expect(screen.getByRole("button", { name: /show secondary preset strip/i })).toBeTruthy();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: /show secondary preset strip/i }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modular: expect.objectContaining({ showSecondaryPresetStrip: true }),
       }),
     );
   });

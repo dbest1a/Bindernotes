@@ -33,7 +33,8 @@ function writePerformanceModeAttributes(
   }
 
   document.documentElement.dataset.enhancedMode = enhancedModeEnabled ? "true" : "false";
-  document.documentElement.dataset.performanceMode = effectivePerformanceMode ? "on" : "off";
+  document.documentElement.dataset.enhancedVisuals = enhancedModeEnabled ? "true" : "false";
+  document.documentElement.dataset.performanceMode = effectivePerformanceMode ? "true" : "false";
   document.documentElement.dataset.reducedMotion = prefersReducedMotion ? "system" : "none";
 }
 

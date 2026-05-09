@@ -11,6 +11,8 @@ export type WhiteboardModuleDefinition = {
   defaultAnchorMode?: WhiteboardModuleAnchorMode;
 };
 
+export type WhiteboardModuleContextKind = "general" | "math" | "history";
+
 const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
   {
     moduleId: "lesson",
@@ -102,10 +104,61 @@ const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
     defaultHeight: 320,
     defaultAnchorMode: "board-fixed-size",
   },
+  {
+    moduleId: "history-timeline",
+    label: "Timeline",
+    description: "Keep the lesson timeline beside the whiteboard.",
+    heavy: false,
+    defaultWidth: 500,
+    defaultHeight: 360,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "history-evidence",
+    label: "Evidence",
+    description: "Open source evidence and claim support while you sketch.",
+    heavy: false,
+    defaultWidth: 500,
+    defaultHeight: 380,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "history-argument",
+    label: "Argument Builder",
+    description: "Draft claim, evidence, and reasoning alongside the board.",
+    heavy: false,
+    defaultWidth: 520,
+    defaultHeight: 400,
+    defaultAnchorMode: "board-fixed-size",
+  },
 ];
 
-export function getEmbeddableWhiteboardModules() {
-  return embeddableWhiteboardModules;
+const mathWhiteboardModuleIds = new Set<WorkspaceModuleId>([
+  "formula-sheet",
+  "math-blocks",
+  "desmos-graph",
+  "scientific-calculator",
+  "saved-graphs",
+]);
+
+const historyWhiteboardModuleIds = new Set<WorkspaceModuleId>([
+  "history-timeline",
+  "history-evidence",
+  "history-argument",
+]);
+
+export function getEmbeddableWhiteboardModules(contextKind: WhiteboardModuleContextKind = "math") {
+  return embeddableWhiteboardModules.filter((definition) => {
+    if (historyWhiteboardModuleIds.has(definition.moduleId)) {
+      return contextKind === "history";
+    }
+
+    if (mathWhiteboardModuleIds.has(definition.moduleId)) {
+      return contextKind === "math";
+    }
+
+    return true;
+  });
 }
 
 export function getWhiteboardModuleDefinition(moduleId: WorkspaceModuleId) {

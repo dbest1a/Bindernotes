@@ -156,7 +156,7 @@ describe("SimplePresentationShell", () => {
     expect(screen.getAllByText("Augustus receives title").length).toBeGreaterThan(0);
   });
 
-  it("renders a math binder in simple presentation mode", () => {
+  it("renders a math binder in simple presentation mode", async () => {
     const preferences = {
       ...createDefaultWorkspacePreferences("user-1", "binder-1"),
       simple: {
@@ -177,7 +177,7 @@ describe("SimplePresentationShell", () => {
     );
 
     expect(screen.getByText("Formula, graph, notes")).toBeTruthy();
-    expect(screen.getAllByText("Slope formula").length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Slope formula")).length).toBeGreaterThan(0);
   });
 
   it("lets simple view change the study surface without opening the settings drawer", () => {
@@ -262,6 +262,34 @@ describe("SimplePresentationShell", () => {
     expect(screen.getByRole("combobox", { name: "Study surface" })).toBeTruthy();
     expect(screen.getByText("Reading")).toBeTruthy();
     expect(screen.getByText("Highlights")).toBeTruthy();
+  });
+
+  it("uses Student Calm Mode to remove duplicate simple Settings and Focus controls while keeping study helpers useful", async () => {
+    const onSendSelectionToNotes = vi.fn();
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+
+    const { container } = render(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={{
+            ...createContext(),
+            onSendSelectionToNotes,
+          }}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+          studentCalmMode
+        />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-student-calm-mode")).toBe("true");
+    expect(screen.queryByRole("button", { name: /^Settings$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Focus$/i })).toBeNull();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Send formula to notes/i }));
+
+    expect(onSendSelectionToNotes).toHaveBeenCalledWith("m=\\frac{y_2-y_1}{x_2-x_1}");
   });
 });
 

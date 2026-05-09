@@ -44,6 +44,7 @@ type DesmosSurfaceProps = {
   onExpressionApplied?: (id: string) => void;
   onStateChange?: (state: DesmosState) => void;
   pendingExpression?: GraphExpressionRequest | null;
+  showKeypad?: boolean;
   state?: DesmosState | null;
 };
 
@@ -57,6 +58,7 @@ export const DesmosSurface = memo(function DesmosSurface({
   onExpressionApplied,
   onStateChange,
   pendingExpression,
+  showKeypad = true,
   state,
 }: DesmosSurfaceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -151,6 +153,7 @@ export const DesmosSurface = memo(function DesmosSurface({
         const calculator = createDesmosCalculator(kind, Desmos, container, {
           darkMode,
           graphChrome,
+          showKeypad,
         });
         calculatorRef.current = calculator;
 
@@ -227,7 +230,7 @@ export const DesmosSurface = memo(function DesmosSurface({
         calculatorRef.current = null;
       }
     };
-  }, [kind]);
+  }, [kind, showKeypad]);
 
   useEffect(() => {
     if (status !== "ready" || !calculatorRef.current?.updateSettings) {
@@ -362,6 +365,7 @@ function createDesmosCalculator(
   preferences: {
     darkMode: boolean;
     graphChrome: "standard" | "focused";
+    showKeypad: boolean;
   },
 ) {
   if (kind === "graphing") {
@@ -380,7 +384,7 @@ function createDesmosCalculator(
       expressionsCollapsed: preferences.graphChrome === "focused",
       folders: true,
       invertedColors: preferences.darkMode,
-      keypad: true,
+      keypad: preferences.showKeypad,
       notes: true,
       projectorMode: false,
       settingsMenu: preferences.graphChrome === "standard",
@@ -405,7 +409,7 @@ function createDesmosCalculator(
       expressionsCollapsed: preferences.graphChrome === "focused",
       folders: true,
       invertedColors: preferences.darkMode,
-      keypad: true,
+      keypad: preferences.showKeypad,
       notes: true,
       projectorMode: false,
       settingsMenu: preferences.graphChrome === "standard",
@@ -426,7 +430,7 @@ function createDesmosCalculator(
     autosize: true,
     border: false,
     invertedColors: preferences.darkMode,
-    keypad: true,
+    keypad: preferences.showKeypad,
   });
 }
 

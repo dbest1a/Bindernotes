@@ -181,6 +181,10 @@ const moduleMinimumSizes: Partial<
     secondary: { width: 420, height: 320 },
   },
   "history-myth-checks": { width: 320, height: 260 },
+  flashcards: {
+    primary: { width: 680, height: 520 },
+    secondary: { width: 420, height: 320 },
+  },
 };
 
 export function getWorkspaceModuleMinimumSize(
@@ -376,6 +380,20 @@ export const workspacePresetDesigns = {
     collapsedByDefault: ["saved-graphs", "scientific-calculator", "comments", "recent-highlights"],
     desktopRecipe: "math-studio-zones",
     smallScreenRecipe: "math-studio-zones",
+    fitStrategy: "preserve-composition",
+  },
+  "recall-lab": {
+    id: "recall-lab",
+    purpose: "Make source-linked active recall the whole study surface while keeping source, notes, and highlights available as drawers.",
+    primary: ["flashcards"],
+    secondary: ["lesson", "private-notes", "recent-highlights"],
+    optional: ["comments", "binder-notebook", "related-concepts"],
+    defaultVisible: ["flashcards", "lesson", "private-notes", "recent-highlights"],
+    compactVisible: ["flashcards", "lesson"],
+    smallScreenVisible: ["flashcards"],
+    collapsedByDefault: ["comments", "binder-notebook", "related-concepts"],
+    desktopRecipe: "lesson-primary-rail",
+    smallScreenRecipe: "lesson-primary-rail",
     fitStrategy: "preserve-composition",
   },
   "chem-guided-study": {
@@ -620,6 +638,7 @@ const faceliftPresetReasoning: Record<WorkspacePresetId, string> = {
   "math-proof-concept": "Concept and proof work needs reasoning space, related ideas, and notes more than calculator clutter.",
   "math-practice-mode": "Problem solving gets the primary working area, with formula and lesson references opening when useful.",
   "full-math-canvas": "The full math canvas can expose more power, but optional tools stay collapsed before panels become tiny.",
+  "recall-lab": "Recall Lab should dominate the workspace, with source, notes, and highlights available without cramming the practice card.",
   "chem-guided-study": "Chemistry guided study keeps the lesson and notes central while concept cards and quick tools stay compact.",
   "chem-element-explorer": "Element exploration should make the periodic table the flagship surface with builder and trend tools supporting it.",
   "chem-bonding-studio": "Bonding work needs the molecule builder dominant while source, geometry, and notes stay readable.",
@@ -787,6 +806,7 @@ const heavyWorkspaceModules = new Set<WorkspaceModuleId>([
   "history-evidence",
   "history-argument",
   "history-myth-checks",
+  "flashcards",
 ]);
 
 const defaultStudentCommands: Record<WorkspacePresetId, FaceliftWorkspacePresetDesign["studentCommand"]> = {
@@ -855,6 +875,12 @@ const defaultStudentCommands: Record<WorkspacePresetId, FaceliftWorkspacePresetD
     label: "Math studio",
     primaryAction: "Use the largest work surface first",
     followUpAction: "Open extra tools only when they answer the next question.",
+  },
+  "recall-lab": {
+    intent: "work",
+    label: "Recall",
+    primaryAction: "Start with due cards",
+    followUpAction: "After a miss, open the source and record why it slipped.",
   },
   "chem-guided-study": {
     intent: "lab",
@@ -1761,6 +1787,20 @@ function buildGeneralFaceliftFrames(
 ): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
 
+  if (presetId === "recall-lab") {
+    const leftWidth = Math.max(260, Math.round(width * 0.16));
+    const rightWidth = Math.max(320, Math.round(width * 0.2));
+    const centerX = leftWidth + gap;
+    const centerWidth = Math.max(620, width - leftWidth - rightWidth - gap * 2);
+    const rightX = centerX + centerWidth + gap;
+    return {
+      lesson: faceliftFrame(0, 0, leftWidth, height, 1),
+      flashcards: faceliftFrame(centerX, 0, centerWidth, height, 2),
+      "private-notes": faceliftFrame(rightX, 0, rightWidth, Math.round(height * 0.58), 3),
+      "recent-highlights": faceliftFrame(rightX, Math.round(height * 0.58) + gap, rightWidth, Math.round(height * 0.42) - gap, 4),
+    };
+  }
+
   if (presetId === "notes-focus") {
     const notesWidth = Math.max(620, Math.round(width * 0.62));
     return {
@@ -2028,7 +2068,7 @@ const mobileModuleLabels: Partial<Record<WorkspaceModuleId, string>> = {
   "history-myth-checks": "Myth checks",
   tasks: "Tasks",
   search: "Search",
-  flashcards: "Flashcards",
+  flashcards: "Recall Lab",
   "mini-tools": "Tools",
 };
 

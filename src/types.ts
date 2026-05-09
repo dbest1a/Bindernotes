@@ -450,6 +450,7 @@ export type WorkspaceModuleId =
   | "chem-geometry-viewer"
   | "chem-reaction-balancer"
   | "chem-tri-reaction-view"
+  | "chem-lab-coach"
   | "chem-stoichiometry-coach"
   | "chem-molar-mass-calculator"
   | "chem-solution-mixer"
@@ -506,6 +507,7 @@ export type WorkspacePresetId =
   | "math-proof-concept"
   | "math-practice-mode"
   | "full-math-canvas"
+  | "recall-lab"
   | "chemistry-lab"
   | "chem-guided-study"
   | "chem-element-explorer"
@@ -624,6 +626,7 @@ export type ModularStudySettings = {
   motionLevel: WorkspaceAnimationLevel;
   colorPreset: WorkspaceThemeId;
   saveLayoutPerBinder: boolean;
+  showSecondaryPresetStrip: boolean;
 };
 
 export type FullCanvasSnapBehavior = "off" | "edges" | "modules";

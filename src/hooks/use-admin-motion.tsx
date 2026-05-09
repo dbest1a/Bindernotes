@@ -38,7 +38,7 @@ function writeRootAttributes(
   const root = document.documentElement;
   const effectivePerformanceMode = performanceModeActive || prefersReducedMotion;
   const enabled = isAdmin && settings.enabled && !effectivePerformanceMode;
-  root.dataset.performanceMode = effectivePerformanceMode ? "on" : "off";
+  root.dataset.performanceMode = effectivePerformanceMode ? "true" : "false";
   root.dataset.adminMotion = enabled ? "on" : "off";
   root.dataset.reducedMotion = prefersReducedMotion ? "system" : "none";
   root.dataset.motionIntensity = settings.intensity;

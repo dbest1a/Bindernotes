@@ -37,6 +37,7 @@ import type {
 } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { cn } from "@/lib/utils";
 import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 
@@ -96,7 +97,30 @@ const settingsSearchAliases = {
   mobile: ["phone", "mobile", "tablet", "responsive", "small screen", "touch"],
   header: ["header", "space", "compact", "maximize", "chrome", "module", "source", "lesson", "notes"],
   whiteboard: ["whiteboard", "board", "canvas", "drawing", "sketch", "module", "math board"],
+  performance: [
+    "performance",
+    "lag",
+    "fast",
+    "smooth",
+    "animation",
+    "motion",
+    "enhanced",
+    "visual",
+    "whiteboard",
+    "menu",
+    "whiteboard menu",
+  ],
   launcher: ["launcher", "module launcher", "canvas launcher", "side menu", "selected module", "inspector", "builder", "launch"],
+  secondaryPresetStrip: [
+    "selector",
+    "preset",
+    "strip",
+    "secondary",
+    "focused reading",
+    "split study",
+    "math study",
+    "workspace view",
+  ],
   facelift: [
     "facelift",
     "workspace",
@@ -140,6 +164,7 @@ export function WorkspaceSettings({
   lessonTitle,
   preferences,
 }: WorkspaceSettingsProps) {
+  const performanceMode = usePerformanceMode();
   const [showAdvancedCustomization, setShowAdvancedCustomization] = useState(mode === "layout");
   const [settingsQuery, setSettingsQuery] = useState("");
   const deferredSettingsQuery = useDeferredValue(settingsQuery);
@@ -238,8 +263,8 @@ export function WorkspaceSettings({
   );
   const motionFolderMatch = folderMatches(
     "Motion & Performance",
-    "Animation controls, reduced motion, performance, and responsive phone, mobile, and tablet behavior.",
-    ["mobile"],
+    "Animation controls, reduced motion, performance, enhanced visuals, whiteboard menus, and responsive phone, mobile, and tablet behavior.",
+    ["mobile", "performance"],
   );
   const toolsFolderMatch = folderMatches(
     "Tools & Modules",
@@ -295,9 +320,10 @@ export function WorkspaceSettings({
     "Panel density",
     "Side panel",
     "Save layout per binder",
+    "Show secondary preset strip",
     "compact",
     "responsive",
-    ...aliases("mobile", "header"),
+    ...aliases("mobile", "header", "secondaryPresetStrip"),
   ]);
   const showColorSettings = matchesSetting([
     "Colors & Study Surface",
@@ -323,8 +349,11 @@ export function WorkspaceSettings({
     "Motion",
     "Animation level",
     "Hover motion",
+    "Enhanced Visuals",
+    "Performance Mode",
     "reduced motion",
     "performance",
+    ...aliases("performance"),
   ]);
   const showResponsiveSettings = matchesSetting([
     "Responsive layout",
@@ -886,6 +915,28 @@ export function WorkspaceSettings({
                   }
                 />
               </ControlGroup>
+
+              <ControlGroup title="Show secondary preset strip">
+                <ToggleChoice
+                  active={preferences.modular.showSecondaryPresetStrip}
+                  ariaLabel="Show secondary preset strip"
+                  description={
+                    preferences.modular.showSecondaryPresetStrip
+                      ? "The extra preset row is visible below the module tabs."
+                      : "Hide the extra preset row so modules start higher in the workspace."
+                  }
+                  label={preferences.modular.showSecondaryPresetStrip ? "Shown" : "Hidden"}
+                  onClick={() =>
+                    setNext({
+                      ...preferences,
+                      modular: {
+                        ...preferences.modular,
+                        showSecondaryPresetStrip: !preferences.modular.showSecondaryPresetStrip,
+                      },
+                    })
+                  }
+                />
+              </ControlGroup>
             </div>
           </Section>
         ) : null}
@@ -1128,6 +1179,25 @@ export function WorkspaceSettings({
                   }))
                 }
               />
+            </ControlGroup>
+
+            <ControlGroup title="Enhanced Visuals">
+              <ToggleChoice
+                active={performanceMode.enhancedModeEnabled}
+                ariaLabel="Enhanced Visuals"
+                description={
+                  performanceMode.effectivePerformanceMode
+                    ? "Performance Mode is active. Menus, drawing, and module switching prioritize speed."
+                    : "Richer motion, shadows, and visual effects are active."
+                }
+                label={performanceMode.enhancedModeEnabled ? "On" : "Off"}
+                onClick={() =>
+                  performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                }
+              />
+              <p className="rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                Adds richer motion, shadows, and visual effects. Turn off for the fastest study and whiteboard experience.
+              </p>
             </ControlGroup>
           </div>
         </Section>
@@ -1708,6 +1778,7 @@ function ToggleChoice({
   return (
     <button
       aria-label={ariaLabel}
+      aria-pressed={active}
       className={cn(
         "workspace-settings__choice rounded-xl border px-3 py-2.5 text-left transition",
         active ? "border-primary bg-accent/70" : "border-border/70 bg-background/55",

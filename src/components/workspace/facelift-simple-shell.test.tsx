@@ -32,7 +32,16 @@ vi.mock("@/components/workspace/workspace-modules", () => ({
     },
     whiteboard: {
       title: "Whiteboard",
-      render: () => <section>Whiteboard body</section>,
+      render: (context: { onExitWhiteboardFocus?: () => void }) => (
+        <section>
+          Whiteboard body
+          {context.onExitWhiteboardFocus ? (
+            <button onClick={context.onExitWhiteboardFocus} type="button">
+              Back to workspace
+            </button>
+          ) : null}
+        </section>
+      ),
     },
   },
 }));
@@ -43,7 +52,7 @@ afterEach(() => {
 
 function renderFaceliftSimpleShell(
   overrides: Partial<WorkspacePreferences> = {},
-  options: { isCompact?: boolean } = {},
+  options: { focusModeActive?: boolean; isCompact?: boolean; studentCalmMode?: boolean } = {},
 ) {
   const preferences: WorkspacePreferences = {
     ...createDefaultWorkspacePreferences("user-1", "binder-1"),
@@ -90,27 +99,31 @@ function renderFaceliftSimpleShell(
     onChange: vi.fn(),
     onChangeView: vi.fn(),
     onCreateSticky: vi.fn(),
+    onChangeWorkspaceViewMode: vi.fn(),
     onOpenSettings: vi.fn(),
     onToggleFocus: vi.fn(),
   };
 
-  render(
+  const result = render(
     <MemoryRouter>
       <FaceliftSimpleShell
         context={context}
-        focusModeActive={false}
+        focusModeActive={options.focusModeActive ?? false}
         isCompact={options.isCompact}
         onChange={callbacks.onChange}
+        onChangeWorkspaceViewMode={callbacks.onChangeWorkspaceViewMode}
         onChangeView={callbacks.onChangeView}
         onCreateSticky={callbacks.onCreateSticky}
         onOpenSettings={callbacks.onOpenSettings}
         onToggleFocus={callbacks.onToggleFocus}
         preferences={preferences}
+        studentCalmMode={options.studentCalmMode}
+        workspaceViewMode="facelift"
       />
     </MemoryRouter>,
   );
 
-  return { callbacks, context };
+  return { callbacks, context, container: result.container };
 }
 
 describe("FaceliftSimpleShell", () => {
@@ -200,5 +213,62 @@ describe("FaceliftSimpleShell", () => {
 
     expect(screen.queryByText("Whiteboard body")).toBeNull();
     expect(screen.getByText("Notes body")).toBeTruthy();
+  });
+
+  it("turns Study Panels tools into real tool-surface launchers", () => {
+    const { context } = renderFaceliftSimpleShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "desmos-graph", "math-blocks", "formula-sheet", "whiteboard"],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /tools/i }));
+
+    const toolsMenu = screen.getByRole("menu", { name: /study tools/i });
+    expect(within(toolsMenu).getByText(/open tool surfaces/i)).toBeTruthy();
+    expect(within(toolsMenu).getByRole("button", { name: /whiteboard/i })).toBeTruthy();
+
+    fireEvent.click(within(toolsMenu).getByRole("button", { name: /whiteboard/i }));
+
+    expect(context.onApplyPreset).toHaveBeenCalledWith("math-practice-mode");
+  });
+
+  it("passes a focus-exit callback to whiteboard modules in focused facelift mode", () => {
+    const { callbacks } = renderFaceliftSimpleShell(
+      {
+        preset: "math-practice-mode",
+        enabledModules: ["whiteboard", "math-blocks", "private-notes", "formula-sheet"],
+      },
+      { focusModeActive: true },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /back to workspace/i }));
+
+    expect(callbacks.onToggleFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("prioritizes the whiteboard when Math Practice Mode makes Board the primary surface", () => {
+    const { container } = renderFaceliftSimpleShell({
+      preset: "math-practice-mode",
+      enabledModules: ["whiteboard", "math-blocks", "private-notes", "formula-sheet"],
+    });
+
+    const grid = screen.getByTestId("facelift-module-grid");
+    const whiteboardCell = container.querySelector('[data-facelift-module="whiteboard"]');
+    const mathBlocksCell = container.querySelector('[data-facelift-module="math-blocks"]');
+
+    expect(grid.getAttribute("data-facelift-board-primary-layout")).toBe("dominant");
+    expect(whiteboardCell?.className).toContain("facelift-module-cell--primary");
+    expect(mathBlocksCell?.className).not.toContain("facelift-module-cell--primary");
+  });
+
+  it("marks Student Calm Mode and offers a Back to Simple escape hatch", () => {
+    const { callbacks, container } = renderFaceliftSimpleShell({}, { studentCalmMode: true });
+
+    expect(container.querySelector(".facelift-simple-shell")?.getAttribute("data-student-calm-mode")).toBe("true");
+    expect(screen.getByRole("button", { name: /Back to Simple/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Back to Simple/i }));
+
+    expect(callbacks.onChangeWorkspaceViewMode).toHaveBeenCalledWith("simple");
   });
 });

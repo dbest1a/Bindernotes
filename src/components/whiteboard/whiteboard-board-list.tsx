@@ -1,16 +1,30 @@
-import { Archive, Layers3 } from "lucide-react";
+import { Archive, Layers3, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { BinderWhiteboard } from "@/lib/whiteboards/whiteboard-types";
 import { MAX_WHITEBOARDS_PER_USER } from "@/lib/whiteboards/whiteboard-limits";
 
 type WhiteboardBoardListProps = {
   boards: BinderWhiteboard[];
   activeBoardId: string | null;
+  compact?: boolean;
+  onCreateBlankBoard?: () => void;
   onArchiveBoard?: (boardId: string) => void;
   onSelectBoard: (boardId: string) => void;
+  showLimitStatus?: boolean;
 };
 
-export function WhiteboardBoardList({ boards, activeBoardId, onArchiveBoard, onSelectBoard }: WhiteboardBoardListProps) {
+export function WhiteboardBoardList({
+  boards,
+  activeBoardId,
+  compact = false,
+  onArchiveBoard,
+  onCreateBlankBoard,
+  onSelectBoard,
+  showLimitStatus = false,
+}: WhiteboardBoardListProps) {
+  const shouldShowLimitStatus = !compact || showLimitStatus;
+
   return (
     <div className="grid gap-2" data-testid="whiteboard-board-manager">
       <div className="flex items-center justify-between gap-2">
@@ -18,11 +32,26 @@ export function WhiteboardBoardList({ boards, activeBoardId, onArchiveBoard, onS
           <Layers3 className="size-3.5" />
           Recent whiteboards
         </p>
-        <Badge data-testid="whiteboard-board-count" variant="outline">
-          {boards.length} / {MAX_WHITEBOARDS_PER_USER}
-        </Badge>
+        {shouldShowLimitStatus ? (
+          <Badge data-testid="whiteboard-board-count" variant="outline">
+            {boards.length} / {MAX_WHITEBOARDS_PER_USER}
+          </Badge>
+        ) : null}
       </div>
-      <div className="grid max-h-48 gap-2 overflow-auto pr-1">
+      {compact && onCreateBlankBoard ? (
+        <Button
+          className="justify-start"
+          data-testid="whiteboard-new-blank-near-recent"
+          onClick={onCreateBlankBoard}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <Plus data-icon="inline-start" />
+          New blank board
+        </Button>
+      ) : null}
+      <div className={compact ? "grid gap-2" : "grid max-h-48 gap-2 overflow-auto pr-1"}>
         {boards.length === 0 ? (
           <p className="rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
             No saved whiteboards yet.

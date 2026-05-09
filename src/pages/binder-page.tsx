@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, ChevronRight, FileText, FolderTree, NotebookPen } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presen
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
+import { scheduleUserRecentItem } from "@/services/activity-service";
 
 export function BinderPage() {
   const { binderId } = useParams();
@@ -34,7 +35,27 @@ export function BinderPage() {
       ? classifyRuntimeError("binders", error)
       : [];
   const primaryFolder = data?.folders[0] ?? null;
+  const profileId = profile?.id ?? null;
   const canManageWorkspace = profile?.role === "admin";
+
+  useEffect(() => {
+    if (!profileId || !data) {
+      return;
+    }
+
+    scheduleUserRecentItem({
+      userId: profileId,
+      itemType: "binder",
+      itemId: data.binder.id,
+      binderId: data.binder.id,
+      folderId: primaryFolder?.id ?? null,
+      titleSnapshot: data.binder.title,
+      metadata: {
+        route: "binder",
+        subject: data.binder.subject,
+      },
+    });
+  }, [data, primaryFolder?.id, profileId]);
 
   if (!profile) {
     return <Navigate replace to="/auth" />;
