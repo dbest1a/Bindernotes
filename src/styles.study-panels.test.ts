@@ -31,11 +31,13 @@ describe("study panels sizing styles", () => {
     expect(css).toContain('.whiteboard-module-layout[data-whiteboard-sidebar="expanded"]');
     expect(css).toContain('.whiteboard-module-layout[data-whiteboard-sidebar="collapsed"]');
     expect(css).toMatch(
-      /data-whiteboard-sidebar="expanded"[\s\S]*grid-template-columns:\s*minmax\(13rem,\s*16rem\)\s*minmax\(0,\s*1fr\)/s,
+      /data-whiteboard-sidebar="expanded"[\s\S]*grid-template-columns:\s*clamp\(11rem,\s*var\(--whiteboard-sidebar-width,\s*15\.5rem\),\s*min\(25rem,\s*36vw\)\)\s*0\.5rem\s*minmax\(0,\s*1fr\)/s,
     );
     expect(css).toMatch(
       /data-whiteboard-sidebar="collapsed"[\s\S]*grid-template-columns:\s*3\.3rem\s*minmax\(0,\s*1fr\)/s,
     );
+    expect(css).toContain(".whiteboard-sidebar-resizer");
+    expect(css).toContain(".whiteboard-sidebar-scroll");
   });
 
   it("keeps focus mode single-panel modules stretched across the available stage", () => {
@@ -43,6 +45,28 @@ describe("study panels sizing styles", () => {
     expect(css).toContain('.study-panels-shell[data-focus-mode-active="true"] .study-panels-card');
     expect(css).toContain(
       '.study-panels-shell[data-focus-mode-active="true"] .study-panels-card[data-study-panel-module="whiteboard"] .whiteboard-module-layout',
+    );
+  });
+
+  it("keeps Study Panels private notes opaque so helper copy cannot ghost through the editor", () => {
+    expect(css).toContain('.study-panels-card[data-study-panel-module="private-notes"]');
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\][\s\S]*isolation:\s*isolate/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\] \.private-notes-editor-hero[\s\S]*background:\s*hsl\(var\(--card\)\)/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\] \.private-notes-editor-frame[\s\S]*background:\s*hsl\(var\(--background\)\)/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\] \.private-notes-editor-hero ~ \*[\s\S]*display:\s*none !important/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\] \.private-notes-content[\s\S]*overflow:\s*hidden/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-card\[data-study-panel-module="private-notes"\] \.private-notes-editor-hero input[\s\S]*text-overflow:\s*ellipsis/s,
     );
   });
 

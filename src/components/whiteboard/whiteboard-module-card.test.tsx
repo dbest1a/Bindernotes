@@ -285,6 +285,36 @@ describe("WhiteboardModuleCard", () => {
     );
   });
 
+  it("keeps dragging stable when the pointer leaves the card chrome before release", () => {
+    const onChange = vi.fn();
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement()}
+        onBringToFront={vi.fn()}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live lesson
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 260, clientY: 280, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 260, clientY: 280, pointerId: 1 });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        x: 130,
+        y: 140,
+      }),
+    );
+  });
+
   it("flushes the final pinned Desmos drag frame on pointer up without resetting pin state", () => {
     const onChange = vi.fn();
     render(

@@ -10,6 +10,7 @@ import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { useBinderOverview, useDashboardWorkspaceMutations } from "@/hooks/use-binders";
 import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presentation-preference";
 import { isMissingSeedError } from "@/lib/seed-health";
@@ -22,6 +23,7 @@ export function BinderPage() {
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useBinderOverview(binderId, profile);
+  const betaFeatures = useBetaFeatures(profile?.id);
   const workspaceMutations = useDashboardWorkspaceMutations(profile);
   const workspacePresentation = useWorkspacePresentationPreference();
   const [createDocumentOpen, setCreateDocumentOpen] = useState(false);
@@ -97,6 +99,7 @@ export function BinderPage() {
   }
 
   const documents = getBinderDocumentSummaries(data.lessons, data.notes);
+  const revampBetaEnabled = betaFeatures.revampBetaEnabled;
 
   const submitCreateDocument = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -230,7 +233,9 @@ export function BinderPage() {
                   <h3 className="mt-2 text-xl font-semibold tracking-tight">{document.lesson.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {document.hasPrivateNote
-                      ? `Private note: ${document.note?.title ?? "Saved"}`
+                      ? revampBetaEnabled
+                        ? formatPrivateNoteCardPreview(document.note?.title)
+                        : `Private note: ${document.note?.title ?? "Saved"}`
                       : "No private note yet. Open the document to start one."}
                   </p>
                 </div>
@@ -280,6 +285,16 @@ export function BinderPage() {
       ) : null}
     </main>
   );
+}
+
+function formatPrivateNoteCardPreview(value: string | null | undefined) {
+  const normalized = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Notes started.";
+  }
+
+  const excerpt = normalized.length > 96 ? `${normalized.slice(0, 93).trimEnd()}...` : normalized;
+  return `Notes started: ${excerpt}`;
 }
 
 function Stat({

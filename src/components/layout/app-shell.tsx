@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
@@ -32,6 +33,7 @@ import {
   savePersonalNotesPreferences,
 } from "@/lib/personal-notes";
 import { betaFeatureFlagDefinitions } from "@/lib/beta-features";
+import { revampBetaQaIssueMap, roleVerificationQaIssues } from "@/lib/revamp-beta-qa-map";
 import { dashboardViewModeOptions } from "@/lib/admin-dashboard-preferences";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
@@ -150,6 +152,9 @@ export function AppShell() {
   const betaFeatureSearchTerms = betaFeatureFlagDefinitions
     .flatMap((flag) => [flag.label, flag.description, ...flag.searchAliases])
     .join(" ");
+  const revampBetaQaSearchTerms = Object.entries(revampBetaQaIssueMap)
+    .flatMap(([id, issue]) => [id, issue.area, issue.summary])
+    .join(" ");
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setRouteLanding(false), 300);
@@ -218,7 +223,7 @@ export function AppShell() {
   );
   const showBetaFeaturesSettings = shouldShowSettingSection(
     "Beta Features",
-    `beta beta features experimental preview early access new features emotional design polish tools chemistry dashboard study panels labs optional feature previews ${betaFeatureSearchTerms}`,
+    `beta beta features revamp beta experimental preview early access qa cleanup full qa report split study study panels math whiteboard notes history dashboard settings performance desmos calculator autosave save status student study surfaces ${betaFeatureSearchTerms} ${revampBetaQaSearchTerms}`,
   );
   const showAdminMotionSettings = isAdmin
     ? shouldShowSettingSection(
@@ -309,6 +314,7 @@ export function AppShell() {
       data-performance-mode={effectivePerformanceMode ? "true" : "false"}
       data-premium-color-mode={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"}
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
+      data-revamp-beta={betaFeatures.revampBetaEnabled ? "true" : "false"}
       data-study-route={isStudyDocumentRoute ? "true" : "false"}
       data-student-preview-admin-chrome={studentPreviewAdminChromeGuard ? "true" : "false"}
       {...betaFeatures.dataAttributes}
@@ -859,7 +865,7 @@ export function AppShell() {
 
                 {showBetaFeaturesSettings ? (
                   <SettingsPanel
-                    description="Preview optional tools and emotional design polish before they become default."
+                    description="Preview the single BinderNotes QA cleanup switch before it becomes default."
                     icon={<Sparkles className="size-4" />}
                     sectionRef={(node) => {
                       settingsSectionRefs.current["beta-features"] = node;
@@ -872,17 +878,18 @@ export function AppShell() {
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
                             <Sparkles className="size-4 text-cyan-300" />
-                            Beta features
+                            Revamp Beta
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            Try experimental BinderNotes features before they become default.
+                            Turns on the BinderNotes QA revamp: cleaner study layouts, faster tools, safer whiteboard
+                            flow, improved notes/save states, better search, and calmer student study surfaces.
                           </p>
                         </div>
                         <button
-                          aria-label="Toggle beta features"
+                          aria-label="Toggle Revamp Beta"
                           aria-pressed={betaFeatures.betaFeaturesEnabled}
                           className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
-                          data-testid="beta-features-toggle"
+                          data-testid="revamp-beta-toggle"
                           onClick={() => betaFeatures.setBetaFeaturesEnabled(!betaFeatures.betaFeaturesEnabled)}
                           type="button"
                         >
@@ -893,23 +900,22 @@ export function AppShell() {
                                 : "admin-motion-toggle__knob"
                             }
                           />
-                          <span className="sr-only">Toggle Beta Features</span>
+                          <span className="sr-only">Toggle Revamp Beta</span>
                         </button>
                       </div>
                       <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
                         {betaFeatures.betaFeaturesEnabled
-                          ? "Beta features are on. Experimental polish and preview tools can appear where they are useful."
-                          : "Keep this off for the stable BinderNotes experience. Turn it on to test new study tools and interface polish."}
+                          ? "Revamp Beta is on. The QA cleanup gate is active for study layouts, tools, notes, search, and performance experiments."
+                          : "Keep this off for current production behavior. Turn it on to test the BinderNotes QA cleanup locally."}
                       </p>
                     </section>
-                    <section aria-label="Jacob Geometry beta cleanup gates" className="app-beta-feature-list">
+                    <section aria-label="Revamp Beta gate" className="app-beta-feature-list">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Jacob Geometry cleanup gates
+                        Single cleanup gate
                       </p>
                       <div className="grid gap-2">
                         {betaFeatureFlagDefinitions.map((flag) => {
                           const active = betaFeatures.isFeatureEnabled(flag.key);
-                          const checked = betaFeatures.preference[flag.key];
                           return (
                             <article
                               className="rounded-lg border border-border/80 bg-secondary/25 p-3"
@@ -924,45 +930,44 @@ export function AppShell() {
                                     {flag.description}
                                   </p>
                                 </div>
-                                <button
-                                  aria-label={flag.label}
-                                  aria-pressed={checked}
-                                  className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
-                                  data-testid={`beta-flag-toggle-${flag.key}`}
-                                  onClick={() => betaFeatures.setBetaFeatureFlag(flag.key, !checked)}
-                                  type="button"
-                                >
-                                  <span
-                                    className={
-                                      checked
-                                        ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
-                                        : "admin-motion-toggle__knob"
-                                    }
-                                  />
-                                  <span className="sr-only">Toggle {flag.label}</span>
-                                </button>
+                                <Badge variant={active ? "default" : "outline"}>{active ? "On" : "Off"}</Badge>
                               </div>
                               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                                 {active
-                                  ? "Active while Beta features is on."
-                                  : checked
-                                    ? "Saved, but the master Beta features switch must be on before this preview appears."
-                                    : "Off by default for the stable BinderNotes experience."}
+                                  ? "Active. All BN-QA-003 through BN-QA-020 cleanup work should check this one gate."
+                                  : "Off by default. Current production behavior stays unchanged while this is off."}
                               </p>
                             </article>
                           );
                         })}
                       </div>
                     </section>
-                    <section className="app-beta-feature-list" aria-label="Current beta feature previews">
+                    <section className="app-beta-feature-list" aria-label="Revamp Beta QA issue map">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Current beta preview list
+                        QA issue map
+                      </p>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        BN-QA-001 and BN-QA-002 are role-verification only because the QA run used an admin account:
+                        {" "}
+                        {roleVerificationQaIssues.join(", ")}.
                       </p>
                       <ul>
-                        <li>Normal dashboard Study Glow hover polish</li>
-                        <li>Continue Studying dashboard shelf</li>
-                        <li>Document health badges for real documents</li>
-                        <li>Experimental Study Panels and chemistry previews when they are opened</li>
+                        {Object.entries(revampBetaQaIssueMap).map(([id, issue]) => (
+                          <li key={id}>
+                            <strong>{id}</strong> {issue.area}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                    <section className="app-beta-feature-list" aria-label="Current beta feature previews">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Current preview coverage
+                      </p>
+                      <ul>
+                        <li>Cleaner study layouts and Split Study cleanup</li>
+                        <li>Faster math, Desmos, whiteboard, and panel switching experiments</li>
+                        <li>Improved notes/save clarity, settings search, dashboard states, and formula feedback</li>
+                        <li>Calmer student-facing study surfaces without removing admin controls for admin accounts</li>
                       </ul>
                     </section>
                     {betaFeatures.betaFeaturesEnabled ? (
@@ -972,17 +977,17 @@ export function AppShell() {
                       >
                         <span>Beta</span>
                         <div>
-                          <strong>Emotional Design Initiative is available for preview surfaces.</strong>
+                          <strong>Revamp Beta is active for this account.</strong>
                           <p>
-                            Stable bug fixes stay live for everyone; beta only marks optional polish and new tool
-                            experiments.
+                            Future QA cleanup work should use the single Revamp Beta gate instead of adding more
+                            settings.
                           </p>
                         </div>
                       </section>
                     ) : null}
                     <p className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100">
-                      Beta features may change. They should never hide core fixes, auth safety, or stable workspace
-                      layout behavior.
+                      Revamp Beta may change. Safe bug fixes, auth safety, and demo-account guards should never be
+                      hidden behind beta.
                     </p>
                   </SettingsPanel>
                 ) : null}

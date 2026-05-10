@@ -271,7 +271,7 @@ export function HistoryTimelineModule({
           </Button>
         </>
       }
-      className="min-h-[640px]"
+      className="history-suite-panel history-suite-panel--timeline min-h-[640px]"
       description="Chronology first, then causes, then evidence."
       title="Timeline and map"
     >
@@ -401,7 +401,7 @@ export function SourceEvidenceModule({
   return (
     <WorkspacePanel
       actions={<SaveStatusPill snapshot={status} />}
-      className="min-h-[620px]"
+      className="history-suite-panel history-suite-panel--evidence min-h-[620px]"
       description="Source work turns passages into usable historical evidence."
       title="Source evidence"
     >
@@ -599,7 +599,7 @@ export function ArgumentBuilderModule({
           </Button>
         </>
       }
-      className="min-h-[640px]"
+      className="history-suite-panel history-suite-panel--argument min-h-[640px]"
       description="Turn chronology and evidence into claims with reasons attached."
       title="Argument builder"
     >
@@ -768,7 +768,7 @@ export function MythHistoryModule({
           </Button>
         </>
       }
-      className="min-h-[620px]"
+      className="history-suite-panel history-suite-panel--myth min-h-[620px]"
       description="Separate catchy stories from supported explanation."
       title="Myth vs history"
     >

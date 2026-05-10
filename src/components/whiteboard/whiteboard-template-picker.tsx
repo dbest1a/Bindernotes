@@ -35,15 +35,15 @@ export function WhiteboardTemplatePicker({
   }
 
   return (
-    <div className="grid gap-2" data-testid={compact ? "whiteboard-templates-panel" : undefined}>
-      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="whiteboard-template-picker grid gap-2" data-testid={compact ? "whiteboard-templates-panel" : undefined}>
+      <p className="whiteboard-sidebar-section-heading flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         <LayoutTemplate className="size-3.5" />
-        Math templates
+        <span>Math templates</span>
       </p>
       <div className={compact ? "grid gap-2" : "grid max-h-72 gap-2 overflow-auto pr-1"}>
         {templates.map((template) => (
           <button
-            className="rounded-xl border border-border/70 bg-background/70 p-3 text-left transition hover:border-primary/45 hover:bg-card"
+            className="whiteboard-template-card rounded-xl border border-border/70 bg-background/70 p-3 text-left transition hover:border-primary/45 hover:bg-card"
             key={template.id}
             onClick={() => onCreateFromTemplate(template)}
             type="button"

@@ -15,7 +15,7 @@ import type {
 
 const STORAGE_PREFIX = "bindernotes:whiteboards";
 export const WHITEBOARD_LIMIT_MESSAGE =
-  "You can save up to 3 whiteboards in this beta. Archive one to create another.";
+  "You can save up to 3 whiteboards in this beta. Use a scratch board without changing saved boards, or archive only when you choose to make room.";
 const WHITEBOARD_SELECT = [
   "id",
   "owner_id",
@@ -302,6 +302,47 @@ export function createLocalWhiteboard(
   });
 }
 
+export function isScratchWhiteboard(board: Pick<BinderWhiteboard, "id">) {
+  return board.id.startsWith("scratch-whiteboard-");
+}
+
+export function createScratchWhiteboard(
+  scope: WhiteboardScope,
+  options: {
+    title?: string;
+    subject?: string;
+    template?: WhiteboardTemplate;
+  } = {},
+): BinderWhiteboard {
+  const timestamp = nowIso();
+
+  return sanitizeWhiteboardForStorage({
+    id: randomId("scratch-whiteboard"),
+    ownerId: scope.ownerId,
+    binderId: scope.binderId,
+    lessonId: scope.lessonId ?? null,
+    title: options.title ?? "Scratch board",
+    subject: options.subject ?? options.template?.subject ?? "Math",
+    moduleContext: scope.lessonId ? "lesson" : "binder",
+    scene: {
+      elements: options.template?.starterElements ?? [],
+      appState: {
+        viewBackgroundColor: "#11131a",
+      },
+      files: {},
+    },
+    modules: [],
+    thumbnailDataUrl: null,
+    objectCount: 0,
+    sceneSizeBytes: 0,
+    assetSizeBytes: 0,
+    storageMode: "local-draft",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    archivedAt: null,
+  });
+}
+
 export function listLocalWhiteboards(scope: WhiteboardScope) {
   return readBoards(scope)
     .filter((board) => !board.archivedAt)
@@ -517,6 +558,20 @@ export async function saveWhiteboard(
 ): Promise<WhiteboardSaveResult> {
   const backend = options.backend ?? "auto";
   const savedAt = nowIso();
+  if (isScratchWhiteboard(board)) {
+    return {
+      board: sanitizeWhiteboardForStorage({
+        ...board,
+        storageMode: "local-draft",
+        updatedAt: nowIso(),
+      }),
+      backend: "local",
+      status: "local-draft",
+      message: "Scratch board - not saved yet",
+      savedAt,
+    };
+  }
+
   const validation = validateWhiteboardForStorage(board);
   if (!validation.valid) {
     return {

@@ -494,6 +494,71 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("minimal-binder-card").className).toContain("minimal-binder-card--drive-row");
   });
 
+  it("keeps the saved Minimal dashboard shell while workspace data is loading", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "minimal" }),
+    );
+    mocks.dashboardState.isLoading = true;
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "minimal",
+    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("drive");
+    expect(screen.getByTestId("minimal-dashboard-command-bar")).toBeTruthy();
+    expect(screen.getByTestId("minimal-dashboard-filebar")).toBeTruthy();
+    expect(screen.getByTestId("dashboard-loading-shell")).toBeTruthy();
+    expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+  });
+
+  it("keeps the normal dashboard shell while the default workspace data is loading", () => {
+    mocks.dashboardState.isLoading = true;
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "normal",
+    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("visual");
+    expect(screen.getByTestId("normal-dashboard-command-bar")).toBeTruthy();
+    expect(screen.getByTestId("normal-dashboard-filebar")).toBeTruthy();
+    expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+  });
+
+  it("keeps the Admin Makeover shell while admin workspace data is loading", () => {
+    window.localStorage.setItem(
+      "binder-notes:admin-dashboard-view",
+      JSON.stringify({ viewMode: "admin-makeover" }),
+    );
+    mocks.dashboardState.isLoading = true;
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
+      "admin-makeover",
+    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe(
+      "makeover",
+    );
+    expect(screen.getByTestId("admin-makeover-dashboard-command-bar")).toBeTruthy();
+    expect(screen.getByTestId("admin-makeover-dashboard-filebar")).toBeTruthy();
+    expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
+  });
+
   it("keeps Minimal folder, binder, and document links usable", () => {
     window.localStorage.setItem(
       "binder-notes:admin-dashboard-view",
@@ -831,6 +896,37 @@ describe("DashboardPage", () => {
       "compact",
     );
     expect(screen.getAllByTestId("minimal-document-health-badge").length).toBeGreaterThan(0);
+  });
+
+  it("shows a clear global no-results state for Revamp Beta dashboard search", async () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: true }),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByTestId("normal-dashboard-search"), {
+      target: { value: "no matching workspace item" },
+    });
+
+    expect(await screen.findByTestId("normal-dashboard-no-results")).toBeTruthy();
+    expect(screen.getByText("No results found")).toBeTruthy();
+    expect(screen.getByText(/Search is filtering all workspace sections/i)).toBeTruthy();
+    expect(screen.queryByTestId("normal-folder-grid")).toBeNull();
+    expect(screen.queryByTestId("normal-binder-grid")).toBeNull();
+    expect(screen.queryByTestId("normal-document-list")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Clear search/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("normal-dashboard-no-results")).toBeNull();
+    });
+    expect(screen.getByTestId("normal-folder-grid")).toBeTruthy();
   });
 
   it("lets Normal create a new document from the New menu", async () => {

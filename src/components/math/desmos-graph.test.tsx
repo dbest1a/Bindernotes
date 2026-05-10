@@ -71,6 +71,50 @@ describe("DesmosGraph", () => {
     );
   });
 
+  it("updates keypad settings without remounting the graphing calculator", async () => {
+    const calculator = {
+      destroy: vi.fn(),
+      getState: vi.fn(() => ({ expressions: { list: [] } })),
+      observeEvent: vi.fn(),
+      resize: vi.fn(),
+      setBlank: vi.fn(),
+      setExpression: vi.fn(),
+      setState: vi.fn(),
+      unobserveEvent: vi.fn(),
+      updateSettings: vi.fn(),
+    } as unknown as DesmosGraphingCalculator;
+
+    const GraphingCalculator = vi.fn(() => calculator);
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({
+      GraphingCalculator,
+    } as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+      bottom: 540,
+      height: 540,
+      left: 0,
+      right: 640,
+      toJSON: () => ({}),
+      top: 0,
+      width: 640,
+      x: 0,
+      y: 0,
+    }));
+
+    const { rerender } = render(<DesmosGraph onStateChange={vi.fn()} showKeypad={false} state={null} />);
+
+    await waitFor(() => expect(GraphingCalculator).toHaveBeenCalledTimes(1));
+    expect(GraphingCalculator).toHaveBeenLastCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ keypad: false }),
+    );
+
+    rerender(<DesmosGraph onStateChange={vi.fn()} showKeypad state={null} />);
+
+    await waitFor(() => expect(calculator.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ keypad: true })));
+    expect(GraphingCalculator).toHaveBeenCalledTimes(1);
+    expect(calculator.destroy).not.toHaveBeenCalled();
+  });
+
   it("waits for a measurable container before initializing the calculator", async () => {
     const calculator = {
       destroy: vi.fn(),

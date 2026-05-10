@@ -2597,8 +2597,12 @@ export function applyPresetToViewport(
   preferences: WorkspacePreferences,
   presetId: WorkspacePresetId,
   viewport: { width: number; height: number },
+  options: { preserveManualCanvasComposition?: boolean } = {},
 ): WorkspacePreferences {
-  return fitWorkspaceToViewport(applyPreset(preferences, presetId), viewport, { force: true });
+  return fitWorkspaceToViewport(applyPreset(preferences, presetId), viewport, {
+    force: true,
+    preserveManualCanvasComposition: options.preserveManualCanvasComposition,
+  });
 }
 
 export function applyWorkspaceModeToViewport(
@@ -3102,7 +3106,7 @@ function hasStoredCanvasPanelPositions(preferences: WorkspacePreferences) {
 export function fitWorkspaceToViewport(
   preferences: WorkspacePreferences,
   viewport: { width: number; height: number },
-  options: { force?: boolean } = {},
+  options: { force?: boolean; preserveManualCanvasComposition?: boolean } = {},
 ): WorkspacePreferences {
   const width = Math.round(viewport.width);
   const height = Math.round(viewport.height);
@@ -3136,6 +3140,7 @@ export function fitWorkspaceToViewport(
   const force = options.force ?? false;
   const hasDesignedPreset = Boolean(getWorkspacePresetDesign(composedPreferences.preset));
   const preserveManualCanvasComposition =
+    options.preserveManualCanvasComposition !== false &&
     composedPreferences.activeMode === "canvas" &&
     hasStoredCanvasPanelPositions(composedPreferences);
   const layoutResult = hasDesignedPreset && !preserveManualCanvasComposition

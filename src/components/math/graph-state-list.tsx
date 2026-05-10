@@ -16,7 +16,9 @@ export function GraphStateList({
   onLoad,
   onLoadLessonGraph,
   onNameChange,
+  onGraphExpression,
   onSave,
+  revampBetaActive = false,
   savedGraphs,
   snapshotName,
 }: {
@@ -28,7 +30,9 @@ export function GraphStateList({
   onLoad: (id: string) => void;
   onLoadLessonGraph: (block: LessonGraphBlock) => void;
   onNameChange: (value: string) => void;
+  onGraphExpression?: (expression: string) => void;
   onSave: () => void;
+  revampBetaActive?: boolean;
   savedGraphs: SavedGraphState[];
   snapshotName: string;
 }) {
@@ -137,8 +141,32 @@ export function GraphStateList({
 
           {savedGraphs.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/70 bg-secondary/40 p-4 text-sm leading-6 text-muted-foreground">
-              Save graph states as named snapshots so you can jump back into different algebra, precalculus,
-              or calculus setups.
+              {revampBetaActive ? (
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">No saved graph snapshots yet.</p>
+                    <p className="mt-1">
+                      Try y=x^2-4, graph an expression, then use Save when you want to keep that graph state.
+                    </p>
+                  </div>
+                  {onGraphExpression ? (
+                    <Button
+                      className="self-start"
+                      onClick={() => onGraphExpression("y=x^2-4")}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Graph an expression
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  Save graph states as named snapshots so you can jump back into different algebra, precalculus,
+                  or calculus setups.
+                </>
+              )}
             </div>
           ) : null}
         </section>

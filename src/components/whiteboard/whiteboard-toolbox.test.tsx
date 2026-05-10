@@ -92,6 +92,37 @@ describe("compact whiteboard toolbox beta surfaces", () => {
     expect(screen.queryByTestId("whiteboard-board-count")).toBeNull();
   });
 
+  it("offers a scratch board path at the 3/3 cap without forcing archive actions", () => {
+    const onCreateBlankBoard = vi.fn();
+    const onCreateScratchBoard = vi.fn();
+    const onArchiveBoard = vi.fn();
+
+    render(
+      <WhiteboardBoardList
+        activeBoardId="board-1"
+        archiveActionsVisible={false}
+        boards={[board, { ...board, id: "board-2" }, { ...board, id: "board-3" }]}
+        compact
+        onArchiveBoard={onArchiveBoard}
+        onCreateBlankBoard={onCreateBlankBoard}
+        onCreateScratchBoard={onCreateScratchBoard}
+        onSelectBoard={vi.fn()}
+        showLimitStatus
+      />,
+    );
+
+    expect(screen.getByTestId("whiteboard-scratch-limit-state").textContent).toMatch(/3\/3 whiteboards saved/i);
+    expect(screen.getByText(/without archiving or deleting real boards/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /archive/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /open scratch board/i }));
+    fireEvent.click(screen.getByRole("button", { name: /new blank board/i }));
+
+    expect(onCreateScratchBoard).toHaveBeenCalledTimes(2);
+    expect(onCreateBlankBoard).not.toHaveBeenCalled();
+    expect(onArchiveBoard).not.toHaveBeenCalled();
+  });
+
   it("shows the whiteboard limit only when compact mode says the limit matters", () => {
     render(
       <WhiteboardBoardList

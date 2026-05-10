@@ -343,6 +343,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
     ? `${selectedLessonTitle}:${accidentalPrefix.prefix}`
     : null;
   const showHygienePrompt = Boolean(accidentalPrefix && hygienePromptKey !== ignoredHygienePromptKey);
+  const revampNotesUi = studentCalmMode;
   const saveButtonTitle =
     autosaveStatus === "saving"
       ? "Saving..."
@@ -351,6 +352,25 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
         : autosaveStatus === "saved"
           ? "No changes to save"
           : "Already saved";
+  const saveStatusLabel =
+    autosaveStatus === "saving"
+      ? "Saving..."
+      : autosaveStatus === "error"
+        ? "Sync failed - retry"
+        : autosaveStatus === "offline"
+          ? "Autosave pending"
+          : hasUnsavedNoteChanges
+            ? "Unsaved changes"
+            : autosaveStatus === "saved"
+              ? "No changes to save"
+              : noteSaveLabel;
+  const saveButtonDisabledReason =
+    revampNotesUi && autosaveStatus === "saving"
+      ? "Saving is already in progress."
+      : revampNotesUi && !hasUnsavedNoteChanges
+        ? "No changes to save."
+        : null;
+  const saveStatusHelpId = "private-note-save-status-help";
 
   useEffect(() => {
     setShowGuide(noteLooksBlank);
@@ -492,10 +512,11 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               {noteMath.length > 0 ? <Badge variant="secondary">{noteMath.length} math blocks</Badge> : null}
               <Button
                 aria-label={saveButtonTitle}
+                aria-describedby={revampNotesUi ? saveStatusHelpId : undefined}
                 disabled={autosaveStatus === "saving" || !hasUnsavedNoteChanges}
                 onClick={onSaveNoteNow}
                 size="sm"
-                title={saveButtonTitle}
+                title={saveButtonDisabledReason ?? saveButtonTitle}
                 type="button"
                 variant={hasUnsavedNoteChanges ? "default" : "outline"}
               >
@@ -545,12 +566,22 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               Slash bar
             </button>
             <p
+              id={revampNotesUi ? saveStatusHelpId : undefined}
               className={cn(
                 "text-xs leading-5",
                 autosaveStatus === "error" ? "text-destructive" : "text-muted-foreground",
               )}
             >
-              {noteSaveError ?? noteSaveDetail}
+              {revampNotesUi ? (
+                <>
+                  <span className="font-medium text-foreground">{saveStatusLabel}</span>
+                  {noteSaveError ?? noteSaveDetail ? (
+                    <span className="ml-1">{noteSaveError ?? noteSaveDetail}</span>
+                  ) : null}
+                </>
+              ) : (
+                noteSaveError ?? noteSaveDetail
+              )}
             </p>
             {canRetryNoteSave ? (
               <Button onClick={onRetryNoteSave} size="sm" type="button" variant="outline">
@@ -621,6 +652,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
             ) : null}
           </div>
           <Input
+            aria-label={revampNotesUi ? "Private note title" : undefined}
             className="mb-3 mt-3 border-0 px-0 text-[1.8rem] font-semibold tracking-tight shadow-none focus-visible:ring-0"
             onChange={(event) => onNoteTitleChange(event.target.value)}
             placeholder={`${selectedLessonTitle} notes`}
@@ -628,6 +660,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
           />
           <div className="private-notes-editor-frame rounded-[22px] border border-border/65 bg-background/65 p-3.5 shadow-inner sm:p-4">
             <RichTextEditor
+              ariaLabel={revampNotesUi ? "Private note body" : undefined}
               className="private-notes-editor"
               insertRequest={noteInsertRequest}
               onChange={onNoteContentChange}

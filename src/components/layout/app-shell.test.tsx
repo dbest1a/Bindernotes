@@ -468,16 +468,14 @@ describe("AppShell profile settings", () => {
       "experimental",
       "preview",
       "early access",
-      "emotional design",
-      "chemistry",
-      "compact study chrome",
-      "study panels v2",
-      "whiteboard tools",
-      "canvas starter layouts",
-      "lazy loading",
-      "student calm",
-      "admin chrome guard",
-      "jacob geometry",
+      "revamp",
+      "qa cleanup",
+      "split study",
+      "study panels",
+      "whiteboard",
+      "settings search",
+      "desmos",
+      "dashboard",
     ]) {
       fireEvent.change(screen.getByLabelText("Search settings"), {
         target: { value: query },
@@ -488,64 +486,83 @@ describe("AppShell profile settings", () => {
     }
   });
 
-  it("persists the Beta Features toggle and only shows beta previews when enabled", async () => {
+  it("persists the Revamp Beta toggle and only exposes the revamp marker when enabled", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
 
     expect(screen.getByRole("button", { name: /^beta features$/i })).toBeTruthy();
-    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getAllByText("Revamp Beta").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("revamp-beta-toggle").getAttribute("aria-pressed")).toBe("false");
     expect(screen.queryByTestId("beta-features-active-preview")).toBeNull();
     expect(document.documentElement.getAttribute("data-beta-features")).toBe("off");
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("false");
 
-    fireEvent.click(screen.getByTestId("beta-features-toggle"));
+    fireEvent.click(screen.getByTestId("revamp-beta-toggle"));
 
-    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("revamp-beta-toggle").getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByTestId("beta-features-active-preview")).toBeTruthy();
     expect(document.documentElement.getAttribute("data-beta-features")).toBe("on");
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("true");
     expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain('"enabled":true');
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain('"revampBeta":true');
 
     cleanup();
     renderShell();
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
 
-    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("revamp-beta-toggle").getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("surfaces Jacob Geometry beta cleanup toggles with persistent inspectable markers", async () => {
+  it("does not expose separate QA cleanup beta toggles under Revamp Beta", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
 
-    for (const flag of betaFeatureFlagDefinitions) {
-      expect(screen.getByTestId(`beta-flag-${flag.key}`)).toBeTruthy();
-      expect(screen.getByRole("button", { name: flag.label })).toBeTruthy();
-      expect(screen.getByText(flag.description)).toBeTruthy();
-      expect(document.documentElement.getAttribute(flag.dataAttribute)).toBe("off");
-    }
+    expect(betaFeatureFlagDefinitions.map((flag) => flag.key)).toEqual(["revampBeta"]);
+    expect(screen.getByTestId("beta-flag-revampBeta")).toBeTruthy();
+    expect(screen.queryByTestId("beta-flag-compactStudyChrome")).toBeNull();
+    expect(screen.queryByTestId("beta-flag-studyPanelsV2")).toBeNull();
+    expect(screen.queryByTestId("beta-flag-compactWhiteboardTools")).toBeNull();
 
-    fireEvent.click(screen.getByTestId("beta-features-toggle"));
-    fireEvent.click(screen.getByTestId("beta-flag-toggle-compactStudyChrome"));
+    fireEvent.click(screen.getByTestId("revamp-beta-toggle"));
 
-    expect(screen.getByTestId("beta-flag-toggle-compactStudyChrome").getAttribute("aria-pressed")).toBe("true");
-    expect(document.documentElement.getAttribute("data-beta-compact-study-chrome")).toBe("on");
-    expect(screen.getByTestId("app-shell-root").getAttribute("data-beta-compact-study-chrome")).toBe("on");
-    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain(
-      '"compactStudyChrome":true',
-    );
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("true");
+    expect(screen.getByTestId("app-shell-root").getAttribute("data-revamp-beta")).toBe("true");
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).not.toContain("compactStudyChrome");
 
     cleanup();
     renderShell();
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
 
-    expect(screen.getByTestId("beta-features-toggle").getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByTestId("beta-flag-toggle-compactStudyChrome").getAttribute("aria-pressed")).toBe("true");
-    expect(document.documentElement.getAttribute("data-beta-compact-study-chrome")).toBe("on");
+    expect(screen.getByTestId("revamp-beta-toggle").getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("true");
     expect(screen.queryByText(/demo mode|learner demo|admin demo/i)).toBeNull();
+  });
+
+  it("keeps Admin Studio visible for admins but not learner accounts", async () => {
+    renderShell();
+
+    expect(screen.getByRole("link", { name: /admin studio/i })).toBeTruthy();
+
+    cleanup();
+    authMock.profile = {
+      id: "user-2",
+      email: "learner@example.com",
+      full_name: "Learner Person",
+      role: "learner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    renderShell();
+
+    expect(screen.queryByRole("link", { name: /admin studio/i })).toBeNull();
+    expect(screen.queryByText(/learner demo|admin demo|demo mode/i)).toBeNull();
   });
 
   it("closes the full settings window with Escape", async () => {

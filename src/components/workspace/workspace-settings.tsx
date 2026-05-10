@@ -53,6 +53,7 @@ export type WorkspaceSettingsProps = {
   historyEnabled?: boolean;
   isResettingHighlights?: boolean;
   mode?: "layout" | "preferences";
+  revampBetaEnabled?: boolean;
 };
 
 const backgroundLabels = {
@@ -86,7 +87,25 @@ const verticalSpaceLabels = {
   infinite: "Infinite vertical canvas",
 } as const;
 
-const settingsSearchAliases = {
+type SettingsSearchAliasKey =
+  | "snap"
+  | "safeEdgePadding"
+  | "fit"
+  | "tidy"
+  | "preset"
+  | "theme"
+  | "graph"
+  | "mobile"
+  | "header"
+  | "whiteboard"
+  | "notes"
+  | "save"
+  | "performance"
+  | "launcher"
+  | "secondaryPresetStrip"
+  | "facelift";
+
+const legacySettingsSearchAliases: Record<Exclude<SettingsSearchAliasKey, "notes" | "save">, readonly string[]> = {
   snap: ["snap", "alignment", "magnet", "grid"],
   safeEdgePadding: ["safe", "padding", "bezel", "edge", "corner", "margin", "edge margin"],
   fit: ["fit", "fit visible", "fit to screen", "viewport", "screen"],
@@ -138,6 +157,24 @@ const settingsSearchAliases = {
   ],
 } as const;
 
+const settingsSearchAliases: Record<SettingsSearchAliasKey, readonly string[]> = {
+  ...legacySettingsSearchAliases,
+  notes: ["notes", "private notes", "note body", "note title", "source", "lesson", "writing"],
+  save: ["save", "autosave", "sync", "saved", "saving", "unsaved", "no changes to save"],
+  performance: [
+    "performance",
+    "lag",
+    "fast",
+    "smooth",
+    "animation",
+    "motion",
+    "enhanced",
+    "visual",
+    "menu",
+    "tool menu",
+  ],
+} as const;
+
 type SettingsFolderId =
   | "layout-presets"
   | "facelift"
@@ -163,6 +200,7 @@ export function WorkspaceSettings({
   isResettingHighlights = false,
   lessonTitle,
   preferences,
+  revampBetaEnabled = false,
 }: WorkspaceSettingsProps) {
   const performanceMode = usePerformanceMode();
   const [showAdvancedCustomization, setShowAdvancedCustomization] = useState(mode === "layout");
@@ -179,6 +217,8 @@ export function WorkspaceSettings({
   const hasAdvancedCustomization = showAdvancedCustomization || isLayoutMode;
   const normalizedSettingsQuery = useMemo(() => normalizeSearch(deferredSettingsQuery), [deferredSettingsQuery]);
   const isSearchingSettings = normalizedSettingsQuery.length > 0;
+  const aliases = (...keys: Array<SettingsSearchAliasKey>) =>
+    lookupSettingsAliases(revampBetaEnabled, ...keys);
   const defaultExpandedFolders = useMemo<Record<SettingsFolderId, boolean>>(
     () => ({
       "layout-presets": true,
@@ -239,12 +279,12 @@ export function WorkspaceSettings({
   const faceliftFolderMatch = folderMatches(
     "Facelift",
     "Facelift Simple, Facelift Canvas, density, hierarchy navigation, module headers, preset behavior, and mobile behavior.",
-    ["facelift", "mobile", "header", "preset"],
+    ["facelift", "mobile"],
   );
   const editLayoutFolderMatch = folderMatches(
     "Edit Layout",
     "Edit layout mode controls, module inspector, save layout, cancel, add module, and add space below.",
-    ["preset", "header", "launcher"],
+    ["preset", "launcher"],
   );
   const snappingCanvasFolderMatch = folderMatches(
     "Snapping & Canvas",
@@ -263,18 +303,18 @@ export function WorkspaceSettings({
   );
   const motionFolderMatch = folderMatches(
     "Motion & Performance",
-    "Animation controls, reduced motion, performance, enhanced visuals, whiteboard menus, and responsive phone, mobile, and tablet behavior.",
+    "Animation controls, reduced motion, performance, enhanced visuals, fast menus, and responsive phone, mobile, and tablet behavior.",
     ["mobile", "performance"],
   );
   const toolsFolderMatch = folderMatches(
     "Tools & Modules",
     "Desmos graph, calculator, notes tools, history, math, and module toggles.",
-    ["graph", "header", "whiteboard"],
+    ["graph", "whiteboard", "notes"],
   );
   const advancedFolderMatch = folderMatches(
     "Advanced",
     "Power-user customization and diagnostics-like workspace settings.",
-    ["header"],
+    ["launcher"],
   );
   const showStudyModeSettings = matchesSetting([
     "Study mode",
@@ -300,7 +340,7 @@ export function WorkspaceSettings({
     "binder",
     "folder",
     "document",
-    ...aliases("facelift", "mobile", "header", "preset"),
+    ...aliases("facelift", "mobile", "preset"),
   ]);
   const showPresetSettings = matchesSetting([
     "Presets",
@@ -323,7 +363,7 @@ export function WorkspaceSettings({
     "Show secondary preset strip",
     "compact",
     "responsive",
-    ...aliases("mobile", "header", "secondaryPresetStrip"),
+    ...aliases("mobile", "header", "secondaryPresetStrip", "save"),
   ]);
   const showColorSettings = matchesSetting([
     "Colors & Study Surface",
@@ -331,8 +371,9 @@ export function WorkspaceSettings({
     "App Theme",
     "Accent",
     "Custom colors",
+    "Save color scheme",
     "study surface",
-    ...aliases("theme"),
+    ...aliases("theme", "save"),
   ]);
   const showModuleDisplaySettings = matchesSetting([
     "Module Display",
@@ -342,7 +383,7 @@ export function WorkspaceSettings({
     "Roundness",
     "Shadow",
     "Font",
-    ...aliases("header", "mobile"),
+    ...aliases("header", "mobile", "notes"),
   ]);
   const showMotionSettings = matchesSetting([
     "Motion & Performance",
@@ -394,7 +435,7 @@ export function WorkspaceSettings({
     "Canvas launcher",
     "header",
     "space",
-    ...aliases("header", "launcher"),
+    ...aliases("launcher"),
   ]);
   const showLayoutSettings =
     hasAdvancedCustomization &&
@@ -467,6 +508,11 @@ export function WorkspaceSettings({
       ...next,
       updatedAt: new Date().toISOString(),
     });
+  const closeAfterApplyingPresentation = () => {
+    if (revampBetaEnabled && !isLayoutMode) {
+      onClose?.();
+    }
+  };
 
   const updateTheme = (
     updater: (current: WorkspacePreferences["theme"]) => WorkspacePreferences["theme"],
@@ -517,11 +563,13 @@ export function WorkspaceSettings({
   const changeWorkspaceViewMode = (viewMode: (typeof workspaceViewModeOptions)[number]["id"]) => {
     saveWorkspaceViewPreference(viewMode);
     setNext(applyWorkspaceViewModeToViewport(preferences, viewMode, getWorkspaceSettingsViewport()));
+    closeAfterApplyingPresentation();
   };
 
   const changeFaceliftSurfaceMode = (surfaceMode: FaceliftSurfaceMode) => {
     saveWorkspaceViewPreference("facelift");
     setNext(applyFaceliftSurfaceModeToViewport(preferences, surfaceMode, getWorkspaceSettingsViewport()));
+    closeAfterApplyingPresentation();
   };
 
   const updateFacelift = (
@@ -707,9 +755,10 @@ export function WorkspaceSettings({
                     : "border-border/70 bg-background/55",
                 )}
                 key={preset.id}
-                onClick={() =>
-                  setNext(applyPresetToViewport(preferences, preset.id, getWorkspaceSettingsViewport()))
-                }
+                onClick={() => {
+                  setNext(applyPresetToViewport(preferences, preset.id, getWorkspaceSettingsViewport()));
+                  closeAfterApplyingPresentation();
+                }}
                 type="button"
               >
                 <span className="block text-sm font-medium">{preset.name}</span>
@@ -1857,8 +1906,11 @@ function saveSettingsFolderState(
   }
 }
 
-function aliases(...keys: Array<keyof typeof settingsSearchAliases>) {
-  return keys.flatMap((key) => settingsSearchAliases[key]);
+function lookupSettingsAliases(revampBetaEnabled: boolean, ...keys: Array<SettingsSearchAliasKey>) {
+  const map: Partial<Record<SettingsSearchAliasKey, readonly string[]>> = revampBetaEnabled
+    ? settingsSearchAliases
+    : legacySettingsSearchAliases;
+  return keys.flatMap((key) => map[key] ?? []);
 }
 
 function matchesSettingsSearch(query: string, terms: Array<string | undefined | null>) {

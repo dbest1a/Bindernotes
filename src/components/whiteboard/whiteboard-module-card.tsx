@@ -54,6 +54,11 @@ type PointerStart = {
 };
 
 type StylePatch = Partial<Record<"left" | "top" | "width" | "height" | "transform", string>>;
+type PointerCaptureTarget = Element & {
+  hasPointerCapture?: (pointerId: number) => boolean;
+  releasePointerCapture?: (pointerId: number) => void;
+  setPointerCapture?: (pointerId: number) => void;
+};
 
 const WHITEBOARD_MODULE_BASE_LAYER_MAX = 70;
 const WHITEBOARD_MODULE_FOREGROUND_LAYER_BASE = 80;
@@ -137,6 +142,30 @@ function getModuleCardVisualZIndex(zIndex: number, foreground: boolean) {
   return Math.min(safeZIndex, WHITEBOARD_MODULE_BASE_LAYER_MAX);
 }
 
+function isWhiteboardCardControlTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest(
+      [
+        "button",
+        "a",
+        "input",
+        "textarea",
+        "select",
+        "label",
+        "[role='button']",
+        "[role='menuitem']",
+        "[role='menuitemradio']",
+        "[contenteditable='true']",
+        "[data-whiteboard-card-control='true']",
+      ].join(","),
+    ),
+  );
+}
+
 function applyStylePatch(root: HTMLElement, patch: StylePatch) {
   for (const [key, value] of Object.entries(patch)) {
     if (value !== undefined) {
@@ -207,6 +236,9 @@ export function WhiteboardModuleCard({
 }: WhiteboardModuleCardProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const pointerRef = useRef<PointerStart | null>(null);
+  const pointerCleanupRef = useRef<(() => void) | null>(null);
+  const activePointerTargetRef = useRef<PointerCaptureTarget | null>(null);
+  const latestModuleElementRef = useRef(moduleElement);
   const styleRafRef = useRef<number | null>(null);
   const pendingStyleRef = useRef<StylePatch>({});
   const [anchorMenuOpen, setAnchorMenuOpen] = useState(false);
@@ -229,9 +261,18 @@ export function WhiteboardModuleCard({
     ...getModuleCardStyle(moduleElement, screenFrame, viewportTransform),
     zIndex: getModuleCardVisualZIndex(moduleElement.zIndex, foreground),
   };
+  latestModuleElementRef.current = moduleElement;
+
+  const cleanupPointerListeners = () => {
+    pointerCleanupRef.current?.();
+    pointerCleanupRef.current = null;
+  };
 
   useEffect(
     () => () => {
+      cleanupPointerListeners();
+      pointerRef.current = null;
+      activePointerTargetRef.current = null;
       if (styleRafRef.current) {
         window.cancelAnimationFrame(styleRafRef.current);
       }
@@ -284,6 +325,8 @@ export function WhiteboardModuleCard({
   const beginPointerAction = (event: React.PointerEvent, action: PointerStart["action"]) => {
     event.preventDefault();
     event.stopPropagation();
+    cleanupPointerListeners();
+    const captureTarget = event.currentTarget as PointerCaptureTarget;
     pointerRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -292,7 +335,36 @@ export function WhiteboardModuleCard({
       action,
       viewportTransform: latestViewportTransform(),
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    activePointerTargetRef.current = captureTarget;
+    try {
+      captureTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Window-level listeners below keep the drag stable even if native pointer capture is unavailable.
+    }
+
+    const handleWindowPointerMove = (nativeEvent: PointerEvent) => {
+      if (nativeEvent.pointerId !== event.pointerId) {
+        return;
+      }
+      nativeEvent.preventDefault();
+      updatePointerActionFromPoint(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY);
+    };
+    const handleWindowPointerEnd = (nativeEvent: PointerEvent) => {
+      if (nativeEvent.pointerId !== event.pointerId) {
+        return;
+      }
+      nativeEvent.preventDefault();
+      finishPointerActionFromPoint(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY);
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove, { passive: false });
+    window.addEventListener("pointerup", handleWindowPointerEnd, { passive: false });
+    window.addEventListener("pointercancel", handleWindowPointerEnd, { passive: false });
+    pointerCleanupRef.current = () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
   };
 
   const selectAnchorMode = (nextAnchorMode: WhiteboardModuleAnchorMode) => {
@@ -346,29 +418,43 @@ export function WhiteboardModuleCard({
     });
   };
 
-  const updatePointerAction = (event: React.PointerEvent) => {
+  const updatePointerActionFromPoint = (pointerId: number, clientX: number, clientY: number) => {
     const active = pointerRef.current;
     const root = rootRef.current;
-    if (!active || active.pointerId !== event.pointerId || !root) {
+    if (!active || active.pointerId !== pointerId || !root) {
       return;
     }
 
-    const dx = event.clientX - active.startX;
-    const dy = event.clientY - active.startY;
+    const dx = clientX - active.startX;
+    const dy = clientY - active.startY;
     scheduleStylePatch(getPointerStylePatch(active, dx, dy));
   };
 
-  const finishPointerAction = (event: React.PointerEvent) => {
+  const updatePointerAction = (event: React.PointerEvent) => {
+    updatePointerActionFromPoint(event.pointerId, event.clientX, event.clientY);
+  };
+
+  const finishPointerActionFromPoint = (pointerId: number, clientX: number, clientY: number) => {
     const active = pointerRef.current;
     const root = rootRef.current;
-    if (!active || active.pointerId !== event.pointerId || !root) {
+    if (!active || active.pointerId !== pointerId || !root) {
       return;
     }
 
-    const dx = event.clientX - active.startX;
-    const dy = event.clientY - active.startY;
+    const dx = clientX - active.startX;
+    const dy = clientY - active.startY;
     const finalStylePatch = getPointerStylePatch(active, dx, dy);
     pointerRef.current = null;
+    cleanupPointerListeners();
+    const captureTarget = activePointerTargetRef.current;
+    activePointerTargetRef.current = null;
+    try {
+      if (captureTarget?.releasePointerCapture && (!captureTarget.hasPointerCapture || captureTarget.hasPointerCapture(pointerId))) {
+        captureTarget.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Browsers can throw if the element lost capture during a rerender; the final frame is still committed below.
+    }
     if (styleRafRef.current) {
       window.cancelAnimationFrame(styleRafRef.current);
       styleRafRef.current = null;
@@ -382,10 +468,12 @@ export function WhiteboardModuleCard({
       ? screenDeltaToBoardDelta({ x: dx, y: dy }, active.viewportTransform)
       : { x: dx, y: dy };
     const nextAnchorMode = getWhiteboardModuleAnchorMode(active.frame);
+    const latestModuleElement =
+      latestModuleElementRef.current.id === active.frame.id ? latestModuleElementRef.current : active.frame;
 
     if (active.action === "drag") {
       onChange({
-        ...moduleElement,
+        ...latestModuleElement,
         anchorMode: nextAnchorMode,
         pinned: nextAnchorMode !== "viewport",
         x: active.frame.x + positionDelta.x,
@@ -397,13 +485,17 @@ export function WhiteboardModuleCard({
 
     const minSize = getWhiteboardModuleMinimumSize(active.frame.moduleId, active.frame.mode);
     onChange({
-      ...moduleElement,
+      ...latestModuleElement,
       anchorMode: nextAnchorMode,
       pinned: nextAnchorMode !== "viewport",
       width: Math.max(minSize.width, active.frame.width + sizeDelta.x),
       height: Math.max(minSize.height, active.frame.height + sizeDelta.y),
       updatedAt: new Date().toISOString(),
     });
+  };
+
+  const finishPointerAction = (event: React.PointerEvent) => {
+    finishPointerActionFromPoint(event.pointerId, event.clientX, event.clientY);
   };
 
   const renderAnchorMenu = () => (
@@ -579,8 +671,11 @@ export function WhiteboardModuleCard({
           updatedAt: new Date().toISOString(),
         });
       }}
-      onPointerDownCapture={() => {
+      onPointerDownCapture={(event) => {
         setSelected(true);
+        if (isWhiteboardCardControlTarget(event.target)) {
+          return;
+        }
         onBringToFront();
       }}
       ref={rootRef}
@@ -625,6 +720,7 @@ export function WhiteboardModuleCard({
           <Button
             aria-expanded={anchorMenuOpen}
             aria-label={`Card pin mode: ${anchorLabels[anchorMode]}. Change pin mode.`}
+            data-whiteboard-card-control="true"
             data-testid="whiteboard-card-pin-button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -641,6 +737,7 @@ export function WhiteboardModuleCard({
             {pinned ? <Pin className="size-4" /> : <PinOff className="size-4" />}
           </Button>
           <Button
+            data-whiteboard-card-control="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -668,6 +765,7 @@ export function WhiteboardModuleCard({
           {floatingTool ? (
             <Button
               aria-label="Reset graph position"
+              data-whiteboard-card-control="true"
               data-testid="whiteboard-card-reset-position"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
@@ -683,6 +781,7 @@ export function WhiteboardModuleCard({
             </Button>
           ) : null}
           <Button
+            data-whiteboard-card-control="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -701,6 +800,7 @@ export function WhiteboardModuleCard({
           </Button>
           <Button
             aria-label="Board card options"
+            data-whiteboard-card-control="true"
             data-testid="whiteboard-card-options-button"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -717,6 +817,8 @@ export function WhiteboardModuleCard({
             <MoreHorizontal className="size-4" />
           </Button>
           <Button
+            aria-label="Remove module"
+            data-whiteboard-card-control="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();

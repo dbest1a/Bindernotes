@@ -57,6 +57,7 @@ vi.mock("@/components/workspace/workspace-modules", () => {
       "history-timeline": module("Timeline", "Timeline body"),
       "history-evidence": module("Evidence", "Evidence body"),
       "history-argument": module("Argument", "Argument body"),
+      "history-myth-checks": module("Myth checks", "Myth checks body"),
       "chem-concept-cards": module("Chemistry concept cards", "Concept cards body"),
       "chem-lab-coach": module("Chemistry Lab Coach", "Lab Coach body"),
       "chem-quick-tools": module("Chemistry quick tools", "Quick tools body"),
@@ -277,7 +278,7 @@ describe("StudyPanelsShell", () => {
   it("opens the study tools drawer from the Tools tab as well as the header button", () => {
     const { container } = renderStudyPanelsShell();
 
-    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /extras|tools/i }));
 
     expect(screen.getByLabelText(/study tools/i)).toBeTruthy();
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBeTruthy();
@@ -298,7 +299,7 @@ describe("StudyPanelsShell", () => {
     );
     expect(screen.getByText("Highlights body")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /extras|tools/i }));
     expect(screen.getByLabelText(/study tools/i)).toBeTruthy();
     expect(screen.getByTestId("study-tool-preview-private-notes")).toBeTruthy();
 
@@ -421,7 +422,7 @@ describe("StudyPanelsShell", () => {
 
     fireEvent.click(
       within(screen.getByRole("tablist", { name: /study panel modules/i })).getByRole("tab", {
-        name: /^ToolsExtra$/i,
+        name: /^Extras$/i,
       }),
     );
 
@@ -440,7 +441,7 @@ describe("StudyPanelsShell", () => {
   it("keeps Recall Lab hidden until its beta flag is enabled", () => {
     renderStudyPanelsShell();
 
-    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /extras|tools/i }));
 
     expect(screen.queryByTestId("study-tool-preview-flashcards")).toBeNull();
   });
@@ -454,7 +455,7 @@ describe("StudyPanelsShell", () => {
       enabledModules: ["lesson", "private-notes", "flashcards", "recent-highlights"],
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: /tools/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /extras|tools/i }));
 
     const recallCard = screen.getByTestId("study-tool-preview-flashcards");
     expect(recallCard.textContent).toContain("Recall Lab");
@@ -565,9 +566,9 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe("visible");
   });
 
-  it("lets focus mode stretch the active module across the full single-panel stage", () => {
+  it("turns focus mode into a fullscreen board-and-notes workspace without the top chrome", () => {
     const { context, preferences, unmount } = renderStudyPanelsShell({
-      preset: "math-guided-study",
+      preset: "math-practice-mode",
       enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet"],
     });
     unmount();
@@ -580,20 +581,31 @@ describe("StudyPanelsShell", () => {
         isCompact={false}
         onChangeMode={vi.fn()}
         onOpenSettings={vi.fn()}
+        onToggleFocus={vi.fn()}
         preferences={preferences}
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: /board/i }));
-
     expect(screen.getByTestId("study-panels-shell").getAttribute("data-focus-mode-active")).toBe("true");
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-study-panels-tab-strip")).toBe("hidden");
+    expect(document.querySelector(".study-panels-shell__top")).toBeNull();
+    expect(screen.queryByRole("tablist", { name: /study panel modules/i })).toBeNull();
+    expect(screen.getByRole("toolbar", { name: /fullscreen study controls/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /exit full screen/i })).toBeTruthy();
     expect(screen.getByText("Whiteboard body")).toBeTruthy();
-    expect(document.querySelector(".study-panels-single > .study-panels-card")).toBeTruthy();
+    expect(screen.getByText("Notes body")).toBeTruthy();
+    expect(document.querySelector(".study-panels-split")).toBeTruthy();
+    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "whiteboard",
+    );
+    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "private-notes",
+    );
   });
 
   it("gives the focused whiteboard a real back control that exits focus mode", () => {
     const { context, preferences, unmount } = renderStudyPanelsShell({
-      preset: "math-guided-study",
+      preset: "math-practice-mode",
       enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet"],
     });
     unmount();
@@ -612,10 +624,36 @@ describe("StudyPanelsShell", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: /board/i }));
     fireEvent.click(screen.getByRole("button", { name: /back to workspace/i }));
 
     expect(onToggleFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests native fullscreen when the full screen panel button is used", () => {
+    const originalRequestFullscreen = HTMLElement.prototype.requestFullscreen;
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
+    const { callbacks } = renderStudyPanelsShell({
+      preset: "math-practice-mode",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet"],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /full screen panel/i }));
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    expect(callbacks.onToggleFocus).toHaveBeenCalledTimes(1);
+
+    if (originalRequestFullscreen) {
+      Object.defineProperty(HTMLElement.prototype, "requestFullscreen", {
+        configurable: true,
+        value: originalRequestFullscreen,
+      });
+    } else {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).requestFullscreen;
+    }
   });
 
   it("changes the visible surface when the selected preset changes", async () => {
@@ -768,6 +806,114 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe("rail");
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
       "whiteboard",
+    );
+  });
+
+  it("Revamp Beta keeps every Study Panels tab controlled and switchable from Lesson", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: true }),
+    );
+    const { container } = renderStudyPanelsShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+    });
+    const expectedPrimaryByTab = new Map([
+      ["Lesson", "lesson"],
+      ["Notes", "private-notes"],
+      ["Graph", "desmos-graph"],
+      ["Formulas", "formula-sheet"],
+      ["Board", "whiteboard"],
+      ["Highlights", "recent-highlights"],
+      ["Extras", "comments"],
+    ]);
+
+    for (const [label, moduleId] of expectedPrimaryByTab) {
+      fireEvent.click(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }));
+      expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+        moduleId,
+      );
+      expect(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected")).toBe(
+        "true",
+      );
+    }
+  });
+
+  it("Revamp Beta makes history Study Panels tabs deterministic without mounting hidden history modules", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: true }),
+    );
+    const { container } = renderStudyPanelsShell(
+      {
+        preset: "history-guided",
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "recent-highlights",
+          "comments",
+          "history-timeline",
+          "history-evidence",
+          "history-argument",
+          "history-myth-checks",
+        ],
+      },
+      {
+        binder: {
+          id: "binder-1",
+          title: "Rise of Rome",
+          subject: "History",
+        } as WorkspaceModuleContext["binder"],
+        history: {
+          enabled: true,
+        } as WorkspaceModuleContext["history"],
+      },
+    );
+
+    const shell = screen.getByTestId("study-panels-shell");
+    expect(shell.getAttribute("data-revamp-beta")).toBe("true");
+    expect(shell.getAttribute("data-study-panels-v2")).toBe("true");
+    expect(screen.getByText("Lesson body")).toBeTruthy();
+    expect(screen.getByText("Notes body")).toBeTruthy();
+    expect(screen.queryByText("Timeline body")).toBeNull();
+    expect(screen.queryByText("Evidence body")).toBeNull();
+    expect(screen.queryByText("Argument body")).toBeNull();
+
+    const expectedPrimaryByTab = new Map([
+      ["Lesson Read", "lesson"],
+      ["Notes Write", "private-notes"],
+      ["Timeline Sequence", "history-timeline"],
+      ["Evidence Proof", "history-evidence"],
+      ["Argument Claim", "history-argument"],
+      ["Highlights Review", "recent-highlights"],
+      ["Sticky Notes Extra", "comments"],
+    ]);
+
+    for (const [label, moduleId] of expectedPrimaryByTab) {
+      fireEvent.click(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }));
+      expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+        moduleId,
+      );
+      expect(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected")).toBe(
+        "true",
+      );
+    }
+
+    fireEvent.click(screen.getByRole("tab", { name: /^timeline sequence$/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "lesson",
+    );
+    expect(screen.queryByText("Evidence body")).toBeNull();
+    expect(screen.queryByText("Argument body")).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: /^evidence proof$/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "lesson",
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /^argument claim$/i }));
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "history-evidence",
     );
   });
 

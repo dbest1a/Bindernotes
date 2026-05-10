@@ -5,6 +5,7 @@ import {
   betaFeaturesStorageKeyForUser,
   defaultBetaFeaturesPreference,
   isBetaFeatureFlagActive,
+  isRevampBetaEnabled,
   loadBetaFeaturesPreference,
   sanitizeBetaFeaturesPreference,
   saveBetaFeaturesPreference,
@@ -30,11 +31,13 @@ function writeBetaFeatureAttributes(preference: BetaFeaturesPreference) {
     return;
   }
 
-  document.documentElement.dataset.betaFeatures = preference.enabled ? "on" : "off";
+  const revampBetaEnabled = isRevampBetaEnabled(preference);
+  document.documentElement.dataset.betaFeatures = revampBetaEnabled ? "on" : "off";
+  document.documentElement.dataset.revampBeta = revampBetaEnabled ? "true" : "false";
   for (const flag of betaFeatureFlagDefinitions) {
     document.documentElement.setAttribute(
       flag.dataAttribute,
-      isBetaFeatureFlagActive(preference, flag.key) ? "on" : "off",
+      isBetaFeatureFlagActive(preference, flag.key) ? "true" : "false",
     );
   }
 }
@@ -92,7 +95,7 @@ export function useBetaFeatures(userId: string | null | undefined) {
 
   const setBetaFeaturesEnabled = useCallback(
     (enabled: boolean) => {
-      const nextPreference = sanitizeBetaFeaturesPreference({ ...preference, enabled });
+      const nextPreference = sanitizeBetaFeaturesPreference({ ...preference, enabled, revampBeta: enabled });
       setPreference(nextPreference);
       saveBetaFeaturesPreference(userId, nextPreference, getStorage());
       if (hasWindow()) {
@@ -108,7 +111,12 @@ export function useBetaFeatures(userId: string | null | undefined) {
 
   const setBetaFeatureFlag = useCallback(
     (flag: BetaFeatureFlagKey, enabled: boolean) => {
-      const nextPreference = sanitizeBetaFeaturesPreference({ ...preference, [flag]: enabled });
+      const nextPreference = sanitizeBetaFeaturesPreference({
+        ...preference,
+        enabled: enabled ? true : preference.enabled,
+        revampBeta: enabled,
+        [flag]: enabled,
+      });
       setPreference(nextPreference);
       saveBetaFeaturesPreference(userId, nextPreference, getStorage());
       if (hasWindow()) {
@@ -127,9 +135,9 @@ export function useBetaFeatures(userId: string | null | undefined) {
       Object.fromEntries(
         betaFeatureFlagDefinitions.map((flag) => [
           flag.dataAttribute,
-          isBetaFeatureFlagActive(preference, flag.key) ? "on" : "off",
+          isBetaFeatureFlagActive(preference, flag.key) ? "true" : "false",
         ]),
-      ) as Record<`data-${string}`, "on" | "off">,
+      ) as Record<`data-${string}`, "true" | "false">,
     [preference],
   );
 
@@ -143,14 +151,19 @@ export function useBetaFeatures(userId: string | null | undefined) {
 
   return useMemo(
     () => ({
-      betaFeaturesEnabled: preference.enabled,
+      betaFeaturesEnabled: isRevampBetaEnabled(preference),
       dataAttributes,
       featureFlags,
       isFeatureEnabled: (flag: BetaFeatureFlagKey) => isBetaFeatureFlagActive(preference, flag),
       preference,
+      revampBetaEnabled: isRevampBetaEnabled(preference),
       setBetaFeatureFlag,
       setBetaFeaturesEnabled,
     }),
     [dataAttributes, featureFlags, preference, setBetaFeatureFlag, setBetaFeaturesEnabled],
   );
+}
+
+export function useRevampBeta(userId: string | null | undefined) {
+  return useBetaFeatures(userId).revampBetaEnabled;
 }

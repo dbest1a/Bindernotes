@@ -326,13 +326,25 @@ export function FaceliftSimpleShell({
   const studentCommand = design.studentCommand;
   const mobileTabs = useMemo(
     () => {
-      const mobileVisibleModules = new Set(visibleModules);
+      const mobileVisibleModules = new Set([
+        ...visibleModules,
+        ...design.collapsedModules,
+        ...design.optionalModules,
+      ]);
       return getWorkspaceMobileModuleTabs(
         preferences.preset,
         preferences.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
-      ).filter((tab) => mobileVisibleModules.has(tab.moduleId));
+      ).filter((tab) => (isCompact ? mobileVisibleModules.has(tab.moduleId) : visibleModules.includes(tab.moduleId)));
     },
-    [preferences.enabledModules, preferences.preset, visibleModuleKey],
+    [
+      design.collapsedModules,
+      design.optionalModules,
+      isCompact,
+      preferences.enabledModules,
+      preferences.preset,
+      visibleModuleKey,
+      visibleModules,
+    ],
   );
   const [activeMobileModuleId, setActiveMobileModuleId] = useState<WorkspaceModuleId | null>(null);
   const firstVisibleModuleId = visibleModules[0] ?? null;
@@ -340,8 +352,8 @@ export function FaceliftSimpleShell({
     ? activeMobileModuleId
     : mobileTabs[0]?.moduleId ?? firstVisibleModuleId;
   const renderedModules =
-    isCompact && mobileActiveModuleId
-      ? visibleModules.filter((moduleId) => moduleId === mobileActiveModuleId)
+    isCompact && mobileActiveModuleId && workspaceModuleRegistry[mobileActiveModuleId]
+      ? [mobileActiveModuleId]
       : visibleModules;
 
   useEffect(() => {

@@ -615,6 +615,43 @@ describe("workspace preferences", () => {
     expect(selected.canvas.canvasHeight).toBe(viewport.height);
   });
 
+  it("ignores stale manual canvas frames for Revamp Beta preset selection", () => {
+    const base = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const preferences = {
+      ...base,
+      preset: "math-practice-mode" as const,
+      canvas: {
+        ...base.canvas,
+        panelPositions: {
+          whiteboard: { x: 0, y: 0, w: 920, h: 680, z: 1 },
+          "private-notes": { x: 940, y: 0, w: 360, h: 680, z: 2 },
+        },
+      },
+      enabledModules: ["whiteboard", "private-notes", "formula-sheet"] as WorkspaceModuleId[],
+      windowLayout: {
+        whiteboard: { x: 0, y: 0, w: 920, h: 680, z: 1 },
+        "private-notes": { x: 940, y: 0, w: 360, h: 680, z: 2 },
+        "formula-sheet": { x: 0, y: 700, w: 500, h: 320, z: 3 },
+      },
+    };
+    const viewport = { width: 1366, height: 760 };
+
+    const selected = applyPresetToViewport(preferences, "split-study", viewport, {
+      preserveManualCanvasComposition: false,
+    });
+    const lessonWindow = selected.windowLayout.lesson!;
+    const privateNotesWindow = selected.windowLayout["private-notes"]!;
+
+    expect(selected.preset).toBe("split-study");
+    expect(selected.enabledModules).toEqual(expect.arrayContaining(["lesson", "private-notes"]));
+    expect(selected.enabledModules).not.toContain("whiteboard");
+    expect(lessonWindow).toMatchObject({ x: 0, y: 0, w: 683, h: 760 });
+    expect(privateNotesWindow).toMatchObject({ x: 683, y: 0, w: 683, h: 760 });
+  });
+
   it("fits Split Study to the focus viewport when focus mode is enabled", () => {
     const preferences = applyPresetToViewport(
       applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),

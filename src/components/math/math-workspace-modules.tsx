@@ -6,6 +6,7 @@ import { DesmosScientificCalculator } from "@/components/math/desmos-scientific-
 import { ScientificCalculator } from "@/components/math/scientific-calculator";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import type { GraphMode, MathWorkspaceController } from "@/hooks/use-math-workspace";
@@ -62,6 +63,8 @@ export function DesmosGraphModule({
     () => !mathPerformanceLazyLoading || Boolean(pendingExpression || pendingGraphLoad || controller.state.currentGraphState),
   );
   const [keypadOpen, setKeypadOpen] = useState(() => !mathPerformanceLazyLoading && showKeypad);
+  const [graphExpression, setGraphExpression] = useState("y=x^2");
+  const [queuedExpression, setQueuedExpression] = useState<string | null>(null);
 
   useEffect(() => {
     if (pendingGraphLoad?.graphMode) {
@@ -89,6 +92,66 @@ export function DesmosGraphModule({
     setGraphActivated(true);
     controller.setGraphVisible(true);
   };
+  const plotGraphExpression = () => {
+    const expression = graphExpression.trim();
+    if (!expression) {
+      return;
+    }
+
+    setQueuedExpression(expression);
+    bindings.pushExpressionToGraph(expression);
+    if (canUseDesmos) {
+      setGraphActivated(true);
+    }
+  };
+  const graphInputControl = mathPerformanceLazyLoading ? (
+    <form
+      className="mb-3 rounded-lg border border-border/70 bg-background/78 p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        plotGraphExpression();
+      }}
+    >
+      <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground" htmlFor="binder-notes-graph-expression">
+        Graph expression
+      </label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Input
+          aria-label="Graph expression"
+          className="min-w-[220px] flex-1"
+          id="binder-notes-graph-expression"
+          onChange={(event) => setGraphExpression(event.target.value)}
+          placeholder="Try y=x, y=2x+3, y=x^2, y=sin(x), x=3"
+          value={graphExpression}
+        />
+        <Button type="submit">
+          <FunctionSquare data-icon="inline-start" />
+          Plot expression
+        </Button>
+        <Button
+          onClick={() => {
+            setGraphExpression("y=x^2-4");
+            setQueuedExpression("y=x^2-4");
+            bindings.pushExpressionToGraph("y=x^2-4");
+            if (canUseDesmos) {
+              setGraphActivated(true);
+            }
+          }}
+          type="button"
+          variant="outline"
+        >
+          Try y=x^2-4
+        </Button>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground" role="status">
+        {!canUseDesmos
+          ? `Desmos is unavailable here. ${queuedExpression ? `Queued expression: ${queuedExpression}` : "You can still stage an expression from this field."}`
+          : queuedExpression
+            ? `Queued expression: ${queuedExpression}`
+            : "Use the BinderNotes input first; the Desmos keypad stays collapsed until you open it."}
+      </p>
+    </form>
+  ) : null;
 
   return (
     <WorkspacePanel
@@ -136,6 +199,7 @@ export function DesmosGraphModule({
       description={`${description} Current mode: ${activeModeLabel}.`}
       title={title}
     >
+      {graphInputControl}
       {mathPerformanceLazyLoading && !canUseDesmos ? (
         <CompactDesmosFallback />
       ) : graphRuntimeVisible ? (
@@ -193,7 +257,11 @@ function GraphPreview({ onOpen }: { onOpen: () => void }) {
 
 function CompactDesmosFallback() {
   return (
-    <div className="math-graph-preview math-graph-preview--fallback" data-desmos-compact-fallback="true">
+    <div
+      className="math-graph-preview math-graph-preview--fallback"
+      data-desmos-compact-fallback="true"
+      data-testid="desmos-compact-fallback"
+    >
       <div className="math-graph-preview__plot" aria-hidden="true">
         <svg viewBox="0 0 320 160" role="img">
           <path d="M24 132H300" />
@@ -212,11 +280,13 @@ function CompactDesmosFallback() {
 export function ScientificCalculatorModule({
   bindings,
   description = "Numeric work, graphable expressions, and reusable functions",
+  mathPerformanceLazyLoading = false,
   surface = "workspace",
   title = "Scientific calculator",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  mathPerformanceLazyLoading?: boolean;
   surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
@@ -252,7 +322,7 @@ export function ScientificCalculatorModule({
   return (
     <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"} description={description} title={title}>
       <div className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[460px]"}>
-        {surface === "whiteboard" ? (
+        {surface === "whiteboard" || mathPerformanceLazyLoading ? (
           localCalculator
         ) : (
           <DesmosScientificCalculator fallback={localCalculator} height={calculatorHeight} />
@@ -265,11 +335,13 @@ export function ScientificCalculatorModule({
 export function SavedGraphsModule({
   bindings,
   description = "Lesson graph references plus your own named Desmos snapshots",
+  mathPerformanceLazyLoading = false,
   surface = "workspace",
   title = "Saved graphs",
 }: {
   bindings: MathWorkspaceModuleBindings;
   description?: string;
+  mathPerformanceLazyLoading?: boolean;
   surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
@@ -293,11 +365,13 @@ export function SavedGraphsModule({
         onLoad={controller.loadGraphSnapshot}
         onLoadLessonGraph={(graph) => loadLessonGraph?.(graph)}
         onNameChange={setSnapshotName}
+        onGraphExpression={mathPerformanceLazyLoading ? bindings.pushExpressionToGraph : undefined}
         onSave={() => {
           if (controller.saveGraphSnapshot(snapshotName)) {
             setSnapshotName("");
           }
         }}
+        revampBetaActive={mathPerformanceLazyLoading}
         savedGraphs={controller.state.savedGraphs}
         snapshotName={snapshotName}
       />

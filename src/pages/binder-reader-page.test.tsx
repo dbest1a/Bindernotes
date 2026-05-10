@@ -532,6 +532,47 @@ describe("BinderReaderPage", () => {
     expect(next.moduleLayout.whiteboard?.collapsed).toBe(false);
   });
 
+  it("Revamp Beta prevents a math document from reopening an unrelated board preset by default", async () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: true }),
+    );
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.workspacePreferences.commit.mockClear();
+    mocks.workspacePreferences.active = {
+      ...applyWorkspaceMode(preferences, "canvas"),
+      activeMode: "canvas",
+      preset: "math-practice-mode",
+      locked: true,
+      styleChoiceCompleted: true,
+      enabledModules: ["whiteboard", "private-notes", "formula-sheet"],
+      windowLayout: {
+        whiteboard: { x: 0, y: 0, w: 940, h: 720, z: 1 },
+        "private-notes": { x: 960, y: 0, w: 360, h: 720, z: 2 },
+        "formula-sheet": { x: 0, y: 740, w: 520, h: 320, z: 3 },
+      },
+    };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    mocks.binderBundle.data = createSingleLessonBundle("Algebra 1 Foundations", "Like Terms and Expressions");
+
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    await waitFor(() => {
+      expect(mocks.workspacePreferences.commit).toHaveBeenCalled();
+    });
+    const next = mocks.workspacePreferences.commit.mock.calls.at(-1)?.[0];
+
+    expect(next).toEqual(
+      expect.objectContaining({
+        activeMode: "canvas",
+        preset: "split-study",
+      }),
+    );
+    expect(next.enabledModules).toEqual(expect.arrayContaining(["lesson", "private-notes"]));
+    expect(next.enabledModules).not.toContain("whiteboard");
+  });
+
   it("does not restore saved workspace focus as an automatic fullscreen state", async () => {
     const originalRequestFullscreen = HTMLElement.prototype.requestFullscreen;
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
@@ -908,7 +949,7 @@ describe("BinderReaderPage", () => {
     expect(screen.getByTestId("study-panels-shell").getAttribute("data-compact-study-chrome")).toBe("true");
     expect(screen.getByRole("button", { name: /workspace mode study panels/i })).toBeTruthy();
     expect(screen.getAllByRole("button", { name: /settings/i })).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: /^focus panel$/i })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^full screen panel$/i })).toHaveLength(1);
     expect(screen.getByRole("button", { name: /^tools$/i })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: /tools/i })).toBeNull();
     expect(screen.getByRole("tab", { name: /extras/i })).toBeTruthy();

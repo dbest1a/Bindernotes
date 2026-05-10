@@ -1,6 +1,7 @@
+import { useState } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { ArrowUpRight, Clipboard, FunctionSquare, Link2, Plus, Send, Trash2 } from "lucide-react";
+import { ArrowUpRight, Check, Clipboard, FunctionSquare, Link2, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -201,8 +202,18 @@ function LatexBlock({
     throwOnError: false,
     displayMode: true,
   });
-  const copyFormula = () => {
-    void navigator.clipboard?.writeText(block.latex);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copyFormula = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard unavailable.");
+      }
+      await navigator.clipboard.writeText(block.latex);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2400);
+    } catch {
+      setCopyState("failed");
+    }
   };
 
   return (
@@ -218,13 +229,19 @@ function LatexBlock({
         <p className="text-sm leading-6 text-muted-foreground">{block.description}</p>
       ) : null}
       <div
-        className="overflow-x-auto rounded-xl bg-background p-4"
+        className="math-formula-display overflow-x-auto rounded-xl bg-background p-4"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       <div className="flex flex-wrap gap-2">
-        <Button aria-label="Copy formula" onClick={copyFormula} size="sm" type="button" variant="outline">
-          <Clipboard data-icon="inline-start" />
-          Copy formula
+        <Button
+          aria-label={copyState === "copied" ? "Copied formula" : "Copy formula"}
+          onClick={copyFormula}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {copyState === "copied" ? <Check data-icon="inline-start" /> : <Clipboard data-icon="inline-start" />}
+          {copyState === "copied" ? "Copied" : "Copy formula"}
         </Button>
         {onSendFormulaToNotes ? (
           <Button
@@ -239,6 +256,13 @@ function LatexBlock({
           </Button>
         ) : null}
       </div>
+      <p className="sr-only" aria-live="polite">
+        {copyState === "copied"
+          ? "Copied formula"
+          : copyState === "failed"
+            ? "Formula copy failed"
+            : ""}
+      </p>
     </div>
   );
 }

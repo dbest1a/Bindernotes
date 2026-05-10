@@ -15,11 +15,11 @@ type WhiteboardToolbarProps = {
 const saveLabels: Record<WhiteboardSaveStatus, string> = {
   saved: "Saved",
   saving: "Saving...",
-  "offline-draft": "Offline draft",
+  "offline-draft": "Local draft",
   error: "Save error",
   limit: "Limit reached",
   "storage-limit": "Storage limit",
-  unavailable: "Supabase unavailable",
+  unavailable: "Sync unavailable",
 };
 
 export function WhiteboardToolbar({

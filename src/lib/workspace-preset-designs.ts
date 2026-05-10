@@ -1272,7 +1272,7 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     visibleModules: ["history-timeline", "lesson", "history-evidence", "history-argument"],
     densityVisibleModules: {
       comfortable: ["history-timeline", "lesson", "history-evidence", "history-argument"],
-      compact: ["history-timeline", "history-evidence", "history-argument"],
+      compact: ["history-timeline", "lesson", "history-evidence", "history-argument"],
       focus: ["history-timeline", "history-evidence"],
     },
     placement: {
@@ -1284,6 +1284,10 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
       leadModule: "history-timeline",
       sequence: ["history-timeline", "lesson", "history-evidence", "history-argument"],
       studentGoal: "Move from chronology to source, then evidence, then a composed historical argument.",
+    },
+    performanceBudget: {
+      maxComfortableModules: 4,
+      maxCompactModules: 3,
     },
     reasoning:
       "Full History Studio feels powerful by giving each core history surface a real zone and collapsing extras first.",
@@ -1768,14 +1772,15 @@ function buildHistoryFullStudioFrames(width: number, height: number): Partial<Re
   const gap = 16;
   const timelineHeight = Math.max(360, Math.round(height * 0.42));
   const lowerHeight = height - timelineHeight - gap;
-  const columnWidth = Math.floor((width - gap * 2) / 3);
-  const evidenceX = columnWidth + gap;
-  const argumentX = evidenceX + columnWidth + gap;
+  const argumentWidth = Math.max(520, Math.round(width * 0.38));
+  const supportWidth = Math.max(420, Math.floor((width - argumentWidth - gap * 2) / 2));
+  const evidenceX = supportWidth + gap;
+  const argumentX = evidenceX + supportWidth + gap;
 
   return {
     "history-timeline": faceliftFrame(0, 0, width, timelineHeight, 1),
-    lesson: faceliftFrame(0, timelineHeight + gap, columnWidth, lowerHeight, 2),
-    "history-evidence": faceliftFrame(evidenceX, timelineHeight + gap, columnWidth, lowerHeight, 3),
+    lesson: faceliftFrame(0, timelineHeight + gap, supportWidth, lowerHeight, 2),
+    "history-evidence": faceliftFrame(evidenceX, timelineHeight + gap, supportWidth, lowerHeight, 3),
     "history-argument": faceliftFrame(argumentX, timelineHeight + gap, width - argumentX, lowerHeight, 4),
   };
 }

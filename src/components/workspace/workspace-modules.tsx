@@ -788,7 +788,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Scientific calculator">
-          <LazyScientificCalculatorModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazyScientificCalculatorModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Scientific calculator">
@@ -806,7 +810,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Saved graphs">
-          <LazySavedGraphsModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazySavedGraphsModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Saved graphs">

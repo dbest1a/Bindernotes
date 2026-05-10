@@ -2,10 +2,11 @@ import {
   BookOpenText,
   CheckCircle2,
   ClipboardList,
-  Focus,
   Highlighter,
   Layers3,
   LineChart,
+  Maximize2,
+  Minimize2,
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
@@ -135,8 +136,12 @@ export function StudyPanelsShell({
   const betaFeaturesEnabled = betaFeatures.betaFeaturesEnabled;
   const compactStudyChrome =
     compactStudyChromeProp || betaFeatures.isFeatureEnabled("compactStudyChrome");
+  const revampBetaEnabled = betaFeatures.revampBetaEnabled;
   const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
   const studyPanelsV2 = betaFeatures.isFeatureEnabled("studyPanelsV2");
+  const isHistoryPanels =
+    context.history.enabled ||
+    `${context.binder.subject ?? ""} ${preferences.preset}`.toLowerCase().includes("history");
   const folder = context.library
     ? getPrimaryFolder(
         context.library.binders,
@@ -155,7 +160,7 @@ export function StudyPanelsShell({
   const [activeToolId, setActiveToolId] = useState<WorkspaceModuleId>("recent-highlights");
   const [actionStatus, setActionStatus] = useState("");
   const [hasSelectedText, setHasSelectedText] = useState(false);
-  const [focusTabsHidden, setFocusTabsHidden] = useState(false);
+  const shellRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const previousPresetRef = useRef(preferences.preset);
 
@@ -202,9 +207,15 @@ export function StudyPanelsShell({
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const primaryModuleId = activeTab?.moduleId ?? design.primaryModule;
+  const focusSecondaryModuleId =
+    focusModeActive && !isCompact && primaryModuleId === "whiteboard" && workspaceModuleRegistry["private-notes"]
+      ? "private-notes"
+      : null;
   const rawSecondaryModuleId =
-    isCompact || focusModeActive
+    isCompact
       ? null
+      : focusModeActive
+        ? focusSecondaryModuleId
       : studyPanelsV2
         ? chooseStudyPanelsV2SecondaryModule(primaryModuleId, context, preferences)
         : chooseSecondaryModule(primaryModuleId, context, preferences);
@@ -289,7 +300,7 @@ export function StudyPanelsShell({
   const selectedTextForAction = () =>
     typeof document === "undefined" ? "" : document.getSelection()?.toString().trim() ?? "";
   const selectionActionDisabled = studyPanelsV2 && !hasSelectedText;
-  const tabStripHidden = studyPanelsV2 && focusModeActive && focusTabsHidden;
+  const tabStripHidden = focusModeActive;
   const showSecondaryPanelControl = studyPanelsV2 && Boolean(rawSecondaryModuleId) && !isCompact && !focusModeActive;
   const actionStatusControl = actionStatus ? (
     <div className="study-panels-action-status" role="status">
@@ -406,6 +417,45 @@ export function StudyPanelsShell({
     </section>
   ) : null;
 
+  const requestStudyPanelsFullscreen = () => {
+    if (typeof document === "undefined" || document.fullscreenElement) {
+      return;
+    }
+
+    const shell = shellRef.current;
+    if (!shell?.requestFullscreen) {
+      return;
+    }
+
+    void shell.requestFullscreen().catch(() => {
+      // CSS fullscreen focus still covers the app chrome if the browser denies native fullscreen.
+    });
+  };
+
+  const exitStudyPanelsFullscreen = () => {
+    if (typeof document === "undefined" || !document.fullscreenElement || !document.exitFullscreen) {
+      return;
+    }
+
+    void document.exitFullscreen().catch(() => {
+      // App focus mode exits independently, so a browser-level exit denial should not trap the user.
+    });
+  };
+
+  const handleToggleFocusMode = () => {
+    if (!onToggleFocus) {
+      return;
+    }
+
+    if (focusModeActive) {
+      exitStudyPanelsFullscreen();
+    } else {
+      requestStudyPanelsFullscreen();
+    }
+
+    onToggleFocus();
+  };
+
   const renderModule = (moduleId: WorkspaceModuleId, slot: "primary" | "secondary" | "drawer") => {
     const embeddedContext: WorkspaceModuleContext = {
       ...context,
@@ -426,7 +476,7 @@ export function StudyPanelsShell({
             whiteboardSourceDisplayMode: "summary" as const,
             whiteboardShowMathInline: false,
             onExitWhiteboardFocus:
-              focusModeActive && onToggleFocus ? onToggleFocus : context.onExitWhiteboardFocus,
+              focusModeActive && onToggleFocus ? handleToggleFocusMode : context.onExitWhiteboardFocus,
           }
         : {}),
     };
@@ -466,17 +516,50 @@ export function StudyPanelsShell({
       className="study-panels-shell"
       data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
       data-focus-mode-active={focusModeActive ? "true" : "false"}
+      data-history-study-panels={isHistoryPanels ? "true" : "false"}
+      data-revamp-beta={revampBetaEnabled ? "true" : "false"}
       data-study-panels-density={preferences.modular.panelDensity}
       data-study-panels-tab-strip={tabStripHidden ? "hidden" : "visible"}
       data-study-panels-v2={studyPanelsV2 ? "true" : "false"}
       data-secondary-preset-strip={
-        preferences.modular.showSecondaryPresetStrip && !compactStudyChrome ? "visible" : "hidden"
+        preferences.modular.showSecondaryPresetStrip ? "visible" : "hidden"
       }
       data-testid="study-panels-shell"
       data-workspace-presentation="study-panels"
       data-workspace-view="modular"
+      ref={shellRef}
     >
-      <header className="study-panels-shell__top">
+      {focusModeActive ? (
+        <div className="study-panels-focus-dock" aria-label="Fullscreen study controls" role="toolbar">
+          {onToggleFocus ? (
+            <Button
+              aria-label="Exit full screen"
+              onClick={handleToggleFocusMode}
+              size="sm"
+              title="Exit full screen"
+              type="button"
+              variant="default"
+            >
+              <Minimize2 className="size-4" />
+              <span>Exit full screen</span>
+            </Button>
+          ) : null}
+          <Button
+            aria-label={drawerOpen ? "Hide toolbox" : "Show toolbox"}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((current) => !current)}
+            size="sm"
+            title={drawerOpen ? "Hide toolbox" : "Show toolbox"}
+            type="button"
+            variant={drawerOpen ? "default" : "outline"}
+          >
+            <Layers3 className="size-4" />
+            <span>{drawerOpen ? "Hide toolbox" : "Toolbox"}</span>
+          </Button>
+        </div>
+      ) : (
+        <>
+          <header className="study-panels-shell__top">
         <div className="study-panels-shell__identity">
           <div className="study-panels-shell__eyebrow">
             <Badge variant="secondary">Study Panels</Badge>
@@ -505,30 +588,17 @@ export function StudyPanelsShell({
           <WorkspaceModeSwitcher currentMode={currentViewMode} onChangeMode={onChangeMode} />
           {onToggleFocus ? (
             <Button
-              aria-label={focusModeActive ? "Exit focus" : "Focus panel"}
-              onClick={onToggleFocus}
+              aria-label="Full screen panel"
+              onClick={handleToggleFocusMode}
               size="sm"
-              title={focusModeActive ? "Exit focus" : "Focus panel"}
+              title="Full screen panel"
               type="button"
               variant="outline"
             >
-              <Focus className="size-4" />
+              <Maximize2 className="size-4" />
               <span className="study-panels-action-label">
-                {focusModeActive ? "Exit focus" : "Focus panel"}
+                Full screen
               </span>
-            </Button>
-          ) : null}
-          {studyPanelsV2 && focusModeActive ? (
-            <Button
-              aria-label={tabStripHidden ? "Show Study Panels tabs" : "Hide Study Panels tabs"}
-              onClick={() => setFocusTabsHidden((current) => !current)}
-              size="sm"
-              title={tabStripHidden ? "Show Study Panels tabs" : "Hide Study Panels tabs"}
-              type="button"
-              variant="outline"
-            >
-              {tabStripHidden ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-              <span className="study-panels-action-label">{tabStripHidden ? "Show tabs" : "Hide tabs"}</span>
             </Button>
           ) : null}
           <Button
@@ -578,6 +648,7 @@ export function StudyPanelsShell({
 
           return (
           <button
+            aria-label={studyPanelsV2 && isHistoryPanels ? getHistoryStudyPanelTabLabel(tab) : undefined}
             aria-controls={`study-panel-${tab.id}`}
             aria-selected={activeTabId === tab.id}
             className="study-panels-tab"
@@ -601,7 +672,7 @@ export function StudyPanelsShell({
       </nav>
       ) : null}
 
-      {preferences.modular.showSecondaryPresetStrip && !compactStudyChrome ? (
+      {preferences.modular.showSecondaryPresetStrip ? (
         <div className="study-panels-preset-strip" aria-label="Study Panel presets">
           {visiblePresets.map((candidate) => (
             <button
@@ -626,6 +697,8 @@ export function StudyPanelsShell({
           {actionStatusControl}
           {secondaryPanelControl}
           {guidedActionsControl}
+        </>
+      )}
         </>
       )}
 
@@ -793,6 +866,14 @@ function saveStudyPanelSecondaryHidden(storageKey: string, hidden: boolean) {
 
 function getStudyPanelV2TabLabel(tab: StudyPanelTab) {
   return tab.id === "tools" ? "Extras" : tab.label;
+}
+
+function getHistoryStudyPanelTabLabel(tab: StudyPanelTab) {
+  if (tab.id === "tools") {
+    return "Sticky Notes Extra";
+  }
+
+  return `${tab.label} ${tab.helper}`.trim();
 }
 
 function getStudyPanelTabIcon(tab: StudyPanelTab): LucideIcon {
@@ -1461,7 +1542,14 @@ function chooseStudyPanelsV2SecondaryModule(
   }
 
   if (primaryModuleId.startsWith("history-")) {
-    return workspaceModuleRegistry["private-notes"] ? "private-notes" : null;
+    const byHistoryPrimary: Partial<Record<WorkspaceModuleId, WorkspaceModuleId[]>> = {
+      "history-timeline": ["lesson", "private-notes"],
+      "history-evidence": ["lesson", "private-notes"],
+      "history-argument": ["history-evidence", "lesson"],
+      "history-myth-checks": ["lesson", "private-notes"],
+    };
+    const candidates = byHistoryPrimary[primaryModuleId] ?? ["lesson", "private-notes"];
+    return candidates.find((moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId]) ?? null;
   }
 
   if (primaryModuleId.startsWith("chem-")) {

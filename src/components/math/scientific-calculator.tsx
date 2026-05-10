@@ -81,6 +81,7 @@ export function ScientificCalculator({
 
       <div className="mt-5 rounded-lg border border-border/75 bg-background/90 p-4">
         <Input
+          aria-label="Calculator expression"
           className="h-12 border-0 bg-transparent px-0 text-lg font-medium shadow-none focus-visible:ring-0"
           onChange={(event) => onExpressionChange(event.target.value)}
           onKeyDown={(event) => {
@@ -100,7 +101,12 @@ export function ScientificCalculator({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Result
             </p>
-            <p className={cn("mt-1 text-2xl font-semibold tracking-tight", error && "text-destructive")}>
+            <p
+              aria-label="Calculator result"
+              aria-live="polite"
+              className={cn("mt-1 text-2xl font-semibold tracking-tight", error && "text-destructive")}
+              role="status"
+            >
               {error ?? result ?? "Ready"}
             </p>
             {typeof lastAnswer === "number" ? (

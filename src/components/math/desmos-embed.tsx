@@ -74,6 +74,7 @@ export const DesmosSurface = memo(function DesmosSurface({
   const onStateChangeRef = useRef(onStateChange);
   const onExpressionAppliedRef = useRef(onExpressionApplied);
   const onLoadAppliedRef = useRef(onLoadApplied);
+  const showKeypadRef = useRef(showKeypad);
   const [darkMode, setDarkMode] = useState(() =>
     typeof document !== "undefined" ? resolveDesmosDarkMode(document.documentElement) : false,
   );
@@ -96,6 +97,10 @@ export const DesmosSurface = memo(function DesmosSurface({
   useEffect(() => {
     onLoadAppliedRef.current = onLoadApplied;
   }, [onLoadApplied]);
+
+  useEffect(() => {
+    showKeypadRef.current = showKeypad;
+  }, [showKeypad]);
 
   useEffect(() => {
     latestStateRef.current = state ?? null;
@@ -153,7 +158,7 @@ export const DesmosSurface = memo(function DesmosSurface({
         const calculator = createDesmosCalculator(kind, Desmos, container, {
           darkMode,
           graphChrome,
-          showKeypad,
+          showKeypad: showKeypadRef.current,
         });
         calculatorRef.current = calculator;
 
@@ -230,7 +235,18 @@ export const DesmosSurface = memo(function DesmosSurface({
         calculatorRef.current = null;
       }
     };
-  }, [kind, showKeypad]);
+  }, [kind]);
+
+  useEffect(() => {
+    if (status !== "ready" || !calculatorRef.current?.updateSettings) {
+      return;
+    }
+
+    calculatorRef.current.updateSettings({
+      keypad: showKeypad,
+    });
+    calculatorRef.current.resize();
+  }, [showKeypad, status]);
 
   useEffect(() => {
     if (status !== "ready" || !calculatorRef.current?.updateSettings) {

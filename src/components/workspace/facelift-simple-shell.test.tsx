@@ -43,6 +43,18 @@ vi.mock("@/components/workspace/workspace-modules", () => ({
         </section>
       ),
     },
+    "history-timeline": {
+      title: "Timeline",
+      render: () => <section>Timeline body</section>,
+    },
+    "history-evidence": {
+      title: "Evidence",
+      render: () => <section>Evidence body</section>,
+    },
+    "history-argument": {
+      title: "Argument",
+      render: () => <section>Argument body</section>,
+    },
   },
 }));
 
@@ -213,6 +225,46 @@ describe("FaceliftSimpleShell", () => {
 
     expect(screen.queryByText("Whiteboard body")).toBeNull();
     expect(screen.getByText("Notes body")).toBeTruthy();
+  });
+
+  it("uses history mobile tabs instead of squeezing the desktop studio on phone-sized surfaces", () => {
+    renderFaceliftSimpleShell(
+      {
+        preset: "history-full-studio",
+        enabledModules: [
+          "lesson",
+          "history-timeline",
+          "history-evidence",
+          "history-argument",
+          "private-notes",
+        ],
+        facelift: {
+          ...createDefaultWorkspacePreferences("user-1", "binder-1").facelift,
+          density: "comfortable",
+          surfaceMode: "simple",
+        },
+      },
+      { isCompact: true },
+    );
+
+    const mobileNav = screen.getByRole("navigation", { name: /mobile study modules/i });
+    expect(within(mobileNav).getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Lesson",
+      "Timeline",
+      "Evidence",
+      "Argument",
+      "Notes",
+    ]);
+    expect(screen.getByText("Lesson body")).toBeTruthy();
+    expect(screen.queryByText("Timeline body")).toBeNull();
+    expect(screen.queryByText("Evidence body")).toBeNull();
+    expect(screen.queryByText("Argument body")).toBeNull();
+    expect(screen.queryByText("Notes body")).toBeNull();
+
+    fireEvent.click(within(mobileNav).getByRole("button", { name: "Argument" }));
+
+    expect(screen.queryByText("Lesson body")).toBeNull();
+    expect(screen.getByText("Argument body")).toBeTruthy();
   });
 
   it("turns Study Panels tools into real tool-surface launchers", () => {

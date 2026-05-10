@@ -20,6 +20,7 @@ import {
   type GraphLoadRequest,
 } from "@/components/math/math-workspace-modules";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   useMathWorkspace,
 } from "@/hooks/use-math-workspace";
@@ -62,6 +63,8 @@ const calculusModuleCards = [
 
 export function MathLabPage() {
   const { profile } = useAuth();
+  const betaFeatures = useBetaFeatures(profile?.id);
+  const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("revampBeta");
   const [searchParams] = useSearchParams();
   const {
     state,
@@ -259,17 +262,22 @@ export function MathLabPage() {
           )}
         >
           <div className="grid gap-4">
-            <DesmosGraphModule bindings={bindings} description="Live Desmos graphing calculator" title="Live graph area" />
+            <DesmosGraphModule
+              bindings={bindings}
+              description="Live Desmos graphing calculator"
+              mathPerformanceLazyLoading={mathPerformanceLazyLoading}
+              title="Live graph area"
+            />
           </div>
 
           <div className="grid gap-4">
-            <ScientificCalculatorModule bindings={bindings} />
-            <SavedGraphsModule bindings={bindings} />
+            <ScientificCalculatorModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
+            <SavedGraphsModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
           </div>
         </section>
       ) : (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <ScientificCalculatorModule bindings={bindings} />
+          <ScientificCalculatorModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
           <div className="grid gap-4">
             <section className="page-shell p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -285,7 +293,7 @@ export function MathLabPage() {
                 Reopen graph
               </Button>
             </section>
-            <SavedGraphsModule bindings={bindings} />
+            <SavedGraphsModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
           </div>
         </section>
       )}

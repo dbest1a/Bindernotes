@@ -73,7 +73,14 @@ describe("WorkspaceSettings appearance scope", () => {
       workspacePresentationMode: "facelift" as const,
     };
 
-    render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
+    render(
+      <WorkspaceSettings
+        onChange={vi.fn()}
+        preferences={preferences}
+        mode="layout"
+        revampBetaEnabled
+      />,
+    );
 
     for (const query of ["facelift", "workspace", "folder", "document", "mobile", "compact"]) {
       fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
@@ -269,7 +276,7 @@ describe("WorkspaceSettings appearance scope", () => {
       target: { value: "sketch" },
     });
 
-    expect(screen.getByText("Whiteboard")).toBeTruthy();
+    expect(screen.getAllByText("Whiteboard").length).toBeGreaterThan(0);
   });
 
   it("surfaces Enhanced Visuals from workspace search while Performance Mode stays default", () => {
@@ -278,9 +285,16 @@ describe("WorkspaceSettings appearance scope", () => {
       "canvas",
     );
 
-    render(<WorkspaceSettings mode="layout" onChange={vi.fn()} preferences={preferences} />);
+    render(
+      <WorkspaceSettings
+        mode="layout"
+        onChange={vi.fn()}
+        preferences={preferences}
+        revampBetaEnabled
+      />,
+    );
 
-    for (const query of ["performance", "lag", "smooth", "animation", "whiteboard menu"]) {
+    for (const query of ["performance", "lag", "smooth", "animation", "tool menu"]) {
       fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
         target: { value: query },
       });
@@ -417,6 +431,162 @@ describe("WorkspaceSettings appearance scope", () => {
     }
 
     unmount();
+  });
+
+  it("keeps exact settings searches narrow so maximize and whiteboard do not surface unrelated folders first", () => {
+    const preferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      workspacePresentationMode: "facelift" as const,
+    };
+
+    render(
+      <WorkspaceSettings
+        onChange={vi.fn()}
+        preferences={preferences}
+        mode="layout"
+        revampBetaEnabled
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "maximize" },
+    });
+
+    expect(screen.getByRole("button", { name: /maximize module space/i })).toBeTruthy();
+    expect(screen.queryByText("Facelift surface")).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "whiteboard" },
+    });
+
+    expect(screen.getAllByText("Whiteboard").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Enhanced Visuals")).toBeNull();
+  });
+
+  it("finds required Revamp settings aliases in regular settings and edit-layout settings", () => {
+    const canvasPreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+    const aliasExpectations: Array<[string, RegExp]> = [
+      ["snap", /Snap mode/i],
+      ["safe", /Safe Edge Padding/i],
+      ["padding", /Safe Edge Padding/i],
+      ["bezel", /Safe Edge Padding/i],
+      ["fit", /Fit to viewport height/i],
+      ["tidy", /Presets/i],
+      ["preset", /Presets/i],
+      ["theme", /App Theme/i],
+      ["surface", /Color Settings/i],
+      ["graph", /Graph appearance/i],
+      ["whiteboard", /Whiteboard/i],
+      ["board", /Whiteboard/i],
+      ["mobile", /Responsive layout/i],
+      ["phone", /Responsive layout/i],
+      ["compact", /Maximize module space/i],
+      ["maximize", /Maximize module space/i],
+      ["header", /Maximize module space/i],
+      ["source", /Maximize module space/i],
+      ["lesson", /Maximize module space/i],
+      ["notes", /Maximize module space/i],
+      ["save", /Save color scheme/i],
+    ];
+
+    const { rerender } = render(
+      <WorkspaceSettings
+        onChange={vi.fn()}
+        preferences={canvasPreferences}
+        mode="preferences"
+        revampBetaEnabled
+      />,
+    );
+
+    for (const [query, expected] of aliasExpectations) {
+      fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+        target: { value: query },
+      });
+      expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+    }
+
+    rerender(
+      <WorkspaceSettings
+        onChange={vi.fn()}
+        preferences={canvasPreferences}
+        mode="layout"
+        revampBetaEnabled
+      />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
+      target: { value: "snap" },
+    });
+    expect(screen.getByText("Snap mode")).toBeTruthy();
+  });
+
+  it("closes preference settings after applying a workspace mode or preset", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const onClose = vi.fn();
+    const onChange = vi.fn();
+
+    const { rerender } = render(
+      <WorkspaceSettings
+        mode="preferences"
+        onChange={onChange}
+        onClose={onClose}
+        preferences={preferences}
+        revampBetaEnabled
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Workspace view Canvas" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    onClose.mockClear();
+    rerender(
+      <WorkspaceSettings
+        mode="preferences"
+        onChange={onChange}
+        onClose={onClose}
+        preferences={preferences}
+        revampBetaEnabled
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Split Study"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    onClose.mockClear();
+    const historyPreferences = applyWorkspaceMode(preferences, "modular");
+    rerender(
+      <WorkspaceSettings
+        historyEnabled
+        mode="preferences"
+        onChange={onChange}
+        onClose={onClose}
+        preferences={historyPreferences}
+        revampBetaEnabled
+      />,
+    );
+
+    fireEvent.click(screen.getByText("History Guided"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the previous settings apply behavior when Revamp Beta is off", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const onClose = vi.fn();
+
+    render(
+      <WorkspaceSettings
+        mode="preferences"
+        onChange={vi.fn()}
+        onClose={onClose}
+        preferences={preferences}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Workspace view Canvas" }));
+
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("keeps panel density separate from the maximize module space toggle", () => {

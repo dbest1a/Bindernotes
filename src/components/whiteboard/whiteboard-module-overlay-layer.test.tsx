@@ -270,6 +270,37 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(card.getAttribute("style")).not.toContain("scale(");
   });
 
+  it("removes a stacked card without emitting a stale bring-to-front update first", () => {
+    const onChangeModule = vi.fn();
+    const onRemoveModule = vi.fn();
+
+    render(
+      <WhiteboardPinnedObjectLayer
+        context={context}
+        modules={[
+          moduleElement({ id: "lower", moduleId: "desmos-graph", zIndex: 1 }),
+          moduleElement({ id: "upper", moduleId: "formula-sheet", x: 640, zIndex: 12 }),
+        ]}
+        onChangeModule={onChangeModule}
+        onRemoveModule={onRemoveModule}
+        renderModule={() => <div>Live module</div>}
+        viewportTransform={viewport}
+      />,
+    );
+
+    const removeButtons = screen.getAllByTitle("Remove module");
+    expect(removeButtons).toHaveLength(2);
+
+    const removeIcon = removeButtons[0].querySelector("svg");
+    expect(removeIcon).not.toBeNull();
+
+    fireEvent.pointerDown(removeIcon!);
+    fireEvent.click(removeIcon!);
+
+    expect(onRemoveModule).toHaveBeenCalledWith("lower");
+    expect(onChangeModule).not.toHaveBeenCalled();
+  });
+
   it("does not remount viewport Desmos content when Excalidraw pans or zooms", () => {
     const mounted: string[] = [];
     function LiveGraph() {

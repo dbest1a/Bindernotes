@@ -233,6 +233,7 @@ export function BinderReaderPage() {
   const [presetLoadError, setPresetLoadError] = useState<Error | null>(null);
   const workspaceRootRef = useRef<HTMLElement | null>(null);
   const handledWhiteboardOpenIntentRef = useRef<string | null>(null);
+  const revampLessonEntryGuardRef = useRef<string | null>(null);
   const pendingNoteSaveRef = useRef<PendingNoteSave | null>(null);
   const retryNoteSaveRef = useRef<PendingNoteSave | null>(null);
   const noteSaveTimerRef = useRef<number | null>(null);
@@ -248,10 +249,11 @@ export function BinderReaderPage() {
   const isCompact = responsiveDevice.isMobileWorkspace;
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
+  const revampBetaEnabled = betaFeatures.revampBetaEnabled;
   const compactStudyChrome = betaFeatures.isFeatureEnabled("compactStudyChrome");
   const compactWhiteboardTools = betaFeatures.isFeatureEnabled("compactWhiteboardTools");
   const canvasStarterLayouts = betaFeatures.isFeatureEnabled("canvasStarterLayouts");
-  const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("mathPerformanceLazyLoading");
+  const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("revampBeta");
   const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
   const studentCalmMode = betaFeatures.isFeatureEnabled("studentCalmMode");
   const studentPreviewAdminChromeGuard = betaFeatures.isFeatureEnabled(
@@ -648,13 +650,22 @@ export function BinderReaderPage() {
     (presetId: WorkspacePresetId) => {
       const viewport = getWorkspaceViewport();
       updateWorkspace((current) =>
-        preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, presetId, viewport), {
-          usePresetRecipe: true,
-          viewport,
-        }),
+        preserveClassicCanvasForFacelift(
+          current,
+          applyPresetToViewport(current, presetId, viewport, {
+            preserveManualCanvasComposition: !revampBetaEnabled,
+          }),
+          {
+            usePresetRecipe: true,
+            viewport,
+          },
+        ),
       );
+      if (revampBetaEnabled) {
+        setPreferencesOpen(false);
+      }
     },
-    [getWorkspaceViewport, updateWorkspace],
+    [getWorkspaceViewport, revampBetaEnabled, updateWorkspace],
   );
 
   useEffect(() => {
@@ -688,6 +699,38 @@ export function BinderReaderPage() {
     searchParams,
     selectedLesson,
     setSearchParams,
+    updateWorkspace,
+  ]);
+
+  useEffect(() => {
+    if (!revampBetaEnabled || !active || !binderId || !selectedLesson) {
+      return;
+    }
+
+    const lessonEntryKey = `${binderId}:${selectedLesson.id}`;
+    if (revampLessonEntryGuardRef.current === lessonEntryKey) {
+      return;
+    }
+    revampLessonEntryGuardRef.current = lessonEntryKey;
+
+    if (searchParams.get("open") === "whiteboard" || active.preset !== "math-practice-mode") {
+      return;
+    }
+
+    const viewport = getWorkspaceViewport();
+    updateWorkspace((current) =>
+      current.preset === "math-practice-mode"
+        ? applyPresetToViewport(current, "split-study", viewport, { preserveManualCanvasComposition: false })
+        : current,
+    );
+  }, [
+    active,
+    active?.preset,
+    binderId,
+    getWorkspaceViewport,
+    revampBetaEnabled,
+    searchParams,
+    selectedLesson,
     updateWorkspace,
   ]);
 
@@ -3147,6 +3190,7 @@ export function BinderReaderPage() {
                   onResetBinderHighlights={resetBinderHighlights}
                   onResetLessonHighlights={resetCurrentLessonHighlights}
                   preferences={active}
+                  revampBetaEnabled={revampBetaEnabled}
                 />
               </section>
             </>
@@ -3205,6 +3249,7 @@ export function BinderReaderPage() {
                     onResetBinderHighlights={resetBinderHighlights}
                     onResetLessonHighlights={resetCurrentLessonHighlights}
                     preferences={active}
+                    revampBetaEnabled={revampBetaEnabled}
                   />
                 </section>
               </>
@@ -3292,6 +3337,7 @@ export function BinderReaderPage() {
               onResetBinderHighlights={resetBinderHighlights}
               onResetLessonHighlights={resetCurrentLessonHighlights}
               preferences={active}
+              revampBetaEnabled={revampBetaEnabled}
               onChange={updateLayoutDraftFromSettings}
             />
           ) : null}
@@ -3309,6 +3355,7 @@ export function BinderReaderPage() {
               onResetBinderHighlights={resetBinderHighlights}
               onResetLessonHighlights={resetCurrentLessonHighlights}
               preferences={active}
+              revampBetaEnabled={revampBetaEnabled}
             />
           ) : null}
 
@@ -3369,6 +3416,7 @@ export function BinderReaderPage() {
                   onResetBinderHighlights={resetBinderHighlights}
                   onResetLessonHighlights={resetCurrentLessonHighlights}
                   preferences={active}
+                  revampBetaEnabled={revampBetaEnabled}
                 />
               </section>
             </>
@@ -3386,6 +3434,7 @@ export function BinderReaderPage() {
                 onResetBinderHighlights={resetBinderHighlights}
                 onResetLessonHighlights={resetCurrentLessonHighlights}
                 preferences={active}
+                revampBetaEnabled={revampBetaEnabled}
                 onChange={updateLayoutDraftFromSettings}
               />
             ) : null}

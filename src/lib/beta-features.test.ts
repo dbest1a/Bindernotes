@@ -3,10 +3,13 @@ import {
   betaFeatureFlagDefinitions,
   betaFeaturesStorageKeyForUser,
   defaultBetaFeaturesPreference,
+  isBetaFeatureFlagActive,
   loadBetaFeaturesPreference,
+  revampBetaFeatureAliases,
   saveBetaFeaturesPreference,
   sanitizeBetaFeaturesPreference,
 } from "@/lib/beta-features";
+import { revampBetaQaIssueMap, roleVerificationQaIssues } from "@/lib/revamp-beta-qa-map";
 
 function createStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -20,30 +23,26 @@ function createStorage(initial: Record<string, string> = {}) {
 }
 
 describe("beta feature preference gates", () => {
-  it("defines the Jacob Geometry cleanup beta flags as opt-in toggles", () => {
+  it("defines Revamp Beta as the single user-facing QA cleanup beta flag", () => {
     expect(betaFeatureFlagDefinitions.map((flag) => flag.key)).toEqual([
-      "compactStudyChrome",
-      "studyPanelsV2",
-      "compactWhiteboardTools",
-      "canvasStarterLayouts",
-      "mathPerformanceLazyLoading",
-      "studentCalmMode",
-      "studentPreviewAdminChromeGuard",
-      "recallLab",
+      "revampBeta",
     ]);
 
-    for (const flag of betaFeatureFlagDefinitions) {
-      expect(flag.label.length).toBeGreaterThan(4);
-      expect(flag.description.length).toBeGreaterThan(20);
-      expect(flag.searchAliases.length).toBeGreaterThan(2);
-      expect(defaultBetaFeaturesPreference[flag.key]).toBe(false);
-    }
+    const [flag] = betaFeatureFlagDefinitions;
+    expect(flag.label).toBe("Revamp Beta");
+    expect(flag.dataAttribute).toBe("data-revamp-beta");
+    expect(flag.description).toContain("BinderNotes QA revamp");
+    expect(flag.searchAliases).toEqual(
+      expect.arrayContaining(["split study", "study panels", "whiteboard", "settings search", "desmos"]),
+    );
+    expect(defaultBetaFeaturesPreference.revampBeta).toBe(false);
   });
 
-  it("sanitizes and persists individual beta flags without turning them on by default", () => {
+  it("sanitizes and persists Revamp Beta while mapping old internal gates to the one switch", () => {
     const storage = createStorage();
     const preference = sanitizeBetaFeaturesPreference({
       enabled: true,
+      revampBeta: true,
       compactStudyChrome: true,
       studyPanelsV2: true,
       compactWhiteboardTools: false,
@@ -59,14 +58,45 @@ describe("beta feature preference gates", () => {
     const loaded = loadBetaFeaturesPreference("user-1", storage);
 
     expect(loaded.enabled).toBe(true);
-    expect(loaded.compactStudyChrome).toBe(true);
-    expect(loaded.studyPanelsV2).toBe(true);
-    expect(loaded.compactWhiteboardTools).toBe(false);
-    expect(loaded.canvasStarterLayouts).toBe(true);
-    expect(loaded.mathPerformanceLazyLoading).toBe(true);
-    expect(loaded.recallLab).toBe(true);
-    expect(loaded.studentCalmMode).toBe(true);
-    expect(loaded.studentPreviewAdminChromeGuard).toBe(true);
+    expect(loaded.revampBeta).toBe(true);
+    expect(isBetaFeatureFlagActive(loaded, "revampBeta")).toBe(true);
+    for (const alias of revampBetaFeatureAliases) {
+      expect(isBetaFeatureFlagActive(loaded, alias)).toBe(true);
+    }
+    expect(sanitizeBetaFeaturesPreference({ enabled: true })).toEqual({
+      enabled: true,
+      revampBeta: true,
+    });
     expect(storage.snapshot()[betaFeaturesStorageKeyForUser("user-1")]).not.toContain("unknownFlag");
+    expect(storage.snapshot()[betaFeaturesStorageKeyForUser("user-1")]).not.toContain("compactStudyChrome");
+  });
+
+  it("keeps the QA report issue IDs mapped to Revamp Beta implementation areas", () => {
+    expect(roleVerificationQaIssues).toEqual(["BN-QA-001", "BN-QA-002"]);
+    expect([...roleVerificationQaIssues, ...Object.keys(revampBetaQaIssueMap)]).toEqual(
+      Array.from({ length: 20 }, (_, index) => `BN-QA-${String(index + 1).padStart(3, "0")}`),
+    );
+    expect(Object.keys(revampBetaQaIssueMap)).toEqual([
+      "BN-QA-003",
+      "BN-QA-004",
+      "BN-QA-005",
+      "BN-QA-006",
+      "BN-QA-007",
+      "BN-QA-008",
+      "BN-QA-009",
+      "BN-QA-010",
+      "BN-QA-011",
+      "BN-QA-012",
+      "BN-QA-013",
+      "BN-QA-014",
+      "BN-QA-015",
+      "BN-QA-016",
+      "BN-QA-017",
+      "BN-QA-018",
+      "BN-QA-019",
+      "BN-QA-020",
+    ]);
+    expect(revampBetaQaIssueMap["BN-QA-003"].area).toBe("Split Study");
+    expect(revampBetaQaIssueMap["BN-QA-020"].gate).toBe("Revamp Beta");
   });
 });

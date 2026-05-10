@@ -25,7 +25,6 @@ import {
   useState,
   type DragEvent,
   type FormEvent,
-  type ReactNode,
 } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -328,261 +327,162 @@ export function DashboardPage() {
   }
 
   return (
+    <DashboardTransitionShell
+      appearance={dashboardExperience.effectiveViewMode}
+      error={error}
+      runtimeDiagnostics={runtimeDiagnostics}
+      showSystemDiagnostics={showSystemDiagnostics}
+      workspacePresentation={workspacePresentation}
+    />
+  );
+
+}
+
+function DashboardTransitionShell({
+  appearance,
+  error,
+  runtimeDiagnostics,
+  showSystemDiagnostics,
+  workspacePresentation,
+}: {
+  appearance: "normal" | "minimal" | "admin-makeover";
+  error: Error | null;
+  runtimeDiagnostics: ReturnType<typeof classifyRuntimeError>;
+  showSystemDiagnostics: boolean;
+  workspacePresentation: string;
+}) {
+  const isMinimalAppearance = appearance === "minimal";
+  const isAdminMakeoverAppearance = appearance === "admin-makeover";
+  const dashboardPrefix = isMinimalAppearance
+    ? "minimal"
+    : isAdminMakeoverAppearance
+      ? "admin-makeover"
+      : "normal";
+  const dashboardLayout = isMinimalAppearance
+    ? "drive"
+    : isAdminMakeoverAppearance
+      ? "makeover"
+      : "visual";
+  const dashboardIntro = isMinimalAppearance
+    ? "Opening your compact workspace."
+    : isAdminMakeoverAppearance
+      ? "Opening Admin Makeover."
+      : "Opening your workspace.";
+
+  return (
     <main
-      className={cn("dashboard-page app-page", dashboardExperience.isMinimalActive && "dashboard-page--minimal")}
-      data-dashboard-appearance={dashboardExperience.effectiveViewMode}
+      className={cn(
+        "dashboard-page app-page",
+        isMinimalAppearance
+          ? "minimal-dashboard-page"
+          : isAdminMakeoverAppearance
+            ? "normal-dashboard-page dashboard-page--admin-makeover-loading"
+            : "normal-dashboard-page",
+      )}
+      data-dashboard-appearance={appearance}
+      data-dashboard-layout={dashboardLayout}
       data-testid="dashboard-page"
       data-workspace-presentation={workspacePresentation}
     >
-      <section className="dashboard-hero hero-grid">
-        <div className="page-shell p-6 sm:p-8">
-          <Badge variant="outline">Workspace</Badge>
-          <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">
-            A real study hierarchy: folders, binders, then documents.
-          </h1>
-          <p className="mt-4 max-w-2xl page-copy">
-            Start at the workspace, open a folder, move into a binder, and only then step into the
-            specific document you want to study.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Metric label="Folders" value={data?.folders.length ?? 0} icon={<FolderOpen />} />
-            <Metric label="Binders" value={data?.binders.length ?? 0} icon={<LibraryBig />} />
-            <Metric label="Documents" value={data?.lessons.length ?? 0} icon={<BookCopy />} />
+      <section
+        aria-busy={!error}
+        className="minimal-dashboard-command-bar"
+        data-testid={`${dashboardPrefix}-dashboard-command-bar`}
+      >
+        <div className="minimal-dashboard-command-bar__identity">
+          <Badge variant="outline">{isAdminMakeoverAppearance ? "Admin Makeover" : "Workspace"}</Badge>
+          <div>
+            <h1>Workspace</h1>
+            <p>{dashboardIntro}</p>
           </div>
         </div>
 
-        <aside className="hero-aside">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              data-icon="inline-start"
-            />
-            <Input
-              className="pl-10"
-              data-testid="dashboard-search"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search folders, binders, documents"
-              value={query}
-            />
-          </div>
-          <div className="mt-5 space-y-3">
-            <div className="utility-panel">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="text-primary" data-icon="inline-start" />
-                Better document flow
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Real study material stays near the top. Empty drafts and backend diagnostics no longer
-                crowd the main workspace view.
-              </p>
-              <Button asChild className="mt-3" size="sm" type="button" variant="outline">
-                <Link data-testid="dashboard-primary-action" to="/tutorial">
-                  Open feature tutorial
-                  <ChevronRight data-icon="inline-start" />
-                </Link>
-              </Button>
-              {profile?.role === "admin" ? (
-                <Button
-                  className="mt-3"
-                  onClick={() => dashboardExperience.setViewMode("admin-makeover")}
-                  size="sm"
-                  type="button"
-                >
-                  <Sparkles data-icon="inline-start" />
-                  Open Admin Makeover
-                </Button>
-              ) : null}
+        <div aria-label="Workspace totals loading" className="minimal-dashboard-stats">
+          {["Folders", "Binders", "Documents"].map((label) => (
+            <div className="minimal-dashboard-stat" data-testid="dashboard-loading-stat" key={label}>
+              <Skeleton className="size-4" />
+              <Skeleton className="h-4 w-10" />
+              <span>{label}</span>
             </div>
-          </div>
-        </aside>
+          ))}
+        </div>
+
+        <div className="minimal-dashboard-search">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            data-icon="inline-start"
+          />
+          <Skeleton className="h-10 w-full rounded-md" data-testid={`${dashboardPrefix}-dashboard-search`} />
+        </div>
+
+        <div className="minimal-dashboard-actions">
+          <Skeleton className="h-9 w-24 rounded-md" />
+          {isAdminMakeoverAppearance ? <Skeleton className="h-9 w-32 rounded-md" /> : null}
+        </div>
       </section>
 
+      <nav
+        aria-label="Workspace file controls loading"
+        className="minimal-dashboard-filebar"
+        data-testid={`${dashboardPrefix}-dashboard-filebar`}
+      >
+        <div className="minimal-dashboard-filebar__new">
+          <span className="minimal-dashboard-new-button" aria-hidden="true">
+            <Plus className="size-4" />
+            New
+          </span>
+        </div>
+        <div className="minimal-dashboard-filebar__menus">
+          {["Browse", "Open", "View"].map((label) => (
+            <span className="minimal-dashboard-filebar__trigger" aria-hidden="true" key={label}>
+              {label}
+            </span>
+          ))}
+        </div>
+        <ol className="minimal-dashboard-filebar__path" aria-label="Current workspace path">
+          <li>My Drive</li>
+          <li>Loading</li>
+        </ol>
+        <div className="minimal-dashboard-filebar__primary">
+          <Skeleton className="h-9 w-28 rounded-md" />
+        </div>
+      </nav>
+
       {error ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4" data-testid="dashboard-error-shell">
           {runtimeDiagnostics.length ? (
             <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} />
           ) : null}
-          {showSystemDiagnostics && isMissingSeedError(error) ? (
-            <SeedHealthPanel items={[error.seedHealth]} />
-          ) : null}
+          {(() => {
+            if (!showSystemDiagnostics || !isMissingSeedError(error)) {
+              return null;
+            }
+            return <SeedHealthPanel items={[error.seedHealth]} />;
+          })()}
           <EmptyState
             description={
-              showSystemDiagnostics && error instanceof Error
-                ? error.message
+              showSystemDiagnostics
+                ? error instanceof Error
+                  ? error.message
+                  : "This workspace is temporarily unavailable. Try again in a moment."
                 : "This workspace is temporarily unavailable. Try again in a moment."
             }
             title="Could not load workspace"
           />
         </div>
-      ) : null}
-
-      {isLoading || (!filtered && !error) ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-[240px]" />
-          <Skeleton className="h-[240px]" />
-          <Skeleton className="h-[240px]" />
+      ) : (
+        <div
+          className={cn(
+            "grid gap-4",
+            isMinimalAppearance ? "md:grid-cols-2 xl:grid-cols-3" : "lg:grid-cols-3",
+          )}
+          data-testid="dashboard-loading-shell"
+        >
+          <Skeleton className="h-[180px]" />
+          <Skeleton className="h-[180px]" />
+          <Skeleton className="h-[180px]" />
         </div>
-      ) : !error ? (
-        <>
-          <section className="grid gap-4">
-            <div>
-              <span className="page-kicker">Folders</span>
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight">Open a workspace container</h2>
-            </div>
-            <div className="dashboard-minimal-grid grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {resolvedFiltered.folderSummaries.map((summary) => (
-                <Link
-                  className="dashboard-folder-card ui-click-tile group page-shell block p-6 transition duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft"
-                  data-testid="dashboard-folder-card"
-                  key={summary.folder.id}
-                  to={`/folders/${summary.folder.id}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div
-                      className="flex size-12 items-center justify-center rounded-lg text-white shadow-sm"
-                      style={{ backgroundColor: folderColor(summary.folder.color) }}
-                    >
-                      <FolderOpen className="size-5" />
-                    </div>
-                    <ChevronRight className="text-muted-foreground transition group-hover:text-foreground" />
-                  </div>
-                  <h3 className="mt-5 text-2xl font-semibold tracking-tight">
-                    {getDisplayTitle(summary.folder.name, "Recovered Folder")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {summary.binders.length} binders · {summary.lessons.length} documents · {summary.notes.length} personal notes
-                  </p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {summary.binders.slice(0, 3).map((binder) => (
-                      <span
-                        className="rounded-md border border-border/70 bg-background/80 px-2.5 py-1 text-xs font-medium"
-                        key={binder.id}
-                      >
-                        {deriveBinderTitle(
-                          binder,
-                          resolvedFiltered.lessonsByBinderId[binder.id] ?? [],
-                        )}
-                      </span>
-                    ))}
-                    {summary.binders.length === 0 ? (
-                      <span className="text-sm text-muted-foreground">No binders in this folder yet</span>
-                    ) : null}
-                  </div>
-                </Link>
-              ))}
-              {resolvedFiltered.folderSummaries.length === 0 ? (
-                <EmptyState
-                  description="Organized folders will show up here once they contain real binders."
-                  title="No folders to open yet"
-                />
-              ) : null}
-            </div>
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="grid gap-4">
-              <div>
-                <span className="page-kicker">Binders</span>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight">Ready to study</h2>
-              </div>
-              <div className="dashboard-minimal-grid grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {resolvedFiltered.studyReadyBinders.map((binder) => (
-                  <Link
-                    className="dashboard-binder-card ui-click-tile group page-shell block overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft"
-                    data-testid="dashboard-binder-card"
-                    key={binder.id}
-                    to={`/binders/${binder.id}`}
-                  >
-                    {binder.cover_url ? (
-                      <img alt="" className="h-44 w-full object-cover" src={binder.cover_url} />
-                    ) : (
-                      <div className="h-44 bg-gradient-to-br from-accent via-secondary to-background" />
-                    )}
-                    <div className="p-6">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">{binder.subject}</Badge>
-                          {resolvedFiltered.folderNamesByBinderId[binder.id] ? (
-                            <Badge variant="outline">
-                              {getDisplayTitle(
-                                resolvedFiltered.folderNamesByBinderId[binder.id],
-                                "Recovered Folder",
-                              )}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <ChevronRight className="text-muted-foreground transition group-hover:text-foreground" />
-                      </div>
-                      <h3 className="mt-4 text-xl font-semibold tracking-tight">
-                        {deriveBinderTitle(
-                          binder,
-                          resolvedFiltered.lessonsByBinderId[binder.id] ?? [],
-                        )}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{binder.description}</p>
-                    </div>
-                  </Link>
-                ))}
-                {resolvedFiltered.studyReadyBinders.length === 0 ? (
-                  <EmptyState
-                    description={query.trim() ? "Try a different search term." : "Your visible binders will show up here as soon as they're ready to study."}
-                    title={query.trim() ? "No binders match" : "No binders ready yet"}
-                  />
-                ) : null}
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div>
-                <span className="page-kicker">Documents</span>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight">Recent documents</h2>
-              </div>
-              <div className="page-shell p-4">
-                <div className="flex flex-col gap-3">
-                  {resolvedFiltered.recentDocuments.map((lesson) => (
-                    <Link
-                      className="dashboard-recent-document ui-click-tile rounded-lg border border-border/75 bg-background/88 p-4 transition hover:bg-secondary/80"
-                      data-testid="dashboard-recent-document"
-                      key={lesson.id}
-                      to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Document
-                      </p>
-                      <p className="mt-2 font-medium">{deriveLessonTitle(lesson)}</p>
-                    </Link>
-                  ))}
-                  {resolvedFiltered.recentDocuments.length === 0 ? (
-                    <EmptyState
-                      description={
-                        query.trim()
-                          ? "Try a different search term."
-                          : "Open a binder and add your first document when you're ready."
-                      }
-                      title={query.trim() ? "No documents match" : "No recent documents yet"}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {!hasVisibleContent && learnerDiagnosticsMessage ? (
-            <EmptyState
-              description={learnerDiagnosticsMessage}
-              title="Workspace unavailable"
-            />
-          ) : null}
-          {!hasVisibleContent &&
-          showSystemDiagnostics &&
-          data?.seedHealth.some((item) => item.status !== "healthy") ? (
-            <SeedHealthPanel
-              items={data.seedHealth.filter((item) => item.status !== "healthy")}
-              showTechnicalDetails
-            />
-          ) : null}
-        </>
-      ) : null}
+      )}
     </main>
   );
 }
@@ -746,6 +646,8 @@ function MinimalDashboardView({
   const showDocuments =
     workspaceView.showRecentDocuments &&
     (workspaceView.scope === "all" || workspaceView.scope === "documents");
+  const hasSearchQuery = query.trim().length > 0;
+  const showRevampSearchEmpty = betaFeaturesEnabled && hasSearchQuery && !hasVisibleContent;
   const firstFolder = sortedFolderSummaries[0];
   const firstBinder = sortedStudyBinders[0];
   const createPending =
@@ -1299,7 +1201,7 @@ function MinimalDashboardView({
         </div>
       ) : null}
 
-      {betaFeaturesEnabled ? (
+      {betaFeaturesEnabled && !showRevampSearchEmpty ? (
         <DashboardContinueShelf
           documents={continueDocuments}
           isCompact={isMinimalAppearance}
@@ -1308,7 +1210,24 @@ function MinimalDashboardView({
         />
       ) : null}
 
-      {showFolders ? (
+      {showRevampSearchEmpty ? (
+        <section
+          className="minimal-dashboard-section dashboard-search-empty"
+          data-testid={`${dashboardPrefix}-dashboard-no-results`}
+        >
+          <EmptyState
+            action={
+              <Button onClick={() => onQueryChange("")} type="button" variant="outline">
+                Clear search
+              </Button>
+            }
+            description={`No folders, binders, or documents matched "${query.trim()}". Search is filtering all workspace sections.`}
+            title="No results found"
+          />
+        </section>
+      ) : null}
+
+      {!showRevampSearchEmpty && showFolders ? (
       <section className="minimal-dashboard-section" id="minimal-folders">
         <div className="minimal-dashboard-section__heading">
           <span className="page-kicker">Folders</span>
@@ -1382,7 +1301,7 @@ function MinimalDashboardView({
       </section>
       ) : null}
 
-      {(showBinders || showDocuments) ? (
+      {!showRevampSearchEmpty && (showBinders || showDocuments) ? (
       <section className="minimal-dashboard-main-grid">
         {showBinders ? (
         <div className="minimal-dashboard-section" id="minimal-binders">
@@ -1488,7 +1407,7 @@ function MinimalDashboardView({
       </section>
       ) : null}
 
-      {!hasVisibleContent && learnerDiagnosticsMessage ? (
+      {!showRevampSearchEmpty && !hasVisibleContent && learnerDiagnosticsMessage ? (
         <EmptyState
           description={learnerDiagnosticsMessage}
           title="Workspace unavailable"
@@ -1618,28 +1537,6 @@ function hasPortableContent(content: unknown): boolean {
     return false;
   }
   return node.content.some((child) => hasPortableContent(child));
-}
-
-function Metric({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-lg border border-border/75 bg-background/78 p-4 shadow-sm">
-      <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-accent text-primary">
-        {icon}
-      </div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
-    </div>
-  );
 }
 
 function folderColor(color: string) {

@@ -184,6 +184,48 @@ describe("workspace preset design catalog", () => {
     });
   });
 
+  it("keeps Revamp history presets readable and collapses optional history tools first", () => {
+    const guided = getFaceliftWorkspacePresetDesign("history-guided");
+    const timeline = buildFaceliftPresetFrames("history-timeline-focus", { width: 1440, height: 840 });
+    const sourceEvidence = buildFaceliftPresetFrames("history-source-evidence", { width: 1440, height: 840 });
+    const argument = buildFaceliftPresetFrames("history-argument-builder", { width: 1440, height: 840 });
+    const fullStudio = getFaceliftWorkspacePresetDesign("history-full-studio");
+    const fullFrames = buildFaceliftPresetFrames("history-full-studio", { width: 1440, height: 840 });
+
+    expect(guided.visibleModules).toEqual(["lesson", "history-timeline", "history-evidence", "private-notes"]);
+    expect(guided.collapsedModules).toEqual(
+      expect.arrayContaining(["history-argument", "history-myth-checks"]),
+    );
+
+    expect(timeline["history-timeline"]?.w).toBe(1440);
+    expect(timeline["history-timeline"]?.h ?? 0).toBeGreaterThan(timeline.lesson?.h ?? 0);
+    expect(sourceEvidence.lesson?.w).toBeGreaterThanOrEqual(420);
+    expect(sourceEvidence["history-evidence"]?.w).toBeGreaterThanOrEqual(520);
+    expect(argument["history-argument"]?.w ?? 0).toBeGreaterThan(argument["history-evidence"]?.w ?? 0);
+
+    expect(fullStudio.visibleModules).toEqual([
+      "history-timeline",
+      "lesson",
+      "history-evidence",
+      "history-argument",
+    ]);
+    expect(fullStudio.collapsedModules).toEqual(
+      expect.arrayContaining(["private-notes", "history-myth-checks"]),
+    );
+    expect(fullStudio.performanceBudget.maxComfortableModules).toBe(4);
+    expect(fullStudio.performanceBudget.lazyModules).toEqual(
+      expect.arrayContaining(["history-timeline", "history-evidence", "history-argument"]),
+    );
+    expect(
+      validateDesignedLayout({
+        design: getWorkspacePresetDesign("history-full-studio"),
+        frames: fullFrames,
+        moduleIds: fullStudio.visibleModules,
+        viewport: { width: 1440, height: 840 },
+      }).valid,
+    ).toBe(true);
+  });
+
   it("defines an intentional design contract for every modular and canvas preset", () => {
     designedPresetIds.forEach((presetId) => {
       const design = getWorkspacePresetDesign(presetId);
@@ -335,6 +377,21 @@ describe("workspace preset design catalog", () => {
         "lesson-outline",
       ]).map((tab) => tab.label),
     ).toEqual(["Lesson", "Notes", "Highlights", "Comments", "Outline"]);
+
+    expect(
+      getWorkspaceMobileModuleTabs("history-full-studio", [
+        "lesson",
+        "history-timeline",
+        "history-evidence",
+        "history-argument",
+        "private-notes",
+      ]).map((tab) => tab.label),
+    ).toEqual(["Lesson", "Timeline", "Evidence", "Argument", "Notes"]);
+    expect(
+      selectWorkspacePresetVisibleModules("history-full-studio", {
+        viewport: { width: 390, height: 844 },
+      }),
+    ).toEqual(["lesson"]);
   });
 
   it("recommends first-time starter choices by subject without demo content", () => {

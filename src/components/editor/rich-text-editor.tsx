@@ -30,9 +30,11 @@ export type RichTextEditorProps = {
   onInsertApplied?: (id: string) => void;
   onEditorReady?: (editor: Editor | null) => void;
   showToolbar?: boolean;
+  ariaLabel?: string;
 };
 
 export function RichTextEditor({
+  ariaLabel,
   value,
   onChange,
   editable = true,
@@ -71,6 +73,8 @@ export function RichTextEditor({
       attributes: {
         class: "focus:outline-none",
         tabindex: editable ? "0" : "-1",
+        ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
+        "aria-multiline": "true",
         "aria-readonly": editable ? "false" : "true",
       },
     },

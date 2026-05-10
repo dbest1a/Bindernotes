@@ -27,9 +27,10 @@ describe("WhiteboardModule workspace layout", () => {
   });
 
   it("keeps the focused whiteboard escape hatch away from the native top toolbar", () => {
-    expect(source).toContain("whiteboard-focus-exit--floating");
-    expect(source).toContain("fixed bottom-4 left-1/2");
-    expect(source).not.toContain("fixed left-4 top-4");
+    expect(source).toContain("whiteboard-focus-return");
+    expect(source).toContain('data-whiteboard-focus-return="true"');
+    expect(source).not.toContain("fixed bottom-4 left-1/2");
+    expect(source).not.toContain("whiteboard-focus-exit--floating pointer-events-auto fixed bottom-4");
   });
 
   it("keeps whiteboard focus opt-in through an explicit full board control", () => {
@@ -47,10 +48,22 @@ describe("WhiteboardModule workspace layout", () => {
   it("uses Compact Whiteboard Tools to default the toolbox to a rail and lazily reveal templates", () => {
     expect(source).toContain("compactWhiteboardTools || context.whiteboardSidebarDefaultCollapsed");
     expect(source).toContain('data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}');
-    expect(source).toContain('aria-label="Collapse toolbox"');
+    expect(source).toContain('aria-label="Shrink whiteboard sidebar"');
     expect(source).toContain('aria-label="Expand toolbox"');
     expect(source).toContain("templatesOpen ? mathWhiteboardTemplates : []");
     expect(source).toContain("compact={compactWhiteboardTools}");
+  });
+
+  it("lets the whiteboard sidebar shrink and resize without remounting the board", () => {
+    expect(source).toContain("WHITEBOARD_SIDEBAR_WIDTH_KEY");
+    expect(source).toContain("clampWhiteboardSidebarWidth");
+    expect(source).toContain('data-testid="whiteboard-sidebar-resizer"');
+    expect(source).toContain('aria-label="Resize whiteboard sidebar"');
+    expect(source).toContain('aria-label="Shrink whiteboard sidebar"');
+    expect(source).not.toContain('<Badge variant="outline">Local draft</Badge>');
+    expect(source).toContain("--whiteboard-sidebar-width");
+    expect(source).toContain("whiteboard-sidebar-scroll");
+    expect(source).not.toMatch(/<WhiteboardCanvas[\s\S]{0,600}key=/);
   });
 
   it("keeps menu switching performance-first without remounting the board canvas", () => {
@@ -61,7 +74,19 @@ describe("WhiteboardModule workspace layout", () => {
 
   it("keeps whiteboard storage status language consistent for students", () => {
     expect(source).toContain("Loaded from Supabase");
+    expect(source).toContain("Loaded from your account");
+    expect(source).toContain("Scratch board - not saved yet");
     expect(source).toContain('"Saved"');
     expect(source).not.toContain("Saved to Supabase");
+  });
+
+  it("keeps Revamp Beta board starts document-scoped and offers scratch boards at the account cap", () => {
+    expect(source).toContain("documentBoard");
+    expect(source).toContain("board.binderId === scope.binderId && board.lessonId === scope.lessonId");
+    expect(source).toContain("isScratchWhiteboard(boardRef.current)");
+    expect(source).toContain("activeAfterRefresh");
+    expect(source).toContain("activateScratchBoard(template)");
+    expect(source).toContain("onCreateScratchBoard={compactWhiteboardTools");
+    expect(source).toContain("archiveActionsVisible={!compactWhiteboardTools}");
   });
 });
