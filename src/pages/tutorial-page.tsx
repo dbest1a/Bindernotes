@@ -642,7 +642,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
           <label className="grid gap-2 text-sm font-medium">
             Video file
             <Input
-              accept="video/mp4,video/webm,video/quicktime"
+              accept="video/mp4,video/webm,video/quicktime,.mp4,.m4v,.mov,.webm"
               onChange={handleVideoChange}
               required={!editingTutorial?.videoSrc}
               type="file"
@@ -650,7 +650,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
             <span className="text-xs text-muted-foreground">
               {detectedDuration
                 ? `Detected duration: ${detectedDuration}`
-                : metadataError || "The card time appears only after a real video duration is detected."}
+                : metadataError || "Upload MP4, M4V, MOV, or WebM. Published uploads save to the global tutorial library."}
             </span>
           </label>
           <label className="grid gap-2 text-sm font-medium">

@@ -16,10 +16,24 @@ const allowedTutorialVideoMimeTypes = new Set([
   "video/webm",
   "video/quicktime",
 ]);
+const allowedTutorialVideoExtensions = new Set([".mp4", ".m4v", ".mov", ".webm"]);
+const tutorialVideoContentTypesByExtension = new Map([
+  [".m4v", "video/mp4"],
+  [".mov", "video/quicktime"],
+  [".mp4", "video/mp4"],
+  [".webm", "video/webm"],
+]);
 const allowedTutorialPosterMimeTypes = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+]);
+const allowedTutorialPosterExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const tutorialPosterContentTypesByExtension = new Map([
+  [".jpeg", "image/jpeg"],
+  [".jpg", "image/jpeg"],
+  [".png", "image/png"],
+  [".webp", "image/webp"],
 ]);
 
 export type CreateTutorialInput = {
@@ -151,14 +165,18 @@ export async function createUploadedTutorial(
   }
   if (videoFile) {
     validateTutorialAsset(videoFile, {
+      allowedExtensions: allowedTutorialVideoExtensions,
       allowedTypes: allowedTutorialVideoMimeTypes,
+      compatibleTypePrefix: "video",
       label: "Tutorial video",
       maxBytes: maxTutorialVideoBytes,
     });
   }
   if (posterFile) {
     validateTutorialAsset(posterFile, {
+      allowedExtensions: allowedTutorialPosterExtensions,
       allowedTypes: allowedTutorialPosterMimeTypes,
+      compatibleTypePrefix: "image",
       label: "Tutorial poster",
       maxBytes: maxTutorialPosterBytes,
     });
@@ -166,11 +184,11 @@ export async function createUploadedTutorial(
 
   const videoPath = videoFile ? buildAssetPath(id, videoFile.name, "video") : null;
   const videoSrc = videoFile
-    ? await uploadTutorialAsset(tutorialVideoBucket, videoPath!, videoFile)
+    ? await uploadTutorialAsset(tutorialVideoBucket, videoPath!, videoFile, tutorialVideoContentTypesByExtension)
     : existingTutorial?.videoSrc ?? "";
   const posterPath = posterFile ? buildAssetPath(id, posterFile.name, "poster") : null;
   const posterSrc = posterFile
-    ? await uploadTutorialAsset(tutorialPosterBucket, posterPath!, posterFile)
+    ? await uploadTutorialAsset(tutorialPosterBucket, posterPath!, posterFile, tutorialPosterContentTypesByExtension)
     : existingTutorial?.posterSrc || defaultPosterSrc;
   const now = new Date().toISOString();
   const wasPublished = existingTutorial?.status === "published";
@@ -219,15 +237,20 @@ export async function createUploadedTutorial(
   return recordToTutorialEntry(data);
 }
 
-async function uploadTutorialAsset(bucket: string, path: string, file: File) {
+async function uploadTutorialAsset(
+  bucket: string,
+  path: string,
+  file: File,
+  contentTypesByExtension: Map<string, string>,
+) {
   if (!supabase) {
     throw new Error("Supabase is required before tutorials can be uploaded.");
   }
 
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",
-    contentType: file.type || undefined,
-    upsert: true,
+    contentType: resolveTutorialContentType(file, contentTypesByExtension),
+    upsert: false,
   });
 
   if (error) {
@@ -263,12 +286,23 @@ function recordToTutorialEntry(record: TutorialEntryRecord): TutorialEntry {
 function validateTutorialAsset(
   file: File,
   options: {
+    allowedExtensions: Set<string>;
     allowedTypes: Set<string>;
+    compatibleTypePrefix: "image" | "video";
     label: string;
     maxBytes: number;
   },
 ) {
-  if (!options.allowedTypes.has(file.type)) {
+  const normalizedType = file.type.toLowerCase();
+  const extension = getFileExtension(file.name);
+  const hasAllowedType = Boolean(normalizedType) && options.allowedTypes.has(normalizedType);
+  const hasAllowedExtension = Boolean(extension) && options.allowedExtensions.has(extension);
+  const hasCompatibleFallbackType =
+    !normalizedType ||
+    normalizedType === "application/octet-stream" ||
+    normalizedType.startsWith(`${options.compatibleTypePrefix}/`);
+
+  if (!hasAllowedType && !(hasAllowedExtension && hasCompatibleFallbackType)) {
     throw new Error(`${options.label} must use an allowed file type.`);
   }
 
@@ -297,12 +331,19 @@ export function normalizeInternalTutorialLink(value: string | null | undefined) 
 
 function buildAssetPath(tutorialId: string, fileName: string, kind: "poster" | "video") {
   const extension = getFileExtension(fileName);
-  return `${tutorialId}/${kind}-${Date.now()}${extension}`;
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${tutorialId}/${kind}-${uniqueSuffix}${extension}`;
 }
 
 function getFileExtension(fileName: string) {
   const extension = fileName.match(/\.[a-z0-9]+$/i)?.[0]?.toLowerCase();
   return extension ?? "";
+}
+
+function resolveTutorialContentType(file: File, contentTypesByExtension: Map<string, string>) {
+  const normalizedType = file.type.toLowerCase();
+  const extension = getFileExtension(file.name);
+  return contentTypesByExtension.get(extension) ?? (normalizedType || undefined);
 }
 
 export function sanitizeTutorialId(value: string) {
