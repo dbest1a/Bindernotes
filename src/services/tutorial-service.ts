@@ -343,6 +343,10 @@ function getFileExtension(fileName: string) {
 function resolveTutorialContentType(file: File, contentTypesByExtension: Map<string, string>) {
   const normalizedType = file.type.toLowerCase();
   const extension = getFileExtension(file.name);
+  if (normalizedType && normalizedType !== "application/octet-stream") {
+    return normalizedType;
+  }
+
   return contentTypesByExtension.get(extension) ?? (normalizedType || undefined);
 }
 

@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
-import { betaFeatureFlagDefinitions } from "@/lib/beta-features";
+import { betaFeatureFlagDefinitions, betaFeatureGroups } from "@/lib/beta-features";
 import { loadPersonalNotesPreferences } from "@/lib/personal-notes";
 import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
 
@@ -30,6 +30,16 @@ const authMock = vi.hoisted(() => ({
 const themeMock = vi.hoisted(() => ({
   setThemeId: vi.fn(),
 }));
+
+const betaRevampFlagKeys = [
+  "betaRevampCalmStudyHomepage",
+  "betaRevampSourceLinkedNotes",
+  "betaRevampReviewQueue",
+  "betaRevampMathStudyLoop",
+  "betaRevampMobileStudyMode",
+  "betaRevampCalmWorkspaceUi",
+  "betaRevampNarrowAiStudyTools",
+] as const;
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -64,6 +74,7 @@ describe("AppShell profile settings", () => {
     document.documentElement.removeAttribute("data-admin-motion");
     document.documentElement.removeAttribute("data-admin-dashboard");
     document.documentElement.removeAttribute("data-beta-features");
+    document.documentElement.removeAttribute("data-beta-revamp");
     for (const flag of betaFeatureFlagDefinitions) {
       document.documentElement.removeAttribute(flag.dataAttribute);
     }
@@ -469,6 +480,19 @@ describe("AppShell profile settings", () => {
       "preview",
       "early access",
       "revamp",
+      "calm",
+      "homepage",
+      "landing",
+      "notes",
+      "source",
+      "review",
+      "math",
+      "graph",
+      "formula",
+      "mistake",
+      "mobile",
+      "AI",
+      "study loop",
       "qa cleanup",
       "split study",
       "study panels",
@@ -484,6 +508,49 @@ describe("AppShell profile settings", () => {
       expect(screen.getByTestId("app-settings-section-beta-features")).toBeTruthy();
       expect(screen.queryByTestId("app-settings-empty")).toBeNull();
     }
+  });
+
+  it("surfaces the Beta Revamp group and toggles every market-research gate", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(betaFeatureGroups.find((group) => group.label === "Beta Revamp")?.flagKeys).toEqual(
+      betaRevampFlagKeys,
+    );
+    expect(screen.getByText("Beta Revamp")).toBeTruthy();
+    expect(document.documentElement.getAttribute("data-beta-revamp")).toBe("false");
+    expect(screen.getByTestId("app-shell-root").getAttribute("data-beta-revamp")).toBe("false");
+
+    for (const key of betaRevampFlagKeys) {
+      const flag = betaFeatureFlagDefinitions.find((candidate) => candidate.key === key);
+      expect(flag).toBeTruthy();
+      expect(screen.getByTestId(`beta-flag-${key}`)).toBeTruthy();
+      expect(screen.getByTestId(`beta-flag-toggle-${key}`).getAttribute("aria-pressed")).toBe("false");
+      expect(screen.getByTestId("app-shell-root").getAttribute(flag!.dataAttribute)).toBe("false");
+
+      fireEvent.click(screen.getByTestId(`beta-flag-toggle-${key}`));
+
+      expect(screen.getByTestId(`beta-flag-toggle-${key}`).getAttribute("aria-pressed")).toBe("true");
+      expect(document.documentElement.getAttribute(flag!.dataAttribute)).toBe("true");
+      expect(screen.getByTestId("app-shell-root").getAttribute(flag!.dataAttribute)).toBe("true");
+      expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain(`"${key}":true`);
+    }
+
+    expect(document.documentElement.getAttribute("data-beta-revamp")).toBe("true");
+    expect(screen.getByTestId("app-shell-root").getAttribute("data-beta-revamp")).toBe("true");
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("false");
+
+    cleanup();
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    for (const key of betaRevampFlagKeys) {
+      expect(screen.getByTestId(`beta-flag-toggle-${key}`).getAttribute("aria-pressed")).toBe("true");
+    }
+    expect(document.documentElement.getAttribute("data-beta-revamp")).toBe("true");
   });
 
   it("persists the Revamp Beta toggle and only exposes the revamp marker when enabled", async () => {
@@ -516,14 +583,58 @@ describe("AppShell profile settings", () => {
     expect(screen.getByTestId("revamp-beta-toggle").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("persists the Canvas Rework beta toggle and exposes its marker independently", async () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByTestId("beta-flag-canvasRework")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-toggle-canvasRework").getAttribute("aria-pressed")).toBe("false");
+    expect(document.documentElement.getAttribute("data-beta-canvas-rework")).toBe("false");
+
+    fireEvent.click(screen.getByTestId("beta-flag-toggle-canvasRework"));
+
+    expect(screen.getByTestId("beta-flag-toggle-canvasRework").getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.getAttribute("data-beta-canvas-rework")).toBe("true");
+    expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("false");
+    expect(screen.getByTestId("app-shell-root").getAttribute("data-beta-canvas-rework")).toBe("true");
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain('"canvasRework":true');
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).toContain('"revampBeta":false');
+
+    cleanup();
+    renderShell();
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    fireEvent.click(screen.getByTestId("profile-open-settings"));
+
+    expect(screen.getByTestId("beta-flag-toggle-canvasRework").getAttribute("aria-pressed")).toBe("true");
+    expect(document.documentElement.getAttribute("data-beta-canvas-rework")).toBe("true");
+  });
+
   it("does not expose separate QA cleanup beta toggles under Revamp Beta", async () => {
     renderShell();
 
     fireEvent.click(screen.getByTestId("profile-menu-button"));
     fireEvent.click(screen.getByTestId("profile-open-settings"));
 
-    expect(betaFeatureFlagDefinitions.map((flag) => flag.key)).toEqual(["revampBeta"]);
+    expect(betaFeatureFlagDefinitions.map((flag) => flag.key)).toEqual([
+      "revampBeta",
+      "canvasRework",
+      "desmosV2",
+      "whiteboardSmoothMove",
+      "compactExcalidrawTools",
+      "whiteboardPerformanceDiagnostics",
+      ...betaRevampFlagKeys,
+    ]);
     expect(screen.getByTestId("beta-flag-revampBeta")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-canvasRework")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-desmosV2")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-whiteboardSmoothMove")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-compactExcalidrawTools")).toBeTruthy();
+    expect(screen.getByTestId("beta-flag-whiteboardPerformanceDiagnostics")).toBeTruthy();
+    for (const key of betaRevampFlagKeys) {
+      expect(screen.getByTestId(`beta-flag-${key}`)).toBeTruthy();
+    }
     expect(screen.queryByTestId("beta-flag-compactStudyChrome")).toBeNull();
     expect(screen.queryByTestId("beta-flag-studyPanelsV2")).toBeNull();
     expect(screen.queryByTestId("beta-flag-compactWhiteboardTools")).toBeNull();

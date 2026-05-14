@@ -73,10 +73,10 @@ describe("chemistry workspace modules", () => {
 
     expect(screen.getByText(/chemistry lab coach/i)).toBeTruthy();
     expect(screen.getByText(/interactive periodic table/i)).toBeTruthy();
-    expect(screen.getByText(/Build Carbon-14/i)).toBeTruthy();
+    expect(screen.getAllByText(/Build Carbon-14/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/fallback chart/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Balanced result/i)).toBeTruthy();
-    expect(screen.getByText(/Effective nuclear charge/i)).toBeTruthy();
+    expect(screen.getAllByText(/Effective nuclear charge/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/unit ladder/i)).toBeTruthy();
     expect(screen.getAllByText(/acid-base titration/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/smart lab notebook/i)).toBeTruthy();
@@ -129,23 +129,38 @@ describe("chemistry workspace modules", () => {
     expect(screen.queryByText("25.00 mL")).toBeNull();
   });
 
-  it("makes Element Explorer useful with search, shortcuts, valence, bonding, and why-it-matters notes", () => {
+  it("makes Element Explorer useful with complete data, search, trends, inspector, builder, and compare", () => {
     render(<InteractivePeriodicTableModule />);
 
-    expect(screen.getByTestId("chem-element-explorer-v2").getAttribute("data-chem-layout")).toBe("list-detail");
+    expect(screen.getByTestId("chem-element-explorer-v3").getAttribute("data-chem-layout")).toBe("flagship-periodic-table");
+    expect(screen.getAllByRole("gridcell").length).toBe(118);
+    expect(screen.getAllByText(/118 elements/i).length).toBeGreaterThan(0);
 
-    fireEvent.change(screen.getByLabelText(/element search/i), { target: { value: "oxygen" } });
+    const searchInput = screen.getAllByLabelText(/element search/i)[0];
+    fireEvent.change(searchInput, { target: { value: "oxygen" } });
     expect(screen.getByRole("heading", { name: /^O$/i })).toBeTruthy();
     expect(screen.getByText(/valence electrons/i)).toBeTruthy();
-    const detail = screen.getByLabelText(/selected element details/i);
+    const detail = screen.getByLabelText(/selected element inspector/i);
     expect(within(detail).getByText(/^6$/)).toBeTruthy();
-    expect(screen.getByText(/usually forms two bonds/i)).toBeTruthy();
-    expect(screen.getByText(/why it matters/i)).toBeTruthy();
+    expect(screen.getByText(/often forms two bonds/i)).toBeTruthy();
+    expect(screen.getAllByText(/common trap/i).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /shortcut sodium/i }));
+    fireEvent.change(searchInput, { target: { value: "Na" } });
     expect(screen.getByRole("heading", { name: /^Na$/i })).toBeTruthy();
 
-    expect(within(detail).getByText(/atomic number/i)).toBeTruthy();
-    expect(within(detail).getByText(/common ion/i)).toBeTruthy();
+    expect(within(detail).getByText(/atomic weight/i)).toBeTruthy();
+    expect(within(detail).getByText(/common ions/i)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText(/trend mode/i), { target: { value: "atomic-radius" } });
+    expect(screen.getByText(/radius generally decreases across a period/i)).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /builder/i })[0]);
+    expect(screen.getByTestId("chem-atom-builder-v3")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: /build cl-/i })[0]);
+    expect(screen.getByText(/Chlorine-35/i)).toBeTruthy();
+    expect(screen.getByText(/anion/i)).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /compare/i })[0]);
+    expect(screen.getByText(/Explain why elements differ/i)).toBeTruthy();
   });
 });

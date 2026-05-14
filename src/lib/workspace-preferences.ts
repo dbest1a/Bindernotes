@@ -3,6 +3,9 @@ import type {
   AppearanceCustomPalette,
   AppearanceMotion,
   AppearanceSettings,
+  CanvasLastExplicitLayoutAction,
+  CanvasLayoutMode,
+  CanvasLayoutSource,
   FullCanvasSettings,
   FullCanvasSnapBehavior,
   FaceliftCanvasSettings,
@@ -48,7 +51,9 @@ import type {
 } from "@/types";
 import { SYSTEM_BINDER_IDS, systemSuiteTemplates } from "@/lib/history-suite-seeds";
 import {
+  fitFreeformWindowFramesToViewport,
   fitWindowFramesToViewport,
+  tidyFreeformWorkspaceFrames,
   tidyWorkspaceFrames,
   WORKSPACE_MAX_CANVAS_HEIGHT,
   WORKSPACE_SAFE_EDGE_PADDING,
@@ -2458,7 +2463,9 @@ export function createDefaultModularStudySettings(
   };
 }
 
-export function createDefaultFullCanvasSettings(): FullCanvasSettings {
+export function createDefaultFullCanvasSettings(
+  activePresetId: WorkspacePresetId = defaultPreset.id,
+): FullCanvasSettings {
   return {
     gridSize: 24,
     snapBehavior: "off",
@@ -2467,6 +2474,16 @@ export function createDefaultFullCanvasSettings(): FullCanvasSettings {
     safeEdgePadding: false,
     canvasHeight: WINDOW_CANVAS_MIN_HEIGHT,
     showDiagnostics: false,
+    layoutSource: "preset",
+    activePresetId,
+    layoutMode: "study",
+    userHasEditedLayout: false,
+    presetAppliedAtViewport: null,
+    committedFrames: {},
+    editDraftFrames: {},
+    lastExplicitLayoutAction: null,
+    gridEnabled: false,
+    guidesEnabled: true,
   };
 }
 
@@ -2528,7 +2545,7 @@ export function createDefaultWorkspacePreferences(
   const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
   const appearance = createDefaultAppearanceSettings(binderId, suiteTemplateId, theme);
 
-  return ensureWindowFramesForEnabledModules({
+  const preferences = ensureWindowFramesForEnabledModules({
     version: 1,
     userId,
     binderId,
@@ -2539,7 +2556,7 @@ export function createDefaultWorkspacePreferences(
     appearance,
     simple,
     modular: createDefaultModularStudySettings(initialPreset),
-    canvas: createDefaultFullCanvasSettings(),
+    canvas: createDefaultFullCanvasSettings(initialPreset),
     locked: true,
     workspaceStyle: "guided",
     styleChoiceCompleted: false,
@@ -2560,6 +2577,14 @@ export function createDefaultWorkspacePreferences(
     }),
     updatedAt: new Date().toISOString(),
   });
+
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      committedFrames: normalizeWindowLayout(preferences.windowLayout),
+    },
+  };
 }
 
 export function applyPreset(
@@ -2603,6 +2628,296 @@ export function applyPresetToViewport(
     force: true,
     preserveManualCanvasComposition: options.preserveManualCanvasComposition,
   });
+}
+
+export function applyCanvasReworkStarterLayoutToViewport(
+  preferences: WorkspacePreferences,
+  presetId: WorkspacePresetId,
+  viewport: { width: number; height: number },
+  options: { action?: "select-preset" | "reset-to-preset" } = {},
+): WorkspacePreferences {
+  const action = options.action ?? "select-preset";
+  const fitted = applyPresetToViewport(preferences, presetId, viewport, {
+    preserveManualCanvasComposition: false,
+  });
+  const frames = normalizeWindowLayout(fitted.windowLayout);
+  const updatedAt = new Date().toISOString();
+  const canvasHeight = resolveCanvasReworkHeight(fitted, frames);
+
+  return {
+    ...fitted,
+    canvas: {
+      ...fitted.canvas,
+      layoutSource: "preset",
+      activePresetId: presetId,
+      layoutMode: fitted.locked ? "study" : "edit",
+      userHasEditedLayout: false,
+      presetAppliedAtViewport: {
+        width: Math.round(viewport.width),
+        height: Math.round(viewport.height),
+        updatedAt,
+      },
+      committedFrames: frames,
+      editDraftFrames: fitted.locked ? {} : frames,
+      panelPositions: frames,
+      canvasHeight,
+      lastExplicitLayoutAction: action,
+    },
+    updatedAt,
+  };
+}
+
+export function resetCanvasReworkLayoutToStarter(
+  preferences: WorkspacePreferences,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  return applyCanvasReworkStarterLayoutToViewport(
+    preferences,
+    preferences.canvas.activePresetId ?? preferences.preset,
+    viewport,
+    { action: "reset-to-preset" },
+  );
+}
+
+export function beginCanvasReworkLayoutEdit(preferences: WorkspacePreferences): WorkspacePreferences {
+  const frames = normalizeWindowLayout(preferences.windowLayout);
+  const committedFrames =
+    Object.keys(preferences.canvas.committedFrames).length > 0
+      ? normalizeWindowLayout(preferences.canvas.committedFrames)
+      : frames;
+
+  return {
+    ...preferences,
+    locked: false,
+    canvas: {
+      ...preferences.canvas,
+      layoutMode: "edit",
+      committedFrames,
+      editDraftFrames: frames,
+      canvasHeight: resolveCanvasReworkHeight(preferences, frames),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function recordCanvasReworkLayoutChange(
+  preferences: WorkspacePreferences,
+  action: CanvasLastExplicitLayoutAction,
+): WorkspacePreferences {
+  const normalizedAction = normalizeCanvasLastExplicitLayoutAction(action) ?? "manual-drag";
+  const frames = normalizeWindowLayout(preferences.windowLayout);
+  const isEditing = preferences.canvas.layoutMode === "edit" || !preferences.locked;
+  const committedFrames =
+    isEditing && Object.keys(preferences.canvas.committedFrames).length > 0
+      ? normalizeWindowLayout(preferences.canvas.committedFrames)
+      : frames;
+  const canvasHeight = resolveCanvasReworkHeight(preferences, frames);
+
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      layoutSource: "custom",
+      userHasEditedLayout: true,
+      committedFrames,
+      editDraftFrames: isEditing ? frames : {},
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...frames,
+      },
+      canvasHeight,
+      lastExplicitLayoutAction: normalizedAction,
+    },
+    viewportFit: preferences.viewportFit,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function commitCanvasReworkLayout(preferences: WorkspacePreferences): WorkspacePreferences {
+  const frames = normalizeWindowLayout(preferences.windowLayout);
+  const canvasHeight = resolveCanvasReworkHeight(preferences, frames);
+
+  return {
+    ...preferences,
+    locked: true,
+    canvas: {
+      ...preferences.canvas,
+      layoutMode: "study",
+      layoutSource: "custom",
+      userHasEditedLayout: true,
+      committedFrames: frames,
+      editDraftFrames: {},
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...frames,
+      },
+      canvasHeight,
+      lastExplicitLayoutAction: "save-custom",
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function cancelCanvasReworkLayoutEdit(preferences: WorkspacePreferences): WorkspacePreferences {
+  const committedFrames =
+    Object.keys(preferences.canvas.committedFrames).length > 0
+      ? normalizeWindowLayout(preferences.canvas.committedFrames)
+      : normalizeWindowLayout(preferences.windowLayout);
+  const canvasHeight = resolveCanvasReworkHeight(preferences, committedFrames);
+
+  return {
+    ...preferences,
+    locked: true,
+    windowLayout: committedFrames,
+    canvas: {
+      ...preferences.canvas,
+      layoutMode: "study",
+      committedFrames,
+      editDraftFrames: {},
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...committedFrames,
+      },
+      canvasHeight,
+      lastExplicitLayoutAction: "cancel-edit",
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function fitCanvasReworkLayoutToViewport(
+  preferences: WorkspacePreferences,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  if (preferences.canvas.layoutSource === "custom") {
+    const fitted = applyCanvasReworkFreeformFrameResult(
+      withCanvasPanelPositionsFromWindowLayout(preferences),
+      fitFreeformWindowFramesToViewport({
+        frames: preferences.windowLayout,
+        moduleIds: getVisibleWindowLayoutModules(preferences),
+        safeEdgePadding: preferences.canvas.safeEdgePadding,
+        viewport,
+      }).frames,
+      viewport,
+    );
+    return stampCanvasReworkExplicitToolResult(fitted, "fit", preferences.canvas.layoutSource);
+  }
+
+  const fitted = fitWorkspaceToViewport(
+    withCanvasPanelPositionsFromWindowLayout(preferences),
+    viewport,
+    { force: true, preserveManualCanvasComposition: true },
+  );
+  return stampCanvasReworkExplicitToolResult(fitted, "fit", preferences.canvas.layoutSource);
+}
+
+export function tidyCanvasReworkLayoutToViewport(
+  preferences: WorkspacePreferences,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  if (preferences.canvas.layoutSource === "custom") {
+    const tidied = applyCanvasReworkFreeformFrameResult(
+      withCanvasPanelPositionsFromWindowLayout(preferences),
+      tidyFreeformWorkspaceFrames({
+        frames: preferences.windowLayout,
+        moduleIds: getVisibleWindowLayoutModules(preferences),
+        safeEdgePadding: preferences.canvas.safeEdgePadding,
+        viewport,
+      }).frames,
+      viewport,
+    );
+    return stampCanvasReworkExplicitToolResult(tidied, "tidy", preferences.canvas.layoutSource);
+  }
+
+  const tidied = tidyWorkspaceLayout(withCanvasPanelPositionsFromWindowLayout(preferences), viewport);
+  return stampCanvasReworkExplicitToolResult(tidied, "tidy", preferences.canvas.layoutSource);
+}
+
+function getVisibleWindowLayoutModules(preferences: WorkspacePreferences): WorkspaceModuleId[] {
+  return preferences.enabledModules.filter(
+    (moduleId) => preferences.windowLayout[moduleId] && !preferences.moduleLayout[moduleId]?.collapsed,
+  );
+}
+
+function applyCanvasReworkFreeformFrameResult(
+  preferences: WorkspacePreferences,
+  frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>,
+  viewport: { width: number; height: number },
+): WorkspacePreferences {
+  const windowLayout = Object.fromEntries(
+    Object.entries(frames).map(([moduleId, frame]) => [
+      moduleId,
+      frame ? normalizeWindowFrame(frame) : frame,
+    ]),
+  ) as WorkspacePreferences["windowLayout"];
+
+  return {
+    ...preferences,
+    windowLayout,
+    viewportFit: {
+      width: Math.round(viewport.width),
+      height: Math.round(viewport.height),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+function withCanvasPanelPositionsFromWindowLayout(preferences: WorkspacePreferences): WorkspacePreferences {
+  const frames = normalizeWindowLayout(preferences.windowLayout);
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...frames,
+      },
+    },
+  };
+}
+
+function stampCanvasReworkExplicitToolResult(
+  preferences: WorkspacePreferences,
+  action: "fit" | "tidy",
+  layoutSource: CanvasLayoutSource,
+): WorkspacePreferences {
+  const frames = normalizeWindowLayout(preferences.windowLayout);
+  const isEditing = preferences.canvas.layoutMode === "edit" || !preferences.locked;
+  const canvasHeight = resolveCanvasReworkHeight(preferences, frames);
+
+  return {
+    ...preferences,
+    canvas: {
+      ...preferences.canvas,
+      layoutSource,
+      userHasEditedLayout: layoutSource === "custom" || preferences.canvas.userHasEditedLayout,
+      committedFrames: isEditing ? preferences.canvas.committedFrames : frames,
+      editDraftFrames: isEditing ? frames : {},
+      panelPositions: {
+        ...preferences.canvas.panelPositions,
+        ...frames,
+      },
+      canvasHeight,
+      lastExplicitLayoutAction: action,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function resolveCanvasReworkHeight(
+  preferences: WorkspacePreferences,
+  frames: WorkspacePreferences["windowLayout"] = preferences.windowLayout,
+) {
+  const frameBottom = Math.max(
+    0,
+    ...Object.values(frames).map((frame) => (frame ? frame.y + frame.h : 0)),
+  );
+
+  return clamp(
+    Math.max(preferences.canvas.canvasHeight, frameBottom + 320, WINDOW_CANVAS_MIN_HEIGHT),
+    WINDOW_CANVAS_MIN_HEIGHT,
+    WORKSPACE_MAX_CANVAS_HEIGHT,
+  );
 }
 
 export function applyWorkspaceModeToViewport(
@@ -3139,10 +3454,13 @@ export function fitWorkspaceToViewport(
     Math.abs(previousViewport.height - height) > 120;
   const force = options.force ?? false;
   const hasDesignedPreset = Boolean(getWorkspacePresetDesign(composedPreferences.preset));
-  const preserveManualCanvasComposition =
-    options.preserveManualCanvasComposition !== false &&
+  const hasCanvasReworkCustomLayout =
     composedPreferences.activeMode === "canvas" &&
-    hasStoredCanvasPanelPositions(composedPreferences);
+    composedPreferences.canvas.layoutSource === "custom";
+  const preserveManualCanvasComposition =
+    (options.preserveManualCanvasComposition !== false || hasCanvasReworkCustomLayout) &&
+    composedPreferences.activeMode === "canvas" &&
+    (hasStoredCanvasPanelPositions(composedPreferences) || hasCanvasReworkCustomLayout);
   const layoutResult = hasDesignedPreset && !preserveManualCanvasComposition
     ? tidyWorkspaceFrames({
         frames: composedPreferences.windowLayout,
@@ -3161,7 +3479,9 @@ export function fitWorkspaceToViewport(
         viewport: { width, height },
       });
   const shouldFitSplitCanvasHeight =
-    composedPreferences.activeMode === "canvas" && composedPreferences.preset === "split-study";
+    composedPreferences.activeMode === "canvas" &&
+    composedPreferences.preset === "split-study" &&
+    composedPreferences.canvas.layoutSource !== "custom";
   const splitCanvasHeightChanged =
     shouldFitSplitCanvasHeight && composedPreferences.canvas.canvasHeight !== height;
 
@@ -3589,7 +3909,21 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     );
 
   const withMath = shouldAutoAttachMathModules ? ensureMathWorkspaceModules(normalized) : normalized;
-  return ensureWindowFramesForEnabledModules(withMath);
+  const withFrames = ensureWindowFramesForEnabledModules(withMath);
+  const rawCanvas = preferences.canvas as Partial<FullCanvasSettings> | undefined;
+  const committedFrames =
+    Object.keys(withFrames.canvas.committedFrames).length > 0
+      ? withFrames.canvas.committedFrames
+      : normalizeWindowLayout(withFrames.windowLayout);
+
+  return {
+    ...withFrames,
+    canvas: {
+      ...withFrames.canvas,
+      activePresetId: rawCanvas?.activePresetId ? withFrames.canvas.activePresetId : withFrames.preset,
+      committedFrames,
+    },
+  };
 }
 
 export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings>): WorkspaceThemeSettings {
@@ -3954,6 +4288,19 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
     typeof settings?.canvasHeight === "number" && Number.isFinite(settings.canvasHeight)
       ? clamp(Math.round(settings.canvasHeight), WINDOW_CANVAS_MIN_HEIGHT, WORKSPACE_MAX_CANVAS_HEIGHT)
       : fallback.canvasHeight;
+  const layoutSource: CanvasLayoutSource =
+    settings?.layoutSource === "custom" || settings?.layoutSource === "preset"
+      ? settings.layoutSource
+      : fallback.layoutSource;
+  const layoutMode: CanvasLayoutMode =
+    settings?.layoutMode === "edit" || settings?.layoutMode === "study"
+      ? settings.layoutMode
+      : fallback.layoutMode;
+  const activePresetId = normalizePresetId(settings?.activePresetId ?? fallback.activePresetId);
+  const lastExplicitLayoutAction = normalizeCanvasLastExplicitLayoutAction(
+    settings?.lastExplicitLayoutAction,
+  );
+  const presetAppliedAtViewport = normalizeCanvasViewportSnapshot(settings?.presetAppliedAtViewport);
 
   return {
     gridSize,
@@ -3969,7 +4316,70 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
       typeof settings?.showDiagnostics === "boolean"
         ? settings.showDiagnostics
         : fallback.showDiagnostics,
+    layoutSource,
+    activePresetId,
+    layoutMode,
+    userHasEditedLayout:
+      typeof settings?.userHasEditedLayout === "boolean"
+        ? settings.userHasEditedLayout
+        : fallback.userHasEditedLayout,
+    presetAppliedAtViewport,
+    committedFrames: normalizeWindowLayout(settings?.committedFrames),
+    editDraftFrames: normalizeWindowLayout(settings?.editDraftFrames),
+    lastExplicitLayoutAction,
+    gridEnabled:
+      typeof settings?.gridEnabled === "boolean"
+        ? settings.gridEnabled
+        : fallback.gridEnabled,
+    guidesEnabled:
+      typeof settings?.guidesEnabled === "boolean"
+        ? settings.guidesEnabled
+        : fallback.guidesEnabled,
   };
+}
+
+function normalizeCanvasViewportSnapshot(value: unknown): FullCanvasSettings["presetAppliedAtViewport"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const snapshot = value as Partial<NonNullable<FullCanvasSettings["presetAppliedAtViewport"]>>;
+  if (
+    typeof snapshot.width !== "number" ||
+    !Number.isFinite(snapshot.width) ||
+    typeof snapshot.height !== "number" ||
+    !Number.isFinite(snapshot.height)
+  ) {
+    return null;
+  }
+
+  return {
+    width: Math.max(0, Math.round(snapshot.width)),
+    height: Math.max(0, Math.round(snapshot.height)),
+    updatedAt: typeof snapshot.updatedAt === "string" ? snapshot.updatedAt : new Date().toISOString(),
+  };
+}
+
+function normalizeCanvasLastExplicitLayoutAction(
+  value: unknown,
+): CanvasLastExplicitLayoutAction | null {
+  const actions: CanvasLastExplicitLayoutAction[] = [
+    "select-preset",
+    "fit",
+    "tidy",
+    "reset-to-preset",
+    "save-custom",
+    "cancel-edit",
+    "manual-drag",
+    "manual-resize",
+    "add-module",
+    "remove-module",
+    "add-space-below",
+  ];
+
+  return actions.includes(value as CanvasLastExplicitLayoutAction)
+    ? (value as CanvasLastExplicitLayoutAction)
+    : null;
 }
 
 function normalizeFaceliftCanvasSettings(settings?: Partial<FaceliftCanvasSettings>): FaceliftCanvasSettings {

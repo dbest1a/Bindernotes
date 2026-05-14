@@ -603,6 +603,74 @@ describe("StudyPanelsShell", () => {
     );
   });
 
+  it("keeps lesson and private notes paired in fullscreen split study", () => {
+    const { context, preferences, unmount } = renderStudyPanelsShell({
+      preset: "split-study",
+      enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet"],
+    });
+    unmount();
+
+    render(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive
+        isCompact={false}
+        onChangeMode={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onToggleFocus={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-focus-mode-active")).toBe("true");
+    expect(screen.getByText("Lesson body")).toBeTruthy();
+    expect(screen.getByText("Notes body")).toBeTruthy();
+    expect(document.querySelector(".study-panels-split")).toBeTruthy();
+    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "private-notes",
+    );
+  });
+
+  it("exits focus mode when native fullscreen is closed outside the app controls", () => {
+    const { context, preferences, unmount } = renderStudyPanelsShell({
+      preset: "split-study",
+      enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet"],
+    });
+    unmount();
+
+    const onToggleFocus = vi.fn();
+    render(
+      <StudyPanelsShell
+        context={context}
+        currentViewMode="modular"
+        focusModeActive
+        isCompact={false}
+        onChangeMode={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onToggleFocus={onToggleFocus}
+        preferences={preferences}
+      />,
+    );
+
+    const shell = screen.getByTestId("study-panels-shell");
+    let fullscreenElement: Element | null = shell;
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+
+    document.dispatchEvent(new Event("fullscreenchange"));
+    expect(onToggleFocus).not.toHaveBeenCalled();
+
+    fullscreenElement = null;
+    document.dispatchEvent(new Event("fullscreenchange"));
+
+    expect(onToggleFocus).toHaveBeenCalledTimes(1);
+    delete (document as unknown as { fullscreenElement?: Element | null }).fullscreenElement;
+  });
+
   it("gives the focused whiteboard a real back control that exits focus mode", () => {
     const { context, preferences, unmount } = renderStudyPanelsShell({
       preset: "math-practice-mode",
@@ -769,10 +837,42 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByRole("tab", { name: /^lesson$/i })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: /lesson read/i })).toBeNull();
     expect(container.querySelector("[data-study-panel-secondary-toggle]")).toBeTruthy();
+    expect(container.querySelector("[data-study-panels-action-row='compact']")).toBeTruthy();
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-action-row")).toBe(
+      "visible",
+    );
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
+      "expanded",
+    );
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
       "private-notes",
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /hide split actions/i }));
+
+    expect(container.querySelector("[data-study-panels-action-row='compact']")?.getAttribute("data-study-actions-state")).toBe(
+      "collapsed",
+    );
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
+      "collapsed",
+    );
+    expect(container.querySelector(".study-panels-compact-action-row__content")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(window.localStorage.getItem("bindernotes.study-panels.layout.actions:binder-1:lesson-1")).toBe(
+      "collapsed",
+    );
+    expect(screen.getByRole("button", { name: /show split actions/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /show split actions/i }));
+
+    expect(container.querySelector("[data-study-panels-action-row='compact']")?.getAttribute("data-study-actions-state")).toBe(
+      "expanded",
+    );
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
+      "expanded",
+    );
+    expect(window.localStorage.getItem("bindernotes.study-panels.layout.actions:binder-1:lesson-1")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /hide secondary panel for lesson/i }));
 
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-secondary-panel-hidden")).toBe(
@@ -807,6 +907,23 @@ describe("StudyPanelsShell", () => {
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
       "whiteboard",
     );
+  });
+
+  it("keeps the Board tab available for math Study Panels even when old preferences omitted whiteboard", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    const { container } = renderStudyPanelsShell({
+      enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet", "recent-highlights"],
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: /^board$/i }));
+
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "whiteboard",
+    );
+    expect(screen.getByTestId("whiteboard-module")).toBeTruthy();
   });
 
   it("Revamp Beta keeps every Study Panels tab controlled and switchable from Lesson", () => {
@@ -960,5 +1077,36 @@ describe("StudyPanelsShell", () => {
     expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-storage-key")).toContain(
       ":notes",
     );
+  });
+
+  it("protects v2 lesson notes and board splits from cramped saved layouts", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, studyPanelsV2: true }),
+    );
+    window.localStorage.setItem(
+      "bindernotes.study-panels.layout:binder-1:lesson-1:lesson",
+      JSON.stringify({ primary: 80, secondary: 20 }),
+    );
+    window.localStorage.setItem(
+      "bindernotes.study-panels.layout:binder-1:lesson-1:board",
+      JSON.stringify({ primary: 42, secondary: 58 }),
+    );
+    const { container } = renderStudyPanelsShell({
+      preset: "math-guided-study",
+      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+    });
+
+    const lessonSplit = container.querySelector(".study-panels-split");
+    expect(lessonSplit?.getAttribute("data-study-split-layout")).toBe("58/42");
+    expect(lessonSplit?.getAttribute("data-study-split-min-secondary")).toBe("32");
+
+    fireEvent.click(screen.getByRole("tab", { name: /^board$/i }));
+
+    const boardSplit = container.querySelector(".study-panels-split");
+    expect(boardSplit?.getAttribute("data-study-split-layout")).toBe("76/24");
+    expect(boardSplit?.getAttribute("data-study-split-min-primary")).toBe("60");
+    expect(boardSplit?.getAttribute("data-study-split-min-secondary")).toBe("20");
+    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe("rail");
   });
 });

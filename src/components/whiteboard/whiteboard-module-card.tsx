@@ -26,6 +26,10 @@ import type {
   WhiteboardModuleAnchorMode,
   WhiteboardModuleElement,
 } from "@/lib/whiteboards/whiteboard-types";
+import {
+  recordWhiteboardPerformanceDiagnostic,
+  setWorkspaceMovementActive,
+} from "@/lib/whiteboard-performance-diagnostics";
 import { cn } from "@/lib/utils";
 
 type WhiteboardModuleCardProps = {
@@ -238,6 +242,7 @@ export function WhiteboardModuleCard({
   const pointerRef = useRef<PointerStart | null>(null);
   const pointerCleanupRef = useRef<(() => void) | null>(null);
   const activePointerTargetRef = useRef<PointerCaptureTarget | null>(null);
+  const movementSignalActiveRef = useRef(false);
   const latestModuleElementRef = useRef(moduleElement);
   const styleRafRef = useRef<number | null>(null);
   const pendingStyleRef = useRef<StylePatch>({});
@@ -268,11 +273,27 @@ export function WhiteboardModuleCard({
     pointerCleanupRef.current = null;
   };
 
+  const clearMovementSignal = () => {
+    if (!movementSignalActiveRef.current) {
+      return;
+    }
+
+    movementSignalActiveRef.current = false;
+    rootRef.current?.removeAttribute("data-dragging");
+    rootRef.current?.removeAttribute("data-drag-mode");
+    setWorkspaceMovementActive(false);
+    recordWhiteboardPerformanceDiagnostic("whiteboard-drag-commit", {
+      action: "whiteboard-card",
+      moduleId: latestModuleElementRef.current.moduleId,
+    });
+  };
+
   useEffect(
     () => () => {
       cleanupPointerListeners();
       pointerRef.current = null;
       activePointerTargetRef.current = null;
+      clearMovementSignal();
       if (styleRafRef.current) {
         window.cancelAnimationFrame(styleRafRef.current);
       }
@@ -336,6 +357,15 @@ export function WhiteboardModuleCard({
       viewportTransform: latestViewportTransform(),
     };
     activePointerTargetRef.current = captureTarget;
+    movementSignalActiveRef.current = true;
+    rootRef.current?.setAttribute("data-dragging", "true");
+    rootRef.current?.setAttribute("data-drag-mode", action);
+    setWorkspaceMovementActive(true);
+    recordWhiteboardPerformanceDiagnostic("whiteboard-drag-start", {
+      action,
+      moduleId: moduleElement.moduleId,
+      pinned,
+    });
     try {
       captureTarget.setPointerCapture?.(event.pointerId);
     } catch {
@@ -446,6 +476,7 @@ export function WhiteboardModuleCard({
     const finalStylePatch = getPointerStylePatch(active, dx, dy);
     pointerRef.current = null;
     cleanupPointerListeners();
+    clearMovementSignal();
     const captureTarget = activePointerTargetRef.current;
     activePointerTargetRef.current = null;
     try {

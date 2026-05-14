@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   BookMarked,
+  BookOpenCheck,
   Bold,
   CheckSquare,
   ChevronDown,
@@ -57,6 +58,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { WorkspaceWindow } from "@/components/workspace/workspace-window";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   usePersonalNotes,
   usePersonalNotesMutations,
@@ -64,12 +66,15 @@ import {
 } from "@/hooks/use-personal-notes";
 import {
   filterPersonalNotesEntries,
+  getPersonalNoteAutosaveStatus,
   getPersonalNoteHealth,
   getPersonalNoteReviewQueue,
+  getPersonalNoteSourceReferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
 import { emptyDoc } from "@/lib/utils";
 import { extractPlainText } from "@/lib/workspace-records";
+import { createStudyItem } from "@/services/study-items-service";
 import type {
   Binder,
   BinderLesson,
@@ -127,6 +132,10 @@ type PersonalNoteSelectionState = {
   text: string;
   range: Range | null;
   anchor: PersonalNoteSelectionAnchor;
+};
+type PersonalNoteEditorSelection = {
+  from: number;
+  to: number;
 };
 type NotebookCategory = {
   id: string;
@@ -286,6 +295,7 @@ export function PersonalNotesPage() {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const betaFeatures = useBetaFeatures(profile?.id);
   const { data, isLoading, error, refetch: refetchPersonalNotes } = usePersonalNotes(profile);
   const mutations = usePersonalNotesMutations(profile);
   const [preferences, updatePreferences] = usePersonalNotesPreferences(profile);
@@ -312,6 +322,7 @@ export function PersonalNotesPage() {
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [reviewQueueMessage, setReviewQueueMessage] = useState<string | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -320,6 +331,8 @@ export function PersonalNotesPage() {
   const shellRef = useRef<HTMLElement | null>(null);
 
   const entries = data?.entries ?? [];
+  const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
+  const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const filteredEntries = useMemo(
     () =>
       filterPersonalNotesEntries(entries, {
@@ -381,6 +394,11 @@ export function PersonalNotesPage() {
   const mainNotesCount = entries.filter((entry) => entry.kind !== "binder-note").length;
   const binderLinkedCount = entries.filter((entry) => entry.kind === "binder-note").length;
   const personalDocumentsCount = entries.filter((entry) => entry.kind === "personal-document").length;
+  const betaAutosaveStatus = getPersonalNoteAutosaveStatus({
+    autosaveEnabled: preferences.autosave,
+    dirty,
+    saveState,
+  });
   const personalStorageReady = !data?.loadIssues?.some((issue) =>
     issue.code === "personal_schema_missing" || issue.code === "personal_schema_blocked",
   );
@@ -524,6 +542,7 @@ export function PersonalNotesPage() {
     setDirty(false);
     setSaveState("saved");
     setSaveError(null);
+    setReviewQueueMessage(null);
   }, [selectedEntry?.id]);
 
   useEffect(() => {
@@ -790,6 +809,35 @@ export function PersonalNotesPage() {
     });
   }, [draftContent, draftTagsInput, draftTitle, mutations.savePersonalNote, selectedEntry]);
 
+  const addSelectedNoteToReview = useCallback(() => {
+    if (!profile?.id || !selectedEntry || !reviewQueueBeta) {
+      return;
+    }
+
+    const noteTitle = draftTitle.trim() || selectedEntry.title || "this note";
+    const plainText = extractPlainText(draftContent).trim().replace(/\s+/g, " ");
+    const answer = plainText || noteTitle;
+
+    try {
+      createStudyItem({
+        answer,
+        betaEnabled: reviewQueueBeta,
+        binderId: selectedEntry.sourceBinderId ?? selectedEntry.personalBinderId ?? null,
+        binderTitle: selectedEntry.sourceBinderTitle ?? selectedEntry.personalBinderTitle ?? null,
+        ownerId: profile.id,
+        prompt: `Explain ${noteTitle} in your own words before checking the note.`,
+        sourceExcerpt: plainText || selectedEntry.excerpt,
+        sourceId: selectedEntry.id,
+        sourceKind: "note",
+        sourceTitle: noteTitle,
+        type: "free_response",
+      });
+      setReviewQueueMessage("Added to Review Queue.");
+    } catch (errorValue) {
+      setReviewQueueMessage(errorValue instanceof Error ? errorValue.message : "Could not add this note to Review Queue.");
+    }
+  }, [draftContent, draftTitle, profile?.id, reviewQueueBeta, selectedEntry]);
+
   useEffect(() => {
     if (searchParams.get("action") === "new-note" && !selectedEntry && !isLoading) {
       void createLooseNote();
@@ -798,6 +846,7 @@ export function PersonalNotesPage() {
 
   const editorPanel = (
     <PersonalNoteEditor
+      autosaveEnabled={preferences.autosave}
       dirty={dirty}
       draftContent={draftContent}
       draftTagsInput={draftTagsInput}
@@ -810,8 +859,12 @@ export function PersonalNotesPage() {
       annotatorMode={preferences.annotatorTools}
       compactMetadata={preferences.compactMetadata}
       noteLinkAutocomplete={preferences.noteLinkAutocomplete}
+      reviewQueueBeta={reviewQueueBeta}
+      reviewQueueMessage={reviewQueueMessage}
+      sourceLinkedNotesBeta={sourceLinkedNotesBeta}
       showAnnotationColorFilter={preferences.showAnnotationColorFilter}
       onAddTag={addTagToSelected}
+      onAddToReview={addSelectedNoteToReview}
       onContentChange={(content) => {
         setDraftContent(content);
         markDraftChanged();
@@ -836,6 +889,8 @@ export function PersonalNotesPage() {
           navigate(selectedEntry.quickJumpToBinderUrl);
         }
       }}
+      onCreateNote={createLooseNote}
+      onOpenSource={(sourceUrl) => navigate(sourceUrl)}
       onPin={toggleSelectedPin}
       onRetrySave={() => void persistSelected()}
       onSave={() => void persistSelected()}
@@ -945,6 +1000,7 @@ export function PersonalNotesPage() {
         data-notes-focus-mode={focusActive ? "true" : "false"}
         data-notes-sidebars-hidden={sidebarsAreHidden ? "true" : "false"}
         data-notes-top-chrome-hidden={topChromeIsHidden ? "true" : "false"}
+        data-beta-revamp-source-linked-notes={sourceLinkedNotesBeta ? "true" : "false"}
         data-personal-notes-view={preferences.defaultView}
         data-personal-storage-ready={personalStorageReady ? "true" : "false"}
         data-testid="personal-notes-shell"
@@ -977,7 +1033,7 @@ export function PersonalNotesPage() {
                   <Badge className="hidden lg:inline-flex" variant="secondary">{binderLinkedCount} linked</Badge>
                   <Badge className="hidden xl:inline-flex" variant="secondary">{personalDocumentsCount} docs</Badge>
                   <Badge className="hidden sm:inline-flex" variant={dirty ? "destructive" : "outline"}>
-                    {dirty ? "Unsaved" : saveState === "saving" ? "Saving" : "Synced"}
+                    {sourceLinkedNotesBeta ? betaAutosaveStatus.label : dirty ? "Unsaved" : saveState === "saving" ? "Saving" : "Synced"}
                   </Badge>
                 </div>
 
@@ -1204,6 +1260,7 @@ export function PersonalNotesPage() {
                     onCreateFolder={createFolder}
                     onCreateNote={createLooseNote}
                     personalStorageReady={personalStorageReady}
+                    sourceLinkedNotesBeta={sourceLinkedNotesBeta}
                   />
                 ) : preferences.defaultView === "home" ? (
                   <PersonalNotesHomeView
@@ -1237,6 +1294,7 @@ export function PersonalNotesPage() {
                     selectedCategoryId={selectedCategoryId}
                     selectedScope={selectedNotebookScope}
                     selectedEntry={selectedEntry}
+                    sourceLinkedNotesBeta={sourceLinkedNotesBeta}
                     showNotebookPane={shouldShowNotebookPane}
                     showNotesListPane={shouldShowNotesListPane}
                     showSideMonitorTags={preferences.showSideMonitorTags}
@@ -1395,11 +1453,13 @@ function PersonalNotesEmptyState({
   onCreateFolder,
   onCreateNote,
   personalStorageReady,
+  sourceLinkedNotesBeta = false,
 }: {
   onCreateBinder: () => void;
   onCreateFolder: () => void;
   onCreateNote: () => void;
   personalStorageReady: boolean;
+  sourceLinkedNotesBeta?: boolean;
 }) {
   return (
     <section className="grid min-h-[420px] place-items-center rounded-lg border border-dashed border-border/80 bg-card/72 p-6 text-center shadow-sm backdrop-blur">
@@ -1407,10 +1467,13 @@ function PersonalNotesEmptyState({
         <div className="mx-auto grid size-12 place-items-center rounded-lg bg-primary/12 text-primary">
           <NotebookTabs className="size-6" />
         </div>
-        <h2 className="mt-5 text-2xl font-semibold tracking-tight">Start your notebook</h2>
+        <h2 className="mt-5 text-2xl font-semibold tracking-tight">
+          {sourceLinkedNotesBeta ? "Start a note from this source" : "Start your notebook"}
+        </h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Create a loose note, start a personal binder, or add a folder. Binder private notes appear here as soon as
-          you write them in a study workspace.
+          {sourceLinkedNotesBeta
+            ? "Capture this highlight, add this to review, or begin a clean source-linked note. Binder private notes appear here as soon as you write them in a study workspace."
+            : "Create a loose note, start a personal binder, or add a folder. Binder private notes appear here as soon as you write them in a study workspace."}
         </p>
         {!personalStorageReady ? (
           <p className="mx-auto mt-4 max-w-xl rounded-md border border-amber-500/35 bg-amber-500/8 px-3 py-2 text-sm text-muted-foreground">
@@ -1420,8 +1483,20 @@ function PersonalNotesEmptyState({
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Button disabled={!personalStorageReady} onClick={onCreateNote} type="button">
             <FilePlus2 data-icon="inline-start" />
-            New note
+            {sourceLinkedNotesBeta ? "Start a note from this source" : "New note"}
           </Button>
+          {sourceLinkedNotesBeta ? (
+            <>
+              <Button disabled={!personalStorageReady} onClick={onCreateNote} type="button" variant="outline">
+                <Highlighter data-icon="inline-start" />
+                Capture this highlight
+              </Button>
+              <Button disabled={!personalStorageReady} onClick={onCreateNote} type="button" variant="outline">
+                <CheckSquare data-icon="inline-start" />
+                Add this to review
+              </Button>
+            </>
+          ) : null}
           <Button disabled={!personalStorageReady} onClick={onCreateBinder} type="button" variant="outline">
             <BookMarked data-icon="inline-start" />
             Create binder
@@ -2783,6 +2858,7 @@ function MinimalNotesView({
   selectedCategoryId,
   selectedScope,
   selectedEntry,
+  sourceLinkedNotesBeta,
   showNotebookPane,
   showNotesListPane,
   showSideMonitorTags,
@@ -2808,6 +2884,7 @@ function MinimalNotesView({
   selectedCategoryId: string;
   selectedScope: NotebookCategory;
   selectedEntry: PersonalNotesEntry | null;
+  sourceLinkedNotesBeta: boolean;
   showNotebookPane: boolean;
   showNotesListPane: boolean;
   showSideMonitorTags: boolean;
@@ -2821,6 +2898,8 @@ function MinimalNotesView({
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-hidden bg-background md:flex-row"
+      data-beta-source-linked-notes={sourceLinkedNotesBeta ? "true" : "false"}
+      data-mobile-layout={sourceLinkedNotesBeta ? "single-primary-action" : "standard-responsive"}
       data-testid="personal-notes-notes-view"
     >
       {showNotebookPane ? (
@@ -3349,6 +3428,7 @@ function CanvasNotesView({
 
 function PersonalNoteEditor({
   annotatorMode,
+  autosaveEnabled,
   compactMetadata,
   dirty,
   draftContent,
@@ -3360,13 +3440,18 @@ function PersonalNoteEditor({
   focusMode,
   focusSideMonitorOpen,
   noteLinkAutocomplete,
+  reviewQueueBeta,
+  reviewQueueMessage,
   onAddTag,
+  onAddToReview,
   onContentChange,
+  onCreateNote,
   onEditorWidthChange,
   onFocusModeChange,
   onToggleFocusSideMonitor,
   onInsertTemplate,
   onOpenBinder,
+  onOpenSource,
   onPin,
   onRetrySave,
   onSave,
@@ -3374,9 +3459,11 @@ function PersonalNoteEditor({
   onTitleChange,
   saveError,
   saveState,
+  sourceLinkedNotesBeta,
   showAnnotationColorFilter,
 }: {
   annotatorMode: PersonalNotesAnnotatorMode;
+  autosaveEnabled: boolean;
   compactMetadata: boolean;
   dirty: boolean;
   draftContent: JSONContent;
@@ -3388,13 +3475,18 @@ function PersonalNoteEditor({
   focusMode: boolean;
   focusSideMonitorOpen: boolean;
   noteLinkAutocomplete: boolean;
+  reviewQueueBeta: boolean;
+  reviewQueueMessage: string | null;
   onAddTag: () => void;
+  onAddToReview: () => void;
   onContentChange: (content: JSONContent) => void;
+  onCreateNote: () => void;
   onEditorWidthChange: (width: PersonalNotesEditorWidth) => void;
   onFocusModeChange: (enabled: boolean) => void;
   onToggleFocusSideMonitor: () => void;
   onInsertTemplate: (content: JSONContent) => void;
   onOpenBinder: () => void;
+  onOpenSource: (sourceUrl: string) => void;
   onPin: () => void;
   onRetrySave: () => void;
   onSave: () => void;
@@ -3402,6 +3494,7 @@ function PersonalNoteEditor({
   onTitleChange: (title: string) => void;
   saveError: string | null;
   saveState: SaveState;
+  sourceLinkedNotesBeta: boolean;
   showAnnotationColorFilter: boolean;
 }) {
   const [selectedTemplateId, setSelectedTemplateId] = useState("blank");
@@ -3416,6 +3509,8 @@ function PersonalNoteEditor({
   const selectedTemplate = personalNoteTemplates.find((template) => template.id === selectedTemplateId) ?? personalNoteTemplates[0];
   const contentIsEmpty = extractPlainText(draftContent).trim().length === 0;
   const health = entry ? getPersonalNoteHealth(entry, { unsaved: dirty }) : [];
+  const sourceReferences = entry ? getPersonalNoteSourceReferences(entry) : [];
+  const betaAutosaveStatus = getPersonalNoteAutosaveStatus({ autosaveEnabled, dirty, saveState });
   const noteLinks = entry && noteLinkAutocomplete ? buildNoteLinkInsights(entry, entries, draftContent) : { linked: [], backlinks: [] };
   const selectionToolbarEnabled = annotatorMode !== "off" && annotatorMode !== "hotkeys";
   const annotationHotkeysEnabled = annotatorMode === "hotkeys" || annotatorMode === "both";
@@ -3444,8 +3539,32 @@ function PersonalNoteEditor({
   const captureEditorSelection = useCallback(() => {
     const selection = editorRef.current?.state?.selection;
     if (selection && !selection.empty) {
-      savedEditorSelectionRef.current = { from: selection.from, to: selection.to };
+      savedEditorSelectionRef.current = normalizePersonalNoteEditorSelection(selection.from, selection.to);
+      return savedEditorSelectionRef.current;
     }
+
+    return savedEditorSelectionRef.current;
+  }, []);
+
+  const captureSelectionFromToolbar = useCallback((selectionState: PersonalNoteSelectionState | null) => {
+    const nextRange = editorSelectionFromPersonalNoteSelection(editorRef.current, selectionState);
+    if (nextRange) {
+      savedEditorSelectionRef.current = nextRange;
+      return;
+    }
+
+    captureEditorSelection();
+  }, [captureEditorSelection]);
+
+  const editorCommandChain = useCallback(() => {
+    const chain = editorRef.current?.chain().focus();
+    if (!chain) {
+      return null;
+    }
+
+    return savedEditorSelectionRef.current
+      ? chain.setTextSelection(savedEditorSelectionRef.current)
+      : chain;
   }, []);
 
   const openAnnotationPopover = useCallback((kind: "comment" | "link" | "tag") => {
@@ -3455,27 +3574,29 @@ function PersonalNoteEditor({
 
   const applyHighlight = useCallback((color = "#fde68a") => {
     const colorMeta = annotationHighlightColors.find((item) => item.color === color) ?? annotationHighlightColors[0];
-    editorRef.current?.chain().focus().toggleHighlight({ color }).run();
+    editorCommandChain()?.toggleHighlight({ color }).run();
     rememberAnnotation({
       type: "highlight",
       label: `${colorMeta.label} highlight`,
       color: colorMeta.value,
       text: getCurrentSelectionText() || draftTitle,
     });
-  }, [draftTitle, rememberAnnotation]);
+    savedEditorSelectionRef.current = null;
+  }, [draftTitle, editorCommandChain, rememberAnnotation]);
 
   const removeHighlight = useCallback(() => {
-    editorRef.current?.chain().focus().unsetHighlight().run();
+    editorCommandChain()?.unsetHighlight().run();
     rememberAnnotation({
       type: "highlight",
       label: "Removed highlight",
       color: "all",
       text: getCurrentSelectionText() || draftTitle,
     });
-  }, [draftTitle, rememberAnnotation]);
+    savedEditorSelectionRef.current = null;
+  }, [draftTitle, editorCommandChain, rememberAnnotation]);
 
   const runEditorMark = useCallback((command: "bold" | "italic" | "underline" | "quote") => {
-    const chain = editorRef.current?.chain().focus();
+    const chain = editorCommandChain();
     if (command === "bold") {
       chain?.toggleBold().run();
     } else if (command === "italic") {
@@ -3491,7 +3612,7 @@ function PersonalNoteEditor({
     } else {
       chain?.toggleBlockquote().run();
     }
-  }, [draftTitle, rememberAnnotation]);
+  }, [draftTitle, editorCommandChain, rememberAnnotation]);
 
   const saveAnnotationPopover = useCallback(() => {
     const text = annotationDraft.trim();
@@ -3499,18 +3620,14 @@ function PersonalNoteEditor({
       return;
     }
     const commandId = `annotation-${Date.now()}`;
-    let chain = editorRef.current?.chain().focus() as
+    const chain = editorCommandChain() as
       | {
-          setTextSelection?: (range: { from: number; to: number }) => unknown;
           setLink?: (attrs: { href: string }) => { run: () => boolean };
           setMark?: (name: string, attrs: Record<string, unknown>) => { run: () => boolean };
         }
       | undefined;
-    if (savedEditorSelectionRef.current) {
-      chain = (chain?.setTextSelection?.(savedEditorSelectionRef.current) as typeof chain) ?? chain;
-    }
     if (annotationPopover === "link") {
-      chain?.setLink?.({ href: text }).run();
+      chain?.setLink?.({ href: normalizePersonalNoteLinkHref(text) }).run();
     } else if (annotationPopover === "comment") {
       chain?.setMark?.("commentAnnotation", { body: text, id: commandId }).run();
     } else if (annotationPopover === "tag") {
@@ -3525,7 +3642,7 @@ function PersonalNoteEditor({
     setAnnotationDraft("");
     setAnnotationPopover(null);
     savedEditorSelectionRef.current = null;
-  }, [annotationDraft, annotationPopover, rememberAnnotation]);
+  }, [annotationDraft, annotationPopover, editorCommandChain, rememberAnnotation]);
 
   const addSourceMarker = useCallback(() => {
     if (!entry || entry.kind !== "binder-note") {
@@ -3533,15 +3650,17 @@ function PersonalNoteEditor({
     }
     const selectedText = getCurrentSelectionText() || draftTitle || "Source-linked passage";
     const commandId = `source-${Date.now()}`;
-    const chain = editorRef.current?.chain().focus() as
+    const chain = editorCommandChain() as
       | { setMark?: (name: string, attrs: Record<string, unknown>) => { run: () => boolean } }
       | undefined;
     chain?.setMark?.("sourceMarker", {
       binderId: entry.sourceBinderId,
       binderTitle: entry.sourceBinderTitle,
+      excerpt: selectedText,
       id: commandId,
       lessonId: entry.sourceDocumentId,
       lessonTitle: entry.sourceDocumentTitle,
+      sourceUrl: entry.quickJumpToBinderUrl ?? "",
     }).run();
     rememberAnnotation({
       type: "source-marker",
@@ -3550,7 +3669,7 @@ function PersonalNoteEditor({
       text: `${entry.sourceBinderTitle ?? "Source binder"} / ${entry.sourceDocumentTitle ?? selectedText}`,
     });
     setToolsOpen("annotations");
-  }, [draftTitle, entry, rememberAnnotation]);
+  }, [draftTitle, editorCommandChain, entry, rememberAnnotation]);
 
   useEffect(() => {
     if (!annotationHotkeysEnabled || !entry) {
@@ -3669,17 +3788,50 @@ function PersonalNoteEditor({
   if (!entry) {
     return (
       <div className="grid min-h-[540px] place-items-center p-6" data-testid="personal-note-empty-editor">
-        <EmptyState
-          description="Create a note, binder, document, or open a binder-linked private note."
-          title="Choose a note"
-        />
+        {sourceLinkedNotesBeta ? (
+          <div className="max-w-xl rounded-xl border border-dashed border-border/80 bg-card/72 p-5 text-center shadow-sm">
+            <div className="mx-auto grid size-11 place-items-center rounded-lg bg-primary/12 text-primary">
+              <FilePlus2 className="size-5" />
+            </div>
+            <h2 className="mt-4 text-xl font-semibold tracking-tight">Start a note from this source</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Capture this highlight, add this to review, or start a loose note until you choose the right source.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Button onClick={onCreateNote} type="button">
+                <FilePlus2 data-icon="inline-start" />
+                Start a note from this source
+              </Button>
+              <Button onClick={onCreateNote} type="button" variant="outline">
+                <Highlighter data-icon="inline-start" />
+                Capture this highlight
+              </Button>
+              <Button onClick={onCreateNote} type="button" variant="outline">
+                <CheckSquare data-icon="inline-start" />
+                Add this to review
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <EmptyState
+            description="Create a note, binder, document, or open a binder-linked private note."
+            title="Choose a note"
+          />
+        )}
       </div>
     );
   }
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-background" data-testid="personal-note-editor">
-      {entry.kind === "binder-note" ? (
+      {sourceLinkedNotesBeta ? (
+        <BetaSourceReferenceCard
+          entry={entry}
+          onCaptureHighlight={() => setToolsOpen("annotations")}
+          onOpenSource={onOpenSource}
+          references={sourceReferences}
+        />
+      ) : entry.kind === "binder-note" ? (
         <div
           className="flex shrink-0 flex-col gap-2 border-b border-border/55 bg-secondary/18 px-4 py-2 text-xs xl:flex-row xl:items-center xl:justify-between"
           data-testid="binder-source-action-row"
@@ -3774,17 +3926,38 @@ function PersonalNoteEditor({
                   <Focus />
                 )}
               </Button>
-              <Button disabled={!dirty || saveState === "saving"} onClick={onSave} size="sm" type="button">
+              {reviewQueueBeta ? (
+                <Button onClick={onAddToReview} size="sm" type="button" variant="outline">
+                  <BookOpenCheck data-icon="inline-start" />
+                  Add to Review
+                </Button>
+              ) : null}
+              <Button
+                aria-label={sourceLinkedNotesBeta ? (dirty ? "Save now" : "No changes to save") : undefined}
+                disabled={!dirty || saveState === "saving"}
+                onClick={onSave}
+                size="sm"
+                type="button"
+              >
                 <Save data-icon="inline-start" />
-                {saveState === "saving" ? "Saving" : "Save"}
+                {sourceLinkedNotesBeta
+                  ? saveState === "saving"
+                    ? "Saving..."
+                    : dirty
+                      ? "Save now"
+                      : "No changes to save"
+                  : saveState === "saving" ? "Saving" : "Save"}
               </Button>
             </div>
           </div>
 
           <div className={`${compactMetadata ? "mt-0" : "mt-1"} flex flex-wrap items-center gap-1.5`}>
             <Badge variant={saveState === "error" ? "destructive" : dirty ? "outline" : "secondary"}>
-              {saveState === "error" ? "Save failed" : dirty ? "Unsaved" : "Saved"}
+              {sourceLinkedNotesBeta ? betaAutosaveStatus.label : saveState === "error" ? "Save failed" : dirty ? "Unsaved" : "Saved"}
             </Badge>
+            {sourceLinkedNotesBeta && betaAutosaveStatus.savedLabel ? (
+              <Badge variant="secondary">{betaAutosaveStatus.savedLabel}</Badge>
+            ) : null}
             {health.slice(0, compactMetadata ? 4 : 8).map((signal) => (
               <Badge
                 key={signal.id}
@@ -3794,6 +3967,32 @@ function PersonalNoteEditor({
               </Badge>
             ))}
           </div>
+          {sourceLinkedNotesBeta ? (
+            <div
+              aria-label="Note sync status"
+              className={`mt-2 rounded-md border px-3 py-2 text-xs leading-5 ${
+                betaAutosaveStatus.tone === "error"
+                  ? "border-destructive/35 bg-destructive/10 text-destructive"
+                  : betaAutosaveStatus.tone === "warning"
+                    ? "border-amber-500/35 bg-amber-500/10 text-foreground"
+                    : "border-border/70 bg-secondary/35 text-muted-foreground"
+              }`}
+              role="status"
+            >
+              <span className="font-semibold text-foreground">{betaAutosaveStatus.label}</span>
+              {betaAutosaveStatus.savedLabel ? <span className="ml-2">{betaAutosaveStatus.savedLabel}</span> : null}
+              <span className="ml-2">{saveError ?? betaAutosaveStatus.detail}</span>
+            </div>
+          ) : null}
+          {reviewQueueBeta && reviewQueueMessage ? (
+            <div
+              aria-label="Review Queue status"
+              className="mt-2 rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-medium text-foreground"
+              role="status"
+            >
+              {reviewQueueMessage}
+            </div>
+          ) : null}
           {saveError ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm">
               <span>{saveError}</span>
@@ -3820,6 +4019,7 @@ function PersonalNoteEditor({
             onOpenAnnotations={() => setToolsOpen("annotations")}
             onQuote={() => runEditorMark("quote")}
             onRemoveHighlight={removeHighlight}
+            onSelectionCapture={captureSelectionFromToolbar}
             onSourceMarker={addSourceMarker}
             onTag={() => openAnnotationPopover("tag")}
             onUnderline={() => runEditorMark("underline")}
@@ -4000,6 +4200,92 @@ function PersonalNoteEditor({
   );
 }
 
+function BetaSourceReferenceCard({
+  entry,
+  onCaptureHighlight,
+  onOpenSource,
+  references,
+}: {
+  entry: PersonalNotesEntry;
+  onCaptureHighlight: () => void;
+  onOpenSource: (sourceUrl: string) => void;
+  references: ReturnType<typeof getPersonalNoteSourceReferences>;
+}) {
+  const primaryReference = references[0] ?? null;
+  const jumpUrl =
+    references.find((reference) => reference.sourceUrl)?.sourceUrl ??
+    (entry.kind === "binder-note" ? entry.quickJumpToBinderUrl : null);
+  const noteTypeLabel = labelForPersonalNoteKind(entry.kind);
+  const binderTitle = primaryReference?.binderTitle ?? entry.sourceBinderTitle;
+  const documentTitle = primaryReference?.documentTitle ?? entry.sourceDocumentTitle;
+  const sourceDetails = [
+    binderTitle ? { label: "Binder", value: binderTitle } : null,
+    documentTitle ? { label: "Source", value: documentTitle } : null,
+    primaryReference?.sectionLabel ? { label: "Section", value: primaryReference.sectionLabel } : null,
+    primaryReference?.pageLabel ? { label: "Page", value: primaryReference.pageLabel } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
+
+  return (
+    <section
+      aria-label="Source reference"
+      className="beta-source-reference-card grid shrink-0 gap-3 border-b border-border/55 bg-secondary/16 px-4 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+      data-testid="beta-source-reference-card"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={entry.kind === "binder-note" ? "secondary" : "outline"}>{noteTypeLabel}</Badge>
+          {references.length > 1 ? <Badge variant="outline">{references.length} source links</Badge> : null}
+        </div>
+        {sourceDetails.length > 0 ? (
+          <dl className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+            {sourceDetails.map((detail) => (
+              <div className="min-w-0" key={`${detail.label}:${detail.value}`}>
+                <dt className="font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">{detail.label}</dt>
+                <dd className="truncate text-sm font-medium normal-case tracking-normal text-foreground" title={detail.value}>
+                  {detail.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No source attached yet. Capture from a binder lesson or keep this as a loose note.
+          </p>
+        )}
+        {primaryReference?.excerpt ? (
+          <blockquote className="mt-2 line-clamp-2 rounded-md border-l-2 border-primary/45 bg-background/65 px-3 py-2 text-xs leading-5 text-muted-foreground">
+            {primaryReference.excerpt}
+          </blockquote>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <Button onClick={onCaptureHighlight} size="sm" type="button" variant="outline">
+          <Highlighter data-icon="inline-start" />
+          Capture this highlight
+        </Button>
+        {jumpUrl ? (
+          <Button onClick={() => onOpenSource(jumpUrl)} size="sm" type="button">
+            <ArrowUpRight data-icon="inline-start" />
+            Jump to source
+          </Button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function labelForPersonalNoteKind(kind: PersonalNotesEntry["kind"]) {
+  switch (kind) {
+    case "binder-note":
+      return "Binder-linked note";
+    case "personal-document":
+      return "Notebook document";
+    case "personal-note":
+    default:
+      return "Loose note";
+  }
+}
+
 function editorWidthClass(width: PersonalNotesEditorWidth) {
   switch (width) {
     case "focused":
@@ -4027,6 +4313,7 @@ function PersonalNotesSelectionToolbar({
   onOpenAnnotations,
   onQuote,
   onRemoveHighlight,
+  onSelectionCapture,
   onSourceMarker,
   onTag,
   onUnderline,
@@ -4044,6 +4331,7 @@ function PersonalNotesSelectionToolbar({
   onOpenAnnotations: () => void;
   onQuote: () => void;
   onRemoveHighlight: () => void;
+  onSelectionCapture: (selection: PersonalNoteSelectionState | null) => void;
   onSourceMarker: () => void;
   onTag: () => void;
   onUnderline: () => void;
@@ -4074,6 +4362,7 @@ function PersonalNotesSelectionToolbar({
         if (next) {
           selectionRef.current = next;
           setSelection(next);
+          onSelectionCapture(next);
           return;
         }
 
@@ -4081,6 +4370,7 @@ function PersonalNotesSelectionToolbar({
         if (preserved) {
           selectionRef.current = preserved;
           setSelection(preserved);
+          onSelectionCapture(preserved);
           return;
         }
 
@@ -4138,7 +4428,7 @@ function PersonalNotesSelectionToolbar({
       window.removeEventListener("resize", syncSelection);
       document.removeEventListener("fullscreenchange", syncSelection);
     };
-  }, [clearSelection, containerSelector]);
+  }, [clearSelection, containerSelector, onSelectionCapture]);
 
   if (!selection) {
     return null;
@@ -4150,6 +4440,7 @@ function PersonalNotesSelectionToolbar({
       : "translate(-50%, 12px)";
 
   const runSelectionAction = (action: () => void, clearAfter = false) => {
+    onSelectionCapture(selectionRef.current);
     restorePersonalNoteSelection(selectionRef.current);
     action();
     if (clearAfter) {
@@ -4412,6 +4703,43 @@ function restorePersonalNoteSelection(selection: PersonalNoteSelectionState | nu
 
   nextSelection.removeAllRanges();
   nextSelection.addRange(selection.range.cloneRange());
+}
+
+function editorSelectionFromPersonalNoteSelection(
+  editor: Editor | null,
+  selection: PersonalNoteSelectionState | null,
+): PersonalNoteEditorSelection | null {
+  if (!editor || !selection?.range) {
+    return null;
+  }
+
+  try {
+    const from = editor.view.posAtDOM(selection.range.startContainer, selection.range.startOffset);
+    const to = editor.view.posAtDOM(selection.range.endContainer, selection.range.endOffset);
+    return normalizePersonalNoteEditorSelection(from, to);
+  } catch {
+    return null;
+  }
+}
+
+function normalizePersonalNoteEditorSelection(from: number, to: number): PersonalNoteEditorSelection | null {
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from === to) {
+    return null;
+  }
+
+  return {
+    from: Math.min(from, to),
+    to: Math.max(from, to),
+  };
+}
+
+function normalizePersonalNoteLinkHref(value: string) {
+  const href = value.trim();
+  if (/^(https?:|mailto:|tel:|#|\/)/i.test(href)) {
+    return href;
+  }
+
+  return `https://${href}`;
 }
 
 function clearCurrentPersonalNoteSelection() {

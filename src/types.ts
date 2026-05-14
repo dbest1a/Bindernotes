@@ -630,6 +630,20 @@ export type ModularStudySettings = {
 };
 
 export type FullCanvasSnapBehavior = "off" | "edges" | "modules";
+export type CanvasLayoutSource = "preset" | "custom";
+export type CanvasLayoutMode = "study" | "edit";
+export type CanvasLastExplicitLayoutAction =
+  | "select-preset"
+  | "fit"
+  | "tidy"
+  | "reset-to-preset"
+  | "save-custom"
+  | "cancel-edit"
+  | "manual-drag"
+  | "manual-resize"
+  | "add-module"
+  | "remove-module"
+  | "add-space-below";
 
 export type FullCanvasSettings = {
   gridSize: number;
@@ -639,6 +653,20 @@ export type FullCanvasSettings = {
   safeEdgePadding: boolean;
   canvasHeight: number;
   showDiagnostics: boolean;
+  layoutSource: CanvasLayoutSource;
+  activePresetId: WorkspacePresetId;
+  layoutMode: CanvasLayoutMode;
+  userHasEditedLayout: boolean;
+  presetAppliedAtViewport: {
+    width: number;
+    height: number;
+    updatedAt: string;
+  } | null;
+  committedFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  editDraftFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  lastExplicitLayoutAction: CanvasLastExplicitLayoutAction | null;
+  gridEnabled: boolean;
+  guidesEnabled: boolean;
 };
 
 export type FaceliftCanvasSettings = {

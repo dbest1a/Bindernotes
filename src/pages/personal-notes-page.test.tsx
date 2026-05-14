@@ -3,7 +3,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
 import { defaultPersonalNotesPreferences } from "@/lib/personal-notes";
+import { listStudyItems } from "@/services/study-items-service";
 import type { LearnerNote, PersonalNote, PersonalNotesData, PersonalNotesEntry, Profile } from "@/types";
 
 const profile: Profile = {
@@ -54,10 +56,14 @@ const mocks = vi.hoisted(() => ({
     unsetHighlight: vi.fn(),
     setTextSelection: vi.fn(),
     setLink: vi.fn(),
+    setMark: vi.fn(),
     run: vi.fn(),
   },
   editor: {
     chain: vi.fn(),
+    state: {
+      selection: { empty: false, from: 3, to: 16 },
+    },
   },
 }));
 
@@ -214,6 +220,77 @@ const workspaceWithEntries: PersonalNotesData = {
   personalBinders: [personalBinder],
 };
 
+const sourceMarkedContent = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "Petrograd protests made the source useful for the mistake list.",
+          marks: [
+            {
+              type: "sourceMarker",
+              attrs: {
+                binderId: "binder-history",
+                binderTitle: "The Russian Revolution",
+                lessonId: "lesson-russia",
+                lessonTitle: "Overview",
+                sectionLabel: "February crisis",
+                pageLabel: "p. 4",
+                excerpt: "Petrograd protests made authority collapse visible.",
+                sourceUrl: "/binders/binder-history/documents/lesson-russia#february-crisis",
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+function withSourceMarkedEntry(): PersonalNotesData {
+  return {
+    ...workspaceWithEntries,
+    entries: workspaceWithEntries.entries.map((entry) =>
+      entry.id === learnerNote.id
+        ? {
+            ...entry,
+            content: sourceMarkedContent,
+            note: {
+              ...(entry.note as LearnerNote),
+              content: sourceMarkedContent,
+            },
+          }
+        : entry,
+    ),
+    learnerNotes: workspaceWithEntries.learnerNotes.map((note) =>
+      note.id === learnerNote.id ? { ...note, content: sourceMarkedContent } : note,
+    ),
+  };
+}
+
+function enableSourceLinkedNotesBeta() {
+  window.localStorage.setItem(
+    betaFeaturesStorageKeyForUser(profile.id),
+    JSON.stringify({
+      enabled: true,
+      betaRevampSourceLinkedNotes: true,
+    }),
+  );
+}
+
+function enableReviewQueueBeta() {
+  window.localStorage.setItem(
+    betaFeaturesStorageKeyForUser(profile.id),
+    JSON.stringify({
+      enabled: true,
+      betaRevampReviewQueue: true,
+    }),
+  );
+}
+
 function missingTableIssue(table: string) {
   return {
     code: "personal_schema_missing" as const,
@@ -273,6 +350,7 @@ function renderPage(path = "/notes") {
 
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     mocks.editor.chain.mockReset();
     for (const command of Object.values(mocks.editorChain)) {
       command.mockReset();
@@ -286,12 +364,15 @@ describe("PersonalNotesPage", () => {
     mocks.editorChain.unsetHighlight.mockReturnValue(mocks.editorChain);
     mocks.editorChain.setTextSelection.mockReturnValue(mocks.editorChain);
     mocks.editorChain.setLink.mockReturnValue(mocks.editorChain);
+    mocks.editorChain.setMark.mockReturnValue(mocks.editorChain);
     mocks.editorChain.run.mockReturnValue(true);
     mocks.editor.chain.mockReturnValue(mocks.editorChain);
+    mocks.editor.state.selection = { empty: false, from: 3, to: 16 };
   });
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     mocks.personalNotesState.data = null;
     mocks.personalNotesState.error = null;
     mocks.personalNotesState.isLoading = false;
@@ -1042,9 +1123,14 @@ describe("PersonalNotesPage", () => {
     expect(mocks.editorChain.toggleBlockquote).toHaveBeenCalled();
 
     fireEvent.click(toolbar.getByRole("button", { name: "Link selection" }));
-    expect(screen.getByRole("dialog", { name: "Annotation link popover" })).toBeTruthy();
+    const linkDialog = within(screen.getByRole("dialog", { name: "Annotation link popover" }));
+    fireEvent.change(linkDialog.getByPlaceholderText("Paste a link"), { target: { value: "example.com/study" } });
+    fireEvent.click(linkDialog.getByRole("button", { name: "Save annotation" }));
+    expect(mocks.editorChain.setTextSelection).toHaveBeenCalledWith({ from: 3, to: 16 });
+    expect(mocks.editorChain.setLink).toHaveBeenCalledWith({ href: "https://example.com/study" });
 
     fireEvent.click(toolbar.getByRole("button", { name: "Definition highlight" }));
+    expect(mocks.editorChain.setTextSelection).toHaveBeenCalledWith({ from: 3, to: 16 });
     expect(mocks.editorChain.toggleHighlight).toHaveBeenCalledWith({ color: "#93c5fd" });
     await waitFor(() => {
       expect(screen.queryByRole("toolbar", { name: "Personal Notes selection toolbar" })).toBeNull();
@@ -1053,7 +1139,151 @@ describe("PersonalNotesPage", () => {
     fireEvent.mouseUp(screen.getByLabelText("Note body"));
     const nextToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
     fireEvent.click(nextToolbar.getByRole("button", { name: "Remove highlight" }));
+    expect(mocks.editorChain.setTextSelection).toHaveBeenCalledWith({ from: 3, to: 16 });
     expect(mocks.editorChain.unsetHighlight).toHaveBeenCalled();
+  });
+
+  it("keeps existing source note chrome when Source-Linked Notes beta is off", () => {
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+
+    const firstRender = renderPage("/notes/n/learner-note-1");
+
+    expect(screen.getByTestId("binder-source-action-row")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open binder workspace" })).toBeTruthy();
+    expect(screen.queryByTestId("beta-source-reference-card")).toBeNull();
+    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("false");
+  });
+
+  it("adds the selected note to Review Queue only when the Review Queue beta is enabled", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+
+    renderPage("/notes/n/learner-note-1");
+
+    expect(screen.queryByRole("button", { name: "Add to Review" })).toBeNull();
+    cleanup();
+
+    enableReviewQueueBeta();
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPage("/notes/n/learner-note-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to Review" }));
+
+    const items = listStudyItems(profile.id);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      owner_id: profile.id,
+      source_kind: "note",
+      source_id: "learner-note-1",
+      source_title: "Russian Revolution private note",
+      binder_id: "binder-history",
+      binder_title: "The Russian Revolution",
+      type: "free_response",
+    });
+    expect(items[0].prompt).toContain("Russian Revolution private note");
+    expect(items[0].answer).toContain("Timeline notes");
+    expect(screen.getByRole("status", { name: "Review Queue status" }).textContent).toContain("Added to Review Queue");
+  });
+
+  it("shows beta source metadata and jump-to-source only when a real source exists", () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+
+    const firstRender = renderPage("/notes/n/learner-note-1");
+
+    const sourceCard = within(screen.getByTestId("beta-source-reference-card"));
+    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("true");
+    expect(sourceCard.getByText("Binder-linked note")).toBeTruthy();
+    expect(sourceCard.getByText("The Russian Revolution")).toBeTruthy();
+    expect(sourceCard.getByText("Overview")).toBeTruthy();
+    expect(sourceCard.getByText("February crisis")).toBeTruthy();
+    expect(sourceCard.getByText("p. 4")).toBeTruthy();
+    expect(sourceCard.getByText("Petrograd protests made authority collapse visible.")).toBeTruthy();
+    expect(sourceCard.getByRole("button", { name: "Jump to source" })).toBeTruthy();
+
+    firstRender.unmount();
+    renderPage("/notes/n/personal-note-1");
+
+    const looseCards = screen.getAllByTestId("beta-source-reference-card");
+    const looseCard = within(looseCards[looseCards.length - 1]);
+    expect(looseCard.getByText("Loose note")).toBeTruthy();
+    expect(looseCard.queryByRole("button", { name: "Jump to source" })).toBeNull();
+  });
+
+  it("marks the beta notes workspace as a mobile-safe single-action layout", () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+
+    renderPage("/notes/n/learner-note-1");
+
+    const notesView = screen.getByTestId("personal-notes-notes-view");
+    expect(notesView.getAttribute("data-beta-source-linked-notes")).toBe("true");
+    expect(notesView.getAttribute("data-mobile-layout")).toBe("single-primary-action");
+  });
+
+  it("renders beta autosave statuses in plain language", async () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+    const pendingSave: { resolve?: (value: LearnerNote) => void } = {};
+    mocks.saveBinderLinkedNote.mockImplementationOnce(
+      () =>
+        new Promise<LearnerNote>((resolve) => {
+          pendingSave.resolve = resolve;
+        }),
+    );
+
+    renderPage("/notes/n/learner-note-1");
+
+    const syncStatus = screen.getByRole("status", { name: "Note sync status" });
+    expect(syncStatus.textContent).toContain("No changes to save");
+    expect(syncStatus.textContent).toContain("Saved");
+
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Edited source note" } });
+    expect(screen.getByRole("status", { name: "Note sync status" }).textContent).toContain("Sync pending");
+
+    fireEvent.click(screen.getByRole("button", { name: /Save now/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Note sync status" }).textContent).toContain("Saving...");
+    });
+
+    pendingSave.resolve?.({ ...learnerNote, title: "Edited source note" });
+  });
+
+  it("renders beta save errors as Error saving", async () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+    mocks.saveBinderLinkedNote.mockRejectedValueOnce(new Error("Network unavailable"));
+
+    renderPage("/notes/n/learner-note-1");
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Edited source note" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Note sync status" }).textContent).toContain("Error saving");
+    });
+  });
+
+  it("uses beta empty-state actions and a mobile-safe single-action notes layout", () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = emptyWorkspace;
+
+    renderPage();
+
+    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("true");
+    expect(screen.getAllByText("Start a note from this source").length).toBeGreaterThan(0);
+    expect(screen.getByText("Capture this highlight")).toBeTruthy();
+    expect(screen.getByText("Add this to review")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Start a note from this source" }));
+    expect(screen.getByRole("dialog", { name: "New note" })).toBeTruthy();
+  });
+
+  it("keeps beta note workspace free of demo account controls", () => {
+    enableSourceLinkedNotesBeta();
+    mocks.personalNotesState.data = withSourceMarkedEntry();
+
+    renderPage("/notes/n/learner-note-1");
+
+    expect(document.body.textContent).not.toMatch(/try demo|enter demo|demo sign-in|learner demo|admin demo/i);
+    expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
   });
 
   it("hides the highlight color filter beside the highlighter when the Personal Notes setting is off", () => {

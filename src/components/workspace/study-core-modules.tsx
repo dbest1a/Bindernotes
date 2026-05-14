@@ -1,4 +1,4 @@
-﻿import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Editor, JSONContent } from "@tiptap/react";
 import {
   BookOpenText,
@@ -52,6 +52,8 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   highlights,
   highlightStatus,
   lesson,
+  lessons,
+  onAddSelectionToReview,
   onHighlight,
   onJumpToMathSource,
   onRemoveHighlight,
@@ -61,11 +63,14 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   onOpenGraphBlock,
   onSendToGraph,
   surface = "workspace",
+  reviewQueueBeta = false,
+  sourceLinkedNotesBeta = false,
   whiteboardDensity = "compact",
   whiteboardDisplayMode = "compact",
   whiteboardModuleId,
   whiteboardShowMathInline = false,
   whiteboardTextSize = "normal",
+  onSelectLesson,
   onCommentSelection,
   onStickyNote,
 }: {
@@ -74,6 +79,8 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   highlights: Highlight[];
   highlightStatus: SaveStatusSnapshot;
   lesson: BinderLesson;
+  lessons?: BinderLesson[];
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
   onJumpToMathSource: (block: MathBlock) => void;
   onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) => void;
@@ -83,21 +90,63 @@ export const SourceLessonModule = memo(function SourceLessonModule({
   onSendToNotes: (anchorText?: string) => void;
   onSendToGraph?: (expression: string) => void;
   surface?: "workspace" | "whiteboard";
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
   whiteboardDensity?: "compact" | "comfortable";
   whiteboardDisplayMode?: "compact" | "full" | "summary" | "header-hidden";
   whiteboardModuleId?: string;
   whiteboardShowMathInline?: boolean;
   whiteboardTextSize?: "small" | "normal" | "large";
+  onSelectLesson?: (lesson: BinderLesson) => void;
   onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
   onStickyNote: (anchorText?: string | null) => void;
 }) {
   const readingStats = useMemo(() => createReadingStats(lesson.content), [lesson.content]);
   const lessonMathBlocks = lesson.math_blocks ?? [];
   const whiteboard = surface === "whiteboard";
+  const sourceLessonOptions = useMemo(() => {
+    const availableLessons = lessons?.filter(Boolean) ?? [];
+    return availableLessons.some((candidate) => candidate.id === lesson.id)
+      ? availableLessons
+      : [lesson, ...availableLessons];
+  }, [lesson, lessons]);
+  const canSwitchSourceDocument = !whiteboard && Boolean(onSelectLesson && sourceLessonOptions.length > 1);
   const compactWhiteboard = whiteboard && whiteboardDisplayMode !== "full";
   const showHero = !whiteboard || whiteboardDisplayMode === "full" || whiteboardDisplayMode === "summary";
   const showStats = !whiteboard || whiteboardDisplayMode === "full";
   const showInlineMathBlocks = lessonMathBlocks.length > 0 && (!whiteboard || whiteboardShowMathInline);
+  const [isSourceDocumentMenuOpen, setIsSourceDocumentMenuOpen] = useState(false);
+  const sourceDocumentMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setIsSourceDocumentMenuOpen(false);
+  }, [lesson.id]);
+
+  useEffect(() => {
+    if (!isSourceDocumentMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!sourceDocumentMenuRef.current?.contains(event.target as Node)) {
+        setIsSourceDocumentMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSourceDocumentMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSourceDocumentMenuOpen]);
 
   return (
     <WorkspacePanel
@@ -146,7 +195,48 @@ export const SourceLessonModule = memo(function SourceLessonModule({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{binder.subject}</Badge>
-                <Badge variant="secondary">{binder.level}</Badge>
+                {canSwitchSourceDocument ? (
+                  <div className="source-lesson-document-switcher" ref={sourceDocumentMenuRef}>
+                    <button
+                      aria-expanded={isSourceDocumentMenuOpen}
+                      aria-haspopup="listbox"
+                      aria-label={`Switch source document, current: ${lesson.title}`}
+                      className="source-lesson-document-switcher__trigger"
+                      onClick={() => setIsSourceDocumentMenuOpen((current) => !current)}
+                      type="button"
+                    >
+                      <span className="source-lesson-document-switcher__title">{lesson.title}</span>
+                      <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                    </button>
+                    {isSourceDocumentMenuOpen ? (
+                      <div aria-label="Source documents" className="source-lesson-document-switcher__menu" role="listbox">
+                        {sourceLessonOptions.map((candidate, index) => {
+                          const isActiveLesson = candidate.id === lesson.id;
+                          return (
+                            <button
+                              aria-selected={isActiveLesson}
+                              className="source-lesson-document-switcher__option"
+                              key={candidate.id}
+                              onClick={() => {
+                                setIsSourceDocumentMenuOpen(false);
+                                if (!isActiveLesson) {
+                                  onSelectLesson?.(candidate);
+                                }
+                              }}
+                              role="option"
+                              type="button"
+                            >
+                              <span>{candidate.title}</span>
+                              <small>{isActiveLesson ? "Current source" : `Open source ${index + 1}`}</small>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Badge variant="secondary">{binder.level}</Badge>
+                )}
                 {lesson.is_preview ? <Badge variant="secondary">Preview lesson</Badge> : null}
               </div>
             </div>
@@ -196,14 +286,17 @@ export const SourceLessonModule = memo(function SourceLessonModule({
               containerSelector={buildLessonContentSelector(lesson.id, whiteboardModuleId)}
               defaultHighlightColor={defaultHighlightColor}
               highlights={highlights}
+              onAddSelectionToReview={onAddSelectionToReview}
               onHighlight={onHighlight}
-            onCommentSelection={onCommentSelection}
-            onRemoveHighlight={onRemoveHighlight}
-            onSaveAsEvidence={onSaveSelectionAsEvidence}
-            onQuoteToNotes={onQuoteToNotes}
-            onSendToNotes={onSendToNotes}
-            onStickyNote={onStickyNote}
-          />
+              onCommentSelection={onCommentSelection}
+              onRemoveHighlight={onRemoveHighlight}
+              onSaveAsEvidence={onSaveSelectionAsEvidence}
+              onQuoteToNotes={onQuoteToNotes}
+              reviewQueueBeta={reviewQueueBeta}
+              sourceLinkedNotesBeta={sourceLinkedNotesBeta}
+              onSendToNotes={onSendToNotes}
+              onStickyNote={onStickyNote}
+            />
         </div>
 
         {lessonMathBlocks.length > 0 && whiteboard && !whiteboardShowMathInline ? (

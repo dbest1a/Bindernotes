@@ -19,6 +19,7 @@
     "seed:math": "tsx scripts/seed-math.ts",
     "verify:math-seed": "tsx scripts/verify-math-seed.ts",
     "cleanup:placeholders": "tsx scripts/cleanup-workspace-placeholders.ts",
+    "verify:supabase-grants": "node scripts/check-supabase-data-api-grants.mjs",
     "verify:auth:live": "node scripts/verify-live-auth.mjs --url https://www.bindernotes.com/auth",
     "verify:client-env": "node scripts/client-env-guard.mjs --mode production --check-output dist"
   },

@@ -52,6 +52,13 @@ const lesson: BinderLesson = {
   updated_at: new Date(0).toISOString(),
 };
 
+const secondLesson: BinderLesson = {
+  ...lesson,
+  id: "lesson-2",
+  title: "Resonance and Bond Order",
+  order_index: 1,
+};
+
 function privateNotesProps(
   overrides: Partial<ComponentProps<typeof PrivateNotesModule>> = {},
 ): ComponentProps<typeof PrivateNotesModule> {
@@ -182,6 +189,38 @@ describe("study core module headers", () => {
     expect(document.querySelector("[data-compact-module-header='private-notes']")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Notebook focus/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Save now/i })).toBeTruthy();
+  });
+
+  it("lets the source header switch the active document from the lesson badge area", () => {
+    const onSelectLesson = vi.fn();
+
+    render(
+      <SourceLessonModule
+        binder={binder}
+        defaultHighlightColor="yellow"
+        highlights={[]}
+        highlightStatus={idleStatus}
+        lesson={lesson}
+        lessons={[lesson, secondLesson]}
+        onHighlight={vi.fn()}
+        onJumpToMathSource={vi.fn()}
+        onQuoteToNotes={vi.fn()}
+        onRemoveHighlight={vi.fn()}
+        onSaveSelectionAsEvidence={vi.fn()}
+        onSelectLesson={onSelectLesson}
+        onSendToNotes={vi.fn()}
+        onStickyNote={vi.fn()}
+      />,
+    );
+
+    const documentSwitcher = screen.getByRole("button", { name: /Switch source document/i });
+    expect(documentSwitcher.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(documentSwitcher);
+    expect(screen.getByRole("listbox", { name: /Source documents/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("option", { name: /Resonance and Bond Order/i }));
+
+    expect(onSelectLesson).toHaveBeenCalledWith(secondLesson);
   });
 
   it("exposes source and notes content regions for maximize-space expansion", () => {

@@ -37,6 +37,9 @@ const LazySyncRecoveryBridge = lazy(() =>
 const LandingPage = lazy(() =>
   import("@/pages/landing-page").then((module) => ({ default: module.LandingPage })),
 );
+const HomepageBetaPage = lazy(() =>
+  import("@/pages/landing-page").then((module) => ({ default: module.HomepageBetaPage })),
+);
 const OgreDungeonRunnerPage = lazy(() =>
   import("@/pages/ogre-dungeon-runner-page").then((module) => ({ default: module.OgreDungeonRunnerPage })),
 );
@@ -48,6 +51,9 @@ const DashboardPage = lazy(() =>
 );
 const PersonalNotesPage = lazy(() =>
   import("@/pages/personal-notes-page").then((module) => ({ default: module.PersonalNotesPage })),
+);
+const ReviewPage = lazy(() =>
+  import("@/pages/review-page").then((module) => ({ default: module.ReviewPage })),
 );
 const FolderPage = lazy(() =>
   import("@/pages/folder-page").then((module) => ({ default: module.FolderPage })),
@@ -97,6 +103,9 @@ const AdminStudioPage = lazy(() =>
 const PricingPage = lazy(() =>
   import("@/pages/pricing-page").then((module) => ({ default: module.PricingPage })),
 );
+const PricingBetaPage = lazy(() =>
+  import("@/pages/pricing-page").then((module) => ({ default: module.PricingBetaPage })),
+);
 const TutorialPage = lazy(() =>
   import("@/pages/tutorial-page").then((module) => ({ default: module.TutorialPage })),
 );
@@ -138,9 +147,11 @@ function AppRoutes() {
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/homepage-beta" element={<HomepageBetaPage />} />
           <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/pricing-beta" element={<PricingBetaPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
             <Route element={<LazyAppShell />}>
@@ -153,6 +164,7 @@ function AppRoutes() {
                 path="/notes/binders/:personalBinderId/documents/:documentId"
                 element={<PersonalNotesPage />}
               />
+              <Route path="/review" element={<ReviewPage />} />
               <Route path="/folders/:folderId" element={<FolderPage />} />
               <Route path="/binders/:binderId" element={<BinderPage />} />
               <Route path="/math" element={<MathLandingPage />} />

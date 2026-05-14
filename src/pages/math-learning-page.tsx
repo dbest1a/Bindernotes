@@ -5,6 +5,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
   BookOpen,
+  BookOpenCheck,
   CheckCircle2,
   Cuboid,
   FileQuestion,
@@ -16,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
+import { MathStudyLoopPanel } from "@/components/study/math-study-loop-panel";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   useCompleteQuizAttempt,
   useCreateQuizSet,
@@ -41,6 +44,8 @@ import {
 } from "@/hooks/use-math-learning";
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
 import { cn } from "@/lib/utils";
+import { createStudyItem, type StudyItemType } from "@/services/study-items-service";
+import { listStudyGraphLinks } from "@/services/math-study-loop-service";
 import type {
   MathCourse,
   MathModule,
@@ -62,6 +67,7 @@ const questionTypes: QuestionType[] = [
 ];
 
 type ActiveGraphMode = Exclude<MathModule["calculator_mode"], "none">;
+type FormulaCard = NonNullable<MathModule["module_json"]["formulaCards"]>[number];
 
 export function MathLandingPage() {
   const coursesQuery = useMathCourses();
@@ -225,6 +231,7 @@ export function MathModulePage() {
   const { moduleSlug } = useParams();
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const betaFeatures = useBetaFeatures(profile?.id);
   const bundleQuery = useMathModuleBundle(moduleSlug, profile?.id);
   const createQuiz = useCreateQuizSet();
   const saveGraph = useSaveMathGraphState();
@@ -267,6 +274,9 @@ export function MathModulePage() {
     : module.module_json.expressions ?? [];
   const activeGraphState = graphStatesByMode[activeGraphMode];
   const canSaveGraph = module.calculator_mode !== "none" && Boolean(activeGraphState);
+  const mathStudyLoopBeta = betaFeatures.isFeatureEnabled("betaRevampMathStudyLoop");
+  const narrowAiStudyToolsBeta = betaFeatures.isFeatureEnabled("betaRevampNarrowAiStudyTools");
+  const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const setActiveGraphState = (nextState: DesmosState) => {
     setGraphStatesByMode((current) => ({
       ...current,
@@ -306,6 +316,40 @@ export function MathModulePage() {
     setSaveMessage(`Saved ${graph.title}`);
   };
 
+  const addFormulaToReview = (formula: FormulaCard) => {
+    createStudyItem({
+      answer: formula.explanation?.trim() || formula.latex,
+      betaEnabled: reviewQueueBeta,
+      courseId: module.course_id,
+      courseTitle: bundle.course?.title ?? null,
+      ownerId: profile.id,
+      prompt: `Explain when to use ${formula.label}.`,
+      sourceExcerpt: formula.latex,
+      sourceId: formula.id,
+      sourceKind: "formula",
+      sourceTitle: formula.label,
+      type: "formula_card",
+    });
+    setSaveMessage(`${formula.label} added to Review Queue.`);
+  };
+
+  const addQuestionToReview = (question: QuestionBankItem) => {
+    createStudyItem({
+      answer: question.explanation_markdown?.trim() || JSON.stringify(question.answer_json),
+      betaEnabled: reviewQueueBeta,
+      courseId: module.course_id,
+      courseTitle: bundle.course?.title ?? null,
+      ownerId: profile.id,
+      prompt: question.title ?? question.prompt_markdown,
+      sourceExcerpt: question.prompt_markdown,
+      sourceId: question.id,
+      sourceKind: "problem",
+      sourceTitle: question.title ?? "Practice problem",
+      type: studyItemTypeForQuestion(question),
+    });
+    setSaveMessage(`${question.title ?? "Practice problem"} added to Review Queue.`);
+  };
+
   return (
     <main className="app-page max-w-[1680px]">
       <Breadcrumbs
@@ -341,6 +385,25 @@ export function MathModulePage() {
         </div>
       </section>
 
+      <MathStudyLoopPanel
+        activeExpressions={expressions}
+        activeGraphMode={activeGraphMode}
+        activeGraphState={activeGraphState}
+        betaEnabled={mathStudyLoopBeta}
+        courseId={module.course_id}
+        courseTitle={bundle.course?.title ?? null}
+        formulaCards={module.module_json.formulaCards ?? []}
+        graphLinks={listStudyGraphLinks(profile.id)}
+        graphStates={bundle.graphStates}
+        moduleId={module.id}
+        moduleTitle={module.title}
+        narrowAiBetaEnabled={narrowAiStudyToolsBeta}
+        onRestoreGraphState={setActiveGraphState}
+        ownerId={profile.id}
+        questions={bundle.questions}
+        reviewQueueBetaEnabled={reviewQueueBeta}
+      />
+
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(560px,1.18fr)]">
         <div className="grid gap-4">
           <Card>
@@ -374,7 +437,11 @@ export function MathModulePage() {
             </CardContent>
           </Card>
 
-          <FormulaCardGrid formulas={module.module_json.formulaCards ?? []} />
+          <FormulaCardGrid
+            formulas={module.module_json.formulaCards ?? []}
+            onAddFormulaToReview={addFormulaToReview}
+            reviewQueueBeta={reviewQueueBeta}
+          />
           <GraphCardList
             graphs={graphCards}
             onOpenGraph={(graph) => {
@@ -386,7 +453,11 @@ export function MathModulePage() {
             selectedGraphId={selectedGraphCard?.id ?? null}
           />
           <RelatedConcepts concepts={module.module_json.relatedConcepts ?? []} />
-          <PracticeList questions={bundle.questions} />
+          <PracticeList
+            onAddQuestionToReview={addQuestionToReview}
+            questions={bundle.questions}
+            reviewQueueBeta={reviewQueueBeta}
+          />
         </div>
 
         <Card className="overflow-hidden">
@@ -1021,8 +1092,12 @@ function ModuleDesmos({
 
 function FormulaCardGrid({
   formulas,
+  onAddFormulaToReview,
+  reviewQueueBeta,
 }: {
-  formulas: NonNullable<MathModule["module_json"]["formulaCards"]>;
+  formulas: FormulaCard[];
+  onAddFormulaToReview?: (formula: FormulaCard) => void;
+  reviewQueueBeta?: boolean;
 }) {
   if (formulas.length === 0) {
     return null;
@@ -1037,9 +1112,17 @@ function FormulaCardGrid({
       <CardContent className="grid gap-3">
         {formulas.map((formula) => (
           <div className="rounded-lg border border-border/70 bg-background/80 p-4" key={formula.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">Formula card</Badge>
-              <h2 className="font-semibold tracking-tight">{formula.label}</h2>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Badge variant="secondary">Formula card</Badge>
+                <h2 className="font-semibold tracking-tight">{formula.label}</h2>
+              </div>
+              {reviewQueueBeta && onAddFormulaToReview ? (
+                <Button onClick={() => onAddFormulaToReview(formula)} size="sm" type="button" variant="outline">
+                  <BookOpenCheck data-icon="inline-start" />
+                  Add to Review
+                </Button>
+              ) : null}
             </div>
             <LatexBlock latex={formula.latex} />
             {formula.explanation ? (
@@ -1118,7 +1201,15 @@ function RelatedConcepts({ concepts }: { concepts: string[] }) {
   );
 }
 
-function PracticeList({ questions }: { questions: QuestionBankItem[] }) {
+function PracticeList({
+  onAddQuestionToReview,
+  questions,
+  reviewQueueBeta,
+}: {
+  onAddQuestionToReview?: (question: QuestionBankItem) => void;
+  questions: QuestionBankItem[];
+  reviewQueueBeta?: boolean;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -1134,9 +1225,17 @@ function PracticeList({ questions }: { questions: QuestionBankItem[] }) {
               className="rounded-lg border border-border/70 bg-background/75 p-3"
               key={question.id}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{formatQuestionType(question.type)}</Badge>
-                <Badge variant="outline">{question.difficulty}</Badge>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{formatQuestionType(question.type)}</Badge>
+                  <Badge variant="outline">{question.difficulty}</Badge>
+                </div>
+                {reviewQueueBeta && onAddQuestionToReview ? (
+                  <Button onClick={() => onAddQuestionToReview(question)} size="sm" type="button" variant="outline">
+                    <BookOpenCheck data-icon="inline-start" />
+                    Add to Review
+                  </Button>
+                ) : null}
               </div>
               <p className="mt-2 text-sm font-medium">{question.title ?? question.prompt_markdown}</p>
             </div>
@@ -1563,6 +1662,18 @@ function formatQuestionType(type: QuestionType) {
     .split("_")
     .map((part) => part[0]?.toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function studyItemTypeForQuestion(question: QuestionBankItem): StudyItemType {
+  if (question.type === "multiple_choice") {
+    return "multiple_choice";
+  }
+
+  if (question.type === "numeric") {
+    return "numeric_problem";
+  }
+
+  return "free_response";
 }
 
 type QuestionDraft = {

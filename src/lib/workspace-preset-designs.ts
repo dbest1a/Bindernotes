@@ -1649,6 +1649,27 @@ function buildChemistryShowcaseFrames(
   const gap = 16;
   const frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = {};
   const primary = design.primary[0] ?? visible[0];
+
+  if (primary === "chem-periodic-table") {
+    const tableHeight = Math.max(600, Math.round(height * 0.68));
+    const supportModules = visible.filter((moduleId) => moduleId !== primary).slice(0, 3);
+    const supportHeight = Math.max(260, height - tableHeight - gap);
+    const supportWidth = Math.floor((width - gap * Math.max(0, supportModules.length - 1)) / Math.max(1, supportModules.length));
+
+    frames[primary] = faceliftFrame(0, 0, width, tableHeight, 4);
+    supportModules.forEach((moduleId, index) => {
+      frames[moduleId] = faceliftFrame(
+        index * (supportWidth + gap),
+        tableHeight + gap,
+        index === supportModules.length - 1 ? width - index * (supportWidth + gap) : supportWidth,
+        supportHeight,
+        index + 1,
+      );
+    });
+
+    return frames;
+  }
+
   const leftWidth = Math.max(360, Math.round(width * 0.28));
   const rightWidth = Math.max(360, Math.round(width * 0.28));
   const centerWidth = Math.max(520, width - leftWidth - rightWidth - gap * 2);
@@ -1985,7 +2006,7 @@ export function getWorkspaceStarterChoices(options: {
     choices.push({
       id: "chemistry",
       label: "Chemistry tools",
-      description: "Open the new chemistry showcase tools with source context and notes.",
+      description: "Open chemistry course tools with source context, notes, formulas, and lab support.",
       presetId: "chem-guided-study",
       presentation: "facelift-simple",
       recommendedFor: "chemistry",

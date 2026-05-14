@@ -9,6 +9,11 @@ import {
   hasPersistentWhiteboardSceneChange,
   sanitizeExcalidrawInitialData,
 } from "@/lib/whiteboards/whiteboard-serialization";
+import {
+  isWorkspaceMovementActive,
+  recordWhiteboardPerformanceDiagnostic,
+  workspaceMovementEndEvent,
+} from "@/lib/whiteboard-performance-diagnostics";
 import { AUTOSAVE_DEBOUNCE_MS } from "@/lib/whiteboards/whiteboard-limits";
 import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
 
@@ -139,8 +144,11 @@ export function WhiteboardCanvas({
   const refreshCanvasAfterLayout = useCallback(() => {
     const api = excalidrawApiRef.current;
     api?.refresh?.();
+    recordWhiteboardPerformanceDiagnostic("excalidraw-refresh", {
+      boardId: board.id,
+    });
     emitViewportChange(api?.getAppState?.() ?? initialData.appState ?? {});
-  }, [emitViewportChange, initialData.appState]);
+  }, [board.id, emitViewportChange, initialData.appState]);
 
   const finishDrawingPointerById = useCallback(
     (pointerId?: number) => {
@@ -180,6 +188,14 @@ export function WhiteboardCanvas({
       return;
     }
 
+    const flushDeferredLayoutRefresh = () => {
+      if (!pendingResizeRefreshRef.current || drawingPointerIdsRef.current.size > 0) {
+        return;
+      }
+
+      pendingResizeRefreshRef.current = false;
+      window.requestAnimationFrame(refreshCanvasAfterLayout);
+    };
     const finishPointer = (event: PointerEvent) => finishDrawingPointerById(event.pointerId);
     const clearPointers = () => finishDrawingPointerById();
     const flushForPageExit = () => flushPendingSceneChange();
@@ -192,15 +208,17 @@ export function WhiteboardCanvas({
     window.addEventListener("pointercancel", finishPointer);
     window.addEventListener("blur", clearPointers);
     window.addEventListener("pagehide", flushForPageExit);
+    window.addEventListener(workspaceMovementEndEvent, flushDeferredLayoutRefresh);
     document.addEventListener("visibilitychange", flushWhenHidden);
     return () => {
       window.removeEventListener("pointerup", finishPointer);
       window.removeEventListener("pointercancel", finishPointer);
       window.removeEventListener("blur", clearPointers);
       window.removeEventListener("pagehide", flushForPageExit);
+      window.removeEventListener(workspaceMovementEndEvent, flushDeferredLayoutRefresh);
       document.removeEventListener("visibilitychange", flushWhenHidden);
     };
-  }, [finishDrawingPointerById, flushPendingSceneChange]);
+  }, [finishDrawingPointerById, flushPendingSceneChange, refreshCanvasAfterLayout]);
 
   const handleExcalidrawApi = useCallback(
     (api: ExcalidrawCameraApi) => {
@@ -297,8 +315,12 @@ export function WhiteboardCanvas({
       }
       lastHostSizeRef.current = nextSize;
 
-      if (drawingPointerIdsRef.current.size > 0) {
+      if (drawingPointerIdsRef.current.size > 0 || isWorkspaceMovementActive()) {
         pendingResizeRefreshRef.current = true;
+        recordWhiteboardPerformanceDiagnostic("excalidraw-refresh-deferred", {
+          boardId: board.id,
+          reason: drawingPointerIdsRef.current.size > 0 ? "drawing-pointer" : "workspace-movement",
+        });
         return;
       }
 

@@ -75,16 +75,24 @@ import { collectLessonSectionAnchors, findLessonSectionAnchorId } from "@/lib/st
 import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 import {
   applyFaceliftSurfaceModeToViewport,
+  applyCanvasReworkStarterLayoutToViewport,
   applyGlobalAppearanceToWorkspace,
   applyWorkspaceViewModeToViewport,
+  applyWorkspaceMode,
   applyWorkspaceModeToViewport,
   applyPresetToViewport,
+  beginCanvasReworkLayoutEdit,
+  commitCanvasReworkLayout,
   createStickyNoteLayout,
   ensureMathWorkspaceModules,
   ensureWindowFramesForEnabledModules,
+  fitCanvasReworkLayoutToViewport,
   fitWorkspaceToViewport,
   getWorkspaceViewMode,
   getTopbarWorkspacePresetRecommendations,
+  recordCanvasReworkLayoutChange,
+  resetCanvasReworkLayoutToStarter,
+  tidyCanvasReworkLayoutToViewport,
   tidyWorkspaceLayout as tidyWorkspaceToViewport,
   updateWorkspaceAppearance,
   workspacePresets,
@@ -104,6 +112,7 @@ import {
   scheduleUserRecentItem,
   scheduleWorkspaceActivityEvent,
 } from "@/services/activity-service";
+import { createStudyItem } from "@/services/study-items-service";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
   BinderNotebookLessonEntry,
@@ -250,11 +259,21 @@ export function BinderReaderPage() {
   const syncedSnapshotRef = useRef("");
   const active = workspace.active;
   const revampBetaEnabled = betaFeatures.revampBetaEnabled;
+  const canvasReworkEnabled = betaFeatures.isFeatureEnabled("canvasRework");
   const compactStudyChrome = betaFeatures.isFeatureEnabled("compactStudyChrome");
   const compactWhiteboardTools = betaFeatures.isFeatureEnabled("compactWhiteboardTools");
+  const desmosV2Enabled = betaFeatures.isFeatureEnabled("desmosV2");
+  const whiteboardSmoothMoveEnabled = betaFeatures.isFeatureEnabled("whiteboardSmoothMove");
+  const compactExcalidrawToolsEnabled =
+    compactWhiteboardTools || betaFeatures.isFeatureEnabled("compactExcalidrawTools");
+  const whiteboardPerformanceDiagnosticsEnabled = betaFeatures.isFeatureEnabled(
+    "whiteboardPerformanceDiagnostics",
+  );
   const canvasStarterLayouts = betaFeatures.isFeatureEnabled("canvasStarterLayouts");
   const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("revampBeta");
   const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
+  const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
+  const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const studentCalmMode = betaFeatures.isFeatureEnabled("studentCalmMode");
   const studentPreviewAdminChromeGuard = betaFeatures.isFeatureEnabled(
     "studentPreviewAdminChromeGuard",
@@ -570,18 +589,30 @@ export function BinderReaderPage() {
     preloadWorkspaceSettings();
     isLayoutEditingRef.current = true;
     setLayoutMode("setup");
-    workspace.updateDraft((current) => ({
-      ...current,
-      locked: false,
-      updatedAt: new Date().toISOString(),
-    }));
-  }, [active, openWorkspacePreferences, workspace]);
+    workspace.updateDraft((current) =>
+      canvasReworkEnabled && current.activeMode === "canvas"
+        ? beginCanvasReworkLayoutEdit(current)
+        : {
+            ...current,
+            locked: false,
+            updatedAt: new Date().toISOString(),
+          },
+    );
+  }, [active, canvasReworkEnabled, openWorkspacePreferences, workspace]);
 
   const saveUnlockedLayout = useCallback(() => {
     isLayoutEditingRef.current = true;
+    const current = workspace.draft ?? active;
+    if (canvasReworkEnabled && current?.activeMode === "canvas") {
+      isLayoutEditingRef.current = false;
+      workspace.commit(commitCanvasReworkLayout(current));
+      setLayoutMode("study");
+      return;
+    }
+
     workspace.saveUnlocked();
     setLayoutMode("setup");
-  }, [workspace]);
+  }, [active, canvasReworkEnabled, workspace]);
 
   const lockWorkspaceLayout = useCallback(() => {
     const current = workspace.draft ?? active;
@@ -592,18 +623,29 @@ export function BinderReaderPage() {
     const viewport = readWorkspaceViewport(workspaceRootRef.current);
     const updatedAt = new Date().toISOString();
     isLayoutEditingRef.current = false;
-    commitWorkspacePreferences({
-      ...current,
-      locked: true,
-      viewportFit: {
-        width: viewport.width,
-        height: viewport.height,
-        updatedAt,
-      },
-      updatedAt,
-    });
+    commitWorkspacePreferences(
+      canvasReworkEnabled && current.activeMode === "canvas"
+        ? {
+            ...commitCanvasReworkLayout(current),
+            viewportFit: {
+              width: viewport.width,
+              height: viewport.height,
+              updatedAt,
+            },
+          }
+        : {
+            ...current,
+            locked: true,
+            viewportFit: {
+              width: viewport.width,
+              height: viewport.height,
+              updatedAt,
+            },
+            updatedAt,
+          },
+    );
     setLayoutMode("study");
-  }, [active, commitWorkspacePreferences, workspace]);
+  }, [active, canvasReworkEnabled, commitWorkspacePreferences, workspace]);
 
   const cancelLayoutEditing = useCallback(() => {
     const shouldRemainInSetup = workspace.saved?.activeMode === "canvas" && workspace.saved?.locked === false;
@@ -638,34 +680,38 @@ export function BinderReaderPage() {
   const resetWorkspaceLayout = useCallback(() => {
     const viewport = getWorkspaceViewport();
     updateWorkspace((current) =>
-      preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, current.preset, viewport), {
-        usePresetRecipe: true,
-        viewport,
-      }),
+      canvasReworkEnabled && current.activeMode === "canvas"
+        ? resetCanvasReworkLayoutToStarter(current, viewport)
+        : preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, current.preset, viewport), {
+            usePresetRecipe: true,
+            viewport,
+          }),
     );
     setLayoutMode("setup");
-  }, [getWorkspaceViewport, updateWorkspace]);
+  }, [canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
   const applyWorkspacePreset = useCallback(
     (presetId: WorkspacePresetId) => {
       const viewport = getWorkspaceViewport();
       updateWorkspace((current) =>
-        preserveClassicCanvasForFacelift(
-          current,
-          applyPresetToViewport(current, presetId, viewport, {
-            preserveManualCanvasComposition: !revampBetaEnabled,
-          }),
-          {
-            usePresetRecipe: true,
-            viewport,
-          },
-        ),
+        canvasReworkEnabled && current.activeMode === "canvas"
+          ? applyCanvasReworkStarterLayoutToViewport(current, presetId, viewport)
+          : preserveClassicCanvasForFacelift(
+              current,
+              applyPresetToViewport(current, presetId, viewport, {
+                preserveManualCanvasComposition: !revampBetaEnabled,
+              }),
+              {
+                usePresetRecipe: true,
+                viewport,
+              },
+            ),
       );
       if (revampBetaEnabled) {
         setPreferencesOpen(false);
       }
     },
-    [getWorkspaceViewport, revampBetaEnabled, updateWorkspace],
+    [canvasReworkEnabled, getWorkspaceViewport, revampBetaEnabled, updateWorkspace],
   );
 
   useEffect(() => {
@@ -713,7 +759,11 @@ export function BinderReaderPage() {
     }
     revampLessonEntryGuardRef.current = lessonEntryKey;
 
-    if (searchParams.get("open") === "whiteboard" || active.preset !== "math-practice-mode") {
+    if (
+      searchParams.get("open") === "whiteboard" ||
+      active.preset !== "math-practice-mode" ||
+      (canvasReworkEnabled && active.canvas.layoutSource === "custom")
+    ) {
       return;
     }
 
@@ -727,6 +777,7 @@ export function BinderReaderPage() {
     active,
     active?.preset,
     binderId,
+    canvasReworkEnabled,
     getWorkspaceViewport,
     revampBetaEnabled,
     searchParams,
@@ -741,9 +792,11 @@ export function BinderReaderPage() {
 
     const viewport = getWorkspaceViewport();
     updateWorkspace((current) =>
-      preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport, { force: true })),
+      canvasReworkEnabled && current.activeMode === "canvas"
+        ? fitCanvasReworkLayoutToViewport(current, viewport)
+        : preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport, { force: true })),
     );
-  }, [active, getWorkspaceViewport, updateWorkspace]);
+  }, [active, canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
   const tidyWorkspaceLayout = useCallback(() => {
     if (!active || active.activeMode === "simple") {
@@ -752,9 +805,11 @@ export function BinderReaderPage() {
 
     const viewport = getWorkspaceViewport();
     updateWorkspace((current) =>
-      preserveClassicCanvasForFacelift(current, tidyWorkspaceToViewport(current, viewport)),
+      canvasReworkEnabled && current.activeMode === "canvas"
+        ? tidyCanvasReworkLayoutToViewport(current, viewport)
+        : preserveClassicCanvasForFacelift(current, tidyWorkspaceToViewport(current, viewport)),
     );
-  }, [active, getWorkspaceViewport, updateWorkspace]);
+  }, [active, canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
   const addCanvasSpaceBelow = useCallback(() => {
     if (!active || active.activeMode !== "canvas") {
@@ -770,7 +825,7 @@ export function BinderReaderPage() {
         ),
       );
       if (isFaceliftCanvasPreferences(current)) {
-        return {
+        const next: WorkspacePreferences = {
           ...current,
           facelift: {
             ...current.facelift,
@@ -781,11 +836,14 @@ export function BinderReaderPage() {
           },
           theme: {
             ...current.theme,
-            verticalSpace: "infinite",
+            verticalSpace: "infinite" as const,
           },
         };
+        return canvasReworkEnabled
+          ? recordCanvasReworkLayoutChange(next, "add-space-below")
+          : next;
       }
-      return {
+      const next: WorkspacePreferences = {
         ...current,
         canvas: {
           ...current.canvas,
@@ -793,11 +851,14 @@ export function BinderReaderPage() {
         },
         theme: {
           ...current.theme,
-          verticalSpace: "infinite",
+          verticalSpace: "infinite" as const,
         },
       };
+      return canvasReworkEnabled
+        ? recordCanvasReworkLayoutChange(next, "add-space-below")
+        : next;
     });
-  }, [active, getWorkspaceViewport, updateWorkspace]);
+  }, [active, canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
   const toggleCanvasSnapMode = useCallback(() => {
     if (!active || active.activeMode !== "canvas") {
@@ -818,6 +879,34 @@ export function BinderReaderPage() {
         },
       };
     });
+  }, [active, updateWorkspace]);
+
+  const toggleCanvasGridMode = useCallback(() => {
+    if (!active || active.activeMode !== "canvas") {
+      return;
+    }
+
+    updateWorkspace((current) => ({
+      ...current,
+      canvas: {
+        ...current.canvas,
+        gridEnabled: !current.canvas.gridEnabled,
+      },
+    }));
+  }, [active, updateWorkspace]);
+
+  const toggleCanvasGuides = useCallback(() => {
+    if (!active || active.activeMode !== "canvas") {
+      return;
+    }
+
+    updateWorkspace((current) => ({
+      ...current,
+      canvas: {
+        ...current.canvas,
+        guidesEnabled: !current.canvas.guidesEnabled,
+      },
+    }));
   }, [active, updateWorkspace]);
 
   const toggleSafeEdgePadding = useCallback(() => {
@@ -888,11 +977,15 @@ export function BinderReaderPage() {
           view,
         );
 
-        return preserveClassicCanvasForFacelift(current, next);
+        const reworkNext = canvasReworkEnabled
+          ? recordCanvasReworkLayoutChange(next, "add-module")
+          : next;
+
+        return preserveClassicCanvasForFacelift(current, reworkNext);
       });
       trackWorkspaceModuleOpen(moduleId);
     },
-    [active, getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
+    [active, canvasReworkEnabled, getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
   );
 
   const toggleWorkspaceModuleCollapsed = useCallback(
@@ -914,13 +1007,47 @@ export function BinderReaderPage() {
         const restored = collapsed
           ? next
           : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
-        return preserveClassicCanvasForFacelift(current, restored);
+        const reworkNext = canvasReworkEnabled
+          ? recordCanvasReworkLayoutChange(restored, collapsed ? "remove-module" : "add-module")
+          : restored;
+        return preserveClassicCanvasForFacelift(current, reworkNext);
       });
       if (!collapsed) {
         trackWorkspaceModuleOpen(moduleId, "module_expanded");
       }
     },
-    [getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
+    [canvasReworkEnabled, getWorkspaceCanvasView, trackWorkspaceModuleOpen, updateWorkspace],
+  );
+
+  const removeWorkspaceModuleFromCanvas = useCallback(
+    (moduleId: WorkspaceModuleId) => {
+      if (!active || active.activeMode !== "canvas") {
+        return;
+      }
+
+      updateWorkspace((current) => {
+        const next: WorkspacePreferences = {
+          ...current,
+          canvas: {
+            ...current.canvas,
+            customModules: current.canvas.customModules.filter((id) => id !== moduleId),
+          },
+          moduleLayout: {
+            ...current.moduleLayout,
+            [moduleId]: {
+              ...current.moduleLayout[moduleId],
+              span: current.moduleLayout[moduleId]?.span ?? "auto",
+              collapsed: true,
+            },
+          },
+        };
+
+        return canvasReworkEnabled
+          ? recordCanvasReworkLayoutChange(next, "remove-module")
+          : next;
+      });
+    },
+    [active, canvasReworkEnabled, updateWorkspace],
   );
 
   const ensureModulesVisible = useCallback(
@@ -977,12 +1104,32 @@ export function BinderReaderPage() {
 
   const ensureNotesVisible = useCallback(() => {
     const viewport = getWorkspaceViewport();
-    updateWorkspace((current) =>
-      current.enabledModules.includes("private-notes")
+    updateWorkspace((current) => {
+      if (
+        canvasReworkEnabled &&
+        current.activeMode === "canvas" &&
+        current.canvas.layoutSource === "custom"
+      ) {
+        return current.enabledModules.includes("private-notes")
+          ? current
+          : recordCanvasReworkLayoutChange(
+              ensureWorkspaceModuleVisibleOnCanvas(
+                {
+                  ...current,
+                  enabledModules: [...current.enabledModules, "private-notes"],
+                },
+                "private-notes",
+                { ...viewport, scrollLeft: 0, scrollTop: 0 },
+              ),
+              "add-module",
+            );
+      }
+
+      return current.enabledModules.includes("private-notes")
         ? current
-        : applyPresetToViewport(current, "split-study", viewport),
-    );
-  }, [getWorkspaceViewport, updateWorkspace]);
+        : applyPresetToViewport(current, "split-study", viewport);
+    });
+  }, [canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
   const enterNotebookFocus = useCallback(() => {
     const viewport = getWorkspaceViewport();
@@ -1332,12 +1479,20 @@ export function BinderReaderPage() {
     (viewMode: WorkspaceViewMode) => {
       const viewport = getWorkspaceViewport();
       saveWorkspaceViewPreference(viewMode);
-      updateWorkspace((current) =>
-        applyWorkspaceViewModeToViewport(current, viewMode, viewport),
-      );
+      updateWorkspace((current) => {
+        if (
+          canvasReworkEnabled &&
+          viewMode === "canvas" &&
+          current.canvas.layoutSource === "custom"
+        ) {
+          return applyWorkspaceMode(current, "canvas");
+        }
+
+        return applyWorkspaceViewModeToViewport(current, viewMode, viewport);
+      });
       setPreferencesOpen(false);
     },
-    [getWorkspaceViewport, updateWorkspace],
+    [canvasReworkEnabled, getWorkspaceViewport, updateWorkspace],
   );
 
   const applyStarterChoice = useCallback(
@@ -1361,7 +1516,10 @@ export function BinderReaderPage() {
                   choice.presentation === "classic-canvas" ? "canvas" : "simple",
                   viewport,
                 );
-        const presetAdjusted = applyPresetToViewport(modeAdjusted, choice.presetId, viewport);
+        const presetAdjusted =
+          canvasReworkEnabled && choice.presentation === "classic-canvas"
+            ? applyCanvasReworkStarterLayoutToViewport(modeAdjusted, choice.presetId, viewport)
+            : applyPresetToViewport(modeAdjusted, choice.presetId, viewport);
         return preserveClassicCanvasForFacelift(current, presetAdjusted, {
           usePresetRecipe: choice.presentation.startsWith("facelift"),
           viewport,
@@ -1369,7 +1527,7 @@ export function BinderReaderPage() {
       });
       setPreferencesOpen(false);
     },
-    [getWorkspaceViewport, updateWorkspace],
+    [canvasReworkEnabled, getWorkspaceViewport, updateWorkspace],
   );
 
   const toggleFocusMode = useCallback(() => {
@@ -1456,6 +1614,23 @@ export function BinderReaderPage() {
         ? `${binderQuery.data.binder.title} - ${selectedLesson.title}`
         : "Source lesson",
     [binderQuery.data, selectedLesson],
+  );
+  const buildCurrentSourceReference = useCallback(
+    (excerpt?: string | null) => {
+      if (!sourceLinkedNotesBeta || !binderQuery.data || !selectedLesson) {
+        return undefined;
+      }
+
+      return {
+        binderId: binderQuery.data.binder.id,
+        binderTitle: binderQuery.data.binder.title,
+        lessonId: selectedLesson.id,
+        lessonTitle: selectedLesson.title,
+        excerpt: excerpt?.trim() || null,
+        sourceUrl: `/binders/${binderQuery.data.binder.id}/documents/${selectedLesson.id}`,
+      };
+    },
+    [binderQuery.data, selectedLesson, sourceLinkedNotesBeta],
   );
 
   const pushExpressionToGraph = useCallback(
@@ -2118,9 +2293,10 @@ export function BinderReaderPage() {
         kind: "linked-excerpt",
         excerpt: anchorText,
         sourceLabel,
+        source: buildCurrentSourceReference(anchorText),
       });
     },
-    [queueNoteInsert, sourceLabel],
+    [buildCurrentSourceReference, queueNoteInsert, sourceLabel],
   );
 
   const handleCreateQuoteExcerpt = useCallback(
@@ -2133,9 +2309,10 @@ export function BinderReaderPage() {
         kind: "quote-response",
         excerpt: anchorText,
         sourceLabel,
+        source: buildCurrentSourceReference(anchorText),
       });
     },
-    [queueNoteInsert, sourceLabel],
+    [buildCurrentSourceReference, queueNoteInsert, sourceLabel],
   );
 
   const handleSendStickyToNotes = useCallback(
@@ -2145,9 +2322,33 @@ export function BinderReaderPage() {
         anchorText: comment.anchor_text,
         body: comment.body.trim() || "Review this sticky note.",
         sourceLabel,
+        source: buildCurrentSourceReference(comment.anchor_text ?? comment.body),
       });
     },
-    [queueNoteInsert, sourceLabel],
+    [buildCurrentSourceReference, queueNoteInsert, sourceLabel],
+  );
+
+  const handleAddSelectionToReview = useCallback(
+    (selection: LessonTextSelection) => {
+      if (!profile?.id || !binderQuery.data || !selectedLesson || !selection.text.trim()) {
+        return;
+      }
+
+      createStudyItem({
+        answer: selection.text.trim(),
+        betaEnabled: reviewQueueBeta,
+        binderId: binderQuery.data.binder.id,
+        binderTitle: binderQuery.data.binder.title,
+        ownerId: profile.id,
+        prompt: "Explain this source passage in your own words.",
+        sourceExcerpt: selection.text.trim(),
+        sourceId: selectedLesson.id,
+        sourceKind: "highlight",
+        sourceTitle: selectedLesson.title,
+        type: "highlight_recall",
+      });
+    },
+    [binderQuery.data, profile?.id, reviewQueueBeta, selectedLesson],
   );
 
   const jumpToLessonAnchor = useCallback((anchorId: string) => {
@@ -2290,8 +2491,8 @@ export function BinderReaderPage() {
 
   const handleWorkspaceCanvasHeightChange = useCallback(
     (canvasHeight: number) =>
-      updateWorkspace((current) =>
-        isFaceliftCanvasPreferences(current)
+      updateWorkspace((current) => {
+        const next = isFaceliftCanvasPreferences(current)
           ? {
               ...current,
               facelift: {
@@ -2308,18 +2509,27 @@ export function BinderReaderPage() {
                 ...current.canvas,
                 canvasHeight,
               },
-            },
-      ),
-    [updateWorkspace],
+            };
+
+        return canvasReworkEnabled && current.activeMode === "canvas"
+          ? recordCanvasReworkLayoutChange(next, "add-space-below")
+          : next;
+      }),
+    [canvasReworkEnabled, updateWorkspace],
   );
   const handleWorkspaceFrameCommit = useCallback(
     (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) =>
-      updateWorkspace((current) => writeWorkspaceFrame(current, moduleId, frame)),
-    [updateWorkspace],
+      updateWorkspace((current) => {
+        const next = writeWorkspaceFrame(current, moduleId, frame);
+        return canvasReworkEnabled && current.activeMode === "canvas"
+          ? recordCanvasReworkLayoutChange(next, "manual-drag")
+          : next;
+      }),
+    [canvasReworkEnabled, updateWorkspace],
   );
   const handleWorkspaceFitViewport = useCallback(
     (viewport: { width: number; height: number }) => {
-      if (isLayoutEditingRef.current) {
+      if (isLayoutEditingRef.current || canvasReworkEnabled) {
         return;
       }
 
@@ -2327,7 +2537,7 @@ export function BinderReaderPage() {
         preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport)),
       );
     },
-    [updateWorkspace],
+    [canvasReworkEnabled, updateWorkspace],
   );
 
   if (!profile) {
@@ -2380,6 +2590,7 @@ export function BinderReaderPage() {
   const activeFocusMode = workspaceFocusMode;
   const showCompactModeSwitcher = compactStudyChrome && !isLayoutEditing;
   const hideDuplicateSimpleTopbarActions = (compactStudyChrome || studentCalmMode) && isSimpleMode;
+  const hideLegacyCanvasReworkTopbarActions = canvasReworkEnabled && isCanvasMode;
   const starterChoices = getWorkspaceStarterChoices({
     binderSubject: binderQuery.data.binder.subject,
     historyEnabled,
@@ -2422,6 +2633,8 @@ export function BinderReaderPage() {
     canvasStarterLayouts,
     mathPerformanceLazyLoading,
     recallLabEnabled,
+    sourceLinkedNotesBeta,
+    reviewQueueBeta,
     studentCalmMode,
     onEnterWhiteboardFocus: activeFocusMode ? undefined : enterWorkspaceFocus,
     onExitWhiteboardFocus: activeFocusMode ? exitWorkspaceFocus : undefined,
@@ -2682,6 +2895,7 @@ export function BinderReaderPage() {
       }));
     },
     onSendStickyToNotes: handleSendStickyToNotes,
+    onAddSelectionToReview: handleAddSelectionToReview,
     onAcceptMathSuggestion: (suggestion) => {
       setDismissedMath((current) => [...current, suggestion.key]);
       if (suggestion.kind === "latex") {
@@ -2807,6 +3021,11 @@ export function BinderReaderPage() {
     <main
       className="workspace-page"
       data-canvas-starter-layouts={canvasStarterLayouts ? "true" : "false"}
+      data-beta-canvas-rework={canvasReworkEnabled ? "true" : "false"}
+      data-beta-compact-excalidraw-tools={compactExcalidrawToolsEnabled ? "true" : "false"}
+      data-beta-desmos-v2={desmosV2Enabled ? "true" : "false"}
+      data-beta-whiteboard-performance-diagnostics={whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"}
+      data-beta-whiteboard-smooth-move={whiteboardSmoothMoveEnabled ? "true" : "false"}
       data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
       data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}
       data-maximize-module-space={active.theme.compactMode ? "true" : "false"}
@@ -2875,6 +3094,18 @@ export function BinderReaderPage() {
           {showTopbarUtilityUi ? (
               <div className="workspace-topbar__meta">
                 <Badge variant="outline">Study workspace</Badge>
+                {canvasReworkEnabled && isCanvasMode ? (
+                  <>
+                    <Badge variant="secondary">Canvas Rework</Badge>
+                    <Badge variant={active.canvas.layoutSource === "custom" ? "default" : "outline"}>
+                      {isLayoutEditing
+                        ? "Unsaved edits"
+                        : active.canvas.layoutSource === "custom"
+                          ? "Custom layout"
+                          : "Starter layout"}
+                    </Badge>
+                  </>
+                ) : null}
                 <Badge variant="secondary">
                   {isLayoutEditing ? "Edit mode" : active.locked ? "Locked" : "Studio"}
                 </Badge>
@@ -3056,9 +3287,29 @@ export function BinderReaderPage() {
                     <ShieldCheck data-icon="inline-start" />
                     Safe edge {active.canvas.safeEdgePadding ? "on" : "off"}
                   </Button>
+                  {canvasReworkEnabled ? (
+                    <>
+                      <Button
+                        onClick={toggleCanvasGridMode}
+                        size="sm"
+                        type="button"
+                        variant={active.canvas.gridEnabled ? "default" : "outline"}
+                      >
+                        Grid {active.canvas.gridEnabled ? "on" : "off"}
+                      </Button>
+                      <Button
+                        onClick={toggleCanvasGuides}
+                        size="sm"
+                        type="button"
+                        variant={active.canvas.guidesEnabled ? "default" : "outline"}
+                      >
+                        Guides {active.canvas.guidesEnabled ? "on" : "off"}
+                      </Button>
+                    </>
+                  ) : null}
                 </>
               ) : null}
-              {isWindowedWorkspace ? (
+              {isWindowedWorkspace && !hideLegacyCanvasReworkTopbarActions ? (
                 <>
                   <Button onClick={fitWorkspaceToScreen} size="sm" type="button" variant="outline">
                     <Maximize2 data-icon="inline-start" />
@@ -3074,7 +3325,7 @@ export function BinderReaderPage() {
                   </Button>
                 </>
               ) : null}
-              {!hideDuplicateSimpleTopbarActions ? (
+              {!hideDuplicateSimpleTopbarActions && !hideLegacyCanvasReworkTopbarActions ? (
                 <Button
                   aria-label="New sticky"
                   onClick={() => void createSticky(null, "")}
@@ -3444,19 +3695,29 @@ export function BinderReaderPage() {
             >
               <WindowedWorkspace
                 canvasStarterLayouts={canvasStarterLayouts}
+                canvasReworkEnabled={canvasReworkEnabled}
+                compactExcalidrawToolsEnabled={compactExcalidrawToolsEnabled}
                 context={context}
+                desmosV2Enabled={desmosV2Enabled}
                 layoutScope="lesson"
                 mode={isLayoutEditing ? "setup" : "study"}
+                onAddSpaceBelow={addCanvasSpaceBelow}
                 onApplyStarterPreset={applyWorkspacePreset}
                 onBackToSimple={() => applyModeChoice("simple")}
                 onCanvasHeightChange={handleWorkspaceCanvasHeightChange}
                 onCommitFrame={handleWorkspaceFrameCommit}
                 onFitViewport={handleWorkspaceFitViewport}
                 onOpenModule={openWorkspaceModule}
+                onRemoveModule={removeWorkspaceModuleFromCanvas}
                 onResetLayout={resetWorkspaceLayout}
                 onResetView={fitWorkspaceToScreen}
+                onTidyLayout={tidyWorkspaceLayout}
+                onToggleGrid={toggleCanvasGridMode}
+                onToggleGuides={toggleCanvasGuides}
                 onToggleCollapsed={toggleWorkspaceModuleCollapsed}
                 preferences={getWindowedWorkspaceRenderPreferences(active)}
+                whiteboardPerformanceDiagnosticsEnabled={whiteboardPerformanceDiagnosticsEnabled}
+                whiteboardSmoothMoveEnabled={whiteboardSmoothMoveEnabled}
               />
             </WorkspaceRenderBoundary>
           </section>

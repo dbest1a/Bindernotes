@@ -2,8 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BringToFront,
   Eye,
+  Grid2X2,
   Layers3,
   Minimize2,
+  Move,
+  PanelRightOpen,
+  Plus,
   RotateCcw,
   SendToBack,
   Sparkles,
@@ -21,6 +25,7 @@ import {
   getWorkspaceModuleMinimumSize,
   type WorkspaceSnapGuide,
 } from "@/lib/workspace-layout-engine";
+import { recordWhiteboardPerformanceDiagnostic, setWorkspaceMovementActive } from "@/lib/whiteboard-performance-diagnostics";
 import { resolveVerticalWorkspaceMetrics } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
 import type { WorkspaceModuleId, WorkspacePreferences, WorkspacePresetId, WorkspaceWindowFrame } from "@/types";
@@ -29,19 +34,38 @@ const EDIT_LAYOUT_HINT_DURATION_MS = 30_000;
 
 export function WindowedWorkspace({
   canvasStarterLayouts = false,
+  canvasReworkEnabled = false,
+  compactExcalidrawToolsEnabled = false,
   context,
+  desmosV2Enabled = false,
+  layoutScope = "lesson",
   mode,
   preferences,
+  onAddSpaceBelow,
+  onApplyStarterPreset,
+  onBackToSimple,
   onCommitFrame,
   onCanvasHeightChange,
   onFitViewport,
   onOpenModule,
+  onRemoveModule,
+  onResetLayout,
+  onResetView,
+  onTidyLayout,
+  onToggleGrid,
+  onToggleGuides,
   onToggleCollapsed,
+  whiteboardPerformanceDiagnosticsEnabled = false,
+  whiteboardSmoothMoveEnabled = false,
 }: {
   canvasStarterLayouts?: boolean;
+  canvasReworkEnabled?: boolean;
+  compactExcalidrawToolsEnabled?: boolean;
   context: WorkspaceModuleContext;
+  desmosV2Enabled?: boolean;
   layoutScope?: "global" | "binder" | "lesson";
   mode: "study" | "setup";
+  onAddSpaceBelow?: () => void;
   onApplyStarterPreset?: (presetId: WorkspacePresetId) => void;
   onBackToSimple?: () => void;
   preferences: WorkspacePreferences;
@@ -49,9 +73,15 @@ export function WindowedWorkspace({
   onCommitFrame: (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => void;
   onFitViewport: (viewport: { width: number; height: number }) => void;
   onOpenModule?: (moduleId: WorkspaceModuleId) => void;
+  onRemoveModule?: (moduleId: WorkspaceModuleId) => void;
   onResetLayout?: () => void;
   onResetView?: () => void;
+  onTidyLayout?: () => void;
+  onToggleGrid?: () => void;
+  onToggleGuides?: () => void;
   onToggleCollapsed: (moduleId: WorkspaceModuleId, collapsed: boolean) => void;
+  whiteboardPerformanceDiagnosticsEnabled?: boolean;
+  whiteboardSmoothMoveEnabled?: boolean;
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const pendingSnapGuidesRef = useRef<WorkspaceSnapGuide[] | null>(null);
@@ -63,8 +93,18 @@ export function WindowedWorkspace({
   const [draftCanvasHeight, setDraftCanvasHeight] = useState(preferences.canvas.canvasHeight);
   const [snapGuides, setSnapGuides] = useState<WorkspaceSnapGuide[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState<WorkspaceModuleId | null>(null);
+  const [activeMobileModuleId, setActiveMobileModuleId] = useState<WorkspaceModuleId | null>(null);
+  const [movingModuleId, setMovingModuleId] = useState<WorkspaceModuleId | null>(null);
   const [showEditHints, setShowEditHints] = useState(mode === "setup" && !isFaceliftCanvas);
   const stickyComments = context.comments ?? [];
+  const smoothMovementEnabled = desmosV2Enabled || whiteboardSmoothMoveEnabled;
+
+  useEffect(
+    () => () => {
+      setWorkspaceMovementActive(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     setDraftCanvasHeight((current) => Math.max(current, preferences.canvas.canvasHeight));
@@ -114,8 +154,13 @@ export function WindowedWorkspace({
     return () => window.clearTimeout(timeoutId);
   }, [isFaceliftCanvas, mode]);
 
+  const isCanvasReworkCustomLayout =
+    canvasReworkEnabled && preferences.canvas.layoutSource === "custom";
   const shouldLockSplitCanvasToViewport =
-    mode === "study" && preferences.locked && preferences.preset === "split-study";
+    mode === "study" &&
+    preferences.locked &&
+    preferences.preset === "split-study" &&
+    !isCanvasReworkCustomLayout;
   const splitStudyViewportLayout = useMemo(
     () =>
       shouldLockSplitCanvasToViewport && viewportSize.width > 0 && viewportSize.height > 0
@@ -160,6 +205,10 @@ export function WindowedWorkspace({
         ? allModuleIds.filter((moduleId) => !isIrrelevantJacobMathModule(moduleId))
         : allModuleIds,
     [allModuleIds, isJacobMathCanvasContext],
+  );
+  const launcherGroups = useMemo(
+    () => groupCanvasModuleShelf(launcherModuleIds, context),
+    [context, launcherModuleIds],
   );
   const showCollapsedWindowTray =
     collapsedModules.length > 0 && !preferences.theme.focusMode && !isFaceliftCanvas;
@@ -216,9 +265,17 @@ export function WindowedWorkspace({
         viewportSize.height > 0 ? verticalMetrics.canvasFloor : 0,
         frameBounds.maxY + verticalMetrics.canvasPadding,
       );
+  const canvasWidthStyle = shouldLockCanvasToViewport
+    ? `${canvasWidth}px`
+    : "100%";
   const topZ = Math.max(1, ...frames.map((frame) => frame?.z ?? 1));
   const selectedFrame = selectedModuleId ? preferences.windowLayout[selectedModuleId] : null;
   const selectedModule = selectedModuleId ? workspaceModuleRegistry[selectedModuleId] : null;
+  const activeMobileModule =
+    activeMobileModuleId && visibleModules.includes(activeMobileModuleId)
+      ? activeMobileModuleId
+      : visibleModules[0] ?? null;
+  const isMobileCanvasRework = canvasReworkEnabled && viewportSize.width > 0 && viewportSize.width < 700;
   const snapBehavior =
     preferences.canvas.snapBehavior !== "off"
       ? preferences.canvas.snapBehavior
@@ -257,6 +314,18 @@ export function WindowedWorkspace({
       setSnapGuides((currentGuides) => (snapGuidesEqual(currentGuides, nextGuides) ? currentGuides : nextGuides));
     });
   }, []);
+
+  const handleInteractionChange = useCallback(
+    (state: { active: boolean; mode: "move" | "resize"; moduleId: WorkspaceModuleId }) => {
+      setMovingModuleId(state.active ? state.moduleId : null);
+      setWorkspaceMovementActive(state.active);
+      recordWhiteboardPerformanceDiagnostic(state.active ? "whiteboard-drag-start" : "whiteboard-drag-commit", {
+        mode: state.mode,
+        moduleId: state.moduleId,
+      });
+    },
+    [],
+  );
 
   useEffect(
     () => () => {
@@ -312,8 +381,64 @@ export function WindowedWorkspace({
     }));
   }, [commitSelectedFrame, selectedModuleId, topZ]);
 
+  const layoutSourceLabel =
+    mode === "setup"
+      ? preferences.canvas.layoutSource === "custom"
+        ? "Unsaved edits"
+        : "Starter layout"
+      : preferences.canvas.layoutSource === "custom"
+        ? "Custom layout"
+        : "Starter layout";
+  const activeLayoutName = starterLayoutName(preferences.preset);
+  const renderShelfButton = (moduleId: WorkspaceModuleId) => {
+    const module = workspaceModuleRegistry[moduleId];
+    const enabled = preferences.enabledModules.includes(moduleId);
+    const collapsed = collapsedModules.includes(moduleId);
+    const visible = visibleModules.includes(moduleId);
+    const title = module?.title ?? moduleId;
+    const actionLabel = collapsed
+      ? `Restore ${title}`
+      : visible
+        ? `Select ${title}`
+        : `Add ${title}`;
+
+    return (
+      <Button
+        aria-label={actionLabel}
+        className="workspace-layout-builder-panel__module-button"
+        disabled={!enabled && !onOpenModule}
+        key={moduleId}
+        onClick={() => {
+          if (collapsed) {
+            onToggleCollapsed(moduleId, false);
+            setSelectedModuleId(moduleId);
+            return;
+          }
+
+          if (visible) {
+            setSelectedModuleId(moduleId);
+            return;
+          }
+
+          onOpenModule?.(moduleId);
+          setSelectedModuleId(moduleId);
+        }}
+        size="sm"
+        type="button"
+        variant={visible ? "default" : collapsed ? "outline" : "ghost"}
+      >
+        <Layers3 data-icon="inline-start" />
+        <span>{title}</span>
+        <span className="workspace-layout-builder-panel__status">
+          {visible ? "Visible" : collapsed ? "Minimized" : "Add"}
+        </span>
+      </Button>
+    );
+  };
+
   useEffect(() => {
     if (
+      canvasReworkEnabled ||
       mode !== "study" ||
       !preferences.locked ||
       preferences.activeMode === "simple" ||
@@ -341,6 +466,7 @@ export function WindowedWorkspace({
 
     return () => window.clearTimeout(timeoutId);
   }, [
+    canvasReworkEnabled,
     mode,
     onFitViewport,
     preferences.activeMode,
@@ -353,7 +479,7 @@ export function WindowedWorkspace({
 
   return (
     <section
-      className="flex min-h-0 flex-1 flex-col gap-4"
+      className="flex min-h-0 w-full flex-1 flex-col gap-4"
       data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
       data-facelift-density={preferences.workspacePresentationMode === "facelift" ? preferences.facelift.density : undefined}
       data-facelift-module-chrome={
@@ -370,68 +496,130 @@ export function WindowedWorkspace({
       data-workspace-focus-mode={preferences.theme.focusMode ? "on" : "off"}
       data-workspace-edit-hints={showEditHints ? "on" : "off"}
       data-canvas-starter-layouts={canvasStarterLayouts ? "true" : "false"}
+      data-beta-canvas-rework={canvasReworkEnabled ? "true" : "false"}
+      data-beta-compact-excalidraw-tools={compactExcalidrawToolsEnabled ? "true" : "false"}
+      data-beta-desmos-v2={desmosV2Enabled ? "true" : "false"}
+      data-beta-whiteboard-performance-diagnostics={whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"}
+      data-beta-whiteboard-smooth-move={whiteboardSmoothMoveEnabled ? "true" : "false"}
+      data-canvas-layout-source={preferences.canvas.layoutSource}
+      data-canvas-layout-scope={layoutScope}
+      data-workspace-dragging={movingModuleId ? "true" : "false"}
+      data-workspace-dragging-module={movingModuleId ?? undefined}
     >
+      {canvasReworkEnabled ? (
+        <section className="canvas-rework-topbar" aria-label="Canvas Rework workspace controls">
+          <div className="canvas-rework-topbar__summary">
+            <p className="canvas-rework-topbar__eyebrow">Canvas Rework</p>
+            <div className="canvas-rework-topbar__title-row">
+              <h2>{activeLayoutName}</h2>
+              <span className="canvas-rework-badge" data-layout-source={preferences.canvas.layoutSource}>
+                {layoutSourceLabel}
+              </span>
+            </div>
+          </div>
+          <div className="canvas-rework-topbar__actions">
+            {onApplyStarterPreset ? (
+              <Button
+                onClick={() => onApplyStarterPreset(preferences.canvas.activePresetId ?? preferences.preset)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Sparkles data-icon="inline-start" />
+                Starter
+              </Button>
+            ) : null}
+            {onResetView ? (
+              <Button onClick={onResetView} size="sm" type="button" variant="outline">
+                <PanelRightOpen data-icon="inline-start" />
+                Fit visible
+              </Button>
+            ) : null}
+            {onTidyLayout ? (
+              <Button onClick={onTidyLayout} size="sm" type="button" variant="outline">
+                <Move data-icon="inline-start" />
+                Tidy
+              </Button>
+            ) : null}
+            {onResetLayout ? (
+              <Button onClick={onResetLayout} size="sm" type="button" variant="ghost">
+                <RotateCcw data-icon="inline-start" />
+                Reset to starter
+              </Button>
+            ) : null}
+            {mode === "setup" && onAddSpaceBelow ? (
+              <Button onClick={onAddSpaceBelow} size="sm" type="button" variant="outline">
+                <Plus data-icon="inline-start" />
+                Add space below
+              </Button>
+            ) : null}
+            {mode === "setup" && onToggleGrid ? (
+              <Button
+                onClick={onToggleGrid}
+                size="sm"
+                type="button"
+                variant={preferences.canvas.gridEnabled ? "default" : "outline"}
+              >
+                <Grid2X2 data-icon="inline-start" />
+                Grid {preferences.canvas.gridEnabled ? "on" : "off"}
+              </Button>
+            ) : null}
+            {mode === "setup" && onToggleGuides ? (
+              <Button
+                onClick={onToggleGuides}
+                size="sm"
+                type="button"
+                variant={preferences.canvas.guidesEnabled ? "default" : "outline"}
+              >
+                <Layers3 data-icon="inline-start" />
+                Guides {preferences.canvas.guidesEnabled ? "on" : "off"}
+              </Button>
+            ) : null}
+            {onBackToSimple ? (
+              <Button onClick={onBackToSimple} size="sm" type="button" variant="ghost">
+                Back to Simple
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       {mode === "setup" && preferences.theme.showUtilityUi ? (
-        <section className="workspace-layout-builder-panel" aria-label="Edit layout module launcher">
+        <section
+          className="workspace-layout-builder-panel"
+          aria-label={canvasReworkEnabled ? "Canvas Rework module shelf" : "Edit layout module launcher"}
+          data-testid={canvasReworkEnabled ? "canvas-rework-module-shelf" : undefined}
+        >
           <div className="workspace-layout-builder-panel__main">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Module launcher
+                {canvasReworkEnabled ? "Module shelf" : "Module launcher"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add, restore, or select modules without changing the whole layout.
+                {canvasReworkEnabled
+                  ? "Add modules as building blocks. Starter layouts will not reapply unless you ask."
+                  : "Add, restore, or select modules without changing the whole layout."}
               </p>
             </div>
             <div className="workspace-layout-builder-panel__modules">
-              {launcherModuleIds.map((moduleId) => {
-                const module = workspaceModuleRegistry[moduleId];
-                const enabled = preferences.enabledModules.includes(moduleId);
-                const collapsed = collapsedModules.includes(moduleId);
-                const visible = visibleModules.includes(moduleId);
-                const title = module?.title ?? moduleId;
-                const actionLabel = collapsed
-                  ? `Restore ${title}`
-                  : visible
-                    ? `Select ${title}`
-                    : `Add ${title}`;
-
-                return (
-                  <Button
-                    aria-label={actionLabel}
-                    className="workspace-layout-builder-panel__module-button"
-                    disabled={!enabled && !onOpenModule}
-                    key={moduleId}
-                    onClick={() => {
-                      if (collapsed) {
-                        onToggleCollapsed(moduleId, false);
-                        setSelectedModuleId(moduleId);
-                        return;
-                      }
-
-                      if (visible) {
-                        setSelectedModuleId(moduleId);
-                        return;
-                      }
-
-                      onOpenModule?.(moduleId);
-                      setSelectedModuleId(moduleId);
-                    }}
-                    size="sm"
-                    type="button"
-                    variant={visible ? "default" : collapsed ? "outline" : "ghost"}
-                  >
-                    <Layers3 data-icon="inline-start" />
-                    <span>{title}</span>
-                    <span className="workspace-layout-builder-panel__status">
-                      {visible ? "Visible" : collapsed ? "Minimized" : "Add"}
-                    </span>
-                  </Button>
-                );
-              })}
+              {canvasReworkEnabled
+                ? launcherGroups.map((group) => (
+                    <div className="canvas-rework-module-group" key={group.label}>
+                      <p className="canvas-rework-module-group__label">{group.label}</p>
+                      <div className="canvas-rework-module-group__items">
+                        {group.moduleIds.map(renderShelfButton)}
+                      </div>
+                    </div>
+                  ))
+                : launcherModuleIds.map(renderShelfButton)}
             </div>
           </div>
 
-          <div className="workspace-layout-builder-panel__inspector" data-selected-module={selectedModuleId ?? "none"}>
+          <div
+            className="workspace-layout-builder-panel__inspector"
+            data-selected-module={selectedModuleId ?? "none"}
+            data-testid={canvasReworkEnabled ? "canvas-rework-module-inspector" : undefined}
+          >
             {selectedModuleId && selectedFrame && selectedModule ? (
               <>
                 <div>
@@ -443,6 +631,37 @@ export function WindowedWorkspace({
                     x {Math.round(selectedFrame.x)} / y {Math.round(selectedFrame.y)} / w {Math.round(selectedFrame.w)} / h {Math.round(selectedFrame.h)}
                   </p>
                 </div>
+                {canvasReworkEnabled ? (
+                  <div className="canvas-rework-inspector-grid">
+                    {([
+                      ["x", "Selected module X"],
+                      ["y", "Selected module Y"],
+                      ["w", "Selected module width"],
+                      ["h", "Selected module height"],
+                    ] as const).map(([key, label]) => (
+                      <label key={key}>
+                        <span>{key.toUpperCase()}</span>
+                        <input
+                          aria-label={label}
+                          min={key === "w" || key === "h" ? 120 : 0}
+                          onChange={(event) => {
+                            const value = Number(event.currentTarget.value);
+                            if (!Number.isFinite(value)) {
+                              return;
+                            }
+                            commitSelectedFrame((currentFrame) => ({
+                              ...currentFrame,
+                              [key]: Math.round(value),
+                              z: Math.max(currentFrame.z, topZ + 1),
+                            }));
+                          }}
+                          type="number"
+                          value={Math.round(selectedFrame[key])}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="workspace-layout-builder-panel__actions">
                   <Button
                     aria-label={`Minimize ${selectedModule.title}`}
@@ -494,6 +713,17 @@ export function WindowedWorkspace({
                     <RotateCcw data-icon="inline-start" />
                     Reset size
                   </Button>
+                  {onRemoveModule ? (
+                    <Button
+                      aria-label={`Remove ${selectedModule.title} from canvas`}
+                      onClick={() => onRemoveModule(selectedModuleId)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -507,7 +737,7 @@ export function WindowedWorkspace({
 
       <div
         className={cn(
-          "workspace-canvas-shell relative min-h-[calc(100svh-7.25rem)] flex-1 overflow-auto rounded-[22px] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.94),hsl(var(--secondary)/0.32))] shadow-soft",
+          "workspace-canvas-shell relative min-h-[calc(100svh-7.25rem)] w-full flex-1 overflow-auto rounded-[22px] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.94),hsl(var(--secondary)/0.32))] shadow-soft",
           `workspace-canvas-shell--${preferences.theme.backgroundStyle}`,
           mode === "setup" && "workspace-canvas-shell-setup",
           preferences.theme.focusMode && "workspace-canvas-shell--focus",
@@ -516,10 +746,61 @@ export function WindowedWorkspace({
       >
         {visibleModules.length === 0 ? (
           <div className="flex h-full min-h-[720px] items-center justify-center p-8">
-            <EmptyState
-              description="Turn modules back on from layout edit mode to rebuild this workspace."
-              title="No modules are visible"
-            />
+            {canvasReworkEnabled ? (
+              <div className="canvas-rework-empty-state">
+                <EmptyState
+                  description="Choose a starter or add modules from the shelf to shape this study workspace."
+                  title="Build your study workspace"
+                />
+                <div className="canvas-rework-empty-state__actions">
+                  {([
+                    ["split-study", "Start with Source + Notes"],
+                    ["math-study", "Start with Math workspace"],
+                    ["math-graph-lab", "Start with Graph Lab"],
+                    ["math-practice-mode", "Start with Whiteboard"],
+                    ["history-source-evidence", "Start with History Evidence"],
+                  ] as Array<[WorkspacePresetId, string]>).map(([presetId, label]) => (
+                    <Button
+                      key={presetId}
+                      onClick={() => onApplyStarterPreset?.(presetId)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                description="Turn modules back on from layout edit mode to rebuild this workspace."
+                title="No modules are visible"
+              />
+            )}
+          </div>
+        ) : isMobileCanvasRework && activeMobileModule ? (
+          <div className="canvas-rework-mobile-stack" data-testid="canvas-rework-mobile-stack">
+            <p className="canvas-rework-mobile-stack__note">
+              Canvas editing works best on tablet or desktop.
+            </p>
+            <div className="canvas-rework-mobile-tabs" role="tablist" aria-label="Canvas modules">
+              {visibleModules.map((moduleId) => (
+                <button
+                  aria-selected={moduleId === activeMobileModule}
+                  className="canvas-rework-mobile-tabs__tab"
+                  key={moduleId}
+                  onClick={() => setActiveMobileModuleId(moduleId)}
+                  role="tab"
+                  type="button"
+                >
+                  {mobileModuleLabel(moduleId)}
+                </button>
+              ))}
+            </div>
+            <section className="canvas-rework-mobile-module">
+              {workspaceModuleRegistry[activeMobileModule]?.render(context)}
+            </section>
           </div>
         ) : (
           <div
@@ -527,11 +808,12 @@ export function WindowedWorkspace({
               "workspace-canvas relative",
               `workspace-canvas--${preferences.theme.backgroundStyle}`,
               mode === "setup" && "workspace-canvas--setup",
+              canvasReworkEnabled && mode === "setup" && preferences.canvas.gridEnabled && "workspace-canvas--grid-enabled",
             )}
             style={{
               height: canvasHeight,
               minWidth: canvasWidth,
-              width: canvasWidth,
+              width: canvasWidthStyle,
             }}
           >
             {mode === "setup" && !isFaceliftCanvas ? (
@@ -550,7 +832,7 @@ export function WindowedWorkspace({
               </div>
             ) : null}
 
-            {mode === "setup"
+            {mode === "setup" && preferences.canvas.guidesEnabled
               ? snapGuides.map((guide, index) => (
                   <div
                     className="pointer-events-none absolute z-[90] bg-primary/80 shadow-[0_0_0_1px_hsl(var(--background)/0.85)]"
@@ -598,6 +880,7 @@ export function WindowedWorkspace({
                     extendCanvasForFrame(nextFrame);
                     onCommitFrame(committedModuleId, nextFrame);
                   }}
+                  onInteractionChange={smoothMovementEnabled ? handleInteractionChange : undefined}
                   onSelect={setSelectedModuleId}
                   onSnapGuidesChange={handleSnapGuidesChange}
                   onToggleCollapsed={onToggleCollapsed}
@@ -605,6 +888,7 @@ export function WindowedWorkspace({
                   snapBehavior={snapBehavior}
                   snapEnabled={snapBehavior !== "off"}
                   safeEdgePadding={preferences.canvas.safeEdgePadding}
+                  smoothMovementEnabled={smoothMovementEnabled}
                   topZ={topZ}
                   workspaceStyle={preferences.workspaceStyle}
                 >
@@ -732,6 +1016,133 @@ function createSplitStudyViewportLayout(
       z: frames["private-notes"]?.z ?? 2,
     },
   };
+}
+
+function starterLayoutName(presetId: WorkspacePresetId) {
+  const names: Partial<Record<WorkspacePresetId, string>> = {
+    "split-study": "Source + Notes",
+    "notes-focus": "Notes Focus",
+    "annotation-mode": "Annotation",
+    "math-study": "Math Study",
+    "math-graph-lab": "Graph Lab",
+    "math-proof-concept": "Proof / Concept",
+    "math-practice-mode": "Problem Solving",
+    "full-math-canvas": "Full Math Canvas",
+    "history-guided": "History Guided",
+    "history-timeline-focus": "Timeline Focus",
+    "history-source-evidence": "Source Evidence",
+    "history-argument-builder": "Argument Builder",
+    "history-full-studio": "Full History Studio",
+  };
+
+  return names[presetId] ?? "Canvas Workspace";
+}
+
+function groupCanvasModuleShelf(moduleIds: WorkspaceModuleId[], context: WorkspaceModuleContext) {
+  const isMath = isJacobMathContext(context);
+  const groups = [
+    {
+      label: "General",
+      moduleIds: [
+        "lesson",
+        "private-notes",
+        "binder-notebook",
+        "formula-sheet",
+        "whiteboard",
+        "recent-highlights",
+        "comments",
+        "related-concepts",
+      ] as WorkspaceModuleId[],
+    },
+    {
+      label: "Math",
+      moduleIds: [
+        "math-blocks",
+        "desmos-graph",
+        "scientific-calculator",
+        "saved-graphs",
+        "formula-sheet",
+      ] as WorkspaceModuleId[],
+    },
+    {
+      label: "History",
+      moduleIds: [
+        "history-timeline",
+        "history-evidence",
+        "history-argument",
+        "history-myth-checks",
+      ] as WorkspaceModuleId[],
+    },
+    {
+      label: "Advanced",
+      moduleIds: moduleIds.filter(
+        (moduleId) =>
+          !moduleId.startsWith("history-") &&
+          ![
+            "lesson",
+            "private-notes",
+            "binder-notebook",
+            "formula-sheet",
+            "whiteboard",
+            "recent-highlights",
+            "comments",
+            "related-concepts",
+            "math-blocks",
+            "desmos-graph",
+            "scientific-calculator",
+            "saved-graphs",
+          ].includes(moduleId),
+      ),
+    },
+  ];
+
+  const used = new Set<WorkspaceModuleId>();
+  return groups
+    .map((group) => {
+      const nextModuleIds = group.moduleIds.filter((moduleId, index, list) => {
+        const include =
+          moduleIds.includes(moduleId) &&
+          list.indexOf(moduleId) === index &&
+          !used.has(moduleId) &&
+          (!isMath || group.label !== "History");
+        if (include) {
+          used.add(moduleId);
+        }
+        return include;
+      });
+
+      return {
+        ...group,
+        moduleIds: nextModuleIds,
+      };
+    })
+    .filter((group) => group.moduleIds.length > 0);
+}
+
+function mobileModuleLabel(moduleId: WorkspaceModuleId) {
+  if (moduleId === "lesson") {
+    return "Lesson";
+  }
+  if (moduleId === "private-notes" || moduleId === "binder-notebook") {
+    return "Notes";
+  }
+  if (moduleId === "desmos-graph" || moduleId === "graph-panel") {
+    return "Graph";
+  }
+  if (moduleId === "whiteboard" || moduleId === "math-blocks") {
+    return "Board";
+  }
+  if (moduleId === "history-timeline") {
+    return "Timeline";
+  }
+  if (moduleId === "history-evidence") {
+    return "Evidence";
+  }
+  if (moduleId === "history-argument") {
+    return "Argument";
+  }
+
+  return workspaceModuleRegistry[moduleId]?.title ?? "Tools";
 }
 
 function isJacobMathContext(context: WorkspaceModuleContext) {

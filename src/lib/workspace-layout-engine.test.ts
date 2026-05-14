@@ -116,6 +116,20 @@ describe("workspace layout engine", () => {
     expect(bottomRight.frame.y).toBe(viewport.height - bottomRight.frame.h);
   });
 
+  it("prioritizes the canvas edge over nearby module alignment at the right corner", () => {
+    const result = snapWindowFrame({
+      frame: frame(890, 40, 300, 240),
+      peerFrames: [frame(888, 360, 300, 240, 2)],
+      viewport,
+      snapBehavior: "modules",
+      safeEdgePadding: false,
+    });
+
+    expect(result.frame.x).toBe(viewport.width - result.frame.w);
+    expect(result.frame.x + result.frame.w).toBe(viewport.width);
+    expect(result.guides.some((guide) => guide.kind === "canvas-edge")).toBe(true);
+  });
+
   it("does not double-count safe edge padding when workspace bounds are already safe", () => {
     const result = snapWindowFrame({
       frame: frame(14, 14),

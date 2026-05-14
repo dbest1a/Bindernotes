@@ -163,6 +163,7 @@ export function StudyPanelsShell({
   const shellRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const previousPresetRef = useRef(preferences.preset);
+  const programmaticFullscreenExitRef = useRef(false);
 
   useEffect(() => {
     const presetChanged = previousPresetRef.current !== preferences.preset;
@@ -205,11 +206,47 @@ export function StudyPanelsShell({
     return () => document.removeEventListener("selectionchange", syncSelection);
   }, [studyPanelsV2]);
 
+  useEffect(() => {
+    if (!focusModeActive) {
+      programmaticFullscreenExitRef.current = false;
+    }
+  }, [focusModeActive]);
+
+  useEffect(() => {
+    if (!focusModeActive || !onToggleFocus || typeof document === "undefined") {
+      return;
+    }
+
+    const syncNativeFullscreenExit = () => {
+      const fullscreenElement = document.fullscreenElement;
+      const shell = shellRef.current;
+      const shellStillFullscreen = Boolean(
+        fullscreenElement && shell && (fullscreenElement === shell || shell.contains(fullscreenElement)),
+      );
+
+      if (shellStillFullscreen) {
+        return;
+      }
+
+      if (programmaticFullscreenExitRef.current) {
+        programmaticFullscreenExitRef.current = false;
+        return;
+      }
+
+      onToggleFocus();
+    };
+
+    document.addEventListener("fullscreenchange", syncNativeFullscreenExit);
+    return () => document.removeEventListener("fullscreenchange", syncNativeFullscreenExit);
+  }, [focusModeActive, onToggleFocus]);
+
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const primaryModuleId = activeTab?.moduleId ?? design.primaryModule;
   const focusSecondaryModuleId =
-    focusModeActive && !isCompact && primaryModuleId === "whiteboard" && workspaceModuleRegistry["private-notes"]
-      ? "private-notes"
+    focusModeActive && !isCompact
+      ? studyPanelsV2
+        ? chooseStudyPanelsV2SecondaryModule(primaryModuleId, context, preferences)
+        : chooseSecondaryModule(primaryModuleId, context, preferences)
       : null;
   const rawSecondaryModuleId =
     isCompact
@@ -220,7 +257,13 @@ export function StudyPanelsShell({
         ? chooseStudyPanelsV2SecondaryModule(primaryModuleId, context, preferences)
         : chooseSecondaryModule(primaryModuleId, context, preferences);
   const secondaryVisibilityStorageKey = `${studyPanelLayoutStoragePrefix}.secondary:${context.binder.id}:${context.selectedLesson.id}:${activeTab?.id ?? "lesson"}`;
+  const actionRowStorageKey = `${studyPanelLayoutStoragePrefix}.actions:${context.binder.id}:${context.selectedLesson.id}`;
+  const actionRowContentId = `study-panels-actions-${context.binder.id}-${context.selectedLesson.id}`.replace(
+    /[^A-Za-z0-9_-]/g,
+    "-",
+  );
   const [secondaryPanelHidden, setSecondaryPanelHidden] = useState(false);
+  const [actionRowCollapsed, setActionRowCollapsed] = useState(false);
 
   useEffect(() => {
     if (!studyPanelsV2 || !rawSecondaryModuleId) {
@@ -231,15 +274,37 @@ export function StudyPanelsShell({
     setSecondaryPanelHidden(loadStudyPanelSecondaryHidden(secondaryVisibilityStorageKey));
   }, [rawSecondaryModuleId, secondaryVisibilityStorageKey, studyPanelsV2]);
 
+  useEffect(() => {
+    if (!studyPanelsV2) {
+      setActionRowCollapsed(false);
+      return;
+    }
+
+    setActionRowCollapsed(loadStudyPanelActionRowCollapsed(actionRowStorageKey));
+  }, [actionRowStorageKey, studyPanelsV2]);
+
   const secondaryModuleId =
     studyPanelsV2 && secondaryPanelHidden ? null : rawSecondaryModuleId;
-  const defaultSplitLayout = getDefaultSplitLayout(primaryModuleId);
+  const splitMinimums = useMemo(
+    () => getStudyPanelSplitMinimums(primaryModuleId, secondaryModuleId),
+    [primaryModuleId, secondaryModuleId],
+  );
+  const defaultSplitLayout = useMemo(
+    () => getDefaultSplitLayout(primaryModuleId, secondaryModuleId),
+    [primaryModuleId, secondaryModuleId],
+  );
   const splitLayoutStorageKey = studyPanelsV2
     ? `${studyPanelLayoutStoragePrefix}:${context.binder.id}:${context.selectedLesson.id}:${activeTab?.id ?? "lesson"}`
     : `${studyPanelLayoutStoragePrefix}:${context.binder.id}:${context.selectedLesson.id}`;
   const savedSplitLayout = useMemo(
-    () => loadStudyPanelSplitLayout(splitLayoutStorageKey, defaultSplitLayout),
-    [defaultSplitLayout, splitLayoutStorageKey],
+    () => loadStudyPanelSplitLayout(splitLayoutStorageKey, defaultSplitLayout, splitMinimums),
+    [
+      defaultSplitLayout.primary,
+      defaultSplitLayout.secondary,
+      splitLayoutStorageKey,
+      splitMinimums.primary,
+      splitMinimums.secondary,
+    ],
   );
   const toolModuleIds = useMemo(
     () => getToolModules(preferences, primaryModuleId, secondaryModuleId, context),
@@ -325,9 +390,11 @@ export function StudyPanelsShell({
         type="button"
       >
         {secondaryPanelHidden ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-        {secondaryPanelHidden
-          ? `Show secondary panel for ${activeTab?.label ?? "this tab"}`
-          : `Hide secondary panel for ${activeTab?.label ?? "this tab"}`}
+        <span>
+          {secondaryPanelHidden
+            ? `Show secondary panel for ${activeTab?.label ?? "this tab"}`
+            : `Hide secondary panel for ${activeTab?.label ?? "this tab"}`}
+        </span>
       </button>
     </div>
   ) : null;
@@ -416,6 +483,14 @@ export function StudyPanelsShell({
       </div>
     </section>
   ) : null;
+  const hasCompactActionRow =
+    studyPanelsV2 && Boolean(actionStatusControl || guidedActionsControl || secondaryPanelControl);
+  const toggleCompactActionRow = () => {
+    const next = !actionRowCollapsed;
+    setActionRowCollapsed(next);
+    saveStudyPanelActionRowCollapsed(actionRowStorageKey, next);
+    setActionStatus(next ? "Split actions tucked away." : "Split actions ready.");
+  };
 
   const requestStudyPanelsFullscreen = () => {
     if (typeof document === "undefined" || document.fullscreenElement) {
@@ -437,7 +512,9 @@ export function StudyPanelsShell({
       return;
     }
 
+    programmaticFullscreenExitRef.current = true;
     void document.exitFullscreen().catch(() => {
+      programmaticFullscreenExitRef.current = false;
       // App focus mode exits independently, so a browser-level exit denial should not trap the user.
     });
   };
@@ -686,11 +763,33 @@ export function StudyPanelsShell({
           ))}
         </div>
       ) : null}
-      {studyPanelsV2 && (actionStatusControl || guidedActionsControl || secondaryPanelControl) ? (
-        <div className="study-panels-compact-action-row" data-study-panels-action-row="compact">
-          {actionStatusControl}
-          {guidedActionsControl}
-          {secondaryPanelControl}
+      {hasCompactActionRow ? (
+        <div
+          className="study-panels-compact-action-row"
+          data-study-actions-state={actionRowCollapsed ? "collapsed" : "expanded"}
+          data-study-panels-action-row="compact"
+        >
+          <div className="study-panels-compact-action-row__header">
+            <button
+              aria-controls={actionRowContentId}
+              aria-expanded={!actionRowCollapsed}
+              className="study-panels-action-row-toggle"
+              onClick={toggleCompactActionRow}
+              type="button"
+            >
+              <Sparkles className="size-4" />
+              <span>{actionRowCollapsed ? "Show split actions" : "Hide split actions"}</span>
+            </button>
+            {actionStatusControl}
+            {secondaryPanelControl}
+          </div>
+          <div
+            aria-hidden={actionRowCollapsed ? "true" : undefined}
+            className="study-panels-compact-action-row__content"
+            id={actionRowContentId}
+          >
+            {guidedActionsControl}
+          </div>
         </div>
       ) : (
         <>
@@ -710,6 +809,8 @@ export function StudyPanelsShell({
         data-study-drawer-tool={drawerOpen && safeActiveToolId ? safeActiveToolId : undefined}
         data-study-primary={primaryModuleId}
         data-study-secondary={secondaryModuleId ?? undefined}
+        data-study-action-row={hasCompactActionRow ? "visible" : "hidden"}
+        data-study-actions-state={hasCompactActionRow ? (actionRowCollapsed ? "collapsed" : "expanded") : undefined}
         data-secondary-panel-hidden={studyPanelsV2 && secondaryPanelHidden ? "true" : "false"}
         id={`study-panel-${activeTab?.id ?? "lesson"}`}
         role="tabpanel"
@@ -724,17 +825,19 @@ export function StudyPanelsShell({
             className="study-panels-split"
             defaultLayout={savedSplitLayout}
             data-study-split-layout={`${savedSplitLayout.primary}/${savedSplitLayout.secondary}`}
+            data-study-split-min-primary={splitMinimums.primary}
+            data-study-split-min-secondary={splitMinimums.secondary}
             data-study-split-storage-key={splitLayoutStorageKey}
             id={`bindernotes-study-panels:${context.binder.id}:${context.selectedLesson.id}`}
             key={studyPanelsV2 ? activeTab?.id ?? "lesson" : "classic"}
             onLayoutChanged={(layout) => saveStudyPanelSplitLayout(splitLayoutStorageKey, layout)}
             orientation="horizontal"
           >
-            <Panel defaultSize={savedSplitLayout.primary} id="primary" minSize={38}>
+            <Panel defaultSize={savedSplitLayout.primary} id="primary" minSize={splitMinimums.primary}>
               {renderModule(primaryModuleId, "primary")}
             </Panel>
             <Separator className="study-panels-resize-handle" aria-label="Resize study panels" id="study-panels-resize" />
-            <Panel defaultSize={savedSplitLayout.secondary} id="secondary" minSize={28}>
+            <Panel defaultSize={savedSplitLayout.secondary} id="secondary" minSize={splitMinimums.secondary}>
               {renderModule(secondaryModuleId, "secondary")}
             </Panel>
           </Group>
@@ -797,15 +900,45 @@ function focusTabAfterFrame(tab: HTMLButtonElement | null) {
   window.setTimeout(focus, 0);
 }
 
-function getDefaultSplitLayout(primaryModuleId: WorkspaceModuleId): Layout {
-  const primary = primaryModuleId === "desmos-graph" || primaryModuleId === "whiteboard" ? 62 : 56;
+function getDefaultSplitLayout(primaryModuleId: WorkspaceModuleId, secondaryModuleId?: WorkspaceModuleId | null): Layout {
+  const primary =
+    primaryModuleId === "whiteboard"
+      ? 76
+      : primaryModuleId === "desmos-graph"
+        ? 70
+        : secondaryModuleId === "private-notes"
+          ? 58
+          : 56;
   return {
     primary,
     secondary: 100 - primary,
   };
 }
 
-function loadStudyPanelSplitLayout(storageKey: string, fallback: Layout): Layout {
+function getStudyPanelSplitMinimums(
+  primaryModuleId: WorkspaceModuleId,
+  secondaryModuleId?: WorkspaceModuleId | null,
+): Layout {
+  if (primaryModuleId === "whiteboard") {
+    return { primary: 60, secondary: 20 };
+  }
+
+  if (primaryModuleId === "desmos-graph") {
+    return { primary: 54, secondary: 22 };
+  }
+
+  if (primaryModuleId === "private-notes") {
+    return { primary: 48, secondary: 28 };
+  }
+
+  if (secondaryModuleId === "private-notes") {
+    return { primary: 44, secondary: 32 };
+  }
+
+  return { primary: 38, secondary: 28 };
+}
+
+function loadStudyPanelSplitLayout(storageKey: string, fallback: Layout, minimums: Layout): Layout {
   if (typeof window === "undefined") {
     return fallback;
   }
@@ -819,7 +952,7 @@ function loadStudyPanelSplitLayout(storageKey: string, fallback: Layout): Layout
     const primary = typeof parsed.primary === "number" ? parsed.primary : fallback.primary;
     const secondary = typeof parsed.secondary === "number" ? parsed.secondary : fallback.secondary;
 
-    if (primary < 38 || secondary < 28 || primary + secondary < 90) {
+    if (primary < minimums.primary || secondary < minimums.secondary || primary + secondary < 90) {
       return fallback;
     }
 
@@ -858,6 +991,27 @@ function saveStudyPanelSecondaryHidden(storageKey: string, hidden: boolean) {
 
   if (hidden) {
     window.localStorage.setItem(storageKey, "hidden");
+    return;
+  }
+
+  window.localStorage.removeItem(storageKey);
+}
+
+function loadStudyPanelActionRowCollapsed(storageKey: string) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(storageKey) === "collapsed";
+}
+
+function saveStudyPanelActionRowCollapsed(storageKey: string, collapsed: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (collapsed) {
+    window.localStorage.setItem(storageKey, "collapsed");
     return;
   }
 
@@ -1409,10 +1563,8 @@ function buildStudyPanelTabs(
     tabs.push(
       { id: "graph", label: "Graph", helper: "Visual", moduleId: "desmos-graph" },
       { id: "formulas", label: "Formulas", helper: "Reference", moduleId: "formula-sheet" },
+      { id: "board", label: "Board", helper: "Work", moduleId: "whiteboard" },
     );
-    if (preferences.enabledModules.includes("whiteboard") || preferences.preset.includes("practice")) {
-      tabs.push({ id: "board", label: "Board", helper: "Work", moduleId: "whiteboard" });
-    }
   }
 
   if (isHistory) {

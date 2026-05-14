@@ -125,6 +125,44 @@ describe("lesson selection toolbar helpers", () => {
     }
   });
 
+  it("uses the beta source-linked copy for sending a highlight into notes", async () => {
+    const onSendToNotes = vi.fn();
+    const restoreRange = installSelectionRect();
+
+    try {
+      renderSelectionToolbar({ onSendToNotes, sourceLinkedNotesBeta: true });
+      selectText("Second selectable quote");
+      document.dispatchEvent(new Event("selectionchange"));
+
+      await screen.findByTestId("whiteboard-annotation-popup");
+      fireEvent.click(screen.getByRole("button", { name: /send highlight to notes/i }));
+
+      expect(onSendToNotes).toHaveBeenCalledWith("Second selectable quote");
+    } finally {
+      restoreRange();
+    }
+  });
+
+  it("shows a beta Add to Review action for selected source text", async () => {
+    const onAddSelectionToReview = vi.fn();
+    const restoreRange = installSelectionRect();
+
+    try {
+      renderSelectionToolbar({ onAddSelectionToReview, reviewQueueBeta: true });
+      selectText("Second selectable quote");
+      document.dispatchEvent(new Event("selectionchange"));
+
+      await screen.findByTestId("whiteboard-annotation-popup");
+      fireEvent.click(screen.getByRole("button", { name: /add to review/i }));
+
+      expect(onAddSelectionToReview).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "Second selectable quote" }),
+      );
+    } finally {
+      restoreRange();
+    }
+  });
+
   it("saves a comment through the annotation popup instead of silently doing nothing", async () => {
     const onCommentSelection = vi.fn();
     const restoreRange = installSelectionRect();
@@ -153,10 +191,16 @@ function renderSelectionToolbar({
   onCommentSelection = vi.fn(),
   onQuoteToNotes = vi.fn(),
   onSendToNotes = vi.fn(),
+  onAddSelectionToReview = vi.fn(),
+  reviewQueueBeta = false,
+  sourceLinkedNotesBeta = false,
 }: {
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
   onQuoteToNotes?: (anchorText: string) => void;
   onSendToNotes?: (anchorText: string) => void;
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
 }) {
   return render(
     <>
@@ -168,10 +212,13 @@ function renderSelectionToolbar({
         defaultHighlightColor="yellow"
         highlights={[]}
         onCommentSelection={onCommentSelection}
+        onAddSelectionToReview={onAddSelectionToReview}
         onHighlight={vi.fn()}
         onQuoteToNotes={onQuoteToNotes}
         onRemoveHighlight={vi.fn()}
+        reviewQueueBeta={reviewQueueBeta}
         onSendToNotes={onSendToNotes}
+        sourceLinkedNotesBeta={sourceLinkedNotesBeta}
         onStickyNote={vi.fn()}
       />
     </>,

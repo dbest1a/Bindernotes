@@ -285,6 +285,180 @@ export function fitWindowFramesToViewport({
   };
 }
 
+export function fitFreeformWindowFramesToViewport({
+  frames,
+  moduleIds,
+  safeEdgePadding,
+  viewport,
+}: {
+  frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  moduleIds: WorkspaceModuleId[];
+  safeEdgePadding: boolean;
+  viewport: Viewport;
+}) {
+  const visibleModules = moduleIds.filter((moduleId) => frames[moduleId]);
+  const original = pickFrames(frames, visibleModules);
+  const bounds = getFrameBounds(Object.values(original));
+  if (!bounds || viewport.width < 320 || viewport.height < 240) {
+    return { frames, changed: false };
+  }
+
+  const padding = safeEdgePadding ? WORKSPACE_SAFE_EDGE_PADDING : 0;
+  const availableWidth = Math.max(320, viewport.width - padding * 2);
+  const availableHeight = Math.max(240, viewport.height - padding * 2);
+  const horizontalScale = availableWidth / Math.max(bounds.width, 1);
+  const verticalScale = Math.min(1, availableHeight / Math.max(bounds.height, 1));
+  const nextFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = { ...frames };
+
+  visibleModules.forEach((moduleId) => {
+    const current = frames[moduleId];
+    if (!current) {
+      return;
+    }
+
+    const minimum = getWorkspaceModuleMinimumSize(moduleId);
+    nextFrames[moduleId] = clampResizedFrame(
+      {
+        x: padding + (current.x - bounds.minX) * horizontalScale,
+        y: padding + (current.y - bounds.minY) * verticalScale,
+        w: Math.max(minimum.width, current.w * horizontalScale),
+        h: Math.max(minimum.height, current.h * verticalScale),
+        z: current.z,
+      },
+      {
+        minX: padding,
+        maxX: viewport.width - padding,
+        minY: padding,
+        maxY: viewport.height - padding,
+      },
+      minimum,
+    );
+  });
+
+  return {
+    frames: nextFrames,
+    changed: !sameFrames(original, pickFrames(nextFrames, visibleModules)),
+  };
+}
+
+export function tidyFreeformWorkspaceFrames({
+  frames,
+  moduleIds,
+  safeEdgePadding,
+  viewport,
+}: {
+  frames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  moduleIds: WorkspaceModuleId[];
+  safeEdgePadding: boolean;
+  viewport: Viewport;
+}) {
+  const visibleModules = moduleIds.filter((moduleId) => frames[moduleId]);
+  if (visibleModules.length === 0 || viewport.width < 320 || viewport.height < 240) {
+    return { frames, changed: false };
+  }
+
+  const padding = safeEdgePadding ? WORKSPACE_SAFE_EDGE_PADDING : 0;
+  const gap = WORKSPACE_LAYOUT_GAP;
+  const usableWidth = Math.max(320, viewport.width - padding * 2);
+  const usableHeight = Math.max(280, viewport.height - padding * 2);
+  const nextFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = { ...frames };
+  const currentFrames = visibleModules
+    .map((moduleId) => ({ moduleId, frame: frames[moduleId]! }))
+    .sort((left, right) => {
+      const areaDelta = right.frame.w * right.frame.h - left.frame.w * left.frame.h;
+      return areaDelta !== 0 ? areaDelta : right.frame.z - left.frame.z;
+    });
+  const primary = currentFrames[0]?.moduleId;
+
+  if (!primary) {
+    return { frames, changed: false };
+  }
+
+  if (visibleModules.length === 1) {
+    nextFrames[primary] = makeFrame(
+      padding,
+      padding,
+      usableWidth,
+      usableHeight,
+      frames[primary]?.z ?? 1,
+    );
+    return {
+      frames: nextFrames,
+      changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
+    };
+  }
+
+  const bounds = getFrameBounds(visibleModules.map((moduleId) => frames[moduleId]!));
+  const primaryFrame = frames[primary]!;
+  const primaryCenter = primaryFrame.x + primaryFrame.w / 2;
+  const clusterCenter = bounds ? bounds.minX + bounds.width / 2 : viewport.width / 2;
+  const primaryOnRight = primaryCenter > clusterCenter;
+  const secondary = visibleModules
+    .filter((moduleId) => moduleId !== primary)
+    .sort((left, right) => {
+      const leftFrame = frames[left]!;
+      const rightFrame = frames[right]!;
+      return leftFrame.y === rightFrame.y ? leftFrame.x - rightFrame.x : leftFrame.y - rightFrame.y;
+    });
+  const primaryMinimum = getWorkspaceModuleMinimumSize(primary);
+  const secondaryMinimumWidth = Math.max(
+    280,
+    ...secondary.map((moduleId) => Math.min(getWorkspaceModuleMinimumSize(moduleId).width, 480)),
+  );
+  const railWidth = clamp(
+    Math.round(usableWidth * 0.34),
+    Math.min(usableWidth - primaryMinimum.width - gap, secondaryMinimumWidth),
+    Math.max(secondaryMinimumWidth, usableWidth - primaryMinimum.width - gap),
+  );
+  const primaryWidth = Math.max(primaryMinimum.width, usableWidth - railWidth - gap);
+  const secondaryWidth = Math.max(secondaryMinimumWidth, usableWidth - primaryWidth - gap);
+  const primaryX = primaryOnRight ? padding + secondaryWidth + gap : padding;
+  const secondaryX = primaryOnRight ? padding : padding + primaryWidth + gap;
+
+  nextFrames[primary] = makeFrame(
+    primaryX,
+    padding,
+    primaryWidth,
+    usableHeight,
+    primaryFrame.z,
+  );
+
+  const totalSecondaryArea = secondary.reduce((total, moduleId) => {
+    const frame = frames[moduleId]!;
+    return total + Math.max(1, frame.w * frame.h);
+  }, 0);
+  const availableSecondaryHeight = Math.max(
+    1,
+    usableHeight - gap * Math.max(0, secondary.length - 1),
+  );
+  let nextY = padding;
+
+  secondary.forEach((moduleId, index) => {
+    const current = frames[moduleId]!;
+    const minimum = getWorkspaceModuleMinimumSize(moduleId);
+    const isLast = index === secondary.length - 1;
+    const weightedHeight = Math.round(
+      (availableSecondaryHeight * Math.max(1, current.w * current.h)) / totalSecondaryArea,
+    );
+    const height = isLast
+      ? padding + usableHeight - nextY
+      : Math.max(minimum.height, weightedHeight);
+    nextFrames[moduleId] = makeFrame(
+      secondaryX,
+      nextY,
+      secondaryWidth,
+      Math.max(minimum.height, height),
+      current.z,
+    );
+    nextY += height + gap;
+  });
+
+  return {
+    frames: nextFrames,
+    changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
+  };
+}
+
 export function tidyWorkspaceFrames({
   frames,
   moduleIds,
@@ -1031,13 +1205,24 @@ function candidate(
 }
 
 function findBestCandidate(candidates: SnapCandidate[], threshold: number) {
-  return candidates.reduce<SnapCandidate | null>((best, next) => {
-    const delta = Math.abs(next.current - next.position);
-    if (delta > threshold) {
-      return best;
-    }
+  const eligible = candidates.filter((candidate) =>
+    Math.abs(candidate.current - candidate.position) <= threshold,
+  );
+  const canvasEdge = eligible
+    .filter((candidate) => candidate.kind === "canvas-edge")
+    .reduce<SnapCandidate | null>((best, next) => {
+      if (!best || Math.abs(next.current - next.position) < Math.abs(best.current - best.position)) {
+        return next;
+      }
 
-    if (!best || delta < Math.abs(best.current - best.position)) {
+      return best;
+    }, null);
+  if (canvasEdge) {
+    return canvasEdge;
+  }
+
+  return eligible.reduce<SnapCandidate | null>((best, next) => {
+    if (!best || Math.abs(next.current - next.position) < Math.abs(best.current - best.position)) {
       return next;
     }
 

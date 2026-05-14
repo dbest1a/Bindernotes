@@ -1,11 +1,22 @@
-import { useMemo, useReducer, useState } from "react";
+import { useMemo, useReducer, useState, type CSSProperties } from "react";
 import {
   AlertTriangle,
+  Atom,
   Beaker,
+  BookOpen,
+  Brain,
+  CheckCircle2,
   ClipboardCheck,
   FlaskConical,
+  GitCompare,
+  Grid2X2,
+  Layers,
   LineChart,
+  ListFilter,
+  Microscope,
+  NotebookPen,
   Scale,
+  Search,
   ShieldCheck,
   Table2,
   Zap,
@@ -22,10 +33,19 @@ import { demoReactions } from "@/lib/chemistry/demo-reactions";
 import { generateKineticsDataset, type KineticsOrder } from "@/lib/chemistry/kinetics";
 import { calculateMolarMass } from "@/lib/chemistry/molar-mass";
 import {
+  buildAtomModel,
   elementCategories,
   findElement,
+  formatCharge,
+  formatNumber,
+  getTrendDisplay,
+  getTrendNumericValue,
+  getTrendRange,
   getTrendScore,
+  periodicTableDataLedger,
   periodicTableElements,
+  searchElements,
+  trendModeLabels,
   type PeriodicTableElement,
   type TrendMode,
 } from "@/lib/chemistry/periodic-table-data";
@@ -79,44 +99,473 @@ function desmosStatusCopy() {
     : "Desmos unavailable locally. Showing the lightweight fallback chart so the preset does not waste space.";
 }
 
-function elementSummary(element: PeriodicTableElement) {
-  return `${element.name} (${element.symbol}) - group ${element.group}, period ${element.period}`;
+type PeriodicViewMode = "table" | "list" | "builder" | "compare";
+type StudyLayer = "chem101" | "ap";
+
+const coreTrendModes: TrendMode[] = [
+  "category",
+  "electronegativity",
+  "atomic-radius",
+  "ionization-energy",
+  "electron-affinity",
+  "density",
+  "melting-point",
+  "boiling-point",
+  "metallic-character",
+  "valence-electrons",
+  "oxidation-state",
+  "discovery-year",
+  "abundance",
+];
+
+const mobilePeriodicViews: Array<{ id: PeriodicViewMode; label: string }> = [
+  { id: "table", label: "Table" },
+  { id: "list", label: "Search" },
+  { id: "builder", label: "Builder" },
+  { id: "compare", label: "Compare" },
+];
+
+const periodicViewButtons = [
+  { id: "table" as const, label: "Table", Icon: Grid2X2 },
+  { id: "list" as const, label: "List", Icon: ListFilter },
+  { id: "builder" as const, label: "Builder", Icon: Atom },
+  { id: "compare" as const, label: "Compare", Icon: GitCompare },
+];
+
+function elementSummary(element: PeriodicTableElement, trendMode?: TrendMode) {
+  const trend = trendMode ? `, ${trendModeLabels[trendMode].label}: ${getTrendDisplay(element, trendMode)}` : "";
+  return `${element.name} (${element.symbol}), atomic number ${element.atomicNumber}, group ${element.groupDisplay}, period ${element.period}${trend}`;
 }
 
-function getValenceElectrons(element: PeriodicTableElement) {
-  if (element.group >= 1 && element.group <= 2) {
-    return element.group;
+function trendHue(trendMode: TrendMode, score: number) {
+  if (trendMode === "atomic-radius" || trendMode === "metallic-character") {
+    return 35 + score * 28;
   }
-
-  if (element.group >= 13 && element.group <= 18) {
-    return element.group - 10;
+  if (trendMode === "electronegativity" || trendMode === "ionization-energy" || trendMode === "electron-affinity") {
+    return 205 + score * 60;
   }
-
-  return element.symbol === "Fe" ? 2 : "varies";
+  if (trendMode === "density" || trendMode === "melting-point" || trendMode === "boiling-point") {
+    return 10 + score * 330;
+  }
+  if (trendMode === "abundance") {
+    return 150 + score * 55;
+  }
+  return 205;
 }
 
-function getBondingBehavior(element: PeriodicTableElement) {
-  const summaries: Partial<Record<string, string>> = {
-    H: "usually forms one bond and completes a duet.",
-    C: "usually forms four bonds, which makes it a backbone atom for many molecules.",
-    N: "usually forms three bonds and keeps one lone pair in simple neutral molecules.",
-    O: "usually forms two bonds and often carries two lone pairs.",
-    Na: "usually loses one electron to form Na+ in ionic compounds.",
-    Cl: "usually gains one electron or forms one covalent bond.",
-    Ca: "usually loses two electrons to form Ca2+.",
-    Fe: "often forms Fe2+ or Fe3+ depending on the reaction conditions.",
-  };
+function selectedElementFallback() {
+  return periodicTableElements.find((element) => element.symbol === "C") ?? periodicTableElements[0];
+}
 
+function periodicTableElementsByNumber(atomicNumber: number) {
+  return periodicTableElements.find((element) => element.atomicNumber === atomicNumber) ?? selectedElementFallback();
+}
+
+function tileStyle(element: PeriodicTableElement, trendMode: TrendMode): CSSProperties {
+  const score = getTrendScore(element, trendMode);
+  const hue = trendHue(trendMode, score);
+  const alpha = trendMode === "category" || trendMode === "state" || trendMode === "block" ? 0.18 : 0.18 + score * 0.42;
+  return {
+    gridColumn: element.tableColumn + 1,
+    gridRow: element.tableRow,
+    "--chem-trend-hue": `${hue}`,
+    "--chem-trend-alpha": `${alpha}`,
+  } as CSSProperties;
+}
+
+function ShellMiniModel({ shells }: { shells: number[] }) {
+  const maxShell = Math.max(...shells, 2);
   return (
-    summaries[element.symbol] ??
-    (element.category.includes("metal")
-      ? "often forms positive ions and participates in ionic bonding."
-      : "often shares or gains electrons to complete a valence shell.")
+    <div className="chem-shell-mini" aria-label={`Electron shells ${shells.join(", ")}`}>
+      {shells.map((count, index) => (
+        <span
+          aria-hidden="true"
+          key={`${index}-${count}`}
+          style={{ width: `${32 + (index + 1) * 22}px`, height: `${32 + (index + 1) * 22}px`, opacity: 0.35 + count / maxShell / 1.8 }}
+        />
+      ))}
+      <strong>{shells.join("-")}</strong>
+    </div>
   );
 }
 
-function getWhyElementMatters(element: PeriodicTableElement) {
-  return `${element.use} Study tip: ${element.studyTip}`;
+function OrbitalLadder({ configuration }: { configuration: string }) {
+  const orbitals = configuration.replace(/^\[[^\]]+\]\s*/, "").split(/\s+/).filter(Boolean).slice(0, 8);
+  return (
+    <div className="chem-orbital-mini" aria-label={`Electron configuration ${configuration}`}>
+      {(orbitals.length ? orbitals : [configuration]).map((orbital) => (
+        <span key={orbital}>{orbital}</span>
+      ))}
+    </div>
+  );
+}
+
+function ElementInspector({
+  element,
+  studyLayer,
+  onCompare,
+  onBuild,
+  onSendToNotes,
+  onOpenPractice,
+}: {
+  element: PeriodicTableElement;
+  studyLayer: StudyLayer;
+  onCompare: (element: PeriodicTableElement) => void;
+  onBuild: (element: PeriodicTableElement) => void;
+  onSendToNotes?: (text: string) => void;
+  onOpenPractice?: () => void;
+}) {
+  const noteText = `${element.name} (${element.symbol}) - ${element.chem101Note} AP angle: ${element.apChemistryNote}`;
+  return (
+    <aside aria-label="Selected element inspector" className="chem-element-inspector-v3">
+      <header className="chem-element-hero-card">
+        <div>
+          <p>{elementCategories[element.category]}</p>
+          <h3>{element.symbol}</h3>
+          <strong>{element.name}</strong>
+          <span>Atomic number {element.atomicNumber}</span>
+        </div>
+        <ShellMiniModel shells={element.shells} />
+      </header>
+
+      <dl className="chem-property-matrix">
+        <div>
+          <dt>Atomic weight</dt>
+          <dd>{element.atomicWeightDisplay}</dd>
+        </div>
+        <div>
+          <dt>Group / period</dt>
+          <dd>
+            {element.groupDisplay} / {element.period}
+          </dd>
+        </div>
+        <div>
+          <dt>Block / state</dt>
+          <dd>
+            {element.block}-block / {element.phase}
+          </dd>
+        </div>
+        <div>
+          <dt>Valence</dt>
+          <dd>{element.valenceElectrons}</dd>
+        </div>
+        <div>
+          <dt>Common ions</dt>
+          <dd>{element.commonIons.join(", ") || "none common"}</dd>
+        </div>
+        <div>
+          <dt>Oxidation states</dt>
+          <dd>{element.commonOxidationStates.length ? element.commonOxidationStates.map((state) => (state > 0 ? `+${state}` : state)).join(", ") : "unknown"}</dd>
+        </div>
+        <div>
+          <dt>Electronegativity</dt>
+          <dd>{element.electronegativity ?? "unknown"}</dd>
+        </div>
+        <div>
+          <dt>Ionization energy</dt>
+          <dd>{element.firstIonizationEnergyEv ? `${formatNumber(element.firstIonizationEnergyEv)} eV` : "unknown"}</dd>
+        </div>
+      </dl>
+
+      <section className="chem-inspector-section">
+        <p className="chem-section-kicker">Electron configuration</p>
+        <strong>{element.electronConfiguration}</strong>
+        <OrbitalLadder configuration={element.electronConfiguration} />
+      </section>
+
+      <section className="chem-inspector-section" data-tone="learning">
+        <p className="chem-section-kicker">{studyLayer === "ap" ? "AP Chemistry angle" : "Chem 101 angle"}</p>
+        <p>{studyLayer === "ap" ? element.apChemistryNote : element.chem101Note}</p>
+      </section>
+
+      <section className="chem-inspector-section">
+        <p className="chem-section-kicker">Bonding behavior</p>
+        <p>{element.bondingBehavior}</p>
+      </section>
+
+      <section className="chem-inspector-section" data-tone="warning">
+        <p className="chem-section-kicker">Common trap</p>
+        <p>{element.commonMisconception}</p>
+      </section>
+
+      <section className="chem-inspector-section">
+        <p className="chem-section-kicker">Quick check</p>
+        <p>{element.quickCheck}</p>
+      </section>
+
+      <div className="chem-inspector-actions" aria-label="Element study actions">
+        <Button onClick={() => onCompare(element)} type="button" variant="outline">
+          <GitCompare data-icon="inline-start" />
+          Compare
+        </Button>
+        <Button onClick={() => onBuild(element)} type="button" variant="outline">
+          <Atom data-icon="inline-start" />
+          Build atom
+        </Button>
+        <Button disabled={!onSendToNotes} onClick={() => onSendToNotes?.(noteText)} type="button" variant="outline">
+          <NotebookPen data-icon="inline-start" />
+          Send to notes
+        </Button>
+        <Button disabled={!onOpenPractice} onClick={onOpenPractice} type="button" variant="outline">
+          <Brain data-icon="inline-start" />
+          Practice
+        </Button>
+      </div>
+
+      <details className="chem-data-provenance">
+        <summary>Data quality and provenance</summary>
+        <ul>
+          {element.dataQualityNotes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+        <p>{periodicTableDataLedger[0].source} ({periodicTableDataLedger[0].license}). Source text was not copied.</p>
+      </details>
+    </aside>
+  );
+}
+
+function TrendReasoningPanel({
+  selected,
+  trendMode,
+}: {
+  selected: PeriodicTableElement;
+  trendMode: TrendMode;
+}) {
+  const meta = trendModeLabels[trendMode];
+  const range = getTrendRange(trendMode);
+  const value = getTrendDisplay(selected, trendMode);
+  const points = periodicTableElements
+    .map((element) => {
+      const numeric = getTrendNumericValue(element, trendMode);
+      if (numeric === null || !range || range.max === range.min) {
+        return null;
+      }
+      return {
+        x: (element.atomicNumber / 118) * 100,
+        y: 92 - ((numeric - range.min) / (range.max - range.min)) * 78,
+      };
+    })
+    .filter((point): point is { x: number; y: number } => Boolean(point));
+  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+
+  return (
+    <section className="chem-trend-learning-panel" aria-label="Trend explanation and graph">
+      <div>
+        <p className="chem-section-kicker">Trend mode</p>
+        <h3>{meta.label}</h3>
+        <p>{meta.explanation}</p>
+        <p className="chem-ap-reasoning">
+          <Brain className="size-4" />
+          {meta.apReasoning}
+        </p>
+      </div>
+      <div className="chem-trend-legend">
+        <span>Selected value</span>
+        <strong>
+          {selected.symbol}: {value} {value !== "unknown" && meta.unit !== "family" && meta.unit !== "state" && meta.unit !== "block" ? meta.unit : ""}
+        </strong>
+        <small>{meta.outlierNote}</small>
+        {range ? (
+          <div className="chem-legend-scale">
+            <span>{formatNumber(range.min)}</span>
+            <i />
+            <span>{formatNumber(range.max)}</span>
+          </div>
+        ) : (
+          <small>Color groups are categorical in this mode.</small>
+        )}
+      </div>
+      {path ? (
+        <svg className="chem-trend-sparkline" viewBox="0 0 100 100" aria-label={`${meta.label} by atomic number`}>
+          <line x1="0" x2="100" y1="92" y2="92" />
+          <line x1="0" x2="0" y1="8" y2="92" />
+          <path d={path} />
+        </svg>
+      ) : null}
+      <div className="chem-trend-quick-check">
+        <p className="chem-section-kicker">AP launch prompt</p>
+        <strong>Explain one exception or outlier without saying "because the table says so."</strong>
+      </div>
+    </section>
+  );
+}
+
+function CompareElementsPanel({
+  comparison,
+  selected,
+  onRemove,
+  onAddSelected,
+}: {
+  comparison: PeriodicTableElement[];
+  selected: PeriodicTableElement;
+  onRemove: (atomicNumber: number) => void;
+  onAddSelected: () => void;
+}) {
+  const visible = comparison.length ? comparison : [selected];
+  return (
+    <section className="chem-compare-panel-v3" aria-label="Compare elements">
+      <header>
+        <div>
+          <p className="chem-section-kicker">Compare mode</p>
+          <h3>Explain why elements differ</h3>
+        </div>
+        <Button disabled={comparison.some((element) => element.atomicNumber === selected.atomicNumber) || comparison.length >= 4} onClick={onAddSelected} type="button" variant="outline">
+          Add selected
+        </Button>
+      </header>
+      <div className="chem-compare-grid-v3">
+        {visible.map((element) => (
+          <article key={element.atomicNumber}>
+            <button aria-label={`Remove ${element.name} from compare`} onClick={() => onRemove(element.atomicNumber)} type="button">
+              x
+            </button>
+            <strong>{element.symbol}</strong>
+            <span>{element.name}</span>
+            <dl>
+              <div>
+                <dt>Radius</dt>
+                <dd>{element.atomicRadiusPm ? `${element.atomicRadiusPm} pm` : "unknown"}</dd>
+              </div>
+              <div>
+                <dt>EN</dt>
+                <dd>{element.electronegativity ?? "unknown"}</dd>
+              </div>
+              <div>
+                <dt>IE1</dt>
+                <dd>{element.firstIonizationEnergyEv ? `${formatNumber(element.firstIonizationEnergyEv)} eV` : "unknown"}</dd>
+              </div>
+              <div>
+                <dt>Valence</dt>
+                <dd>{element.valenceElectrons}</dd>
+              </div>
+            </dl>
+            <p>{element.apChemistryNote}</p>
+          </article>
+        ))}
+      </div>
+      <p className="chem-compare-prompt">
+        AP prompt: Compare the elements using shells, shielding, and effective nuclear charge. Then name the common trap.
+      </p>
+    </section>
+  );
+}
+
+function AtomBuilderWorkbench({
+  initialElement,
+  onSelectElement,
+}: {
+  initialElement?: PeriodicTableElement;
+  onSelectElement?: (element: PeriodicTableElement) => void;
+}) {
+  const startingElement = initialElement ?? selectedElementFallback();
+  const [protons, setProtons] = useState(startingElement.atomicNumber);
+  const [neutrons, setNeutrons] = useState(Math.max(0, Math.round(startingElement.atomicMass) - startingElement.atomicNumber));
+  const [electrons, setElectrons] = useState(startingElement.atomicNumber);
+  const model = buildAtomModel(protons, neutrons, electrons);
+  const element = model.element ?? startingElement;
+
+  function applyPreset(nextProtons: number, nextNeutrons: number, nextElectrons: number) {
+    setProtons(nextProtons);
+    setNeutrons(nextNeutrons);
+    setElectrons(nextElectrons);
+    const nextElement = periodicTableElements.find((candidate) => candidate.atomicNumber === nextProtons);
+    if (nextElement) {
+      onSelectElement?.(nextElement);
+    }
+  }
+
+  function applySelectedElement(nextElement: PeriodicTableElement) {
+    setProtons(nextElement.atomicNumber);
+    setNeutrons(Math.max(0, Math.round(nextElement.atomicMass) - nextElement.atomicNumber));
+    setElectrons(nextElement.atomicNumber);
+    onSelectElement?.(nextElement);
+  }
+
+  return (
+    <div className="chem-builder-workbench-v3" data-testid="chem-atom-builder-v3">
+      <section className="chem-builder-visual">
+        <div className="chem-isotope-card">
+          <span>{model.massNumber}</span>
+          <strong>{element.symbol}</strong>
+          <small>{model.charge === 0 ? "neutral" : formatCharge(model.charge)}</small>
+        </div>
+        <ShellMiniModel shells={model.shells.length ? model.shells : [0]} />
+        <div className="chem-charge-balance" aria-label="Charge balance">
+          <span style={{ width: `${Math.min(100, Math.max(8, model.protons * 2))}%` }}>p+ {model.protons}</span>
+          <span style={{ width: `${Math.min(100, Math.max(8, model.electrons * 2))}%` }}>e- {model.electrons}</span>
+        </div>
+      </section>
+
+      <section className="chem-builder-controls">
+        <div className="chem-builder-input-grid">
+          {[
+            { label: "Protons", value: protons, setter: setProtons, helper: "identity" },
+            { label: "Neutrons", value: neutrons, setter: setNeutrons, helper: "isotope" },
+            { label: "Electrons", value: electrons, setter: setElectrons, helper: "charge" },
+          ].map(({ label, value, setter, helper }) => (
+            <label key={label}>
+              <span>{label}</span>
+              <Input inputMode="numeric" min={0} onChange={(event) => setter(Number(event.target.value))} type="number" value={value} />
+              <small>{helper}</small>
+            </label>
+          ))}
+        </div>
+        <div className="chem-builder-presets">
+          {[
+            ["Carbon-12", 6, 6, 6],
+            ["Carbon-14", 6, 8, 6],
+            ["Na+", 11, 12, 10],
+            ["Cl-", 17, 18, 18],
+            ["O2-", 8, 8, 10],
+            ["Ca2+", 20, 20, 18],
+          ].map(([label, nextProtons, nextNeutrons, nextElectrons]) => (
+            <Button key={String(label)} onClick={() => applyPreset(Number(nextProtons), Number(nextNeutrons), Number(nextElectrons))} type="button" variant="outline">
+              Build {label}
+            </Button>
+          ))}
+          {initialElement ? (
+            <Button onClick={() => applySelectedElement(initialElement)} type="button" variant="secondary">
+              Build selected element
+            </Button>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="chem-builder-output">
+        <div className="chem-stat-grid">
+          <article>
+            <span>Identity</span>
+            <strong>{model.element?.name ?? "Unknown"}</strong>
+          </article>
+          <article>
+            <span>Isotope</span>
+            <strong>{model.isotopeNotation}</strong>
+          </article>
+          <article>
+            <span>Charge</span>
+            <strong>{model.chargeLabel} ({model.particleClass})</strong>
+          </article>
+          <article>
+            <span>Configuration</span>
+            <strong>{model.electronConfiguration}</strong>
+          </article>
+        </div>
+        <div className="chem-builder-explanation">
+          <p className="chem-section-kicker">What changed?</p>
+          {model.whatChanged.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          {model.warnings.map((warning) => (
+            <p className="chem-builder-warning" key={warning}>
+              <AlertTriangle className="size-4" />
+              {warning}
+            </p>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function getTitrationObservation(progress: number) {
@@ -147,200 +596,270 @@ function getTitrationHint(progress: number) {
   return "Past endpoint. Compare your overshoot to the measurement table.";
 }
 
-export function InteractivePeriodicTableModule() {
-  const [query, setQuery] = useState("Carbon");
-  const [trendMode, setTrendMode] = useState<TrendMode>("electronegativity");
-  const [comparison, setComparison] = useState<PeriodicTableElement[]>([]);
-  const selected = findElement(query) ?? periodicTableElements[5];
-  const schoolShortcuts = useMemo(
-    () =>
-      ["H", "C", "N", "O", "Na", "Cl", "Ca", "Fe"]
-        .map((symbol) => periodicTableElements.find((element) => element.symbol === symbol))
-        .filter((element): element is PeriodicTableElement => Boolean(element)),
-    [],
-  );
-  const filteredElements = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return periodicTableElements;
-    }
-    return periodicTableElements.filter(
-      (element) =>
-        element.symbol.toLowerCase().includes(normalized) ||
-        element.name.toLowerCase().includes(normalized) ||
-        String(element.atomicNumber) === normalized,
-    );
-  }, [query]);
+export function InteractivePeriodicTableModule({
+  onSendToNotes,
+  onOpenPractice,
+  onSendToWhiteboard,
+}: {
+  onSendToNotes?: (text: string) => void;
+  onOpenPractice?: () => void;
+  onSendToWhiteboard?: (text: string) => void;
+} = {}) {
+  const [query, setQuery] = useState("");
+  const [selectedAtomicNumber, setSelectedAtomicNumber] = useState(6);
+  const [trendMode, setTrendMode] = useState<TrendMode>("category");
+  const [viewMode, setViewMode] = useState<PeriodicViewMode>("table");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
+  const [studyLayer, setStudyLayer] = useState<StudyLayer>("ap");
+  const [comparison, setComparison] = useState<PeriodicTableElement[]>([
+    periodicTableElements.find((element) => element.symbol === "F") ?? periodicTableElements[8],
+    periodicTableElements.find((element) => element.symbol === "Cl") ?? periodicTableElements[16],
+  ]);
+  const selected = periodicTableElementsByNumber(selectedAtomicNumber);
+  const searchResults = useMemo(() => searchElements(query), [query]);
+  const highlightedAtomicNumbers = useMemo(() => new Set(searchResults.map((element) => element.atomicNumber)), [searchResults]);
+  const selectedTrendValue = getTrendDisplay(selected, trendMode);
 
-  function toggleCompare(element: PeriodicTableElement) {
+  function selectElement(element: PeriodicTableElement) {
+    setSelectedAtomicNumber(element.atomicNumber);
+    setQuery(element.symbol);
+  }
+
+  function addToCompare(element: PeriodicTableElement) {
     setComparison((current) => {
-      if (current.some((candidate) => candidate.symbol === element.symbol)) {
-        return current.filter((candidate) => candidate.symbol !== element.symbol);
+      if (current.some((candidate) => candidate.atomicNumber === element.atomicNumber)) {
+        return current;
       }
-      return [...current.slice(-1), element];
+      return [...current, element].slice(-4);
     });
+    setViewMode("compare");
+  }
+
+  function buildSelected(element: PeriodicTableElement) {
+    setSelectedAtomicNumber(element.atomicNumber);
+    setViewMode("builder");
+  }
+
+  function moveSelection(delta: number) {
+    const next = periodicTableElementsByNumber(Math.max(1, Math.min(118, selected.atomicNumber + delta)));
+    setSelectedAtomicNumber(next.atomicNumber);
+    setQuery(next.symbol);
   }
 
   return (
     <WorkspacePanel
-      description="Search, compare, and study periodic trends without leaving the chemistry workspace."
+      description="Complete 118-element explorer with trends, builder, compare, and AP reasoning."
       title="Interactive periodic table"
     >
       <div
-        className="chem-showcase-module chem-periodic-table-module"
-        data-chem-layout="list-detail"
+        className="chem-periodic-explorer-v3"
+        data-chem-layout="flagship-periodic-table"
         data-chemistry-module="periodic-table"
-        data-testid="chem-element-explorer-v2"
+        data-testid="chem-element-explorer-v3"
       >
-        <div className="chem-showcase-toolbar">
-          <label className="chem-showcase-search text-sm">
-            Element search
-            <Input onChange={(event) => setQuery(event.target.value)} value={query} />
+        <header className="chem-periodic-command-bar-v3">
+          <label className="chem-command-search">
+            <Search className="size-4" />
+            <span className="sr-only">Search elements</span>
+            <Input
+              aria-label="Element search"
+              onChange={(event) => {
+                const nextQuery = event.target.value;
+                setQuery(nextQuery);
+                const exactMatch = findElement(nextQuery);
+                if (exactMatch) {
+                  setSelectedAtomicNumber(exactMatch.atomicNumber);
+                }
+              }}
+              placeholder="Search carbon, group 17, 2p, forms 2+, semiconductor..."
+              value={query}
+            />
           </label>
-          <div className="chem-showcase-segment" role="group" aria-label="Trend overlay">
-            {(["electronegativity", "atomic-radius", "ionization-energy", "metallic-character"] as TrendMode[]).map(
-              (mode) => (
-                <Button
-                  key={mode}
-                  onClick={() => setTrendMode(mode)}
-                  type="button"
-                  variant={trendMode === mode ? "default" : "outline"}
-                >
-                  {mode.replace(/-/g, " ")}
-                </Button>
-              ),
-            )}
-          </div>
-        </div>
-        <div className="chem-element-shortcuts" aria-label="Common school chemistry element shortcuts">
-          {schoolShortcuts.map((element) => (
-            <Button
-              aria-label={`Shortcut ${element.name}`}
-              key={element.symbol}
-              onClick={() => setQuery(element.symbol)}
-              type="button"
-              variant={selected.symbol === element.symbol ? "default" : "outline"}
-            >
-              {element.symbol}
-            </Button>
-          ))}
-        </div>
-
-        <div className="chem-periodic-layout">
-          <div className="chem-element-browser" aria-label="Filtered element browser">
-            {filteredElements.slice(0, 10).map((element) => (
-              <button
-                className="chem-element-browser-item"
-                key={element.symbol}
-                onClick={() => setQuery(element.symbol)}
+          <div className="chem-command-pills" role="group" aria-label="Periodic table views">
+            {periodicViewButtons.map(({ id, label, Icon }) => (
+              <Button
+                aria-pressed={viewMode === id}
+                key={id}
+                onClick={() => setViewMode(id)}
                 type="button"
+                variant={viewMode === id ? "default" : "outline"}
               >
-                <strong>{element.symbol}</strong>
-                <span>{element.name}</span>
-                <small>#{element.atomicNumber}</small>
-              </button>
+                <Icon data-icon="inline-start" />
+                {label}
+              </Button>
             ))}
           </div>
-          <div className="chem-periodic-grid" aria-label="Periodic table element buttons">
-            {periodicTableElements.map((element) => {
-              const trendScore = getTrendScore(element, trendMode);
-              const opacity = trendMode === "metallic-character" ? 0.3 + trendScore * 0.55 : 0.28 + Math.min(trendScore / 4, 0.65);
-              return (
-                <button
-                  aria-label={elementSummary(element)}
-                  className="chem-element-cell"
-                  data-category={element.category}
-                  key={element.symbol}
-                  onClick={() => {
-                    setQuery(element.symbol);
-                    toggleCompare(element);
-                  }}
-                  style={{
-                    gridColumn: element.group,
-                    gridRow: element.period,
-                    opacity,
-                  }}
-                  type="button"
-                >
-                  <span>{element.atomicNumber}</span>
-                  <strong>{element.symbol}</strong>
-                  <small>{element.name}</small>
-                </button>
-              );
-            })}
+          <label className="chem-trend-select">
+            <Layers className="size-4" />
+            <span className="sr-only">Trend mode</span>
+            <select aria-label="Trend mode" className="chem-select" onChange={(event) => setTrendMode(event.target.value as TrendMode)} value={trendMode}>
+              {coreTrendModes.map((mode) => (
+                <option key={mode} value={mode}>
+                  {trendModeLabels[mode].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="chem-command-pills" role="group" aria-label="Study layer">
+            <Button onClick={() => setStudyLayer("chem101")} type="button" variant={studyLayer === "chem101" ? "default" : "outline"}>
+              Chem 101
+            </Button>
+            <Button onClick={() => setStudyLayer("ap")} type="button" variant={studyLayer === "ap" ? "default" : "outline"}>
+              AP
+            </Button>
           </div>
+          <Button onClick={() => setDensity((current) => (current === "comfortable" ? "compact" : "comfortable"))} type="button" variant="outline">
+            {density === "comfortable" ? "Compact" : "Comfortable"}
+          </Button>
+        </header>
 
-          <aside aria-label="Selected element details" className="chem-element-detail">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                  {elementCategories[selected.category]}
-                </p>
-                <h3 className="mt-1 text-2xl font-semibold">{selected.symbol}</h3>
-                <p className="text-sm text-muted-foreground">{selected.name}</p>
-              </div>
-              <Badge variant="secondary">#{selected.atomicNumber}</Badge>
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <dt className="text-muted-foreground">Atomic number</dt>
-                <dd className="font-semibold">{selected.atomicNumber}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Atomic mass</dt>
-                <dd className="font-semibold">{selected.atomicMass}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Group / period</dt>
-                <dd className="font-semibold">
-                  {selected.group} / {selected.period}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Valence electrons</dt>
-                <dd className="font-semibold">{getValenceElectrons(selected)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Electron config</dt>
-                <dd className="font-semibold">{selected.electronConfiguration}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Common ion(s)</dt>
-                <dd className="font-semibold">{selected.commonIons.join(", ") || "none common"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Phase</dt>
-                <dd className="font-semibold">{selected.phase}</dd>
-              </div>
-            </dl>
-            <section className="mt-4 rounded-xl border border-border/65 bg-background/70 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bonding behavior</p>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">{getBondingBehavior(selected)}</p>
-            </section>
-            <section className="mt-3 rounded-xl border border-primary/20 bg-primary/10 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Why it matters</p>
-              <p className="mt-2 text-xs leading-5">{getWhyElementMatters(selected)}</p>
-            </section>
-            <p className="mt-3 rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs leading-5">{selected.studyTip}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button onClick={() => toggleCompare(selected)} type="button" variant="outline">
-                Compare
-              </Button>
-              <Button type="button" variant="outline">
-                Build this atom
-              </Button>
-            </div>
-          </aside>
-        </div>
-
-        <div className="chem-comparison-row">
-          {(comparison.length > 0 ? comparison : filteredElements.slice(0, 2)).map((element) => (
-            <article className="chem-comparison-card" key={element.symbol}>
-              <strong>{element.symbol}</strong>
-              <span>{element.name}</span>
-              <small>{element.studyTip}</small>
-            </article>
+        <nav className="chem-mobile-periodic-tabs" aria-label="Periodic table mobile views">
+          {mobilePeriodicViews.map((view) => (
+            <button aria-pressed={viewMode === view.id} key={view.id} onClick={() => setViewMode(view.id)} type="button">
+              {view.label}
+            </button>
           ))}
+        </nav>
+
+        <main className="chem-periodic-main-v3" data-view={viewMode}>
+          <section className="chem-periodic-table-zone-v3" data-density={density} aria-label="Complete periodic table">
+            <div className="chem-periodic-status-row">
+              <Badge variant="secondary">118 elements</Badge>
+              <span>
+                {trendModeLabels[trendMode].label}: <strong>{selected.symbol} {selectedTrendValue}</strong>
+              </span>
+              <span>{searchResults.length} match{searchResults.length === 1 ? "" : "es"}</span>
+            </div>
+            <div className="chem-periodic-grid-v3" role="grid" aria-label="Periodic table grid">
+              {Array.from({ length: 18 }, (_, index) => (
+                <span className="chem-group-label" key={`group-${index + 1}`} style={{ gridColumn: index + 2, gridRow: 1 }}>
+                  {index + 1}
+                </span>
+              ))}
+              {Array.from({ length: 7 }, (_, index) => (
+                <span className="chem-period-label" key={`period-${index + 1}`} style={{ gridColumn: 1, gridRow: index + 2 }}>
+                  {index + 1}
+                </span>
+              ))}
+              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 9 }}>Lanthanides</span>
+              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 10 }}>Actinides</span>
+              {periodicTableElements.map((element) => {
+                const isSelected = element.atomicNumber === selected.atomicNumber;
+                const isSearchMatch = !query.trim() || highlightedAtomicNumbers.has(element.atomicNumber);
+                const value = getTrendDisplay(element, trendMode);
+                return (
+                  <button
+                    aria-label={elementSummary(element, trendMode)}
+                    className="chem-element-tile-v3"
+                    data-category={element.category}
+                    data-highlight={isSearchMatch ? "true" : "false"}
+                    data-selected={isSelected ? "true" : "false"}
+                    data-trend-kind={getTrendNumericValue(element, trendMode) === null ? "category" : "numeric"}
+                    key={element.symbol}
+                    onClick={() => selectElement(element)}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowRight") {
+                        event.preventDefault();
+                        moveSelection(1);
+                      }
+                      if (event.key === "ArrowLeft") {
+                        event.preventDefault();
+                        moveSelection(-1);
+                      }
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        moveSelection(18);
+                      }
+                      if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        moveSelection(-18);
+                      }
+                    }}
+                    role="gridcell"
+                    style={tileStyle(element, trendMode)}
+                    type="button"
+                  >
+                    <span>{element.atomicNumber}</span>
+                    <strong>{element.symbol}</strong>
+                    <small>{density === "comfortable" ? element.name : element.atomicWeightDisplay}</small>
+                    <em>{value}</em>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="chem-category-legend-v3" aria-label="Element category legend">
+              {Object.entries(elementCategories).map(([category, label]) => (
+                <span data-category={category} key={category}>{label}</span>
+              ))}
+            </div>
+          </section>
+
+          <section className="chem-search-panel-v3" aria-label="Element search results">
+            <header>
+              <p className="chem-section-kicker">Search results</p>
+              <strong>{searchResults.length} elements</strong>
+            </header>
+            <div className="chem-search-results-v3">
+              {searchResults.slice(0, 30).map((element) => (
+                <button key={element.atomicNumber} onClick={() => selectElement(element)} type="button">
+                  <strong>{element.symbol}</strong>
+                  <span>{element.name}</span>
+                  <small>{elementCategories[element.category]} - group {element.groupDisplay}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <ElementInspector
+            element={selected}
+            onBuild={buildSelected}
+            onCompare={addToCompare}
+            onOpenPractice={onOpenPractice}
+            onSendToNotes={onSendToNotes}
+            studyLayer={studyLayer}
+          />
+        </main>
+
+        <TrendReasoningPanel selected={selected} trendMode={trendMode} />
+
+        <div className="chem-periodic-secondary-v3" data-view={viewMode}>
+          {viewMode === "builder" ? (
+            <section className="chem-builder-panel-v3" aria-label="Element builder">
+              <header>
+                <p className="chem-section-kicker">Atom / isotope / ion builder</p>
+                <h3>Changing protons changes identity. Neutrons change isotope. Electrons change charge.</h3>
+              </header>
+              <AtomBuilderWorkbench initialElement={selected} onSelectElement={(element) => setSelectedAtomicNumber(element.atomicNumber)} />
+            </section>
+          ) : null}
+
+          {viewMode === "compare" ? (
+            <CompareElementsPanel
+              comparison={comparison}
+              onAddSelected={() => addToCompare(selected)}
+              onRemove={(atomicNumber) => setComparison((current) => current.filter((element) => element.atomicNumber !== atomicNumber))}
+              selected={selected}
+            />
+          ) : null}
+
+          <section className="chem-bindernotes-actions-v3" aria-label="BinderNotes integrations">
+            <div>
+              <p className="chem-section-kicker">BinderNotes study actions</p>
+              <h3>Turn the table into work</h3>
+            </div>
+            <Button disabled={!onSendToNotes} onClick={() => onSendToNotes?.(`${selected.name}: ${selected.quickCheck}`)} type="button" variant="outline">
+              <NotebookPen data-icon="inline-start" />
+              Send quick check to notes
+            </Button>
+            <Button disabled={!onSendToWhiteboard} onClick={() => onSendToWhiteboard?.(`Draw ${selected.name} as shells ${selected.shells.join("-")} and annotate valence electrons.`)} type="button" variant="outline">
+              <Microscope data-icon="inline-start" />
+              Diagram prompt
+            </Button>
+            <Button disabled={!onOpenPractice} onClick={onOpenPractice} type="button" variant="outline">
+              <BookOpen data-icon="inline-start" />
+              Launch practice
+            </Button>
+          </section>
         </div>
       </div>
     </WorkspacePanel>
@@ -348,82 +867,9 @@ export function InteractivePeriodicTableModule() {
 }
 
 export function ElementBuilderModule() {
-  const [protons, setProtons] = useState(6);
-  const [neutrons, setNeutrons] = useState(8);
-  const [electrons, setElectrons] = useState(6);
-  const element = periodicTableElements.find((candidate) => candidate.atomicNumber === protons) ?? periodicTableElements[5];
-  const charge = protons - electrons;
-  const massNumber = protons + neutrons;
-  const shellText = protons <= 2 ? "1st shell" : protons <= 10 ? "2 shells" : protons <= 18 ? "3 shells" : "4+ shells";
-
   return (
-    <WorkspacePanel description="Build isotopes and ions deterministically." title="Element builder">
-      <div className="chem-showcase-module" data-chemistry-module="element-builder">
-        <div className="chem-atom-display">
-          <div className="chem-nucleus">
-            <strong>{element.symbol}</strong>
-            <span>{massNumber}</span>
-          </div>
-          <div className="chem-shell-ring" />
-          <div className="chem-shell-ring chem-shell-ring-secondary" />
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {[
-            { label: "Protons", value: protons, setter: setProtons },
-            { label: "Neutrons", value: neutrons, setter: setNeutrons },
-            { label: "Electrons", value: electrons, setter: setElectrons },
-          ].map(({ label, value, setter }) => (
-            <label className="grid gap-2 text-sm" key={label}>
-              {label}
-              <Input
-                inputMode="numeric"
-                min={0}
-                onChange={(event) => setter(Number(event.target.value))}
-                type="number"
-                value={value}
-              />
-            </label>
-          ))}
-        </div>
-        <div className="chem-stat-grid">
-          <article>
-            <span>Identity</span>
-            <strong>{element.name}</strong>
-          </article>
-          <article>
-            <span>Mass number</span>
-            <strong>{massNumber}</strong>
-          </article>
-          <article>
-            <span>Charge</span>
-            <strong>{charge === 0 ? "neutral" : `${charge > 0 ? "+" : ""}${charge}`}</strong>
-          </article>
-          <article>
-            <span>Shell model</span>
-            <strong>{shellText}</strong>
-          </article>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["Build Carbon-14", 6, 8, 6],
-            ["Build Na+", 11, 12, 10],
-            ["Build Cl-", 17, 18, 18],
-          ].map(([label, nextProtons, nextNeutrons, nextElectrons]) => (
-            <Button
-              key={String(label)}
-              onClick={() => {
-                setProtons(Number(nextProtons));
-                setNeutrons(Number(nextNeutrons));
-                setElectrons(Number(nextElectrons));
-              }}
-              type="button"
-              variant="outline"
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      </div>
+    <WorkspacePanel description="Build atoms, isotopes, and ions with particle-level feedback." title="Element builder">
+      <AtomBuilderWorkbench />
     </WorkspacePanel>
   );
 }
@@ -457,11 +903,13 @@ export function ElectronConfigurationBuilderModule() {
 
 export function PeriodicTrendsGraphModule() {
   const [trendMode, setTrendMode] = useState<TrendMode>("electronegativity");
+  const trendRange = getTrendRange(trendMode);
   const points = periodicTableElements
-    .filter((element) => element.atomicNumber <= 30)
+    .filter((element) => element.atomicNumber <= 60)
+    .filter((element) => getTrendNumericValue(element, trendMode) !== null)
     .map((element) => ({
-      x: (element.atomicNumber / 30) * 100,
-      y: Math.min(100, getTrendScore(element, trendMode) * (trendMode === "atomic-radius" ? 0.4 : 25)),
+      x: (element.atomicNumber / 60) * 100,
+      y: trendRange ? getTrendScore(element, trendMode) * 100 : 0,
     }));
 
   return (
@@ -472,12 +920,15 @@ export function PeriodicTrendsGraphModule() {
           <p className="text-sm text-muted-foreground">{desmosStatusCopy()}</p>
         </div>
         <div className="chem-showcase-segment" role="group" aria-label="Trend">
-          {(["electronegativity", "atomic-radius", "ionization-energy", "metallic-character"] as TrendMode[]).map((mode) => (
+          {(["electronegativity", "atomic-radius", "ionization-energy", "electron-affinity", "density", "metallic-character"] as TrendMode[]).map((mode) => (
             <Button key={mode} onClick={() => setTrendMode(mode)} type="button" variant={trendMode === mode ? "default" : "outline"}>
-              {mode.replace(/-/g, " ")}
+              {trendModeLabels[mode].label}
             </Button>
           ))}
         </div>
+        <p className="rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs leading-5">
+          {trendModeLabels[trendMode].apReasoning}
+        </p>
         <Sparkline ariaLabel={`${trendMode} fallback chart`} points={points} />
       </div>
     </WorkspacePanel>

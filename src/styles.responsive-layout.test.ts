@@ -13,6 +13,8 @@ describe("phone and tablet responsive layout styles", () => {
 
   it("prevents horizontal overflow for landing, dashboards, admin, workspace, and settings on phone/tablet", () => {
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.marketing-page[\s\S]*overflow-x:\s*clip/s);
+    expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.beta-homepage[\s\S]*overflow-x:\s*clip/s);
+    expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.beta-pricing-page[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.admin-dashboard-makeover[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.workspace-page[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 767px\)[\s\S]*\.app-page[\s\S]*padding-left:\s*0\.75rem/s);

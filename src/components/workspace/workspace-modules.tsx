@@ -254,6 +254,8 @@ export type WorkspaceModuleContext = {
   graphKeypad?: boolean;
   mathPerformanceLazyLoading?: boolean;
   recallLabEnabled?: boolean;
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
   studentCalmMode?: boolean;
   studyPanelsV2?: boolean;
   onEnterWhiteboardFocus?: () => void;
@@ -301,6 +303,7 @@ export type WorkspaceModuleContext = {
   onDeleteComment: (commentId: string) => void;
   onUpdateComment: (commentId: string, body: string) => void;
   onAddHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) => void;
   onSaveSelectionAsEvidence: (selection: LessonTextSelection) => void;
   onStickyMove: (commentId: string, layout: StickyNoteLayout) => void;
@@ -377,6 +380,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         highlights={context.highlights}
         highlightStatus={context.highlightStatus}
         lesson={context.selectedLesson}
+        lessons={context.lessons}
+        onAddSelectionToReview={context.onAddSelectionToReview}
         onHighlight={context.onAddHighlight}
         onJumpToMathSource={context.onJumpToMathSource}
         onRemoveHighlight={context.onRemoveHighlight}
@@ -386,12 +391,15 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         onSendToNotes={context.onSendSelectionToNotes}
+        reviewQueueBeta={context.reviewQueueBeta}
+        sourceLinkedNotesBeta={context.sourceLinkedNotesBeta}
         surface={context.surface ?? "workspace"}
         whiteboardDensity={context.whiteboardCardDensity}
         whiteboardDisplayMode={context.whiteboardSourceDisplayMode}
         whiteboardModuleId={context.whiteboardModuleId}
         whiteboardShowMathInline={context.whiteboardShowMathInline}
         whiteboardTextSize={context.whiteboardTextSize}
+        onSelectLesson={context.onSelectLesson}
         onStickyNote={context.onPrepareComment}
       />
     ),
@@ -868,9 +876,13 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     id: "chem-periodic-table",
     title: "Interactive periodic table",
     description: "Search, compare, and explore periodic trends",
-    render: () => (
+    render: (context) => (
       <LazyModuleBoundary title="Interactive periodic table">
-        <LazyInteractivePeriodicTableModule />
+        <LazyInteractivePeriodicTableModule
+          onOpenPractice={() => context.onOpenWorkspaceTool?.("chem-review-queue")}
+          onSendToNotes={context.onCreateQuoteExcerpt}
+          onSendToWhiteboard={context.onPrepareComment}
+        />
       </LazyModuleBoundary>
     ),
   },

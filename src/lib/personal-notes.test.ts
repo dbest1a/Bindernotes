@@ -12,8 +12,10 @@ import {
   buildPersonalNotesEntries,
   defaultPersonalNotesPreferences,
   filterPersonalNotesEntries,
+  getPersonalNoteAutosaveStatus,
   getPersonalNoteHealth,
   getPersonalNoteReviewQueue,
+  getPersonalNoteSourceReferences,
   normalizePersonalNotesPreferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
@@ -216,6 +218,86 @@ describe("Personal Notes unified model", () => {
       "personal-note-1",
       "learner-note-1",
     ]);
+  });
+
+  it("extracts durable source references from binder metadata and source marker annotations", () => {
+    const markedContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "Limits describe behavior near a value.",
+              marks: [
+                {
+                  type: "sourceMarker",
+                  attrs: {
+                    binderId: "binder-calculus",
+                    binderTitle: "Jacob Math Notes",
+                    lessonId: "lesson-limits",
+                    lessonTitle: "Limits and Continuity",
+                    sectionLabel: "Derivative definition",
+                    pageLabel: "p. 12",
+                    excerpt: "The calculus section reopens limits with more precision.",
+                    sourceUrl: "/binders/binder-calculus/documents/lesson-limits#derivative-definition",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const entries = buildPersonalNotesEntries({
+      learnerNotes: [
+        learnerNote({
+          binder_id: "binder-calculus",
+          lesson_id: "lesson-limits",
+          content: markedContent,
+        }),
+      ],
+      personalNotes: [],
+      personalDocuments: [],
+      personalBinders: [],
+      binders: [binder({ id: "binder-calculus", title: "Jacob Math Notes" })],
+      lessons: [lesson({ id: "lesson-limits", binder_id: "binder-calculus", title: "Limits and Continuity" })],
+      folders: [],
+    });
+
+    const references = getPersonalNoteSourceReferences(entries[0]);
+
+    expect(references[0]).toMatchObject({
+      binderId: "binder-calculus",
+      binderTitle: "Jacob Math Notes",
+      documentId: "lesson-limits",
+      documentTitle: "Limits and Continuity",
+      sectionLabel: "Derivative definition",
+      pageLabel: "p. 12",
+      excerpt: "The calculus section reopens limits with more precision.",
+      sourceUrl: "/binders/binder-calculus/documents/lesson-limits#derivative-definition",
+    });
+  });
+
+  it("maps Personal Notes autosave states to plain-language beta labels", () => {
+    expect(getPersonalNoteAutosaveStatus({ dirty: false, saveState: "saved", autosaveEnabled: true })).toMatchObject({
+      label: "No changes to save",
+      savedLabel: "Saved",
+      state: "idle",
+    });
+    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saved", autosaveEnabled: true })).toMatchObject({
+      label: "Sync pending",
+      state: "pending",
+    });
+    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saving", autosaveEnabled: true })).toMatchObject({
+      label: "Saving...",
+      state: "saving",
+    });
+    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "error", autosaveEnabled: true })).toMatchObject({
+      label: "Error saving",
+      state: "error",
+    });
   });
 
   it("ships BinderNotes-native templates without competitor labels", () => {

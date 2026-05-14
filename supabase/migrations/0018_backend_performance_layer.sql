@@ -680,7 +680,14 @@ begin
     now(),
     now()
   )
-  on conflict (dedupe_key) do nothing
+  on conflict (dedupe_key) do update set
+    payload = excluded.payload,
+    priority = excluded.priority,
+    status = 'pending',
+    attempts = 0,
+    created_at = excluded.created_at,
+    updated_at = now()
+  where public.summary_refresh_job_dedupe.status in ('completed', 'failed')
   returning dedupe_key into inserted_key;
 
   if inserted_key is not null then

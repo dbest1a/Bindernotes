@@ -2,11 +2,22 @@ import type { JSONContent } from "@tiptap/react";
 import type { MathBlock } from "@/types";
 import { emptyDoc } from "@/lib/utils";
 
+export type NoteSourceReference = {
+  binderId?: string | null;
+  binderTitle?: string | null;
+  lessonId?: string | null;
+  lessonTitle?: string | null;
+  sectionLabel?: string | null;
+  pageLabel?: string | null;
+  excerpt?: string | null;
+  sourceUrl?: string | null;
+};
+
 export type NoteInsertRequest =
   | { id: string; kind: "paragraph"; text: string }
-  | { id: string; kind: "linked-excerpt"; excerpt: string; sourceLabel: string }
-  | { id: string; kind: "quote-response"; excerpt: string; sourceLabel: string }
-  | { id: string; kind: "sticky-note"; body: string; anchorText?: string | null; sourceLabel: string }
+  | { id: string; kind: "linked-excerpt"; excerpt: string; sourceLabel: string; source?: NoteSourceReference }
+  | { id: string; kind: "quote-response"; excerpt: string; sourceLabel: string; source?: NoteSourceReference }
+  | { id: string; kind: "sticky-note"; body: string; anchorText?: string | null; sourceLabel: string; source?: NoteSourceReference }
   | { id: string; kind: "callout"; title?: string; body?: string }
   | { id: string; kind: "checklist"; items?: string[] }
   | { id: string; kind: "worked-example"; title?: string; steps?: string[]; takeaway?: string }
@@ -238,7 +249,7 @@ export function buildInsertNodes(request: NoteInsertRequest): JSONContent[] {
           type: "blockquote",
           content: [paragraph(request.excerpt)],
         },
-        paragraph(`Source: ${request.sourceLabel}`),
+        paragraph(`Source: ${request.sourceLabel}`, false, sourceMarkerMarks(request.source, request.excerpt)),
       ];
     case "quote-response":
       return [
@@ -251,7 +262,7 @@ export function buildInsertNodes(request: NoteInsertRequest): JSONContent[] {
           type: "blockquote",
           content: [paragraph(request.excerpt)],
         },
-        paragraph(`Source: ${request.sourceLabel}`),
+        paragraph(`Source: ${request.sourceLabel}`, false, sourceMarkerMarks(request.source, request.excerpt)),
         paragraph("My takeaway: "),
       ];
     case "callout":
@@ -277,7 +288,7 @@ export function buildInsertNodes(request: NoteInsertRequest): JSONContent[] {
                 type: "blockquote",
                 content: [paragraph(request.anchorText)],
               } satisfies JSONContent,
-              paragraph(`Source: ${request.sourceLabel}`),
+              paragraph(`Source: ${request.sourceLabel}`, false, sourceMarkerMarks(request.source, request.anchorText)),
             ]
           : []),
         paragraph(request.body || "Follow up on this idea."),
@@ -403,7 +414,11 @@ function ensureDoc(content: JSONContent) {
   return emptyDoc();
 }
 
-function paragraph(text: string, bold = false): JSONContent {
+function paragraph(text: string, bold = false, marks: JSONContent["marks"] = undefined): JSONContent {
+  const textMarks = [
+    ...(bold ? [{ type: "bold" }] : []),
+    ...(marks ?? []),
+  ];
   return {
     type: "paragraph",
     content: text
@@ -411,9 +426,34 @@ function paragraph(text: string, bold = false): JSONContent {
           {
             type: "text",
             text,
-            marks: bold ? [{ type: "bold" }] : undefined,
+            marks: textMarks.length ? textMarks : undefined,
           },
         ]
       : undefined,
   };
+}
+
+function sourceMarkerMarks(
+  source: NoteSourceReference | undefined,
+  fallbackExcerpt: string | null | undefined,
+): JSONContent["marks"] {
+  if (!source) {
+    return undefined;
+  }
+
+  return [
+    {
+      type: "sourceMarker",
+      attrs: {
+        binderId: source.binderId ?? null,
+        binderTitle: source.binderTitle ?? "",
+        lessonId: source.lessonId ?? null,
+        lessonTitle: source.lessonTitle ?? "",
+        sectionLabel: source.sectionLabel ?? "",
+        pageLabel: source.pageLabel ?? "",
+        excerpt: source.excerpt ?? fallbackExcerpt ?? "",
+        sourceUrl: source.sourceUrl ?? "",
+      },
+    },
+  ];
 }

@@ -127,7 +127,11 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import { getBinderBundle, getDashboard } from "@/services/binder-service";
+import { getBinderBundle, getDashboard, getFolderWorkspace } from "@/services/binder-service";
+import {
+  CHEMISTRY_SHOWCASE_BINDER_ID,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 
 describe("binder-service account dashboard data", () => {
   const profile: Profile = {
@@ -210,11 +214,61 @@ describe("binder-service account dashboard data", () => {
     const dashboard = await getDashboard(profile, { includeSystemStatus: false });
 
     expect(dashboard.binders.map((binder) => binder.id)).toEqual([
+      CHEMISTRY_SHOWCASE_BINDER_ID,
       "binder-jacob-math-notes",
       "binder-user-real",
     ]);
-    expect(dashboard.lessons.map((lesson) => lesson.id)).toEqual(["lesson-demo", "lesson-real"]);
-    expect(dashboard.recentLessons.map((lesson) => lesson.id)).toEqual(["lesson-real", "lesson-demo"]);
+    expect(dashboard.lessons.map((lesson) => lesson.id)).toEqual([
+      ...chemistryShowcaseLessons.map((lesson) => lesson.id),
+      "lesson-demo",
+      "lesson-real",
+    ]);
+    expect(dashboard.recentLessons.map((lesson) => lesson.id)).toEqual(
+      chemistryShowcaseLessons.slice(0, 6).map((lesson) => lesson.id),
+    );
+  });
+
+  it("shows the bundled Chemistry 101 + AP Chemistry course in account Chemistry folders without a Supabase seed mirror", async () => {
+    mocks.state.binders.push({
+      id: "binder-user-chemistry",
+      owner_id: profile.id,
+      title: "Chemistry binder",
+      slug: "chemistry-binder",
+      description: "Personal workspace binder.",
+      subject: "Chemistry",
+      level: "Personal",
+      status: "published",
+      price_cents: 0,
+      cover_url: null,
+      pinned: false,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    });
+    mocks.state.lessons.push({
+      id: "lesson-user-chemistry",
+      binder_id: "binder-user-chemistry",
+      title: "New document",
+      order_index: 1,
+      content: emptyDoc("Personal chemistry notes."),
+      math_blocks: [],
+      is_preview: false,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    });
+
+    const workspace = await getFolderWorkspace("folder-chemistry", profile);
+
+    expect(workspace.binders.map((binder) => binder.id)).toContain(CHEMISTRY_SHOWCASE_BINDER_ID);
+    expect(workspace.binders.map((binder) => binder.id)).toContain("binder-user-chemistry");
+    expect(workspace.lessons.filter((lesson) => lesson.binder_id === CHEMISTRY_SHOWCASE_BINDER_ID)).toHaveLength(77);
+  });
+
+  it("opens the bundled Chemistry 101 + AP Chemistry course even when account Supabase rows are absent", async () => {
+    const bundle = await getBinderBundle(CHEMISTRY_SHOWCASE_BINDER_ID, profile);
+
+    expect(bundle.binder.title).toBe("Chemistry 101 + AP Chemistry");
+    expect(bundle.lessons).toHaveLength(77);
+    expect(bundle.folders.map((folder) => folder.id)).toContain("folder-chemistry");
   });
 
   it("opens a Supabase-backed Jacob binder instead of blocking it as a local sample", async () => {

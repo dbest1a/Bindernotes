@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/ui/logo-mark";
+import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 
 const pricingProof = [
   "View pricing before sign-in",
@@ -179,6 +181,21 @@ const faqs = [
 ];
 
 export function PricingPage() {
+  return <ClassicPricingPage />;
+}
+
+export function PricingBetaPage() {
+  const { profile } = useAuth();
+  const betaFeatures = useBetaFeatures(profile?.id);
+
+  if (!betaFeatures.isFeatureEnabled("betaRevampCalmStudyHomepage")) {
+    return <ClassicPricingPage />;
+  }
+
+  return <BetaRevampPricingPage />;
+}
+
+function ClassicPricingPage() {
   const [heroPointer, setHeroPointer] = useState({
     x: "0px",
     y: "0px",
@@ -406,6 +423,167 @@ export function PricingPage() {
           <h2>Start free, then upgrade when BinderNotes becomes your main study desk.</h2>
           <p>
             See the product, compare the plans, and create a real account only when the value is clear.
+          </p>
+          <Button asChild className="marketing-button marketing-button--primary" size="lg">
+            <Link to="/auth">
+              Start studying now
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+const betaPricingPlans = [
+  {
+    badge: "Start here",
+    cta: "Start free",
+    features: [
+      "Source-linked notes",
+      "Private account workspace",
+      "Starter review habits",
+      "Math notes and formula context",
+    ],
+    name: "Free",
+    price: "$0",
+    summary: "For students proving the habit with real notes, sources, and review.",
+  },
+  {
+    badge: "Student upgrade",
+    cta: "Start Plus",
+    features: [
+      "More binders and study space",
+      "Saved graph and formula context",
+      "Review queue and mistake tracking as they mature",
+      "Calmer workspace controls",
+    ],
+    name: "Plus",
+    price: "$8",
+    summary: "For students who want BinderNotes as their main math-heavy study desk.",
+  },
+  {
+    badge: "Later",
+    cta: "Join with a real account",
+    features: [
+      "Tutor and small-group workflows",
+      "Student source packets",
+      "Shared review routines",
+      "Studio publishing can wait until the student loop is proven",
+    ],
+    name: "Studio later / for tutors",
+    price: "Later",
+    summary: "For tutors and creators after the core student study habit is working.",
+  },
+];
+
+function BetaRevampPricingPage() {
+  return (
+    <main className="pricing-page beta-pricing-page" data-beta-pricing-model="simple" data-testid="beta-pricing-page">
+      <section className="beta-pricing-hero">
+        <PricingNav />
+        <div className="beta-pricing-hero__inner">
+          <div className="beta-pricing-hero__copy">
+            <span className="marketing-kicker marketing-kicker--bright">Beta Revamp pricing</span>
+            <h1>Pricing that keeps the study habit simple.</h1>
+            <p>
+              Start free, upgrade when BinderNotes becomes the place you keep source-linked notes,
+              graphs, formulas, review cards, and mistake patterns. Studio can come later for tutors.
+            </p>
+            <div className="pricing-hero__actions">
+              <Button asChild className="marketing-button marketing-button--primary" size="lg">
+                <Link to="/auth">
+                  Start studying
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+                <a href="#plans">See plans</a>
+              </Button>
+            </div>
+          </div>
+          <div className="beta-pricing-hero__visual" aria-label="Simple pricing preview">
+            <article>
+              <span>Free</span>
+              <strong>{"Source -> note -> review"}</strong>
+            </article>
+            <article>
+              <span>Plus</span>
+              <strong>Graphs, formulas, mistakes</strong>
+            </article>
+            <article>
+              <span>Studio later</span>
+              <strong>Tutors after the student loop works</strong>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="pricing-plans pricing-section beta-pricing-plans" id="plans">
+        <div className="pricing-section__intro">
+          <span className="marketing-kicker">Plans</span>
+          <h2>Three choices while the study loop proves itself.</h2>
+          <p>
+            Students should not need to compare four complex tiers before the product habit is
+            clear.
+          </p>
+        </div>
+        <div className="beta-pricing-plan-grid">
+          {betaPricingPlans.map((plan) => (
+            <article className="pricing-plan-card beta-pricing-plan-card" data-featured={plan.name === "Plus"} key={plan.name}>
+              <div className="pricing-plan-card__top">
+                <span>{plan.badge}</span>
+                <strong>{plan.name === "Plus" ? "Core" : "Simple"}</strong>
+              </div>
+              <h3>{plan.name}</h3>
+              <p>{plan.summary}</p>
+              <div className="pricing-plan-card__price">
+                <span>{plan.price}</span>
+                <small>{plan.price === "Later" ? "for tutor workflows" : plan.name === "Free" ? "forever" : "per month"}</small>
+              </div>
+              <Link className="pricing-plan-card__cta" to="/auth">
+                {plan.cta}
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+              <div className="pricing-plan-card__features">
+                {plan.features.map((feature) => (
+                  <span key={feature}>
+                    <Check data-icon="inline-start" />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="beta-pricing-trust pricing-section">
+        <article className="pricing-trust-card">
+          <LockKeyhole data-icon="inline-start" />
+          <h2>Real accounts, not demo workspaces.</h2>
+          <p>
+            Pricing stays public, but account areas continue to use real Supabase auth and real
+            user-owned data paths.
+          </p>
+        </article>
+        <article className="pricing-trust-card">
+          <BookOpenCheck data-icon="inline-start" />
+          <h2>Notes are user-owned.</h2>
+          <p>
+            BinderNotes should sell trust: private study records, source context, and portability as
+            export controls mature.
+          </p>
+        </article>
+      </section>
+
+      <section className="pricing-final beta-pricing-final">
+        <div className="pricing-final__content">
+          <span className="marketing-kicker marketing-kicker--bright">Simple until the habit is proven</span>
+          <h2>Free, Plus, and Studio later.</h2>
+          <p>
+            No billing or checkout behavior changed in this beta copy path.
           </p>
           <Button asChild className="marketing-button marketing-button--primary" size="lg">
             <Link to="/auth">

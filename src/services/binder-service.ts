@@ -435,6 +435,32 @@ function debugWorkspaceQueryFailure(input: {
   });
 }
 
+function debugWorkspaceQueryInfo(input: {
+  event: string;
+  table: string;
+  select: string;
+  filters: string[];
+  reason: string;
+  fallbackTable?: string;
+  rowCount?: number;
+  userId?: string | null;
+}) {
+  if (!import.meta.env.DEV || import.meta.env.MODE === "test" || typeof console === "undefined") {
+    return;
+  }
+
+  console.info("[BinderNotes workspace query info]", {
+    event: input.event,
+    table: input.table,
+    select: input.select,
+    filters: input.filters,
+    reason: input.reason,
+    fallbackTable: input.fallbackTable ?? null,
+    rowCount: input.rowCount ?? null,
+    userId: input.userId ?? null,
+  });
+}
+
 function isNonEmptyString(value: string | null): value is string {
   return typeof value === "string" && value.length > 0;
 }
@@ -855,14 +881,95 @@ function getAccountDataSupabaseClient() {
   return supabase;
 }
 
-async function requireRemoteAccountDataStorage(binderId: string, label: string) {
+function getAccountVisibleBundledLessonsForBinder(binderId: string) {
+  if (binderId === chemistryShowcaseBinder.id) {
+    return chemistryShowcaseLessons;
+  }
+
+  return [];
+}
+
+async function materializeAccountVisibleBundledCourseForSave(
+  binderId: string,
+  ownerId: string,
+): Promise<boolean> {
+  if (!supabase) {
+    return false;
+  }
+
+  const binder = getAccountVisibleBundledBinderById(binderId);
+  if (!binder) {
+    return false;
+  }
+
+  const lessons = getAccountVisibleBundledLessonsForBinder(binderId);
+  if (lessons.length === 0) {
+    return false;
+  }
+
+  const updatedAt = now();
+  const { error: binderError } = await supabase.from("binders").upsert(
+    {
+      ...binder,
+      owner_id: ownerId,
+      updated_at: updatedAt,
+    },
+    { onConflict: "id" },
+  );
+
+  if (binderError) {
+    throw binderError;
+  }
+
+  const { error: lessonsError } = await supabase.from("binder_lessons").upsert(
+    lessons.map((lesson) => ({
+      ...lesson,
+      updated_at: updatedAt,
+    })),
+    { onConflict: "id" },
+  );
+
+  if (lessonsError) {
+    throw lessonsError;
+  }
+
+  recordBundledContentStorageMode(binderId, "remote");
+  return true;
+}
+
+async function requireRemoteAccountDataStorage(
+  binderId: string,
+  label: string,
+  ownerId?: string,
+) {
+  const tryMaterialize = async () => {
+    if (!ownerId) {
+      return false;
+    }
+
+    try {
+      return await materializeAccountVisibleBundledCourseForSave(binderId, ownerId);
+    } catch {
+      return false;
+    }
+  };
+
   try {
-    if ((await resolveBundledContentStorageMode(binderId)) === "shadow") {
-      throw createAccountDataCloudSaveError(label);
+    if ((await resolveBundledContentStorageMode(binderId)) !== "shadow") {
+      return;
     }
   } catch {
+    if (await tryMaterialize()) {
+      return;
+    }
     throw createAccountDataCloudSaveError(label);
   }
+
+  if (await tryMaterialize()) {
+    return;
+  }
+
+  throw createAccountDataCloudSaveError(label);
 }
 
 function throwAccountDataErrorInsteadOfShadowFallback(
@@ -1081,7 +1188,14 @@ async function runHighlightMutationWithFallback(input: {
 }
 
 function mergePublishedDemoBinders(remoteBinders: Binder[]) {
-  return [...remoteBinders].sort((left, right) => {
+  const byId = new Map(remoteBinders.map((binder) => [binder.id, binder]));
+  getAccountVisibleBundledBinders().forEach((binder) => {
+    if (!byId.has(binder.id)) {
+      byId.set(binder.id, binder);
+    }
+  });
+
+  return [...byId.values()].sort((left, right) => {
     if (left.pinned !== right.pinned) {
       return Number(right.pinned) - Number(left.pinned);
     }
@@ -1090,8 +1204,29 @@ function mergePublishedDemoBinders(remoteBinders: Binder[]) {
   });
 }
 
+function getAccountVisibleBundledBinders() {
+  return [chemistryShowcaseBinder];
+}
+
+function getAccountVisibleBundledBinderById(binderId: string) {
+  return getAccountVisibleBundledBinders().find((binder) => binder.id === binderId) ?? null;
+}
+
 function mergeDemoLessons(remoteLessons: BinderLesson[], binderId?: string) {
-  return remoteLessons
+  const lessonById = new Map(
+    remoteLessons
+      .filter((lesson) => (binderId ? lesson.binder_id === binderId : true))
+      .map((lesson) => [lesson.id, lesson]),
+  );
+  chemistryShowcaseLessons
+    .filter((lesson) => (binderId ? lesson.binder_id === binderId : true))
+    .forEach((lesson) => {
+      if (!lessonById.has(lesson.id)) {
+        lessonById.set(lesson.id, lesson);
+      }
+    });
+
+  return [...lessonById.values()]
     .filter((lesson) => (binderId ? lesson.binder_id === binderId : true))
     .sort((left, right) => {
       if (left.binder_id !== right.binder_id) {
@@ -1100,6 +1235,44 @@ function mergeDemoLessons(remoteLessons: BinderLesson[], binderId?: string) {
 
       return left.order_index - right.order_index;
     });
+}
+
+function buildBundledAccountCourseBundle(
+  binder: Binder,
+  profile: Profile,
+): BinderBundle {
+  const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
+  const shadowState = getShadowBinderState(profile.id, binder.id);
+
+  return {
+    binder,
+    lessons: mergeDemoLessons([], binder.id),
+    notes: shadowState.notes,
+    comments: shadowState.comments,
+    highlights: mergeStoredHighlightMetadata(shadowState.highlights),
+    folders: folderArtifacts.folders,
+    folderLinks: folderArtifacts.folderLinks,
+    conceptNodes: [],
+    conceptEdges: [],
+    seedHealth: null,
+  };
+}
+
+function buildBundledAccountCourseOverview(
+  binder: Binder,
+  profile: Profile,
+): BinderOverviewData {
+  const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
+  const shadowState = getShadowBinderState(profile.id, binder.id);
+
+  return {
+    binder,
+    lessons: mergeDemoLessons([], binder.id),
+    notes: shadowState.notes,
+    folderLinks: folderArtifacts.folderLinks,
+    folders: folderArtifacts.folders,
+    seedHealth: null,
+  };
 }
 
 function mergeDemoConceptNodes(remoteNodes: ConceptNode[], binderId: string) {
@@ -1241,6 +1414,17 @@ export async function getDashboard(
   let lessonsUsedSummary = !lessonSummaryResult.error;
 
   if (candidateBinderIds.length > 0 && (lessonSummaryResult.error || lessonRows.length === 0)) {
+    debugWorkspaceQueryInfo({
+      event: "dashboard_summary_fallback",
+      table: "dashboard_lesson_summaries",
+      select: DASHBOARD_LESSON_SUMMARY_SELECT,
+      filters: [`binder_id in (${candidateBinderIds.join(", ")})`, "order updated_at desc"],
+      reason: lessonSummaryResult.error ? "summary_query_failed" : "missing_summary_rows",
+      fallbackTable: "binder_lessons",
+      rowCount: lessonRows.length,
+      userId: profile.id,
+    });
+
     const fullLessonsResult = await supabase
       .from("binder_lessons")
       .select("*")
@@ -1527,6 +1711,12 @@ export async function getBinderBundle(
 
   const binder = binderResult.data as Binder | null;
   if (!binder) {
+    const bundledAccountCourse = getAccountVisibleBundledBinderById(binderId);
+    if (bundledAccountCourse) {
+      recordBundledContentStorageMode(binderId, "shadow");
+      return buildBundledAccountCourseBundle(bundledAccountCourse, profile);
+    }
+
     if (isSystemBinderId(binderId)) {
       throw createMissingSeedError(binderId);
     }
@@ -1743,6 +1933,12 @@ export async function getBinderOverview(
 
   const binder = binderResult.data as Binder | null;
   if (!binder) {
+    const bundledAccountCourse = getAccountVisibleBundledBinderById(binderId);
+    if (bundledAccountCourse) {
+      recordBundledContentStorageMode(binderId, "shadow");
+      return buildBundledAccountCourseOverview(bundledAccountCourse, profile);
+    }
+
     if (isSystemBinderId(binderId)) {
       throw createMissingSeedError(binderId);
     }
@@ -1785,7 +1981,7 @@ export async function upsertLearnerNote(input: {
 }): Promise<LearnerNote> {
   const normalizedTitle = input.title.trim() || "Private lesson notes";
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Private note");
+  await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
 
   const persistWithFolderId = (folderId: string | null) =>
     client
@@ -1867,7 +2063,7 @@ export async function createHighlight(input: {
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Highlight");
+  await requireRemoteAccountDataStorage(input.binderId, "Highlight", input.ownerId);
 
   const { data, error } = await runHighlightMutationWithFallback({
     preferredMode: readCachedHighlightSchemaMode(),
@@ -2052,7 +2248,7 @@ export async function resetHighlights(input: {
   lessonId?: string;
 }): Promise<void> {
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Highlights");
+  await requireRemoteAccountDataStorage(input.binderId, "Highlights", input.ownerId);
 
   const shadowState = loadShadowState();
   const shadowExists = shadowState.highlights.some(
@@ -2104,7 +2300,7 @@ export async function createComment(input: {
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Comment");
+  await requireRemoteAccountDataStorage(input.binderId, "Comment", input.ownerId);
 
   const { data, error } = await client
     .from("comments")
@@ -2233,7 +2429,7 @@ export async function upsertWorkspacePreferencesRecord(
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(next.binderId, "Workspace layout");
+  await requireRemoteAccountDataStorage(next.binderId, "Workspace layout", next.userId);
 
   const { data, error } = await client
     .from("workspace_preferences")

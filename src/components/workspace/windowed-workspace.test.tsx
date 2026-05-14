@@ -259,6 +259,99 @@ describe("WindowedWorkspace", () => {
     expect(onFitViewport).toHaveBeenCalledWith({ width: 1100, height: 760 });
   });
 
+  it("does not auto-fit or viewport-lock a custom Split Study layout when Canvas Rework is enabled", () => {
+    const onFitViewport = vi.fn();
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: true,
+      preset: "split-study",
+      enabledModules: ["lesson", "private-notes"],
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        committedFrames: {
+          lesson: { x: 120, y: 840, w: 640, h: 420, z: 7 },
+          "private-notes": { x: 820, y: 860, w: 500, h: 420, z: 8 },
+        },
+        canvasHeight: 1800,
+      },
+      viewportFit: {
+        width: 760,
+        height: 620,
+        updatedAt: new Date(0).toISOString(),
+      },
+      windowLayout: {
+        lesson: { x: 120, y: 840, w: 640, h: 420, z: 7 },
+        "private-notes": { x: 820, y: 860, w: 500, h: 420, z: 8 },
+      },
+    };
+
+    const { container } = render(
+      <WindowedWorkspace
+        canvasReworkEnabled
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={onFitViewport}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    vi.runOnlyPendingTimers();
+
+    const lesson = container.querySelector<HTMLElement>('[data-window-module-id="lesson"]');
+    expect(onFitViewport).not.toHaveBeenCalled();
+    expect(lesson?.style.left).toBe("120px");
+    expect(lesson?.style.top).toBe("840px");
+  });
+
+  it("shows the Canvas Rework module shelf and selected module inspector in edit mode", () => {
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: false,
+      enabledModules: ["lesson", "private-notes"],
+      theme: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").theme,
+        showUtilityUi: true,
+      },
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutMode: "edit",
+        layoutSource: "custom",
+        gridEnabled: true,
+        guidesEnabled: true,
+      },
+      windowLayout: {
+        lesson: { x: 0, y: 0, w: 560, h: 520, z: 1 },
+        "private-notes": { x: 580, y: 0, w: 560, h: 520, z: 2 },
+      },
+    };
+
+    render(
+      <WindowedWorkspace
+        canvasReworkEnabled
+        context={{} as WorkspaceModuleContext}
+        mode="setup"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onOpenModule={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    expect(screen.getByTestId("canvas-rework-module-shelf")).toBeTruthy();
+    expect(screen.getByText("General")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Lesson" }));
+
+    expect(screen.getByTestId("canvas-rework-module-inspector")).toBeTruthy();
+    expect((screen.getByLabelText("Selected module width") as HTMLInputElement).value).toBe("560");
+    expect((screen.getByLabelText("Selected module height") as HTMLInputElement).value).toBe("520");
+  });
+
   it("does not auto-fit a locked custom canvas after the user has resized modules", () => {
     const onFitViewport = vi.fn();
     const preferences: WorkspacePreferences = {
@@ -780,6 +873,48 @@ describe("WindowedWorkspace", () => {
     const canvas = container.querySelector<HTMLElement>(".workspace-canvas");
     expect(canvas?.style.height).toBe("760px");
     expect(canvas?.style.width).toBe("1100px");
+  });
+
+  it("keeps the Canvas Rework surface stretched to the shell when custom frames are narrower", () => {
+    const basePreferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const preferences: WorkspacePreferences = {
+      ...basePreferences,
+      locked: true,
+      enabledModules: ["lesson", "private-notes"],
+      windowLayout: {
+        lesson: { x: 24, y: 24, w: 420, h: 420, z: 1 },
+        "private-notes": { x: 460, y: 24, w: 420, h: 420, z: 2 },
+      },
+      canvas: {
+        ...basePreferences.canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        committedFrames: {
+          lesson: { x: 24, y: 24, w: 420, h: 420, z: 1 },
+          "private-notes": { x: 460, y: 24, w: 420, h: 420, z: 2 },
+        },
+      },
+    };
+
+    const { container } = render(
+      <WindowedWorkspace
+        canvasReworkEnabled
+        context={{} as WorkspaceModuleContext}
+        mode="study"
+        onCommitFrame={vi.fn()}
+        onFitViewport={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        preferences={preferences}
+      />,
+    );
+
+    const root = container.querySelector<HTMLElement>("[data-beta-canvas-rework='true']");
+    const shell = container.querySelector<HTMLElement>(".workspace-canvas-shell");
+    const canvas = container.querySelector<HTMLElement>(".workspace-canvas");
+    expect(root?.className).toContain("w-full");
+    expect(shell?.className).toContain("w-full");
+    expect(canvas?.style.width).toBe("100%");
+    expect(canvas?.style.minWidth).toBe("1100px");
   });
 
   it("renders locked Split Study edge-to-edge even when saved frames are shifted", () => {

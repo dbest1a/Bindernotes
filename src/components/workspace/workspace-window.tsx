@@ -9,6 +9,8 @@ import {
   snapWindowFrame,
   type WorkspaceSnapGuide,
 } from "@/lib/workspace-layout-engine";
+import { getEffectiveCanvasScale, getFrameFromPointerDelta } from "@/lib/module-movement-engine";
+import { recordWhiteboardPerformanceDiagnostic } from "@/lib/whiteboard-performance-diagnostics";
 import { cn } from "@/lib/utils";
 import type { FullCanvasSnapBehavior, WorkspaceModuleId, WorkspaceWindowFrame } from "@/types";
 
@@ -25,9 +27,15 @@ type WorkspaceWindowProps = {
   safeEdgePadding: boolean;
   snapBehavior: FullCanvasSnapBehavior;
   snapEnabled: boolean;
+  smoothMovementEnabled?: boolean;
   workspaceStyle: "guided" | "flexible" | "full-studio";
   onCanvasHeightRequest?: (frame: WorkspaceWindowFrame) => void;
   onCommit: (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => void;
+  onInteractionChange?: (state: {
+    active: boolean;
+    mode: "move" | "resize";
+    moduleId: WorkspaceModuleId;
+  }) => void;
   onSelect?: (moduleId: WorkspaceModuleId) => void;
   onSnapGuidesChange?: (moduleId: WorkspaceModuleId, guides: WorkspaceSnapGuide[]) => void;
   onToggleCollapsed: (moduleId: WorkspaceModuleId, collapsed: boolean) => void;
@@ -68,8 +76,10 @@ export function WorkspaceWindow({
   safeEdgePadding,
   snapBehavior,
   snapEnabled,
+  smoothMovementEnabled = false,
   workspaceStyle,
   onCommit,
+  onInteractionChange,
   topZ,
 }: WorkspaceWindowProps) {
   const [activeMode, setActiveMode] = useState<ResizeMode | null>(null);
@@ -144,18 +154,35 @@ export function WorkspaceWindow({
     const minWidth = minimum.width;
     const minHeight = minimum.height;
     const shell = event.currentTarget.closest(".workspace-canvas-shell");
+    const shellElement = shell instanceof HTMLElement ? shell : null;
     let interactionCanvasHeight = canvasHeight;
     const safePadding = safeEdgePadding ? 8 : 0;
     const effectiveCanvasWidth = Math.max(
       canvasWidth,
       boundsWidth,
-      shell instanceof HTMLElement ? shell.scrollWidth : 0,
-      shell instanceof HTMLElement ? shell.clientWidth : 0,
+      shellElement ? shellElement.scrollWidth : 0,
+      shellElement ? shellElement.clientWidth : 0,
     );
+    const shellRect = shellElement?.getBoundingClientRect();
+    const movementScale =
+      smoothMovementEnabled && shellRect && shellElement
+        ? getEffectiveCanvasScale(shellRect, shellElement.clientWidth || effectiveCanvasWidth)
+        : 1;
+    const startScrollLeft = shellElement?.scrollLeft ?? 0;
+    const startScrollTop = shellElement?.scrollTop ?? 0;
+    const interactionMode = mode === "move" ? "move" : "resize";
     setActiveMode(mode);
     setSnapPreview(null);
     lastSnapUiUpdateAtRef.current = Number.NEGATIVE_INFINITY;
     interactionActiveRef.current = true;
+    windowRef.current?.setAttribute("data-dragging", "true");
+    windowRef.current?.setAttribute("data-drag-mode", interactionMode);
+    onInteractionChange?.({ active: true, mode: interactionMode, moduleId });
+    recordWhiteboardPerformanceDiagnostic("whiteboard-drag-start", {
+      mode: interactionMode,
+      moduleId,
+      scale: movementScale,
+    });
     applyFrameToElement(windowRef.current, startFrame);
     source.setPointerCapture?.(pointerId);
 
@@ -175,19 +202,32 @@ export function WorkspaceWindow({
         return;
       }
 
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const currentScrollLeft = shellElement?.scrollLeft ?? startScrollLeft;
+      const currentScrollTop = shellElement?.scrollTop ?? startScrollTop;
+      const currentPointer = smoothMovementEnabled
+        ? {
+            x: moveEvent.clientX,
+            y: moveEvent.clientY,
+          }
+        : {
+            x: moveEvent.clientX + (currentScrollLeft - startScrollLeft),
+            y: moveEvent.clientY + (currentScrollTop - startScrollTop),
+          };
+      const rawMovementFrame = getFrameFromPointerDelta({
+        currentPointer,
+        minimumSize: { width: minWidth, height: minHeight },
+        mode,
+        scale: smoothMovementEnabled ? movementScale : 1,
+        startFrame,
+        startPointer: { x: startX, y: startY },
+      });
       const rawFrame =
         mode === "move"
-          ? {
-              ...startFrame,
-              x: startFrame.x + dx,
-              y: startFrame.y + dy,
-            }
+          ? rawMovementFrame
           : {
-              ...startFrame,
-              w: Math.max(minWidth, snapToFrame(startFrame.w + dx, 8)),
-              h: Math.max(minHeight, snapToFrame(startFrame.h + dy, 8)),
+              ...rawMovementFrame,
+              w: Math.max(minWidth, snapToFrame(rawMovementFrame.w, 8)),
+              h: Math.max(minHeight, snapToFrame(rawMovementFrame.h, 8)),
             };
 
       if (rawFrame.y + rawFrame.h > interactionCanvasHeight - WORKSPACE_CANVAS_EXPAND_THRESHOLD) {
@@ -230,6 +270,10 @@ export function WorkspaceWindow({
         setSnapPreview(nextPreview);
       }
       scheduleFrameRender(mode, startFrame);
+      recordWhiteboardPerformanceDiagnostic("whiteboard-drag-frame", {
+        mode: interactionMode,
+        moduleId,
+      });
     };
 
     const onUp = () => {
@@ -254,11 +298,18 @@ export function WorkspaceWindow({
       applyFrameToElement(windowRef.current, resolvedFrame);
       setActiveMode(null);
       interactionActiveRef.current = false;
+      windowRef.current?.removeAttribute("data-dragging");
+      windowRef.current?.removeAttribute("data-drag-mode");
       snapPreviewRef.current = null;
       setSnapPreview(null);
       onSnapGuidesChange?.(moduleId, []);
       onCanvasHeightRequest?.(resolvedFrame);
       onCommit(moduleId, resolvedFrame);
+      onInteractionChange?.({ active: false, mode: interactionMode, moduleId });
+      recordWhiteboardPerformanceDiagnostic("whiteboard-drag-commit", {
+        mode: interactionMode,
+        moduleId,
+      });
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

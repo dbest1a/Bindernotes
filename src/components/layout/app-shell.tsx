@@ -32,7 +32,7 @@ import {
   personalNotesPreferencesUpdatedEvent,
   savePersonalNotesPreferences,
 } from "@/lib/personal-notes";
-import { betaFeatureFlagDefinitions } from "@/lib/beta-features";
+import { betaFeatureFlagDefinitions, betaFeatureGroups } from "@/lib/beta-features";
 import { revampBetaQaIssueMap, roleVerificationQaIssues } from "@/lib/revamp-beta-qa-map";
 import { dashboardViewModeOptions } from "@/lib/admin-dashboard-preferences";
 import { cn, initials } from "@/lib/utils";
@@ -152,6 +152,9 @@ export function AppShell() {
   const betaFeatureSearchTerms = betaFeatureFlagDefinitions
     .flatMap((flag) => [flag.label, flag.description, ...flag.searchAliases])
     .join(" ");
+  const betaFeatureGroupSearchTerms = betaFeatureGroups
+    .flatMap((group) => [group.label, group.description])
+    .join(" ");
   const revampBetaQaSearchTerms = Object.entries(revampBetaQaIssueMap)
     .flatMap(([id, issue]) => [id, issue.area, issue.summary])
     .join(" ");
@@ -223,7 +226,7 @@ export function AppShell() {
   );
   const showBetaFeaturesSettings = shouldShowSettingSection(
     "Beta Features",
-    `beta beta features revamp beta experimental preview early access qa cleanup full qa report split study study panels math whiteboard notes history dashboard settings performance desmos calculator autosave save status student study surfaces ${betaFeatureSearchTerms} ${revampBetaQaSearchTerms}`,
+    `beta beta features beta revamp revamp beta experimental preview early access qa cleanup full qa report split study study panels math whiteboard notes history dashboard settings performance desmos calculator autosave save status student study surfaces ${betaFeatureGroupSearchTerms} ${betaFeatureSearchTerms} ${revampBetaQaSearchTerms}`,
   );
   const showAdminMotionSettings = isAdmin
     ? shouldShowSettingSection(
@@ -305,6 +308,7 @@ export function AppShell() {
       data-admin-dashboard={dashboardExperience.dashboardAttribute}
       data-admin-motion={isAdmin && settings.enabled && !effectivePerformanceMode ? "on" : "off"}
       data-beta-features={betaFeatures.betaFeaturesEnabled ? "on" : "off"}
+      data-beta-revamp={betaFeatures.betaRevampEnabled ? "true" : "false"}
       data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
       data-enhanced-mode={enhancedModeRequested ? "true" : "false"}
       data-enhanced-visuals={enhancedModeRequested ? "true" : "false"}
@@ -336,6 +340,11 @@ export function AppShell() {
             <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
               Personal Notes
             </NavItem>
+            {betaFeatures.isFeatureEnabled("betaRevampReviewQueue") ? (
+              <NavItem to="/review" icon={<BookOpenCheck data-icon="inline-start" />}>
+                Review
+              </NavItem>
+            ) : null}
             <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
               Math lab
             </NavItem>
@@ -887,15 +896,15 @@ export function AppShell() {
                         </div>
                         <button
                           aria-label="Toggle Revamp Beta"
-                          aria-pressed={betaFeatures.betaFeaturesEnabled}
+                          aria-pressed={betaFeatures.revampBetaEnabled}
                           className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                           data-testid="revamp-beta-toggle"
-                          onClick={() => betaFeatures.setBetaFeaturesEnabled(!betaFeatures.betaFeaturesEnabled)}
+                          onClick={() => betaFeatures.setBetaFeatureFlag("revampBeta", !betaFeatures.revampBetaEnabled)}
                           type="button"
                         >
                           <span
                             className={
-                              betaFeatures.betaFeaturesEnabled
+                              betaFeatures.revampBetaEnabled
                                 ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
                                 : "admin-motion-toggle__knob"
                             }
@@ -904,43 +913,82 @@ export function AppShell() {
                         </button>
                       </div>
                       <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
-                        {betaFeatures.betaFeaturesEnabled
+                        {betaFeatures.revampBetaEnabled
                           ? "Revamp Beta is on. The QA cleanup gate is active for study layouts, tools, notes, search, and performance experiments."
                           : "Keep this off for current production behavior. Turn it on to test the BinderNotes QA cleanup locally."}
                       </p>
                     </section>
-                    <section aria-label="Revamp Beta gate" className="app-beta-feature-list">
+                    <section aria-label="Beta feature gates" className="app-beta-feature-list">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Single cleanup gate
+                        Feature gates
                       </p>
-                      <div className="grid gap-2">
-                        {betaFeatureFlagDefinitions.map((flag) => {
-                          const active = betaFeatures.isFeatureEnabled(flag.key);
-                          return (
-                            <article
-                              className="rounded-lg border border-border/80 bg-secondary/25 p-3"
-                              data-beta-flag-active={active ? "on" : "off"}
-                              data-testid={`beta-flag-${flag.key}`}
-                              key={flag.key}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-semibold">{flag.label}</p>
-                                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                    {flag.description}
-                                  </p>
+                      {betaFeatureGroups.map((group) => (
+                        <section
+                          aria-label={group.label}
+                          className="mt-3 grid gap-2"
+                          data-beta-feature-group={group.id}
+                          data-testid={`beta-feature-group-${group.id}`}
+                          key={group.id}
+                        >
+                          <div>
+                            <p className="text-sm font-semibold">{group.label}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              {group.description}
+                            </p>
+                          </div>
+                          {group.flagKeys.map((flagKey) => {
+                            const flag = betaFeatureFlagDefinitions.find((candidate) => candidate.key === flagKey);
+                            if (!flag) {
+                              return null;
+                            }
+                            const active = betaFeatures.isFeatureEnabled(flag.key);
+                            return (
+                              <article
+                                className="rounded-lg border border-border/80 bg-secondary/25 p-3"
+                                data-beta-flag-active={active ? "on" : "off"}
+                                data-testid={`beta-flag-${flag.key}`}
+                                key={flag.key}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold">{flag.label}</p>
+                                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                      {flag.description}
+                                    </p>
+                                  </div>
+                                  <button
+                                    aria-label={`Toggle ${flag.label}`}
+                                    aria-pressed={active}
+                                    className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                                    data-testid={`beta-flag-toggle-${flag.key}`}
+                                    onClick={() => betaFeatures.setBetaFeatureFlag(flag.key, !active)}
+                                    type="button"
+                                  >
+                                    <span
+                                      className={
+                                        active
+                                          ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                          : "admin-motion-toggle__knob"
+                                      }
+                                    />
+                                    <span className="sr-only">Toggle {flag.label}</span>
+                                  </button>
                                 </div>
-                                <Badge variant={active ? "default" : "outline"}>{active ? "On" : "Off"}</Badge>
-                              </div>
-                              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                                {active
-                                  ? "Active. All BN-QA-003 through BN-QA-020 cleanup work should check this one gate."
-                                  : "Off by default. Current production behavior stays unchanged while this is off."}
-                              </p>
-                            </article>
-                          );
-                        })}
-                      </div>
+                                <div className="mt-2 flex items-center gap-2 text-xs leading-5 text-muted-foreground">
+                                  <Badge variant={active ? "default" : "outline"}>{active ? "On" : "Off"}</Badge>
+                                  <span>
+                                    {active
+                                      ? flag.key === "revampBeta"
+                                        ? "Active. All BN-QA-003 through BN-QA-020 cleanup work should check this one gate."
+                                        : "Active for this account. Future work can check this flag before changing behavior."
+                                      : "Off by default. Current production behavior stays unchanged while this is off."}
+                                  </span>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </section>
+                      ))}
                     </section>
                     <section className="app-beta-feature-list" aria-label="Revamp Beta QA issue map">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">

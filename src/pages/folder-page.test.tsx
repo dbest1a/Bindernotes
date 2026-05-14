@@ -88,6 +88,7 @@ vi.mock("@/hooks/use-binders", () => ({
 }));
 
 import { FolderPage } from "@/pages/folder-page";
+import { CHEMISTRY_SHOWCASE_BINDER_ID, chemistryShowcaseLessons } from "@/lib/chemistry/chemistry-showcase-content";
 
 describe("FolderPage", () => {
   beforeEach(() => {
@@ -166,5 +167,48 @@ describe("FolderPage", () => {
       });
     });
     expect(await screen.findByText('Created document "Titration Practice".')).toBeTruthy();
+  });
+
+  it("renders the bundled Chemistry course beside personal Chemistry binders", () => {
+    mocks.state.data = {
+      ...mocks.state.data,
+      folder: {
+        ...mocks.state.data.folder,
+        id: "folder-chemistry",
+        name: "Chemistry",
+        suite_template_id: null,
+      },
+      binders: [
+        {
+          ...mocks.state.data.binders[0],
+          id: CHEMISTRY_SHOWCASE_BINDER_ID,
+          title: "Chemistry 101 + AP Chemistry",
+          description: "Complete student course binder.",
+          subject: "Chemistry",
+        },
+        {
+          ...mocks.state.data.binders[0],
+          id: "binder-user-chemistry",
+          title: "Chemistry binder",
+          description: "Personal workspace binder.",
+          subject: "Chemistry",
+        },
+      ],
+      lessons: chemistryShowcaseLessons,
+      notes: [],
+      seedHealth: null,
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/folders/folder-chemistry"]}>
+        <Routes>
+          <Route path="/folders/:folderId" element={<FolderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Chemistry 101 + AP Chemistry" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Chemistry binder" })).toBeTruthy();
+    expect(screen.getAllByText(/77 documents/i).length).toBeGreaterThan(0);
   });
 });

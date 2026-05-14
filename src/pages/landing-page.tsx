@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpenCheck,
   Calculator,
+  CalendarClock,
   Check,
   ChevronRight,
   FileText,
@@ -11,15 +12,21 @@ import {
   Grid3X3,
   Highlighter,
   Layers3,
+  ListChecks,
   MousePointer2,
+  NotebookPen,
   PenLine,
   Play,
+  ShieldCheck,
   Sparkles,
+  Target,
   Wand2,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/ui/logo-mark";
+import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 
 const heroNotes = [
   "Derivative from first principles",
@@ -119,6 +126,21 @@ const differentiators = [
 ];
 
 export function LandingPage() {
+  return <ClassicLandingPage />;
+}
+
+export function HomepageBetaPage() {
+  const { profile } = useAuth();
+  const betaFeatures = useBetaFeatures(profile?.id);
+
+  if (!betaFeatures.isFeatureEnabled("betaRevampCalmStudyHomepage")) {
+    return <ClassicLandingPage />;
+  }
+
+  return <CalmStudyHomepage previewRoute />;
+}
+
+function ClassicLandingPage() {
   const heroRef = useRef<HTMLElement | null>(null);
   const heroPointerRafRef = useRef<number | null>(null);
   const pendingHeroPointerRef = useRef({
@@ -441,6 +463,361 @@ export function LandingPage() {
   );
 }
 
+const calmWorkflowSteps = [
+  {
+    body: "Keep the exact textbook, PDF, or lesson moment beside the note it created.",
+    id: "source",
+    label: "Source excerpt",
+    title: "Start with the source",
+  },
+  {
+    body: "Rewrite the idea in your own words while the excerpt is still in view.",
+    id: "note",
+    label: "Student note",
+    title: "Make it yours",
+  },
+  {
+    body: "Save the graph state, formula, or problem setup next to the explanation.",
+    id: "graph",
+    label: "Graph + formula context",
+    title: "Attach the math",
+  },
+  {
+    body: "Turn the note into a small review card so it comes back on schedule.",
+    id: "review",
+    label: "Review card",
+    title: "Review on purpose",
+  },
+  {
+    body: "Collect missed steps before the exam so practice becomes targeted.",
+    id: "mistakes",
+    label: "Exam-ready mistake list",
+    title: "Know what to fix",
+  },
+] as const;
+
+const calmHelpItems = [
+  {
+    icon: <BookOpenCheck data-icon="inline-start" />,
+    title: "Capture source",
+    body: "Keep source excerpts, highlights, and binder context connected instead of scattered across tabs.",
+  },
+  {
+    icon: <NotebookPen data-icon="inline-start" />,
+    title: "Write in your own words",
+    body: "Private notes stay student-owned and close to the material that made them useful.",
+  },
+  {
+    icon: <FunctionSquare data-icon="inline-start" />,
+    title: "Save math context",
+    body: "Graphs, formulas, problem setups, and theorem notes become study objects, not screenshots.",
+  },
+  {
+    icon: <CalendarClock data-icon="inline-start" />,
+    title: "Review on schedule",
+    body: "Notes can become small review moments that support steady exam confidence.",
+  },
+  {
+    icon: <ListChecks data-icon="inline-start" />,
+    title: "Track mistakes",
+    body: "Missed signs, formula mixups, and problem-type patterns stay visible before test day.",
+  },
+];
+
+const mathHeavyAudiences = [
+  "AP Calculus",
+  "College calculus",
+  "STEM gateway courses",
+  "Tutoring workflows",
+];
+
+function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
+  const heroRef = useRef<HTMLElement | null>(null);
+  const pointerRafRef = useRef<number | null>(null);
+  const pendingPointerRef = useRef({
+    x: "0px",
+    y: "0px",
+    tiltX: "0deg",
+    tiltY: "0deg",
+  });
+
+  const applyPointer = useCallback(() => {
+    pointerRafRef.current = null;
+    const hero = heroRef.current;
+    if (!hero) {
+      return;
+    }
+
+    const pointer = pendingPointerRef.current;
+    hero.style.setProperty("--beta-pointer-x", pointer.x);
+    hero.style.setProperty("--beta-pointer-y", pointer.y);
+    hero.style.setProperty("--beta-tilt-x", pointer.tiltX);
+    hero.style.setProperty("--beta-tilt-y", pointer.tiltY);
+  }, []);
+
+  const schedulePointer = useCallback(
+    (nextPointer: typeof pendingPointerRef.current) => {
+      pendingPointerRef.current = nextPointer;
+      if (pointerRafRef.current !== null) {
+        return;
+      }
+
+      pointerRafRef.current = 0;
+      const frameId = window.requestAnimationFrame(applyPointer);
+      if (pointerRafRef.current === 0) {
+        pointerRafRef.current = frameId;
+      }
+    },
+    [applyPointer],
+  );
+
+  useEffect(
+    () => () => {
+      if (pointerRafRef.current !== null) {
+        window.cancelAnimationFrame(pointerRafRef.current);
+      }
+    },
+    [],
+  );
+
+  const updatePointer = (event: PointerEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const normalizedX = (event.clientX - rect.left - rect.width / 2) / Math.max(rect.width, 1);
+    const normalizedY = (event.clientY - rect.top - rect.height / 2) / Math.max(rect.height, 1);
+    schedulePointer({
+      x: `${(normalizedX * 64).toFixed(2)}px`,
+      y: `${(normalizedY * 56).toFixed(2)}px`,
+      tiltX: `${(normalizedY * -8).toFixed(2)}deg`,
+      tiltY: `${(normalizedX * 12).toFixed(2)}deg`,
+    });
+  };
+
+  return (
+    <main
+      className="marketing-page beta-homepage"
+      data-beta-performance-mode="lean"
+      data-beta-preview-route={previewRoute ? "homepage-beta" : "home"}
+      data-testid="beta-calm-homepage"
+    >
+      <section
+        className="beta-homepage-hero"
+        data-testid="beta-calm-hero"
+        id="top"
+        onPointerLeave={() => schedulePointer({ x: "0px", y: "0px", tiltX: "0deg", tiltY: "0deg" })}
+        onPointerMove={updatePointer}
+        ref={heroRef}
+      >
+        <MarketingNav />
+        <div className="beta-homepage-hero__inner">
+          <div className="beta-homepage-hero__copy">
+            <div className="marketing-kicker marketing-kicker--bright">
+              <Sparkles data-icon="inline-start" />
+              Beta Revamp homepage
+            </div>
+            <h1>Study notes that remember the source.</h1>
+            <p>
+              A calmer workspace for calculus notes, graphs, and review. BinderNotes helps students
+              move from source to note to math context to practice without turning studying into a
+              pile of disconnected tabs.
+            </p>
+            <div className="marketing-hero__actions">
+              <Button asChild className="marketing-button marketing-button--primary" size="lg">
+                <Link to="/auth">
+                  Start studying
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+                <a href="#showcase">
+                  See the workflow
+                  <Play data-icon="inline-end" />
+                </a>
+              </Button>
+            </div>
+            <div className="marketing-hero__proof" aria-label="Beta homepage strengths">
+              <span><Check data-icon="inline-start" /> Source-linked notes</span>
+              <span><Check data-icon="inline-start" /> Graphs beside formulas</span>
+              <span><Check data-icon="inline-start" /> Review and mistakes</span>
+              <span><Check data-icon="inline-start" /> Real accounts</span>
+            </div>
+            <p className="beta-homepage-ai-note">
+              AI study helpers, when enabled, work from your notes and sources.
+            </p>
+          </div>
+
+          <BetaFloatingWorkflowVisual />
+        </div>
+      </section>
+
+      <section
+        className="beta-homepage-workflow marketing-section"
+        data-testid="beta-calm-study-workflow"
+        id="showcase"
+      >
+        <div className="marketing-section__intro">
+          <span className="marketing-kicker">One concrete study loop</span>
+          <h2>From source excerpt to exam-ready mistakes.</h2>
+          <p>
+            The beta message focuses on the habit BinderNotes should own first: source-linked
+            studying for math-heavy classes.
+          </p>
+        </div>
+        <div className="beta-homepage-workflow__track">
+          {calmWorkflowSteps.map((step, index) => (
+            <article
+              className="beta-homepage-workflow__step"
+              data-beta-workflow-step={step.id}
+              key={step.id}
+              style={{ "--workflow-index": index } as CSSProperties}
+            >
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{step.label}</strong>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="beta-homepage-help marketing-section">
+        <div className="marketing-section__intro">
+          <span className="marketing-kicker">How BinderNotes helps</span>
+          <h2>Less scattered study, more connected practice.</h2>
+        </div>
+        <div className="beta-homepage-help__grid">
+          {calmHelpItems.map((item) => (
+            <article className="beta-homepage-help__card" key={item.title}>
+              <div>{item.icon}</div>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="beta-homepage-math marketing-section" id="whiteboard">
+        <div className="beta-homepage-math__copy">
+          <span className="marketing-kicker">Built for math-heavy students first</span>
+          <h2>Calculus and STEM courses need more than a blank note.</h2>
+          <p>
+            BinderNotes should win where source excerpts, problem work, formulas, graphs, tutoring
+            notes, and mistake review all need to stay connected.
+          </p>
+        </div>
+        <div className="beta-homepage-math__list" aria-label="Math-heavy student use cases">
+          {mathHeavyAudiences.map((item) => (
+            <span key={item}>
+              <Target data-icon="inline-start" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="beta-homepage-trust marketing-section">
+        <article>
+          <ShieldCheck data-icon="inline-start" />
+          <h2>Real accounts, no demo workspace in account areas.</h2>
+          <p>
+            The product promise stays grounded in real Supabase auth, user-owned notes, and account
+            data paths. Public copy should earn trust without implying a fake workspace or generic
+            answer engine.
+          </p>
+        </article>
+        <article>
+          <BookOpenCheck data-icon="inline-start" />
+          <h2>Student-owned study records.</h2>
+          <p>
+            Source-linked notes, graph context, and review history should belong to the learner and
+            remain portable as BinderNotes grows export and data controls.
+          </p>
+        </article>
+      </section>
+
+      <section className="marketing-final-cta beta-homepage-final">
+        <div className="marketing-final-cta__content">
+          <span className="marketing-kicker marketing-kicker--bright">Beta gated for review</span>
+          <h2>Start with one source, one note, one better review session.</h2>
+          <p>
+            This homepage path keeps the floating BinderNotes feel while making the promise more
+            concrete, faster to load, and easier for students to understand.
+          </p>
+          <div className="marketing-hero__actions">
+            <Button asChild className="marketing-button marketing-button--primary" size="lg">
+              <Link to="/auth">
+                Start studying now
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+            <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+              <Link to="/pricing-beta">See pricing</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <MarketingFooter />
+    </main>
+  );
+}
+
+function BetaFloatingWorkflowVisual() {
+  return (
+    <div className="beta-floating-workflow" data-testid="beta-calm-floating-modules" aria-label="Source-linked study workflow preview">
+      <article className="beta-floating-card beta-floating-card--source">
+        <div className="beta-floating-card__top">
+          <span>Source excerpt</span>
+          <strong>Calc I</strong>
+        </div>
+        <p>
+          A derivative measures the instantaneous rate of change at a point, built from the limit
+          of secant slopes.
+        </p>
+        <mark>limit of secant slopes</mark>
+      </article>
+      <article className="beta-floating-card beta-floating-card--note">
+        <div className="beta-floating-card__top">
+          <span>Student note</span>
+          <strong>Own words</strong>
+        </div>
+        <p>
+          If h gets tiny, the average slope becomes the tangent slope. That is why the limit matters.
+        </p>
+      </article>
+      <article className="beta-floating-card beta-floating-card--graph">
+        <div className="beta-floating-card__top">
+          <span>Graph + formula context</span>
+          <strong>Saved</strong>
+        </div>
+        <div className="mini-graph mini-graph--small">
+          <span className="mini-graph__axis mini-graph__axis--x" />
+          <span className="mini-graph__axis mini-graph__axis--y" />
+          <span className="mini-graph__curve" />
+        </div>
+        <div className="product-formula">f'(x) = lim (f(x+h) - f(x)) / h</div>
+      </article>
+      <article className="beta-floating-card beta-floating-card--review">
+        <div className="beta-floating-card__top">
+          <span>Review card</span>
+          <strong>Tomorrow</strong>
+        </div>
+        <p>Explain why the derivative definition uses a limit.</p>
+      </article>
+      <article className="beta-floating-card beta-floating-card--mistakes">
+        <div className="beta-floating-card__top">
+          <span>Exam-ready mistake list</span>
+          <strong>3 patterns</strong>
+        </div>
+        <ul>
+          <li>Forgot to divide by h</li>
+          <li>Mixed average and tangent slope</li>
+          <li>Dropped expansion parentheses</li>
+        </ul>
+      </article>
+    </div>
+  );
+}
+
 function MarketingNav() {
   return (
     <nav className="marketing-nav" aria-label="Public navigation">
@@ -464,6 +841,25 @@ function MarketingNav() {
         </Link>
       </div>
     </nav>
+  );
+}
+
+function MarketingFooter() {
+  return (
+    <footer className="marketing-footer">
+      <Link className="marketing-footer__brand" to="/">
+        <LogoMark />
+        <span>BinderNotes</span>
+      </Link>
+      <nav aria-label="Footer">
+        <Link to="/auth">Sign in</Link>
+        <Link to="/pricing">Pricing</Link>
+        <Link to="/tutorial">Tutorial</Link>
+      </nav>
+      <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
+        loose stone
+      </Link>
+    </footer>
   );
 }
 

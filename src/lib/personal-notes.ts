@@ -39,6 +39,31 @@ export type PersonalNoteHealthSignal = {
   tone: "neutral" | "good" | "warning";
 };
 
+export type PersonalNoteAutosaveInput = {
+  autosaveEnabled: boolean;
+  dirty: boolean;
+  saveState: "saved" | "saving" | "error";
+};
+
+export type PersonalNoteAutosaveStatus = {
+  detail: string;
+  label: "Saving..." | "Saved" | "Sync pending" | "No changes to save" | "Error saving";
+  savedLabel?: "Saved";
+  state: "saving" | "saved" | "pending" | "idle" | "error";
+  tone: "neutral" | "good" | "warning" | "error";
+};
+
+export type PersonalNoteSourceReference = {
+  binderId: string | null;
+  binderTitle: string | null;
+  documentId: string | null;
+  documentTitle: string | null;
+  sectionLabel: string | null;
+  pageLabel: string | null;
+  excerpt: string | null;
+  sourceUrl: string | null;
+};
+
 export type PersonalNotesFilterOptions = {
   query: string;
   sourceFilter: PersonalNotesSourceFilter;
@@ -342,6 +367,74 @@ export function getPersonalNoteReviewQueue(entries: PersonalNotesEntry[]) {
     .slice(0, 12);
 }
 
+export function getPersonalNoteAutosaveStatus(input: PersonalNoteAutosaveInput): PersonalNoteAutosaveStatus {
+  if (input.saveState === "saving") {
+    return {
+      detail: "Saving note changes to your account.",
+      label: "Saving...",
+      state: "saving",
+      tone: "neutral",
+    };
+  }
+
+  if (input.saveState === "error") {
+    return {
+      detail: "The last save failed. Retry before leaving this note.",
+      label: "Error saving",
+      state: "error",
+      tone: "error",
+    };
+  }
+
+  if (input.dirty) {
+    return {
+      detail: input.autosaveEnabled
+        ? "Autosave is queued for this note."
+        : "Autosave is off. Save manually before leaving.",
+      label: "Sync pending",
+      state: "pending",
+      tone: "warning",
+    };
+  }
+
+  return {
+    detail: "This note matches the latest saved version.",
+    label: "No changes to save",
+    savedLabel: "Saved",
+    state: "idle",
+    tone: "good",
+  };
+}
+
+export function getPersonalNoteSourceReferences(entry: PersonalNotesEntry): PersonalNoteSourceReference[] {
+  const baseReference: PersonalNoteSourceReference | null =
+    entry.sourceBinderId || entry.sourceDocumentId || entry.quickJumpToBinderUrl
+      ? {
+          binderId: entry.sourceBinderId,
+          binderTitle: entry.sourceBinderTitle,
+          documentId: entry.sourceDocumentId,
+          documentTitle: entry.sourceDocumentTitle,
+          sectionLabel: null,
+          pageLabel: null,
+          excerpt: null,
+          sourceUrl: entry.quickJumpToBinderUrl,
+        }
+      : null;
+  const markerReferences = extractSourceMarkerReferences(entry.content).map((reference) => ({
+    binderId: reference.binderId ?? baseReference?.binderId ?? null,
+    binderTitle: reference.binderTitle ?? baseReference?.binderTitle ?? null,
+    documentId: reference.documentId ?? baseReference?.documentId ?? null,
+    documentTitle: reference.documentTitle ?? baseReference?.documentTitle ?? null,
+    sectionLabel: reference.sectionLabel,
+    pageLabel: reference.pageLabel,
+    excerpt: reference.excerpt,
+    sourceUrl: reference.sourceUrl ?? baseReference?.sourceUrl ?? null,
+  }));
+  const references = markerReferences.length ? markerReferences : baseReference ? [baseReference] : [];
+
+  return dedupeSourceReferences(references);
+}
+
 export function loadPersonalNotesPreferences(userId: string | undefined | null): PersonalNotesPreferences {
   if (typeof window === "undefined" || !userId) {
     return defaultPersonalNotesPreferences;
@@ -538,6 +631,66 @@ function buildExcerpt(content: unknown) {
 
 function buildSearchText(parts: Array<string | undefined | null>) {
   return normalize(parts.filter(Boolean).join(" "));
+}
+
+function extractSourceMarkerReferences(content: PersonalNotesEntry["content"]): PersonalNoteSourceReference[] {
+  const references: PersonalNoteSourceReference[] = [];
+  const visit = (node: unknown) => {
+    if (!isRecord(node)) {
+      return;
+    }
+
+    for (const mark of Array.isArray(node.marks) ? node.marks : []) {
+      if (!isRecord(mark) || mark.type !== "sourceMarker") {
+        continue;
+      }
+      const attrs = isRecord(mark.attrs) ? mark.attrs : {};
+      references.push({
+        binderId: stringOrNull(attrs.binderId),
+        binderTitle: stringOrNull(attrs.binderTitle),
+        documentId: stringOrNull(attrs.lessonId ?? attrs.documentId),
+        documentTitle: stringOrNull(attrs.lessonTitle ?? attrs.documentTitle),
+        sectionLabel: stringOrNull(attrs.sectionLabel),
+        pageLabel: stringOrNull(attrs.pageLabel),
+        excerpt: stringOrNull(attrs.excerpt),
+        sourceUrl: stringOrNull(attrs.sourceUrl),
+      });
+    }
+
+    for (const child of Array.isArray(node.content) ? node.content : []) {
+      visit(child);
+    }
+  };
+
+  visit(content);
+  return references;
+}
+
+function dedupeSourceReferences(references: PersonalNoteSourceReference[]) {
+  const seen = new Set<string>();
+  return references.filter((reference) => {
+    const key = [
+      reference.binderId,
+      reference.documentId,
+      reference.sectionLabel,
+      reference.pageLabel,
+      reference.excerpt,
+      reference.sourceUrl,
+    ].join("|");
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringOrNull(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function normalize(value: string) {

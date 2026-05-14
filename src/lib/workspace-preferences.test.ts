@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyGlobalAppearanceToWorkspace,
   applyFocusModeToViewport,
+  applyCanvasReworkStarterLayoutToViewport,
   applyPresetToViewport,
   applyFaceliftSurfaceModeToViewport,
   applyWorkspacePresentationModeToViewport,
   applyWorkspaceMode,
   applyThemeSettings,
+  beginCanvasReworkLayoutEdit,
+  cancelCanvasReworkLayoutEdit,
+  commitCanvasReworkLayout,
   applyPreset,
   applyWorkspaceStyle,
   createDefaultWorkspacePreferences,
@@ -17,12 +21,15 @@ import {
   fitWorkspaceToViewport,
   getTopbarWorkspacePresetRecommendations,
   getVisibleWorkspacePresets,
+  recordCanvasReworkLayoutChange,
   loadWorkspacePreferences,
   normalizeWorkspacePreferences,
   resolveWorkspacePresetLayout,
   saveWorkspacePreferences,
   simplePresentationThemeOptions,
+  tidyCanvasReworkLayoutToViewport,
   tidyWorkspaceLayout,
+  fitCanvasReworkLayoutToViewport,
   updateWorkspaceAppearance,
   workspaceModules,
   workspacePresentationModeOptions,
@@ -52,6 +59,267 @@ afterEach(() => {
 });
 
 describe("workspace preferences", () => {
+  it("creates Canvas Rework ownership metadata with committed starter frames", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+
+    expect(preferences.canvas.layoutSource).toBe("preset");
+    expect(preferences.canvas.layoutMode).toBe("study");
+    expect(preferences.canvas.userHasEditedLayout).toBe(false);
+    expect(preferences.canvas.activePresetId).toBe(preferences.preset);
+    expect(preferences.canvas.committedFrames).toEqual(preferences.windowLayout);
+    expect(preferences.canvas.editDraftFrames).toEqual({});
+  });
+
+  it("selects a Canvas Rework starter by applying and fitting that starter exactly once", () => {
+    const preferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
+
+    const next = applyCanvasReworkStarterLayoutToViewport(
+      preferences,
+      "split-study",
+      { width: 1200, height: 720 },
+    );
+
+    expect(next.preset).toBe("split-study");
+    expect(next.canvas.layoutSource).toBe("preset");
+    expect(next.canvas.activePresetId).toBe("split-study");
+    expect(next.canvas.userHasEditedLayout).toBe(false);
+    expect(next.canvas.lastExplicitLayoutAction).toBe("select-preset");
+    expect(next.canvas.presetAppliedAtViewport).toEqual(
+      expect.objectContaining({ width: 1200, height: 720 }),
+    );
+    expect(next.windowLayout.lesson).toEqual(
+      expect.objectContaining({ x: 0, y: 0, w: 600, h: 720 }),
+    );
+    expect(next.windowLayout["private-notes"]).toEqual(
+      expect.objectContaining({ x: 600, y: 0, w: 600, h: 720 }),
+    );
+    expect(next.canvas.committedFrames).toEqual(next.windowLayout);
+  });
+
+  it("enters Canvas Rework edit mode without changing committed frames or running a layout action", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 44, y: 640, w: 620, h: 420, z: 1 },
+      "private-notes": { x: 720, y: 640, w: 500, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: true,
+      preset: "split-study",
+      windowLayout: committedFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames,
+        canvasHeight: 1500,
+      },
+    };
+
+    const editing = beginCanvasReworkLayoutEdit(preferences);
+
+    expect(editing.locked).toBe(false);
+    expect(editing.canvas.layoutMode).toBe("edit");
+    expect(editing.windowLayout).toEqual(committedFrames);
+    expect(editing.canvas.committedFrames).toEqual(committedFrames);
+    expect(editing.canvas.editDraftFrames).toEqual(committedFrames);
+    expect(editing.canvas.lastExplicitLayoutAction).toBe(preferences.canvas.lastExplicitLayoutAction);
+  });
+
+  it("records Canvas Rework manual moves as custom draft changes for only the active module", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 0, y: 0, w: 600, h: 720, z: 1 },
+      "private-notes": { x: 600, y: 0, w: 600, h: 720, z: 2 },
+    };
+    const editing = beginCanvasReworkLayoutEdit({
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      windowLayout: committedFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        committedFrames,
+      },
+    });
+    const movedLesson = { x: 132, y: 860, w: 640, h: 440, z: 5 };
+
+    const changed = recordCanvasReworkLayoutChange(
+      {
+        ...editing,
+        windowLayout: {
+          ...editing.windowLayout,
+          lesson: movedLesson,
+        },
+      },
+      "manual-drag",
+    );
+
+    expect(changed.canvas.layoutSource).toBe("custom");
+    expect(changed.canvas.userHasEditedLayout).toBe(true);
+    expect(changed.canvas.lastExplicitLayoutAction).toBe("manual-drag");
+    expect(changed.windowLayout.lesson).toEqual(movedLesson);
+    expect(changed.windowLayout["private-notes"]).toEqual(committedFrames["private-notes"]);
+    expect(changed.canvas.committedFrames).toEqual(committedFrames);
+    expect(changed.canvas.editDraftFrames.lesson).toEqual(movedLesson);
+    expect(changed.canvas.editDraftFrames["private-notes"]).toEqual(committedFrames["private-notes"]);
+  });
+
+  it("saves and cancels Canvas Rework edits without snapping back to a starter", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 0, y: 0, w: 600, h: 720, z: 1 },
+      "private-notes": { x: 600, y: 0, w: 600, h: 720, z: 2 },
+    };
+    const draftFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 120, y: 1300, w: 660, h: 460, z: 7 },
+      "private-notes": { x: 820, y: 1320, w: 500, h: 460, z: 8 },
+    };
+    const editing = recordCanvasReworkLayoutChange(
+      {
+        ...beginCanvasReworkLayoutEdit({
+          ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+          locked: true,
+          enabledModules: ["lesson", "private-notes"],
+          windowLayout: committedFrames,
+          canvas: {
+            ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+            committedFrames,
+            canvasHeight: 2000,
+          },
+        }),
+        windowLayout: draftFrames,
+        canvas: {
+          ...beginCanvasReworkLayoutEdit({
+            ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+            windowLayout: committedFrames,
+            canvas: {
+              ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+              committedFrames,
+              canvasHeight: 2000,
+            },
+          }).canvas,
+          canvasHeight: 2200,
+        },
+      },
+      "manual-resize",
+    );
+
+    const saved = commitCanvasReworkLayout(editing);
+    expect(saved.locked).toBe(true);
+    expect(saved.canvas.layoutMode).toBe("study");
+    expect(saved.canvas.layoutSource).toBe("custom");
+    expect(saved.canvas.committedFrames).toEqual(draftFrames);
+    expect(saved.canvas.editDraftFrames).toEqual({});
+    expect(saved.canvas.canvasHeight).toBe(2200);
+
+    const canceled = cancelCanvasReworkLayoutEdit(editing);
+    expect(canceled.locked).toBe(true);
+    expect(canceled.windowLayout).toEqual(committedFrames);
+    expect(canceled.canvas.committedFrames).toEqual(committedFrames);
+    expect(canceled.canvas.editDraftFrames).toEqual({});
+    expect(canceled.canvas.lastExplicitLayoutAction).toBe("cancel-edit");
+  });
+
+  it("keeps Canvas Rework fit and tidy explicit while preserving custom ownership", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 120, y: 1240, w: 640, h: 420, z: 1 },
+      "private-notes": { x: 820, y: 1260, w: 520, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      preset: "split-study",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames: customFrames,
+        canvasHeight: 2100,
+      },
+    };
+
+    const fitted = fitCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+    const tidied = tidyCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+
+    expect(fitted.canvas.layoutSource).toBe("custom");
+    expect(fitted.canvas.lastExplicitLayoutAction).toBe("fit");
+    expect(tidied.canvas.layoutSource).toBe("custom");
+    expect(tidied.canvas.lastExplicitLayoutAction).toBe("tidy");
+  });
+
+  it("fits a custom Canvas Rework layout to the visible width instead of leaving a right-side mystery gap", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 360, y: 220, w: 520, h: 420, z: 1 },
+      "private-notes": { x: 900, y: 220, w: 420, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      preset: "split-study",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames: customFrames,
+        panelPositions: customFrames,
+        canvasHeight: 1600,
+      },
+    };
+
+    const fitted = fitCanvasReworkLayoutToViewport(preferences, { width: 1440, height: 820 });
+
+    expect(fitted.windowLayout.lesson?.x).toBe(0);
+    expect(fitted.windowLayout.lesson?.y).toBe(0);
+    expect(fitted.windowLayout["private-notes"]?.x).toBe(810);
+    expect(
+      Math.round(
+        (fitted.windowLayout["private-notes"]?.x ?? 0) +
+          (fitted.windowLayout["private-notes"]?.w ?? 0),
+      ),
+    ).toBe(1440);
+    expect(fitted.canvas.layoutSource).toBe("custom");
+    expect(fitted.canvas.lastExplicitLayoutAction).toBe("fit");
+  });
+
+  it("tidies a custom Canvas Rework layout from current module size instead of preset priority", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      "desmos-graph": { x: 460, y: 40, w: 760, h: 560, z: 1 },
+      "private-notes": { x: 40, y: 40, w: 360, h: 280, z: 2 },
+      "formula-sheet": { x: 40, y: 340, w: 360, h: 260, z: 3 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["desmos-graph", "private-notes", "formula-sheet"],
+      preset: "math-practice-mode",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "math-practice-mode",
+        committedFrames: customFrames,
+        panelPositions: customFrames,
+        canvasHeight: 1600,
+      },
+    };
+
+    const tidied = tidyCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+    const graph = tidied.windowLayout["desmos-graph"]!;
+    const notes = tidied.windowLayout["private-notes"]!;
+    const formula = tidied.windowLayout["formula-sheet"]!;
+
+    expect(graph.w * graph.h).toBeGreaterThan(notes.w * notes.h);
+    expect(graph.x).toBeGreaterThan(notes.x);
+    expect(Math.max(graph.x + graph.w, notes.x + notes.w, formula.x + formula.w)).toBe(1280);
+    expect(tidied.canvas.layoutSource).toBe("custom");
+    expect(tidied.canvas.lastExplicitLayoutAction).toBe("tidy");
+  });
+
   it("exposes Canvas, Simple, Facelift, and Study Panels as the user-facing workspace view choices", () => {
     expect(workspaceViewModeOptions.map((option) => option.id)).toEqual([
       "canvas",

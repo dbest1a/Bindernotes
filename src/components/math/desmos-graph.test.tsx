@@ -30,15 +30,19 @@ describe("DesmosGraph", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.clearAllMocks();
+    document.documentElement.dataset.betaDesmosV2 = "false";
+    document.documentElement.dataset.workspaceDragging = "false";
   });
 
   it("initializes the graphing calculator once the loader resolves", async () => {
+    const resize = vi.fn();
     const calculator = {
       destroy: vi.fn(),
       getState: vi.fn(() => ({ expressions: { list: [] } })),
       observeEvent: vi.fn(),
-      resize: vi.fn(),
+      resize,
       setBlank: vi.fn(),
       setExpression: vi.fn(),
       setState: vi.fn(),
@@ -72,11 +76,12 @@ describe("DesmosGraph", () => {
   });
 
   it("updates keypad settings without remounting the graphing calculator", async () => {
+    const resize = vi.fn();
     const calculator = {
       destroy: vi.fn(),
       getState: vi.fn(() => ({ expressions: { list: [] } })),
       observeEvent: vi.fn(),
-      resize: vi.fn(),
+      resize,
       setBlank: vi.fn(),
       setExpression: vi.fn(),
       setState: vi.fn(),
@@ -262,5 +267,75 @@ describe("DesmosGraph", () => {
     render(<Desmos3DGraph onStateChange={vi.fn()} state={null} />);
 
     expect(await screen.findByText(/desmos 3d is not enabled/i)).toBeTruthy();
+  });
+
+  it("adds a stable Desmos V2 instance marker and defers resize while workspace movement is active", async () => {
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    class ResizeObserverWithCallback {
+      observe = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverWithCallback);
+    const resize = vi.fn();
+    const calculator = {
+      destroy: vi.fn(),
+      getState: vi.fn(() => ({ expressions: { list: [] } })),
+      observeEvent: vi.fn(),
+      resize,
+      setBlank: vi.fn(),
+      setExpression: vi.fn(),
+      setState: vi.fn(),
+      unobserveEvent: vi.fn(),
+    } as unknown as DesmosGraphingCalculator;
+
+    const GraphingCalculator = vi.fn(() => calculator);
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({
+      GraphingCalculator,
+    } as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+      bottom: 540,
+      height: 540,
+      left: 0,
+      right: 640,
+      toJSON: () => ({}),
+      top: 0,
+      width: 640,
+      x: 0,
+      y: 0,
+    }));
+    document.documentElement.dataset.betaDesmosV2 = "true";
+    document.documentElement.dataset.workspaceDragging = "true";
+
+    const { container } = render(<DesmosGraph onStateChange={vi.fn()} state={null} />);
+
+    await waitFor(() => expect(GraphingCalculator).toHaveBeenCalledTimes(1));
+    const surface = container.querySelector("[data-desmos-instance-id]");
+    expect(surface?.getAttribute("data-desmos-instance-id")).toMatch(/^desmos-v2-/);
+    vi.useFakeTimers();
+    resize.mockClear();
+
+    resizeCallbacks.at(-1)?.(
+      [
+        {
+          contentRect: {
+            width: 720,
+            height: 480,
+          },
+        } as ResizeObserverEntry,
+      ],
+      {} as ResizeObserver,
+    );
+    vi.advanceTimersByTime(250);
+    expect(resize).not.toHaveBeenCalled();
+
+    document.documentElement.dataset.workspaceDragging = "false";
+    window.dispatchEvent(new CustomEvent("bindernotes:workspace-movement-end"));
+    vi.advanceTimersByTime(250);
+
+    expect(resize).toHaveBeenCalledTimes(1);
   });
 });

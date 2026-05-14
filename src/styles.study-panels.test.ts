@@ -70,6 +70,67 @@ describe("study panels sizing styles", () => {
     );
   });
 
+  it("lets the v2 Split Actions row wrap without overlapping the lesson and notes panes", () => {
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row[\s\S]*display:\s*flex[\s\S]*flex-direction:\s*column[\s\S]*margin-block:\s*0\.15rem 1rem[\s\S]*padding-bottom:\s*0\.2rem/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row__header[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-action-row-toggle[\s\S]*border-radius:\s*999px[\s\S]*transition:/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row__content[\s\S]*display:\s*block[\s\S]*overflow:\s*hidden[\s\S]*transition:/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-compact-action-row\[data-study-actions-state="collapsed"\][\s\S]*\.study-panels-compact-action-row__content[\s\S]*max-height:\s*0[\s\S]*opacity:\s*0[\s\S]*visibility:\s*hidden/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row \.study-panels-guided-actions[\s\S]*position:\s*static !important[\s\S]*inset:\s*auto !important[\s\S]*bottom:\s*auto !important[\s\S]*width:\s*100%[\s\S]*max-width:\s*100%/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row \.study-panels-panel-controls[\s\S]*min-width:\s*0[\s\S]*justify-self:\s*end/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-panel-controls button span[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row \.study-panels-guided-actions > div:first-child[\s\S]*display:\s*none/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-compact-action-row \.study-panels-guided-actions__buttons[\s\S]*justify-content:\s*flex-start/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-shell__body[\s\S]*padding-top:\s*0\.1rem/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-shell__body\[data-study-action-row="visible"\][\s\S]*margin-top:\s*0\.45rem[\s\S]*padding-top:\s*0\.25rem/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\][\s\S]*\.study-panels-shell__body\[data-study-action-row="visible"\]\[data-study-actions-state="expanded"\][\s\S]*margin-top:\s*0\.9rem[\s\S]*padding-top:\s*0\.45rem/s,
+    );
+    expect(css).toContain("@keyframes study-panels-action-spark");
+  });
+
+  it("keeps narrow v2 private notes and board panes usable instead of clipping their UI", () => {
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-card\[data-study-panel-module="private-notes"\]\[data-study-panel-slot="secondary"\] \.private-notes-editor-hero input[\s\S]*font-size:\s*clamp\(1rem,\s*1\.1vw \+ 0\.65rem,\s*1\.35rem\)[\s\S]*text-overflow:\s*ellipsis/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-card\[data-study-panel-module="private-notes"\]\[data-study-panel-slot="secondary"\] \.private-notes-overview h4[\s\S]*-webkit-line-clamp:\s*2/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-card\[data-study-panel-module="private-notes"\]\[data-study-panel-slot="secondary"\] \.private-notes-editor > div:first-child button[\s\S]*width:\s*2rem[\s\S]*height:\s*2rem/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-shell__body\[data-study-primary="whiteboard"\] \.study-panels-split[\s\S]*min-height:\s*clamp\(38rem,\s*calc\(100svh - 11\.2rem\),\s*66rem\)/s,
+    );
+    expect(css).toMatch(
+      /\.study-panels-shell\[data-study-panels-v2="true"\] \.study-panels-resize-handle[\s\S]*cursor:\s*col-resize[\s\S]*touch-action:\s*none/s,
+    );
+  });
+
   it("does not force desktop Study Panels or Facelift controls into overlaying sticky chrome", () => {
     expect(firstRule(".study-panels-shell__top")).not.toContain("position: sticky");
     expect(firstRule(".study-panels-tabs")).not.toContain("position: sticky");

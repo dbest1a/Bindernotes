@@ -356,6 +356,42 @@ describe("WhiteboardModuleCard", () => {
     );
   });
 
+  it("marks parent movement while a pinned Desmos card is being dragged", () => {
+    const onChange = vi.fn();
+    document.documentElement.dataset.workspaceDragging = "false";
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 720,
+          height: 560,
+        })}
+        onBringToFront={vi.fn()}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live graph
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+
+    expect(card.getAttribute("data-dragging")).toBe("true");
+    expect(document.documentElement.dataset.workspaceDragging).toBe("true");
+
+    fireEvent.pointerUp(window, { clientX: 220, clientY: 260, pointerId: 1 });
+
+    expect(card.getAttribute("data-dragging")).toBeNull();
+    expect(document.documentElement.dataset.workspaceDragging).toBe("false");
+  });
+
   it("resizing at zoom 2 grows board size by half the screen delta", () => {
     const onChange = vi.fn();
     render(

@@ -38,8 +38,10 @@ const mocks = vi.hoisted(() => {
       reset: vi.fn(),
     },
     windowedWorkspaceProps: null as {
+      canvasReworkEnabled?: boolean;
       mode: "study" | "setup";
       onFitViewport: (viewport: { width: number; height: number }) => void;
+      onCommitFrame: (moduleId: "lesson" | "private-notes", frame: { x: number; y: number; w: number; h: number; z: number }) => void;
       preferences: WorkspacePreferences;
     } | null,
     noteMutation: {
@@ -140,8 +142,10 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@/components/workspace/windowed-workspace", () => ({
   WindowedWorkspace: (props: {
+    canvasReworkEnabled?: boolean;
     mode: "study" | "setup";
     onFitViewport: (viewport: { width: number; height: number }) => void;
+    onCommitFrame: (moduleId: "lesson" | "private-notes", frame: { x: number; y: number; w: number; h: number; z: number }) => void;
     preferences: WorkspacePreferences;
   }) => {
     mocks.windowedWorkspaceProps = props;
@@ -267,6 +271,7 @@ function matchesResponsiveQuery(query: string) {
 
 describe("BinderReaderPage layout editing", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1366,
@@ -339,6 +344,93 @@ describe("BinderReaderPage layout editing", () => {
     expect(nextDraft.locked).toBe(false);
     expect(nextDraft.windowLayout.lesson).toEqual(customLessonFrame);
     expect(nextDraft.windowLayout["private-notes"]).toEqual(customNotesFrame);
+  });
+
+  it("routes Canvas Rework edit mode through custom layout ownership instead of stale auto-fit", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: false, canvasRework: true }),
+    );
+    const customLessonFrame = { x: 120, y: 1840, w: 640, h: 420, z: 7 };
+    const customNotesFrame = { x: 820, y: 1840, w: 460, h: 420, z: 8 };
+    const committedFrames = {
+      lesson: customLessonFrame,
+      "private-notes": customNotesFrame,
+    };
+    const preferences: WorkspacePreferences = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      activeMode: "canvas",
+      preset: "split-study",
+      locked: true,
+      styleChoiceCompleted: true,
+      enabledModules: ["lesson", "private-notes"],
+      windowLayout: committedFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        activePresetId: "split-study",
+        userHasEditedLayout: true,
+        committedFrames,
+        canvasHeight: 2400,
+      },
+      viewportFit: {
+        width: 820,
+        height: 640,
+        updatedAt: new Date(0).toISOString(),
+      },
+    };
+    mocks.workspacePreferences.active = preferences;
+    mocks.workspacePreferences.draft = preferences;
+    mocks.workspacePreferences.saved = preferences;
+
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+
+    expect(mocks.windowedWorkspaceProps?.canvasReworkEnabled).toBe(true);
+
+    act(() => {
+      screen.getByRole("button", { name: "Edit layout" }).click();
+      mocks.windowedWorkspaceProps?.onFitViewport({ width: 1366, height: 760 });
+    });
+
+    expect(mocks.workspacePreferences.commit).not.toHaveBeenCalled();
+    expect(mocks.workspacePreferences.updateDraft).toHaveBeenCalledTimes(1);
+
+    const unlockDraft = mocks.workspacePreferences.updateDraft.mock.calls[0]?.[0];
+    const nextDraft = unlockDraft(preferences);
+    expect(nextDraft.locked).toBe(false);
+    expect(nextDraft.canvas.layoutMode).toBe("edit");
+    expect(nextDraft.canvas.layoutSource).toBe("custom");
+    expect(nextDraft.canvas.committedFrames).toEqual(committedFrames);
+    expect(nextDraft.canvas.editDraftFrames).toEqual(committedFrames);
+    expect(nextDraft.windowLayout).toEqual(committedFrames);
+  });
+
+  it("hides legacy canvas Fit, Tidy, and sticky actions when Canvas Rework owns the toolbar", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, canvasRework: true }),
+    );
+    const preferences: WorkspacePreferences = {
+      ...createDefaultWorkspacePreferences("user-1", "binder-1"),
+      activeMode: "canvas",
+      preset: "math-study",
+      locked: true,
+      styleChoiceCompleted: true,
+      enabledModules: ["lesson", "private-notes", "desmos-graph"],
+    };
+    mocks.workspacePreferences.active = preferences;
+    mocks.workspacePreferences.draft = preferences;
+    mocks.workspacePreferences.saved = preferences;
+
+    const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
+    const topbar = container.querySelector<HTMLElement>(".workspace-topbar");
+    expect(topbar).toBeTruthy();
+
+    expect(within(topbar!).queryByRole("button", { name: "Fit" })).toBeNull();
+    expect(within(topbar!).queryByRole("button", { name: "Tidy" })).toBeNull();
+    expect(within(topbar!).queryByRole("button", { name: "Sticky manager" })).toBeNull();
+    expect(within(topbar!).queryByRole("button", { name: "New sticky" })).toBeNull();
+    expect(within(topbar!).getByRole("button", { name: "Edit layout" })).toBeTruthy();
   });
 
   it("locks the edited layout without changing resized frames or leaving a stale viewport fit", () => {

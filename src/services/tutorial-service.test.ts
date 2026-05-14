@@ -153,6 +153,22 @@ describe("tutorial service security hardening", () => {
     });
   });
 
+  it("keeps the browser-provided video MIME type when the extension disagrees", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_770_000_000_002);
+    vi.spyOn(Math, "random").mockReturnValue(0.323456789);
+    const { upload } = mockSuccessfulTutorialSave();
+    const videoFile = new File(["video"], "renamed-recording.mp4", {
+      type: "video/webm",
+    });
+
+    await createUploadedTutorial(validTutorialInput, videoFile, null, "admin-1");
+
+    expect(upload.mock.calls[0]?.[2]).toMatchObject({
+      contentType: "video/webm",
+      upsert: false,
+    });
+  });
+
   it("rejects non-video MIME types even when the extension looks like a video", async () => {
     const misleadingFile = new File(["<script>alert(1)</script>"], "lesson.mp4", {
       type: "text/html",

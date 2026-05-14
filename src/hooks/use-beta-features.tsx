@@ -4,6 +4,8 @@ import {
   betaFeaturesPreferenceChangeEvent,
   betaFeaturesStorageKeyForUser,
   defaultBetaFeaturesPreference,
+  isAnyBetaFeatureEnabled,
+  isAnyBetaRevampFeatureEnabled,
   isBetaFeatureFlagActive,
   isRevampBetaEnabled,
   loadBetaFeaturesPreference,
@@ -32,8 +34,10 @@ function writeBetaFeatureAttributes(preference: BetaFeaturesPreference) {
   }
 
   const revampBetaEnabled = isRevampBetaEnabled(preference);
-  document.documentElement.dataset.betaFeatures = revampBetaEnabled ? "on" : "off";
+  const betaRevampEnabled = isAnyBetaRevampFeatureEnabled(preference);
+  document.documentElement.dataset.betaFeatures = isAnyBetaFeatureEnabled(preference) ? "on" : "off";
   document.documentElement.dataset.revampBeta = revampBetaEnabled ? "true" : "false";
+  document.documentElement.dataset.betaRevamp = betaRevampEnabled ? "true" : "false";
   for (const flag of betaFeatureFlagDefinitions) {
     document.documentElement.setAttribute(
       flag.dataAttribute,
@@ -113,8 +117,11 @@ export function useBetaFeatures(userId: string | null | undefined) {
     (flag: BetaFeatureFlagKey, enabled: boolean) => {
       const nextPreference = sanitizeBetaFeaturesPreference({
         ...preference,
-        enabled: enabled ? true : preference.enabled,
-        revampBeta: enabled,
+        enabled: enabled
+          ? true
+          : betaFeatureFlagDefinitions.some((candidate) =>
+              candidate.key === flag ? false : preference[candidate.key],
+            ),
         [flag]: enabled,
       });
       setPreference(nextPreference);
@@ -151,7 +158,8 @@ export function useBetaFeatures(userId: string | null | undefined) {
 
   return useMemo(
     () => ({
-      betaFeaturesEnabled: isRevampBetaEnabled(preference),
+      betaFeaturesEnabled: isAnyBetaFeatureEnabled(preference),
+      betaRevampEnabled: isAnyBetaRevampFeatureEnabled(preference),
       dataAttributes,
       featureFlags,
       isFeatureEnabled: (flag: BetaFeatureFlagKey) => isBetaFeatureFlagActive(preference, flag),
