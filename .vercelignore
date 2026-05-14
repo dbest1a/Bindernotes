@@ -8,9 +8,12 @@ build/
 .env.production.local
 .env.test.local
 .codex-tools/
+.agents/
+.codex-deploy-*/
 .playwright-cli/
 .tmp/
 artifacts/
+output/
 tutorial-videos/
 public/admin-ad-video/
 public/tutorials/videos/*.mp4
@@ -19,5 +22,14 @@ public/tutorials/videos/*.mov
 public/tutorials/videos/*.m4v
 playwright-report/
 test-results/
+AGENTS.md
+CURRENT_WORK.md
+DESIGN.md
+PROJECT_MEMORY.md
+skills-lock.json
+docs/chemistry-source-ledger.md
+scripts/dashboard-summary-health-check.sql
+scripts/generate-finder-notes-investor-deck.mjs
+scripts/whiteboard-version-retention-dry-run.sql
 *.log
 *.tsbuildinfo
