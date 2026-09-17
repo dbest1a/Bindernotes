@@ -77,6 +77,15 @@ describe("historical quiz results", () => {
 });
 
 describe("quiz submission", () => {
+  it("renders a named answer field without invalid paragraph nesting", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      renderAttempt();
+      expect(screen.getByRole("textbox", { name: "Numeric answer: Current question title" })).toBeTruthy();
+      expect(errors).not.toHaveBeenCalled();
+    } finally { errors.mockRestore(); }
+  });
+
   it("does not start duplicate attempts while the first start is pending", async () => {
     let resolveStart: (value: { id: string }) => void = () => { throw new Error("Start has not run"); };
     mocks.start.mockImplementation(() => new Promise((resolve) => { resolveStart = resolve; }));

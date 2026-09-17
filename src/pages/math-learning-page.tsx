@@ -176,6 +176,7 @@ export function MathCoursePage() {
             <CardDescription>Move through the course by concept.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
+            {bundle.topics.length === 0 ? <p className="text-sm text-muted-foreground">No topics have been published for this course yet.</p> : null}
             {bundle.topics.map((topic) => (
               <div
                 className="rounded-lg border border-border/70 bg-background/75 px-3 py-2 text-sm"
@@ -188,6 +189,7 @@ export function MathCoursePage() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
+          {bundle.modules.length === 0 ? <EmptyState title="No modules published yet" description="This course is listed in the catalog, but its study modules are not available yet. Browse Math modules for available lessons." action={<Button asChild variant="outline"><Link to="/math/modules">Browse available modules</Link></Button>} /> : null}
           {bundle.modules.map((module) => (
             <ModuleCard key={module.id} module={module} />
           ))}
@@ -595,6 +597,7 @@ export function MathQuestionBankPage() {
           </div>
         </div>
         <Input
+          aria-label="Search question prompts"
           className="mt-5 max-w-lg"
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search prompts"
@@ -1252,6 +1255,7 @@ function QuestionBankRow({
     <Card>
       <CardContent className="flex flex-wrap items-start gap-4 p-4">
         <input
+          aria-label={`Select question: ${question.title || question.prompt_markdown}`}
           checked={selected}
           className="mt-1 size-4"
           onChange={(event) => onToggle(event.target.checked)}
@@ -1290,9 +1294,9 @@ function QuestionRenderer({
           {question.calculator_allowed ? <Badge variant="outline">Calculator allowed</Badge> : null}
         </div>
         <CardTitle>{question.title ?? "Practice question"}</CardTitle>
-        <CardDescription>
+        <div className="text-sm leading-6 text-muted-foreground/95">
           <MarkdownLite text={question.prompt_markdown} />
-        </CardDescription>
+        </div>
         {question.prompt_latex ? <LatexBlock latex={question.prompt_latex} /> : null}
       </CardHeader>
       <CardContent>
@@ -1382,6 +1386,7 @@ function QuestionInput({
   if (question.type === "numeric") {
     return (
       <Input
+        aria-label={`Numeric answer: ${question.title || question.prompt_markdown}`}
         onChange={(event) => onAnswerChange({ ...value, numeric: event.target.value })}
         placeholder="Enter a number"
         value={String(value.numeric ?? "")}
@@ -1392,6 +1397,7 @@ function QuestionInput({
   if (question.type === "step_ordering") {
     return (
       <Textarea
+        aria-label={`Step order: ${question.title || question.prompt_markdown}`}
         onChange={(event) =>
           onAnswerChange({
             ...value,
@@ -1406,6 +1412,7 @@ function QuestionInput({
 
   return (
     <Textarea
+      aria-label={`Written answer: ${question.title || question.prompt_markdown}`}
       onChange={(event) =>
         onAnswerChange(
           question.type === "free_response"
