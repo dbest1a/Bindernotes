@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
@@ -61,6 +61,7 @@ type WhiteboardPinnedObjectLayerProps = {
   }) => void;
   viewportTransform?: WhiteboardViewportTransform;
   getViewportTransform?: () => WhiteboardViewportTransform;
+  layerRef?: Ref<HTMLDivElement>;
 };
 
 function emptyNoteDoc(): JSONContent {
@@ -186,6 +187,84 @@ function getFloatingTransform(transform: WhiteboardViewportTransform): Whiteboar
     offsetLeft: 0,
     offsetTop: 0,
   };
+}
+
+function getPinnedLayerTransform(layer: HTMLElement, transform: WhiteboardViewportTransform) {
+  const fixed =
+    layer.dataset.whiteboardLayerFixed === "true" ||
+    (layer.dataset.whiteboardLayerFixed === undefined && layer.classList.contains("fixed"));
+
+  if (fixed) {
+    return transform;
+  }
+
+  return {
+    ...transform,
+    offsetLeft: 0,
+    offsetTop: 0,
+  };
+}
+
+function getBoardModuleScreenPointFromDataset(card: HTMLElement, transform: WhiteboardViewportTransform) {
+  const sceneX = Number.parseFloat(card.dataset.cardSceneX ?? "");
+  const sceneY = Number.parseFloat(card.dataset.cardSceneY ?? "");
+  if (!Number.isFinite(sceneX) || !Number.isFinite(sceneY)) {
+    return null;
+  }
+
+  return {
+    x: (sceneX + transform.scrollX) * transform.zoom + (transform.offsetLeft ?? 0),
+    y: (sceneY + transform.scrollY) * transform.zoom + (transform.offsetTop ?? 0),
+  };
+}
+
+export function syncWhiteboardPinnedModuleLayerToViewport(
+  layer: HTMLElement | null,
+  transform: WhiteboardViewportTransform,
+) {
+  if (!layer) {
+    return;
+  }
+
+  const layerTransform = getPinnedLayerTransform(layer, transform);
+
+  layer.dataset.whiteboardViewportScrollX = String(layerTransform.scrollX);
+  layer.dataset.whiteboardViewportScrollY = String(layerTransform.scrollY);
+  layer.dataset.whiteboardViewportZoom = String(layerTransform.zoom);
+  layer.dataset.whiteboardViewportOffsetLeft = String(layerTransform.offsetLeft ?? 0);
+  layer.dataset.whiteboardViewportOffsetTop = String(layerTransform.offsetTop ?? 0);
+
+  const boardCards = layer.querySelectorAll<HTMLElement>(
+    '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board"],' +
+      '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board-fixed-size"]',
+  );
+
+  boardCards.forEach((card) => {
+    if (card.dataset.dragging === "true") {
+      return;
+    }
+
+    const point = getBoardModuleScreenPointFromDataset(card, layerTransform);
+    if (!point) {
+      return;
+    }
+
+    card.dataset.cardRenderX = String(point.x);
+    card.dataset.cardRenderY = String(point.y);
+
+    if (card.dataset.cardAnchor === "board") {
+      card.dataset.cardRenderZoom = String(layerTransform.zoom);
+      card.style.setProperty("left", "0px");
+      card.style.setProperty("top", "0px");
+      card.style.setProperty("transform", `translate3d(${point.x}px, ${point.y}px, 0) scale(${layerTransform.zoom})`);
+      return;
+    }
+
+    card.dataset.cardRenderZoom = "1";
+    card.style.setProperty("left", `${point.x}px`);
+    card.style.setProperty("top", `${point.y}px`);
+    card.style.setProperty("transform", "none");
+  });
 }
 
 function moduleFrameSignature(moduleElement: WhiteboardModuleElement) {
@@ -397,7 +476,7 @@ function getSourceLessonModuleContext(
         updatedAt: new Date().toISOString(),
       });
     },
-    onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) =>
+    onRemoveHighlight: (_selection: LessonTextSelection, highlightIds: string[]) =>
       onChangeModule({
         ...moduleElement,
         whiteboardHighlights: (moduleElement.whiteboardHighlights ?? []).filter(
@@ -993,6 +1072,7 @@ export function WhiteboardPinnedObjectLayer({
   context,
   fixed = false,
   getViewportTransform,
+  layerRef,
   modules,
   onAddLinkedModule,
   renderModule,
@@ -1002,11 +1082,22 @@ export function WhiteboardPinnedObjectLayer({
   viewportTransform = defaultWhiteboardViewportTransform,
 }: WhiteboardPinnedObjectLayerProps) {
   const normalizedFloatingCommitRef = useRef(new Set<string>());
+  const renderViewportTransform = getViewportTransform?.() ?? viewportTransform;
+  const latestViewportTransformForCallbacksRef = useRef(renderViewportTransform);
+  latestViewportTransformForCallbacksRef.current = renderViewportTransform;
   const maxZIndex = modules.reduce((max, moduleElement) => Math.max(max, moduleElement.zIndex), 0);
-  const pinnedTransform = getLayerTransform(viewportTransform, fixed);
+  const pinnedTransform = getLayerTransform(renderViewportTransform, fixed);
   const floatingTransform = useMemo(
-    () => getFloatingTransform(viewportTransform),
-    [viewportTransform.viewportWidth, viewportTransform.viewportHeight],
+    () => getFloatingTransform(renderViewportTransform),
+    [renderViewportTransform.viewportWidth, renderViewportTransform.viewportHeight],
+  );
+  const getLatestRawViewportTransform = useCallback(
+    () => getViewportTransform?.() ?? latestViewportTransformForCallbacksRef.current,
+    [getViewportTransform],
+  );
+  const getPinnedViewportTransform = useCallback(
+    () => getLayerTransform(getLatestRawViewportTransform(), fixed),
+    [fixed, getLatestRawViewportTransform],
   );
   const floatingNormalizationResults = useMemo(
     () =>
@@ -1051,11 +1142,15 @@ export function WhiteboardPinnedObjectLayer({
   return (
     <div
       className={cn("pointer-events-none inset-0 z-[55]", fixed ? "fixed" : "absolute")}
+      data-whiteboard-layer-fixed={fixed ? "true" : "false"}
       data-whiteboard-window-layer="modules"
-      data-whiteboard-viewport-scroll-x={viewportTransform.scrollX}
-      data-whiteboard-viewport-scroll-y={viewportTransform.scrollY}
-      data-whiteboard-viewport-zoom={viewportTransform.zoom}
+      data-whiteboard-viewport-scroll-x={pinnedTransform.scrollX}
+      data-whiteboard-viewport-scroll-y={pinnedTransform.scrollY}
+      data-whiteboard-viewport-zoom={pinnedTransform.zoom}
+      data-whiteboard-viewport-offset-left={pinnedTransform.offsetLeft ?? 0}
+      data-whiteboard-viewport-offset-top={pinnedTransform.offsetTop ?? 0}
       data-testid="whiteboard-pinned-object-layer"
+      ref={layerRef}
     >
       <WhiteboardBoardObjectOverlay
         className="pointer-events-none absolute inset-0"
@@ -1069,7 +1164,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="board"
         testId="whiteboard-board-object-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={pinnedTransform}
       />
       <WhiteboardViewportToolOverlay
@@ -1084,7 +1179,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="viewport"
         testId="whiteboard-floating-board-tool-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={pinnedTransform}
       />
       <WhiteboardViewportToolOverlay
@@ -1099,7 +1194,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="viewport"
         testId="whiteboard-viewport-tool-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={floatingTransform}
       />
     </div>

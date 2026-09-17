@@ -23,6 +23,7 @@ import type {
   HistorySuiteData,
   Profile,
 } from "@/types";
+import { queryKeys } from "@/lib/query-keys";
 
 const HISTORY_QUERY_STALE_TIME = 30_000;
 
@@ -32,7 +33,11 @@ export function useHistorySuite(
   profile: Profile | null,
 ) {
   return useQuery({
-    queryKey: ["history-suite", binder?.id, binder?.suite_template_id, profile?.id],
+    queryKey: queryKeys.historySuite.detail(
+      binder?.id,
+      binder?.suite_template_id,
+      profile?.id,
+    ),
     queryFn: () => getHistorySuiteData({ binder: binder!, lessons, profile }),
     enabled: Boolean(binder),
     staleTime: HISTORY_QUERY_STALE_TIME,
@@ -50,7 +55,7 @@ export function useHistoryMutations(
       return;
     }
     void queryClient.invalidateQueries({
-      queryKey: ["history-suite", binder.id],
+      queryKey: queryKeys.historySuite.forBinder(binder.id),
       exact: false,
     });
   };
@@ -114,7 +119,7 @@ export function patchHistorySuiteQuery(
 ) {
   queryClient.setQueriesData<HistorySuiteData>(
     {
-      queryKey: ["history-suite", binderId],
+      queryKey: queryKeys.historySuite.forBinder(binderId),
       exact: false,
     },
     (current) => (current ? updater(current) : current),

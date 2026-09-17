@@ -119,6 +119,26 @@ describe("whiteboard module layout", () => {
     ]);
   });
 
+  it("preserves zoom-scaled Desmos board cards as a valid pin mode", () => {
+    const normalized = normalizeWhiteboardLabModules([
+      moduleElement({
+        id: "legacy-graph",
+        moduleId: "desmos-graph",
+        anchorMode: "board",
+        pinned: true,
+        width: 720,
+        height: 560,
+      }),
+    ]);
+
+    expect(normalized[0]).toMatchObject({
+      anchorMode: "board",
+      pinned: true,
+      width: 720,
+      height: 560,
+    });
+  });
+
   it("preserves existing lab card board positions and sizes even when cards overlap", () => {
     const normalized = normalizeWhiteboardLabModules(
       [

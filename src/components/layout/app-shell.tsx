@@ -323,7 +323,7 @@ export function AppShell() {
       data-student-preview-admin-chrome={studentPreviewAdminChromeGuard ? "true" : "false"}
       {...betaFeatures.dataAttributes}
     >
-      <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
+      <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background">
         <div className="app-header__inner mx-auto flex h-16 max-w-[1540px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             aria-label="BinderNotes dashboard"
@@ -380,6 +380,18 @@ export function AppShell() {
                 ))}
               </select>
             </label>
+            <Button
+              aria-label="Open settings"
+              className="xl:hidden"
+              data-testid="compact-open-settings"
+              onClick={openSettingsWindow}
+              size="icon"
+              title="Open settings"
+              type="button"
+              variant="ghost"
+            >
+              <Settings />
+            </Button>
             <div className="relative hidden xl:block" ref={profileMenuRef}>
               <button
                 className="admin-profile-trigger flex items-center gap-2 rounded-lg border border-border/70 bg-card/80 px-2 py-1.5 text-left transition hover:bg-secondary"
@@ -565,9 +577,9 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className="app-route-transition-shell" data-route-transition-active={routeLanding ? "true" : "false"}>
+      <div className="app-route-transition-shell" data-route-transition-active={routeLanding ? "true" : "false"}>
         <Outlet />
-      </main>
+      </div>
       {settingsWindowOpen ? (
         <div className="app-settings-overlay" role="presentation">
           <section

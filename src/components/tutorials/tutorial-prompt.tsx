@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TutorialVideoModal } from "@/components/tutorials/tutorial-video-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
+import { queryKeys } from "@/lib/query-keys";
 import {
   findTutorialForPathname,
   tutorialSeenStorageKey,
@@ -50,7 +51,7 @@ export function TutorialPromptHost({ delayMs = 900 }: TutorialPromptHostProps) {
   const [playerOpen, setPlayerOpen] = useState(false);
 
   const uploadedTutorialsQuery = useQuery({
-    queryKey: ["tutorial-entries", "published-prompts"],
+    queryKey: queryKeys.tutorials.list("published-prompts"),
     queryFn: () => listUploadedTutorials(false),
     staleTime: 60_000,
   });

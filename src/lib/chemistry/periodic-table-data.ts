@@ -671,7 +671,7 @@ function buildElement(record: RawPeriodicElementRecord): PeriodicTableElement {
   const commonUses = copy.commonUses ?? getGenericUse(record, category);
   const chem101Note = copy.chem101Note ?? getGenericChem101Note(record, category, valenceElectrons);
   const apChemistryNote = copy.apChemistryNote ?? getGenericApNote(record, category);
-  const bondingBehavior = copy.bondingBehavior ?? getGenericBondingBehavior(record, category, commonIonCharges);
+  const bondingBehavior = copy.bondingBehavior ?? getGenericBondingBehavior(category, commonIonCharges);
   const commonMisconception = copy.commonMisconception ?? getGenericMisconception(record, category);
   const quickCheck = copy.quickCheck ?? getGenericQuickCheck(record, category);
   const relatedLessons = copy.relatedLessons ?? getRelatedLessons(record, category);
@@ -947,7 +947,7 @@ function getGenericApNote(record: RawPeriodicElementRecord, category: ElementCat
   return `For AP reasoning, compare ${record.name}'s shell, shielding, and effective nuclear charge before naming a trend.`;
 }
 
-function getGenericBondingBehavior(record: RawPeriodicElementRecord, category: ElementCategory, charges: number[]) {
+function getGenericBondingBehavior(category: ElementCategory, charges: number[]) {
   if (category === "noble-gas") {
     return "Usually resists bonding because the valence shell is filled.";
   }

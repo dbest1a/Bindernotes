@@ -163,6 +163,27 @@ describe("DesmosGraphModule", () => {
     expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
   });
 
+  it("exposes 2D and 3D graph modes from the module controls", () => {
+    const testBindings = bindings();
+    render(<DesmosGraphModule bindings={testBindings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /show 3d graph/i }));
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("3d");
+
+    fireEvent.click(screen.getByRole("button", { name: /show 2d graph/i }));
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("2d");
+  });
+
+  it("lets performance mode open directly into 3D instead of hiding it behind the 2D graph", () => {
+    const testBindings = bindings();
+    render(<DesmosGraphModule bindings={testBindings} mathPerformanceLazyLoading />);
+
+    fireEvent.click(screen.getByRole("button", { name: /open 3d/i }));
+
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("3d");
+    expect(testBindings.controller.setGraphVisible).toHaveBeenCalledWith(true);
+  });
+
   it("keeps the Desmos keypad unmounted until explicitly opened in math performance mode", () => {
     render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
 

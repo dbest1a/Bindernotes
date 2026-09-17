@@ -54,15 +54,21 @@ describe("production safety source guards", () => {
 
   it("keeps signed-in app chrome and background services behind lazy boundaries", () => {
     const app = readSource("src/App.tsx");
+    const authenticatedProviders = readSource(
+      "src/components/system/authenticated-app-providers.tsx",
+    );
 
     expect(app).not.toMatch(/import\s+\{\s*AppShell\s*\}\s+from\s+["']@\/components\/layout\/app-shell["']/);
     expect(app).not.toMatch(/import\s+\{\s*TutorialPromptHost\s*\}\s+from\s+["']@\/components\/tutorials\/tutorial-prompt["']/);
     expect(app).not.toMatch(/import\s+\{\s*UserAppearanceSync\s*\}\s+from\s+["']@\/components\/theme\/user-appearance-sync["']/);
     expect(app).not.toContain("@/lib/sync-recovery");
+    expect(app).not.toContain("@tanstack/react-query");
+    expect(app).not.toContain("@/components/theme/theme-provider");
     expect(app).toContain("@/components/layout/app-shell");
     expect(app).toContain("@/components/tutorials/tutorial-prompt");
-    expect(app).toContain("@/components/theme/user-appearance-sync");
-    expect(app).toContain("@/components/system/sync-recovery-bridge");
+    expect(app).toContain("@/components/system/authenticated-app-providers");
+    expect(authenticatedProviders).toContain("@/components/theme/user-appearance-sync");
+    expect(authenticatedProviders).toContain("@/components/system/sync-recovery-bridge");
   });
 
   it("keeps heavy route-only tools out of common entry imports", () => {

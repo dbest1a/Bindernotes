@@ -17,10 +17,11 @@ import {
 } from "@/services/math-learning-service";
 import type { QuestionBankItem, QuizSet } from "@/types/math-learning";
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { queryKeys } from "@/lib/query-keys";
 
 export function useMathCourses() {
   return useQuery({
-    queryKey: ["math", "courses"],
+    queryKey: queryKeys.math.courses,
     queryFn: listMathCourses,
   });
 }
@@ -28,14 +29,14 @@ export function useMathCourses() {
 export function useMathCourseBundle(courseSlug?: string) {
   return useQuery({
     enabled: Boolean(courseSlug),
-    queryKey: ["math", "course", courseSlug],
+    queryKey: queryKeys.math.course(courseSlug),
     queryFn: () => getMathCourseBundle(courseSlug!),
   });
 }
 
 export function useMathModules() {
   return useQuery({
-    queryKey: ["math", "modules"],
+    queryKey: queryKeys.math.modules,
     queryFn: () => listMathModules(),
   });
 }
@@ -43,14 +44,14 @@ export function useMathModules() {
 export function useMathModuleBundle(moduleSlug?: string, userId?: string) {
   return useQuery({
     enabled: Boolean(moduleSlug),
-    queryKey: ["math", "module", moduleSlug, userId ?? "guest"],
+    queryKey: queryKeys.math.module(moduleSlug, userId ?? "guest"),
     queryFn: () => getMathModuleBundle(moduleSlug!, userId),
   });
 }
 
 export function useQuestionBank(filters: Parameters<typeof listQuestions>[0] = {}) {
   return useQuery({
-    queryKey: ["math", "questions", filters],
+    queryKey: queryKeys.math.questions(filters),
     queryFn: () => listQuestions(filters),
   });
 }
@@ -58,7 +59,7 @@ export function useQuestionBank(filters: Parameters<typeof listQuestions>[0] = {
 export function useQuizSet(quizId?: string) {
   return useQuery({
     enabled: Boolean(quizId),
-    queryKey: ["math", "quiz", quizId],
+    queryKey: queryKeys.math.quiz(quizId),
     queryFn: () => getQuizSet(quizId!),
   });
 }
@@ -70,10 +71,10 @@ export function useSaveMathGraphState() {
     mutationFn: (input: SaveGraphStateInput) => saveGraphState(input),
     onSuccess: (graphState) => {
       void queryClient.invalidateQueries({
-        queryKey: ["math", "module"],
+        queryKey: queryKeys.math.moduleBundles,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["math", "graph-states", graphState.module_id],
+        queryKey: queryKeys.math.graphStates(graphState.module_id),
       });
     },
   });
@@ -85,9 +86,9 @@ export function useSaveQuestion() {
   return useMutation({
     mutationFn: (input: QuestionInput) => saveQuestion(input),
     onSuccess: (question) => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "questions"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.questionBanks });
       if (question.module_id) {
-        void queryClient.invalidateQueries({ queryKey: ["math", "module"] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.math.moduleBundles });
       }
     },
   });
@@ -99,7 +100,7 @@ export function useCreateQuizSet() {
   return useMutation({
     mutationFn: createQuizSet,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "quiz"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.quizzes });
     },
   });
 }
@@ -132,7 +133,7 @@ export function useCompleteQuizAttempt() {
       scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
     }) => completeQuizAttempt(input),
     onSuccess: (_attempt, input) => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "quiz", input.quizSet.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.quiz(input.quizSet.id) });
     },
   });
 }

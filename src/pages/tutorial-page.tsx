@@ -36,6 +36,7 @@ import {
   sanitizeTutorialId,
 } from "@/services/tutorial-service";
 import { markDevPerformance } from "@/lib/performance-marks";
+import { queryKeys } from "@/lib/query-keys";
 
 type TutorialCategoryFilter = TutorialCategory | "All";
 const initialTutorialCardLimit = 12;
@@ -58,7 +59,7 @@ export function TutorialPage() {
   });
 
   const uploadedTutorialsQuery = useQuery({
-    queryKey: ["tutorial-entries", isAdmin ? "admin" : "published"],
+    queryKey: queryKeys.tutorials.list(isAdmin ? "admin" : "published"),
     queryFn: () => listUploadedTutorials(isAdmin),
     staleTime: 60_000,
   });
@@ -377,7 +378,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
       setPosterFile(null);
       setVideoDurationSeconds(0);
       setMetadataError("");
-      await queryClient.invalidateQueries({ queryKey: ["tutorial-entries"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all });
     },
   });
   const submitLabel =

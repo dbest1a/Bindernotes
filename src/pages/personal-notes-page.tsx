@@ -8,7 +8,6 @@ import {
   BookOpenCheck,
   Bold,
   CheckSquare,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Command,
@@ -19,7 +18,6 @@ import {
   GripVertical,
   Highlighter,
   Italic,
-  Layers3,
   LayoutGrid,
   Link2,
   ListFilter,
@@ -56,7 +54,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
-import { WorkspaceWindow } from "@/components/workspace/workspace-window";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
@@ -68,7 +65,6 @@ import {
   filterPersonalNotesEntries,
   getPersonalNoteAutosaveStatus,
   getPersonalNoteHealth,
-  getPersonalNoteReviewQueue,
   getPersonalNoteSourceReferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
@@ -92,8 +88,6 @@ import type {
   PersonalNotesSidebarNavigationMode,
   PersonalNotesSourceFilter,
   PersonalNotesViewMode,
-  WorkspaceModuleId,
-  WorkspaceWindowFrame,
 } from "@/types";
 
 type SaveState = "saved" | "saving" | "error";
@@ -227,69 +221,6 @@ const annotationHotkeyHighlightColors: Record<string, string> = {
   "5": annotationHighlightColors[4].color,
 };
 
-const defaultCanvasFrames: Record<WorkspaceModuleId, WorkspaceWindowFrame> = {
-  "private-notes": { x: 24, y: 24, w: 520, h: 500, z: 4 },
-  search: { x: 576, y: 24, w: 340, h: 250, z: 3 },
-  "binder-notebook": { x: 24, y: 560, w: 520, h: 320, z: 2 },
-  tasks: { x: 576, y: 310, w: 380, h: 320, z: 2 },
-  "formula-sheet": { x: 980, y: 24, w: 340, h: 440, z: 1 },
-  whiteboard: { x: 980, y: 500, w: 340, h: 300, z: 1 },
-  lesson: { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  comments: { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "desmos-graph": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  flashcards: { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "graph-panel": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "history-argument": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "history-evidence": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "history-myth-checks": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "history-timeline": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "lesson-outline": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "math-blocks": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "mini-tools": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "recent-highlights": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "related-concepts": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "saved-graphs": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "scientific-calculator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-concept-cards": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-quick-tools": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-periodic-table": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-element-builder": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-electron-config-builder": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-periodic-trends-graph": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-molecule-builder": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-geometry-viewer": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-reaction-balancer": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-tri-reaction-view": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-lab-coach": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-stoichiometry-coach": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-molar-mass-calculator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-solution-mixer": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-molarity-calculator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-desmos-concentration-graph": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-ph-calculator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-titration-lab": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-desmos-titration-curve": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-kinetics-simulator": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-desmos-kinetics-plot": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-data-table": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-calorimetry-lab": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-energy-diagram": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-calculation-sheet": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-safety-cards": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-review-queue": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-lab-notebook": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-  "chem-reference-safety": { x: 0, y: 0, w: 0, h: 0, z: 0 },
-};
-
-const canvasModuleIds: WorkspaceModuleId[] = [
-  "private-notes",
-  "search",
-  "binder-notebook",
-  "tasks",
-  "formula-sheet",
-  "whiteboard",
-];
-
 export function PersonalNotesPage() {
   const { profile } = useAuth();
   const params = useParams();
@@ -344,7 +275,6 @@ export function PersonalNotesPage() {
       }),
     [entries, folderFilter, preferences.showBinderNotes, query, sourceFilter, tagFilter],
   );
-  const reviewQueue = useMemo(() => getPersonalNoteReviewQueue(entries), [entries]);
   const notebookCategories = useMemo(
     () => buildNotebookCategories(entries, preferences.showBinderNotes),
     [entries, preferences.showBinderNotes],
@@ -1279,7 +1209,6 @@ export function PersonalNotesPage() {
                     categories={notebookCategories}
                     entries={notesViewEntries}
                     editor={editorPanel}
-                    focusMode={focusActive}
                     hierarchy={notebookHierarchy}
                     notebookSidebarLevel={notebookSidebarLevel}
                     navigationMode={preferences.sidebarNavigationMode}
@@ -1375,7 +1304,6 @@ export function PersonalNotesPage() {
     </main>
   );
 }
-
 function PersonalNotesLoadDiagnostics({
   error,
   onRetry,
@@ -1472,7 +1400,7 @@ function PersonalNotesEmptyState({
         </h2>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           {sourceLinkedNotesBeta
-            ? "Capture this highlight, add this to review, or begin a clean source-linked note. Binder private notes appear here as soon as you write them in a study workspace."
+            ? "Begin a clean source-linked note. Binder private notes and their review tools appear here as soon as you write them in a study workspace."
             : "Create a loose note, start a personal binder, or add a folder. Binder private notes appear here as soon as you write them in a study workspace."}
         </p>
         {!personalStorageReady ? (
@@ -1485,18 +1413,6 @@ function PersonalNotesEmptyState({
             <FilePlus2 data-icon="inline-start" />
             {sourceLinkedNotesBeta ? "Start a note from this source" : "New note"}
           </Button>
-          {sourceLinkedNotesBeta ? (
-            <>
-              <Button disabled={!personalStorageReady} onClick={onCreateNote} type="button" variant="outline">
-                <Highlighter data-icon="inline-start" />
-                Capture this highlight
-              </Button>
-              <Button disabled={!personalStorageReady} onClick={onCreateNote} type="button" variant="outline">
-                <CheckSquare data-icon="inline-start" />
-                Add this to review
-              </Button>
-            </>
-          ) : null}
           <Button disabled={!personalStorageReady} onClick={onCreateBinder} type="button" variant="outline">
             <BookMarked data-icon="inline-start" />
             Create binder
@@ -1505,9 +1421,9 @@ function PersonalNotesEmptyState({
             <FolderPlus data-icon="inline-start" />
             Create folder
           </Button>
-          <Button disabled type="button" variant="ghost">
-            Import later
-          </Button>
+          <span className="inline-flex h-10 items-center px-3 text-sm text-muted-foreground">
+            Import coming soon
+          </span>
         </div>
       </div>
     </section>
@@ -2843,7 +2759,6 @@ function MinimalNotesView({
   categories,
   editor,
   entries,
-  focusMode,
   hierarchy,
   notebookSidebarLevel,
   navigationMode,
@@ -2869,7 +2784,6 @@ function MinimalNotesView({
   categories: NotebookCategory[];
   editor: ReactNode;
   entries: PersonalNotesEntry[];
-  focusMode: boolean;
   hierarchy: NotebookHierarchy;
   notebookSidebarLevel: NotebookSidebarLevel;
   navigationMode: PersonalNotesSidebarNavigationMode;
@@ -2913,8 +2827,6 @@ function MinimalNotesView({
               categories={categories}
               hierarchy={hierarchy}
               onClearFilters={onClearFilters}
-              onSelectBinder={onSelectBinder}
-              onSelectCategory={onSelectCategory}
               onSelectEntry={onSelectEntry}
               onTagFilter={onTagFilter}
               selectedEntry={selectedEntry}
@@ -3084,8 +2996,6 @@ function StructuredNotebookTree({
   categories,
   hierarchy,
   onClearFilters,
-  onSelectBinder,
-  onSelectCategory,
   onSelectEntry,
   onTagFilter,
   selectedEntry,
@@ -3097,8 +3007,6 @@ function StructuredNotebookTree({
   categories: NotebookCategory[];
   hierarchy: NotebookHierarchy;
   onClearFilters: () => void;
-  onSelectBinder: (binder: NotebookBinderNode) => void;
-  onSelectCategory: (category: NotebookCategory) => void;
   onSelectEntry: (entry: PersonalNotesEntry) => void;
   onTagFilter: (tag: string | null) => void;
   selectedEntry: PersonalNotesEntry | null;
@@ -3291,138 +3199,6 @@ function StructuredNotebookEntryButton({
       <span className="block truncate text-xs font-medium">{entry.title}</span>
       <span className="block truncate text-[11px]">{entry.kind === "binder-note" ? "Binder private note" : noteTypeLabel}</span>
     </button>
-  );
-}
-
-function CanvasNotesView({
-  children,
-  entries,
-  onCreateDocument,
-  onCreateNote,
-  onSelectEntry,
-  preferences,
-  profileId,
-  reviewQueue,
-  selectedEntry,
-}: {
-  children: ReactNode;
-  entries: PersonalNotesEntry[];
-  onCreateDocument: () => void;
-  onCreateNote: () => void;
-  onSelectEntry: (entry: PersonalNotesEntry) => void;
-  preferences: {
-    canvasSafeEdgePadding: boolean;
-    canvasSnapMode: "off" | "edges" | "modules";
-    mobileCanvasBehavior: "module-switcher" | "simplified";
-  };
-  profileId?: string;
-  reviewQueue: PersonalNotesEntry[];
-  selectedEntry: PersonalNotesEntry | null;
-}) {
-  const [frames, setFrames] = useState(() => loadCanvasFrames(profileId));
-  const [canvasHeight, setCanvasHeight] = useState(940);
-  const topZ = Math.max(...canvasModuleIds.map((moduleId) => frames[moduleId]?.z ?? 1), 1);
-
-  useEffect(() => {
-    setFrames(loadCanvasFrames(profileId));
-  }, [profileId]);
-
-  const updateFrame = (moduleId: WorkspaceModuleId, frame: WorkspaceWindowFrame) => {
-    setFrames((current) => {
-      const next = { ...current, [moduleId]: frame };
-      saveCanvasFrames(profileId, next);
-      return next;
-    });
-  };
-
-  const mobileModules = [
-    { title: "Note", body: children },
-    {
-      title: "List",
-      body: <NoteList compact entries={entries} onSelectEntry={onSelectEntry} selectedEntry={selectedEntry} />,
-    },
-    {
-      title: "Review Queue",
-      body: <ReviewQueue entries={reviewQueue} onSelectEntry={onSelectEntry} />,
-    },
-  ];
-
-  return (
-    <div className="grid gap-4">
-      <div className="rounded-lg border border-border/70 bg-card/82 p-4 shadow-sm backdrop-blur md:hidden">
-        <h2 className="text-base font-semibold">Canvas modules</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Full canvas editing works best on tablet or desktop. Phone view uses readable module cards.
-        </p>
-        <div className="mt-4 grid gap-3">
-          {mobileModules.map((module) => (
-            <section className="rounded-lg border border-border/70 bg-background p-3" key={module.title}>
-              <h3 className="mb-3 text-sm font-semibold">{module.title}</h3>
-              {module.body}
-            </section>
-          ))}
-        </div>
-      </div>
-
-      <div className="workspace-canvas-shell hidden overflow-auto rounded-lg border border-border/70 bg-background/72 shadow-sm md:block">
-        <div
-          className="workspace-canvas relative"
-          style={{ height: canvasHeight, minWidth: 1360 }}
-        >
-          {canvasModuleIds.map((moduleId) => {
-            const frame = frames[moduleId];
-            if (!frame || frame.w <= 0 || frame.h <= 0) {
-              return null;
-            }
-
-            return (
-              <WorkspaceWindow
-                boundsHeight={canvasHeight}
-                boundsWidth={1360}
-                canvasHeight={canvasHeight}
-                canvasWidth={1360}
-                frame={frame}
-                key={moduleId}
-                locked={false}
-                moduleId={moduleId}
-                onCanvasHeightRequest={(nextFrame) => {
-                  setCanvasHeight((height) => Math.max(height, nextFrame.y + nextFrame.h + 96));
-                }}
-                onCommit={updateFrame}
-                onToggleCollapsed={(collapsedModuleId) => {
-                  updateFrame(collapsedModuleId, {
-                    ...(frames[collapsedModuleId] ?? defaultCanvasFrames[collapsedModuleId]),
-                    h: 92,
-                  });
-                }}
-                peerFrames={canvasModuleIds
-                  .filter((candidate) => candidate !== moduleId)
-                  .map((candidate) => frames[candidate])
-                  .filter(Boolean)}
-                safeEdgePadding={preferences.canvasSafeEdgePadding}
-                snapBehavior={preferences.canvasSnapMode}
-                snapEnabled={preferences.canvasSnapMode !== "off"}
-                topZ={topZ}
-                workspaceStyle="full-studio"
-              >
-                <CanvasModuleShell title={canvasTitleForModule(moduleId)}>
-                  {renderCanvasModule({
-                    moduleId,
-                    entries,
-                    selectedEntry,
-                    reviewQueue,
-                    children,
-                    onCreateDocument,
-                    onCreateNote,
-                    onSelectEntry,
-                  })}
-                </CanvasModuleShell>
-              </WorkspaceWindow>
-            );
-          })}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -3795,20 +3571,12 @@ function PersonalNoteEditor({
             </div>
             <h2 className="mt-4 text-xl font-semibold tracking-tight">Start a note from this source</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Capture this highlight, add this to review, or start a loose note until you choose the right source.
+              Start a loose note, then attach highlights and review prompts once its source is available.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Button onClick={onCreateNote} type="button">
                 <FilePlus2 data-icon="inline-start" />
                 Start a note from this source
-              </Button>
-              <Button onClick={onCreateNote} type="button" variant="outline">
-                <Highlighter data-icon="inline-start" />
-                Capture this highlight
-              </Button>
-              <Button onClick={onCreateNote} type="button" variant="outline">
-                <CheckSquare data-icon="inline-start" />
-                Add this to review
               </Button>
             </div>
           </div>
@@ -4777,44 +4545,6 @@ function preservePersonalNoteSelection(event: { preventDefault: () => void }) {
   event.preventDefault();
 }
 
-function HighlightColorMenu({
-  onHighlight,
-  onRemoveHighlight,
-}: {
-  onHighlight: (color?: string) => void;
-  onRemoveHighlight: () => void;
-}) {
-  return (
-    <div
-      aria-label="Highlight colors"
-      className="absolute left-0 top-[calc(100%+0.35rem)] z-50 grid min-w-44 gap-1 rounded-lg border border-border bg-popover p-1 shadow-2xl"
-      role="menu"
-    >
-      {annotationHighlightColors.map((color) => (
-        <button
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold hover:bg-secondary"
-          key={color.value}
-          onClick={() => onHighlight(color.color)}
-          role="menuitem"
-          type="button"
-        >
-          <span className={`size-2.5 rounded-full ${color.swatch}`} />
-          {color.label} highlight
-        </button>
-      ))}
-      <button
-        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
-        onClick={onRemoveHighlight}
-        role="menuitem"
-        type="button"
-      >
-        <X className="size-3.5" />
-        Remove highlight
-      </button>
-    </div>
-  );
-}
-
 function HighlightColorFilterSelect({
   label = "Highlight color filter",
   onChange,
@@ -5070,39 +4800,6 @@ function NoteList({
           </div>
         </button>
       ))}
-    </div>
-  );
-}
-
-function ReviewQueue({
-  compact = false,
-  entries,
-  onSelectEntry,
-}: {
-  compact?: boolean;
-  entries: PersonalNotesEntry[];
-  onSelectEntry: (entry: PersonalNotesEntry) => void;
-}) {
-  return (
-    <div className="grid gap-2">
-      {entries.slice(0, 6).map((entry) => (
-        <button
-          className={`rounded-lg border border-border/70 bg-background/78 text-left transition hover:bg-secondary/70 ${
-            compact ? "p-2" : "p-3"
-          }`}
-          key={`${entry.kind}:review:${entry.id}`}
-          onClick={() => onSelectEntry(entry)}
-          type="button"
-        >
-          <p className="text-sm font-semibold">{entry.title}</p>
-          {!compact ? (
-            <p className="mt-1 text-xs text-muted-foreground">{entry.sourceType} / {formatDate(entry.updated_at)}</p>
-          ) : null}
-        </button>
-      ))}
-      {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Pinned, recent, math, and review-later notes collect here.</p>
-      ) : null}
     </div>
   );
 }
@@ -5891,104 +5588,6 @@ function ToggleSetting({
   );
 }
 
-function CanvasModuleShell({ children, title }: { children: ReactNode; title: string }) {
-  return (
-    <section className="flex h-full flex-col overflow-hidden rounded-[var(--workspace-radius,18px)] border border-border/75 bg-card/94 shadow-sm backdrop-blur">
-      <div className="border-b border-border/70 px-4 pb-3 pt-10">
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4">{children}</div>
-    </section>
-  );
-}
-
-function renderCanvasModule(input: {
-  children: ReactNode;
-  entries: PersonalNotesEntry[];
-  moduleId: WorkspaceModuleId;
-  onCreateDocument: () => void;
-  onCreateNote: () => void;
-  onSelectEntry: (entry: PersonalNotesEntry) => void;
-  reviewQueue: PersonalNotesEntry[];
-  selectedEntry: PersonalNotesEntry | null;
-}) {
-  switch (input.moduleId) {
-    case "private-notes":
-      return input.children;
-    case "binder-notebook":
-      return (
-        <NoteList
-          compact
-          entries={input.entries}
-          onSelectEntry={input.onSelectEntry}
-          selectedEntry={input.selectedEntry}
-        />
-      );
-    case "tasks":
-      return <ReviewQueue entries={input.reviewQueue} onSelectEntry={input.onSelectEntry} />;
-    case "search":
-      return (
-        <div className="grid gap-3">
-          <Button onClick={input.onCreateNote} type="button">
-            <FilePlus2 data-icon="inline-start" />
-            New note
-          </Button>
-          <Button onClick={input.onCreateDocument} type="button" variant="outline">
-            <FileText data-icon="inline-start" />
-            New document
-          </Button>
-          <p className="text-sm leading-6 text-muted-foreground">
-            Search and filters apply to your notes workspace.
-          </p>
-        </div>
-      );
-    case "formula-sheet":
-      return (
-        <div className="grid gap-2">
-          {personalNoteTemplates.slice(0, 6).map((template) => (
-            <div className="rounded-lg border border-border/70 bg-background/78 p-3" key={template.id}>
-              <p className="text-sm font-semibold">{template.name}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{template.description}</p>
-            </div>
-          ))}
-        </div>
-      );
-    case "whiteboard":
-      return (
-        <div className="grid h-full place-items-center rounded-lg border border-dashed border-border/80 bg-background/78 p-4 text-center">
-          <div>
-            <Layers3 className="mx-auto size-8 text-muted-foreground" />
-            <p className="mt-3 text-sm font-semibold">Canvas tool space</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Add writing panels, quick cards, checklists, math blocks, and source links without needing premade study content.
-            </p>
-          </div>
-        </div>
-      );
-    default:
-      return null;
-  }
-}
-
-function canvasTitleForModule(moduleId: WorkspaceModuleId) {
-  switch (moduleId) {
-    case "private-notes":
-      return "Writing panel";
-    case "binder-notebook":
-      return "Notebook modules";
-    case "tasks":
-      return "Review Queue";
-    case "search":
-      return "Quick actions";
-    case "formula-sheet":
-      return "Templates and math";
-    case "whiteboard":
-      return "Canvas tools";
-    default:
-      return "Module";
-  }
-}
-
 function buildFolderSummaries(entries: PersonalNotesEntry[]) {
   const map = new Map<string, { name: string; count: number; color: string }>();
   entries.forEach((entry) => {
@@ -6232,14 +5831,6 @@ function formatSourceDocumentLabel(lesson: BinderLesson, learnerNotes: LearnerNo
   return learnerNotes.some((note) => note.lesson_id === lesson.id) ? `${title} (opens existing note)` : title;
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Recently";
-  }
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 function folderColor(color: string) {
   switch (color) {
     case "violet":
@@ -6255,38 +5846,4 @@ function folderColor(color: string) {
     default:
       return "rgb(13 148 136)";
   }
-}
-
-function canvasFramesStorageKey(profileId: string | undefined) {
-  return `binder-notes:personal-notes:${profileId ?? "anonymous"}:canvas:v1`;
-}
-
-function loadCanvasFrames(profileId: string | undefined) {
-  if (typeof window === "undefined") {
-    return defaultCanvasFrames;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(canvasFramesStorageKey(profileId));
-    if (!raw) {
-      return defaultCanvasFrames;
-    }
-    return {
-      ...defaultCanvasFrames,
-      ...(JSON.parse(raw) as Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>),
-    };
-  } catch {
-    return defaultCanvasFrames;
-  }
-}
-
-function saveCanvasFrames(
-  profileId: string | undefined,
-  frames: Record<WorkspaceModuleId, WorkspaceWindowFrame>,
-) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(canvasFramesStorageKey(profileId), JSON.stringify(frames));
 }

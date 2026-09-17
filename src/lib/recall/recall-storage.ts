@@ -3,6 +3,7 @@ import type {
   RecallDeckScope,
   RecallSessionSummary,
 } from "@/lib/recall/recall-types";
+import { readJsonArray, writeJsonArray } from "@/lib/safe-json-storage";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -24,24 +25,6 @@ export function recallStorageKey(scope: RecallDeckScope) {
 
 export function recallSessionStorageKey(scope: RecallDeckScope) {
   return recallStorageKey(scope).replace(/:cards$/, ":sessions");
-}
-
-function readJsonArray<T>(storage: StorageLike | undefined, key: string): T[] {
-  if (!storage) return [];
-
-  try {
-    const raw = storage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJsonArray<T>(storage: StorageLike | undefined, key: string, values: T[]) {
-  if (!storage) return;
-
-  storage.setItem(key, JSON.stringify(values));
 }
 
 export function loadRecallCards(scope: RecallDeckScope, storage: StorageLike | undefined): RecallCard[] {

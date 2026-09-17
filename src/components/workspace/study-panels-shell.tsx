@@ -18,13 +18,15 @@ import {
   StickyNote,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { WorkspaceModeSwitcher } from "@/components/workspace/workspace-mode-switcher";
 import {
+  preloadWorkspaceModule,
   workspaceModuleRegistry,
   type WorkspaceModuleContext,
 } from "@/components/workspace/workspace-modules";
@@ -32,6 +34,7 @@ import {
   getVisibleWorkspacePresets,
   workspacePresets,
 } from "@/lib/workspace-preferences";
+import { learningAcceleratorFeatureFlagKeys } from "@/lib/beta-features";
 import { getFaceliftWorkspacePresetDesign } from "@/lib/workspace-preset-designs";
 import { getPrimaryFolder } from "@/lib/workspace-structure";
 import { cn } from "@/lib/utils";
@@ -133,12 +136,16 @@ export function StudyPanelsShell({
   const design = getFaceliftWorkspacePresetDesign(preferences.preset);
   const preset = workspacePresets.find((candidate) => candidate.id === preferences.preset);
   const betaFeatures = useBetaFeatures(context.ownerId);
+  const performanceMode = usePerformanceMode();
   const betaFeaturesEnabled = betaFeatures.betaFeaturesEnabled;
   const compactStudyChrome =
     compactStudyChromeProp || betaFeatures.isFeatureEnabled("compactStudyChrome");
   const revampBetaEnabled = betaFeatures.revampBetaEnabled;
   const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
   const studyPanelsV2 = betaFeatures.isFeatureEnabled("studyPanelsV2");
+  const learningAcceleratorsEnabled = learningAcceleratorFeatureFlagKeys.some((flag) =>
+    betaFeatures.isFeatureEnabled(flag),
+  );
   const isHistoryPanels =
     context.history.enabled ||
     `${context.binder.subject ?? ""} ${preferences.preset}`.toLowerCase().includes("history");
@@ -151,8 +158,15 @@ export function StudyPanelsShell({
       )
     : undefined;
   const tabs = useMemo(
-    () => buildStudyPanelTabs(context, preferences, betaFeaturesEnabled),
-    [betaFeaturesEnabled, context, preferences],
+    () => buildStudyPanelTabs(context, preferences, betaFeaturesEnabled, learningAcceleratorsEnabled),
+    [
+      betaFeaturesEnabled,
+      learningAcceleratorsEnabled,
+      context.binder.subject,
+      context.history.enabled,
+      preferences.enabledModules,
+      preferences.preset,
+    ],
   );
   const preferredTabId = tabs.find((tab) => tab.moduleId === design.primaryModule)?.id ?? tabs[0]?.id ?? "lesson";
   const [activeTabId, setActiveTabId] = useState(preferredTabId);
@@ -164,6 +178,7 @@ export function StudyPanelsShell({
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const previousPresetRef = useRef(preferences.preset);
   const programmaticFullscreenExitRef = useRef(false);
+  const preloadedModulesRef = useRef(new Set<WorkspaceModuleId>());
 
   useEffect(() => {
     const presetChanged = previousPresetRef.current !== preferences.preset;
@@ -315,11 +330,12 @@ export function StudyPanelsShell({
       getStudyToolPreviewCards({
         betaFeaturesEnabled,
         context,
+        learningAcceleratorsEnabled,
         moduleIds: toolModuleIds,
         preferences,
         recallLabEnabled,
       }),
-    [betaFeaturesEnabled, context, preferences, recallLabEnabled, toolModuleIds],
+    [betaFeaturesEnabled, context, learningAcceleratorsEnabled, preferences, recallLabEnabled, toolModuleIds],
   );
   const previewModuleIds = toolPreviewCards.map((card) => card.moduleId);
   const safeActiveToolId = previewModuleIds.includes(activeToolId) ? activeToolId : previewModuleIds[0];
@@ -329,7 +345,62 @@ export function StudyPanelsShell({
     includeAdvanced: false,
   }).slice(0, 5);
 
+  const preloadPanelModule = useCallback((moduleId: WorkspaceModuleId | null | undefined) => {
+    if (!moduleId || preloadedModulesRef.current.has(moduleId)) {
+      return;
+    }
+
+    preloadedModulesRef.current.add(moduleId);
+    preloadWorkspaceModule(moduleId);
+  }, []);
+
+  const preloadTab = useCallback(
+    (tab: StudyPanelTab) => {
+      preloadPanelModule(tab.moduleId);
+
+      const secondaryModule =
+        studyPanelsV2
+          ? chooseStudyPanelsV2SecondaryModule(tab.moduleId, context, preferences)
+          : chooseSecondaryModule(tab.moduleId, context, preferences);
+      preloadPanelModule(secondaryModule);
+    },
+    [context, preferences, preloadPanelModule, studyPanelsV2],
+  );
+
+  useEffect(() => {
+    if (!performanceMode.effectivePerformanceMode || typeof window === "undefined") {
+      return;
+    }
+
+    const warmVisiblePanelModules = () => {
+      preloadPanelModule(primaryModuleId);
+      preloadPanelModule(secondaryModuleId);
+      tabs.forEach(preloadTab);
+    };
+
+    const idleWindow = window as Window & {
+      cancelIdleCallback?: (id: number) => void;
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(warmVisiblePanelModules, { timeout: 1200 });
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(warmVisiblePanelModules, 180);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    performanceMode.effectivePerformanceMode,
+    preloadPanelModule,
+    preloadTab,
+    primaryModuleId,
+    secondaryModuleId,
+    tabs,
+  ]);
+
   const activateTab = (tab: StudyPanelTab) => {
+    preloadTab(tab);
     setActiveTabId(tab.id);
     setDrawerOpen(tab.id === "tools");
     setActionStatus(`${tab.label} panel active.`);
@@ -350,6 +421,7 @@ export function StudyPanelsShell({
     context.onApplyPreset(presetId);
   };
   const openToolPreview = (card: StudyToolPreview) => {
+    preloadPanelModule(card.moduleId);
     setActiveToolId(card.moduleId);
     setDrawerOpen(true);
     setActionStatus(`${card.title} opened.`);
@@ -732,7 +804,10 @@ export function StudyPanelsShell({
             id={`study-panel-tab-${tab.id}`}
             key={tab.id}
             onClick={() => activateTab(tab)}
+            onFocus={() => preloadTab(tab)}
             onKeyDown={(event) => moveTabFocus(event, index)}
+            onPointerDown={() => preloadTab(tab)}
+            onPointerEnter={() => preloadTab(tab)}
             ref={(node) => {
               tabRefs.current[index] = node;
             }}
@@ -871,6 +946,9 @@ export function StudyPanelsShell({
                   <button
                     aria-pressed={safeActiveToolId === card.moduleId}
                     onClick={() => openToolPreview(card)}
+                    onFocus={() => preloadPanelModule(card.moduleId)}
+                    onPointerDown={() => preloadPanelModule(card.moduleId)}
+                    onPointerEnter={() => preloadPanelModule(card.moduleId)}
                     type="button"
                   >
                     {card.actionLabel ?? `Open ${card.title}`}
@@ -1424,6 +1502,13 @@ const toolPreviewCopy: Record<
     subject: "general",
     stability: "stable",
   },
+  "learning-accelerators": {
+    title: "Learning Accelerators",
+    description: "Run transfer, evidence, mistake-repair, and representation checks without generation costs.",
+    subject: "general",
+    stability: "beta",
+    actionLabel: "Open Learning Accelerators",
+  },
   flashcards: {
     title: "Recall Lab",
     description: "Turn this lesson's notes, highlights, and source passages into source-linked recall cards.",
@@ -1448,12 +1533,14 @@ const toolPreviewCopy: Record<
 function getStudyToolPreviewCards({
   betaFeaturesEnabled,
   context,
+  learningAcceleratorsEnabled,
   moduleIds,
   preferences,
   recallLabEnabled,
 }: {
   betaFeaturesEnabled: boolean;
   context: WorkspaceModuleContext;
+  learningAcceleratorsEnabled: boolean;
   moduleIds: WorkspaceModuleId[];
   preferences: WorkspacePreferences;
   recallLabEnabled?: boolean;
@@ -1495,7 +1582,12 @@ function getStudyToolPreviewCards({
       "lesson",
     ],
   };
-  const ordered = [...subjectModules[subject], ...moduleIds, ...subjectModules.general];
+  const ordered = [
+    ...(learningAcceleratorsEnabled ? (["learning-accelerators"] as WorkspaceModuleId[]) : []),
+    ...subjectModules[subject],
+    ...moduleIds,
+    ...subjectModules.general,
+  ];
   const seen = new Set<WorkspaceModuleId>();
   const hasDesmosApiKey = Boolean(import.meta.env.VITE_DESMOS_API_KEY);
 
@@ -1507,6 +1599,10 @@ function getStudyToolPreviewCards({
 
     const copy = toolPreviewCopy[moduleId];
     if (!copy) {
+      return [];
+    }
+
+    if (moduleId === "learning-accelerators" && !learningAcceleratorsEnabled) {
       return [];
     }
 
@@ -1537,6 +1633,7 @@ function buildStudyPanelTabs(
   context: WorkspaceModuleContext,
   preferences: WorkspacePreferences,
   betaFeaturesEnabled: boolean,
+  learningAcceleratorsEnabled = false,
 ): StudyPanelTab[] {
   const subject = `${context.binder.subject ?? ""} ${preferences.preset}`.toLowerCase();
   const isChemistry =
@@ -1573,6 +1670,10 @@ function buildStudyPanelTabs(
       { id: "evidence", label: "Evidence", helper: "Proof", moduleId: "history-evidence" },
       { id: "argument", label: "Argument", helper: "Claim", moduleId: "history-argument" },
     );
+  }
+
+  if (learningAcceleratorsEnabled) {
+    tabs.push({ id: "accelerators", label: "Accelerators", helper: "Train", moduleId: "learning-accelerators" });
   }
 
   tabs.push(

@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import type { FullCanvasSnapBehavior, WorkspaceModuleId, WorkspaceWindowFrame } from "@/types";
 
 type WorkspaceWindowProps = {
-  boundsHeight: number;
   boundsWidth: number;
   children: ReactNode;
   canvasHeight: number;
@@ -50,6 +49,13 @@ type SnapPreview = {
 };
 
 const SNAP_UI_UPDATE_INTERVAL_MS = 48;
+const stableEmbeddedMovementModules = new Set<WorkspaceModuleId>([
+  "desmos-graph",
+  "graph-panel",
+  "scientific-calculator",
+  "whiteboard",
+]);
+
 type WorkspacePointerStartEvent = {
   clientX: number;
   clientY: number;
@@ -60,7 +66,6 @@ type WorkspacePointerStartEvent = {
 };
 
 export function WorkspaceWindow({
-  boundsHeight,
   boundsWidth,
   children,
   canvasHeight,
@@ -90,6 +95,8 @@ export function WorkspaceWindow({
   const snapPreviewRef = useRef<SnapPreview | null>(null);
   const lastSnapUiUpdateAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
   const interactionActiveRef = useRef(false);
+  const useStableEmbeddedMovement =
+    smoothMovementEnabled && stableEmbeddedMovementModules.has(moduleId);
 
   useEffect(() => {
     if (interactionActiveRef.current) {
@@ -115,11 +122,13 @@ export function WorkspaceWindow({
 
     rafRef.current = window.requestAnimationFrame(() => {
       rafRef.current = null;
-      applyInteractionFrameToElement(windowRef.current, frameRef.current, mode, startFrame);
+      applyInteractionFrameToElement(windowRef.current, frameRef.current, mode, startFrame, {
+        stableFrameWrites: useStableEmbeddedMovement,
+      });
     });
   };
 
-  const focusWindow = () => {
+  const focusWindow = ({ deferCommit = false }: { deferCommit?: boolean } = {}) => {
     onSelect?.(moduleId);
 
     if (locked) {
@@ -133,7 +142,9 @@ export function WorkspaceWindow({
     const next = { ...frameRef.current, z: topZ + 1 };
     frameRef.current = next;
     applyFrameToElement(windowRef.current, next);
-    onCommit(moduleId, next);
+    if (!deferCommit) {
+      onCommit(moduleId, next);
+    }
   };
 
   const beginPointerAction = (event: WorkspacePointerStartEvent, mode: ResizeMode) => {
@@ -143,7 +154,7 @@ export function WorkspaceWindow({
     }
 
     event.preventDefault();
-    focusWindow();
+    focusWindow({ deferCommit: useStableEmbeddedMovement });
 
     const startFrame = frameRef.current;
     const startX = event.clientX;
@@ -243,8 +254,9 @@ export function WorkspaceWindow({
           ? clampMovedFrame(rawFrame, viewportBounds)
           : clampResizedFrame(rawFrame, viewportBounds, { minWidth, minHeight });
 
+      const snapAllowed = snapEnabled && !useStableEmbeddedMovement;
       const nextPreview =
-        snapEnabled
+        snapAllowed
           ? resolveSnapPreview({
               interaction: mode === "move" ? "move" : "resize",
               movedFrame,
@@ -282,7 +294,7 @@ export function WorkspaceWindow({
         frame: snapPreviewRef.current?.frame ?? frameRef.current,
         moduleId,
         safeEdgePadding,
-        snapEnabled,
+        snapEnabled: snapEnabled && !useStableEmbeddedMovement,
         snapBehavior,
         peerFrames,
         canvasWidth,
@@ -387,7 +399,8 @@ export function WorkspaceWindow({
         activeMode === "corner" && "workspace-window--resizing",
       )}
       data-window-module-id={moduleId}
-      onMouseDown={!locked ? focusWindow : undefined}
+      data-stable-embedded-movement={useStableEmbeddedMovement ? "true" : undefined}
+      onMouseDown={!locked ? () => focusWindow() : undefined}
       ref={windowRef}
       style={{
         height: frame.h,
@@ -495,8 +508,14 @@ function applyInteractionFrameToElement(
   frame: WorkspaceWindowFrame,
   mode: ResizeMode | null,
   startFrame: WorkspaceWindowFrame | null,
+  options: { stableFrameWrites?: boolean } = {},
 ) {
   if (!node) {
+    return;
+  }
+
+  if (options.stableFrameWrites) {
+    applyFrameToElement(node, frame);
     return;
   }
 

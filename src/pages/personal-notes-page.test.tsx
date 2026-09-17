@@ -1146,7 +1146,7 @@ describe("PersonalNotesPage", () => {
   it("keeps existing source note chrome when Source-Linked Notes beta is off", () => {
     mocks.personalNotesState.data = withSourceMarkedEntry();
 
-    const firstRender = renderPage("/notes/n/learner-note-1");
+    renderPage("/notes/n/learner-note-1");
 
     expect(screen.getByTestId("binder-source-action-row")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open binder workspace" })).toBeTruthy();
@@ -1262,7 +1262,7 @@ describe("PersonalNotesPage", () => {
     });
   });
 
-  it("uses beta empty-state actions and a mobile-safe single-action notes layout", () => {
+  it("uses an honest beta empty state and a mobile-safe single-action notes layout", () => {
     enableSourceLinkedNotesBeta();
     mocks.personalNotesState.data = emptyWorkspace;
 
@@ -1270,8 +1270,9 @@ describe("PersonalNotesPage", () => {
 
     expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("true");
     expect(screen.getAllByText("Start a note from this source").length).toBeGreaterThan(0);
-    expect(screen.getByText("Capture this highlight")).toBeTruthy();
-    expect(screen.getByText("Add this to review")).toBeTruthy();
+    expect(screen.queryByText("Capture this highlight")).toBeNull();
+    expect(screen.queryByText("Add this to review")).toBeNull();
+    expect(screen.getByText("Import coming soon")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Start a note from this source" }));
     expect(screen.getByRole("dialog", { name: "New note" })).toBeTruthy();
   });

@@ -4,7 +4,6 @@ import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import { GraphStateList } from "@/components/math/graph-state-list";
 import { DesmosScientificCalculator } from "@/components/math/desmos-scientific-calculator";
 import { ScientificCalculator } from "@/components/math/scientific-calculator";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
@@ -88,7 +87,8 @@ export function DesmosGraphModule({
   const graphRuntimeVisible = controller.state.graphVisible && (!mathPerformanceLazyLoading || graphActivated);
   const effectiveShowKeypad = showKeypad && (!mathPerformanceLazyLoading || keypadOpen);
   const canUseDesmos = hasDesmosApiKey();
-  const activateGraph = () => {
+  const activateGraph = (mode = controller.state.graphMode) => {
+    controller.setGraphMode(mode);
     setGraphActivated(true);
     controller.setGraphVisible(true);
   };
@@ -160,6 +160,7 @@ export function DesmosGraphModule({
           <>
             <div className="flex items-center gap-1 rounded-md border border-border/70 bg-background/70 p-1">
               <Button
+                aria-label="Show 2D graph"
                 onClick={() => controller.setGraphMode("2d")}
                 size="sm"
                 type="button"
@@ -168,6 +169,7 @@ export function DesmosGraphModule({
                 2D
               </Button>
               <Button
+                aria-label="Show 3D graph"
                 onClick={() => controller.setGraphMode("3d")}
                 size="sm"
                 type="button"
@@ -189,10 +191,16 @@ export function DesmosGraphModule({
             ) : null}
           </>
         ) : (
-          <Button onClick={activateGraph} size="sm" type="button" variant="outline">
-            <FunctionSquare data-icon="inline-start" />
-            Prepare graph
-          </Button>
+          <>
+            <Button onClick={() => activateGraph("2d")} size="sm" type="button" variant="outline">
+              <FunctionSquare data-icon="inline-start" />
+              Open 2D
+            </Button>
+            <Button onClick={() => activateGraph("3d")} size="sm" type="button" variant="outline">
+              <FunctionSquare data-icon="inline-start" />
+              Open 3D
+            </Button>
+          </>
         )
       }
       className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"}
@@ -246,7 +254,7 @@ function GraphPreview({ onOpen }: { onOpen: () => void }) {
       <div>
         <h4>Graph ready when you need it</h4>
         <p>Desmos stays unmounted until you open it, keeping the study surface lighter.</p>
-        <Button onClick={onOpen} size="sm" type="button">
+        <Button onClick={() => onOpen()} size="sm" type="button">
           <FunctionSquare data-icon="inline-start" />
           Open graph
         </Button>

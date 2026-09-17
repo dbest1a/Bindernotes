@@ -281,11 +281,11 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.queryByText("19 objects")).toBeNull();
   });
 
-  it("offers a two-click delete path for an oversized or broken active board", async () => {
+  it("offers a two-click delete path for the active board", async () => {
     renderLab();
 
-    const deleteButton = screen.getByTestId("whiteboard-delete-broken-board");
-    expect(deleteButton.textContent).toContain("Delete broken board");
+    const deleteButton = screen.getByTestId("whiteboard-delete-board");
+    expect(deleteButton.textContent).toContain("Delete board");
 
     fireEvent.click(deleteButton);
     expect(deleteButton.textContent).toContain("Confirm delete board");
@@ -572,6 +572,96 @@ describe("MathWhiteboardLabPage", () => {
       expect(card?.getAttribute("style")).toContain("width: 560px");
       expect(card?.getAttribute("style")).toContain("height: 420px");
     });
+  });
+
+  it("keeps board-pinned Desmos at the synced camera position when a module drop rerenders before viewport state catches up", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 47);
+    window.localStorage.setItem(
+      "bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard",
+      JSON.stringify([
+        {
+          id: "board-test",
+          ownerId: "user-1",
+          binderId: "math-lab",
+          lessonId: "math-lab-whiteboard",
+          title: "Math Whiteboard Lab whiteboard",
+          subject: "Math",
+          moduleContext: "lesson",
+          scene: { elements: [], appState: { viewBackgroundColor: "#11131a" }, files: {} },
+          modules: [
+            {
+              id: "module-desmos",
+              type: "bindernotes-module",
+              moduleId: "desmos-graph",
+              x: 100,
+              y: 120,
+              width: 420,
+              height: 320,
+              zIndex: 1,
+              mode: "live",
+              anchorMode: "board",
+              pinned: true,
+              createdAt: new Date(0).toISOString(),
+              updatedAt: new Date(0).toISOString(),
+            },
+          ],
+          objectCount: 1,
+          sceneSizeBytes: 0,
+          assetSizeBytes: 0,
+          storageMode: "local-draft",
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+          archivedAt: null,
+        },
+      ]),
+    );
+    const { container } = renderLab({ seedBoard: false });
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-module-card-module-desmos")).toBeTruthy());
+    await waitFor(() => expect(mocks.whiteboardCanvasProps).toBeTruthy());
+    act(() => {
+      (
+        mocks.whiteboardCanvasProps?.onViewportChange as (transform: {
+          scrollX: number;
+          scrollY: number;
+          zoom: number;
+          viewportWidth: number;
+          viewportHeight: number;
+          offsetLeft: number;
+          offsetTop: number;
+        }) => void
+      )({
+        scrollX: 0,
+        scrollY: 40,
+        zoom: 1,
+        viewportWidth: 1200,
+        viewportHeight: 800,
+        offsetLeft: 0,
+        offsetTop: 0,
+      });
+    });
+
+    const card = screen.getByTestId("whiteboard-module-card-module-desmos");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(100px, 160px, 0) scale(1)");
+
+    const chrome = card.querySelector<HTMLElement>(".whiteboard-module-card__chrome");
+    expect(chrome).not.toBeNull();
+    fireEvent.pointerDown(chrome!, { clientX: 100, clientY: 160, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 100, clientY: 160, pointerId: 1 });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const rerenderedCard = container.querySelector('[data-testid="whiteboard-module-card-module-desmos"]');
+    expect(rerenderedCard?.getAttribute("style")).toContain("transform: translate3d(100px, 160px, 0) scale(1)");
+    expect(rerenderedCard?.getAttribute("style")).not.toContain("translate3d(100px, 120px");
+    expect(
+      (
+        (mocks.whiteboardCanvasProps?.board as { scene?: { appState?: { scrollY?: number } } } | undefined)?.scene
+          ?.appState ?? {}
+      ).scrollY,
+    ).toBe(40);
+    rafSpy.mockRestore();
   });
 
   it("adds source lesson cards as choose-source modules instead of locking them to the synthetic lab source", async () => {

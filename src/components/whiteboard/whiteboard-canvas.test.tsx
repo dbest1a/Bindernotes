@@ -410,4 +410,70 @@ describe("WhiteboardCanvas", () => {
       globalThis.ResizeObserver = OriginalResizeObserver;
     }
   });
+
+  it("does not emit a stale camera from a deferred refresh after parent module movement ends", async () => {
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+    const onViewportChange = vi.fn();
+
+    class MockResizeObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+    }
+
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    document.documentElement.dataset.workspaceDragging = "true";
+
+    try {
+      render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={onViewportChange} />);
+
+      await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+      await waitFor(() => expect(resizeCallbacks).toHaveLength(1));
+      onViewportChange.mockClear();
+
+      act(() => {
+        (excalidrawMock.props?.onScrollChange as (scrollX: number, scrollY: number, zoom: { value: number }) => void)(
+          0,
+          80,
+          { value: 1 },
+        );
+      });
+      expect(onViewportChange).toHaveBeenLastCalledWith(expect.objectContaining({ scrollY: 80 }));
+
+      // Simulate Excalidraw's API lagging behind the scroll callback during a parent module drop.
+      excalidrawMock.apiState = {
+        scrollX: 0,
+        scrollY: 0,
+        zoom: { value: 1 },
+      };
+      act(() => {
+        resizeCallbacks[0]?.(
+          [
+            {
+              contentRect: {
+                width: 900,
+                height: 520,
+              },
+            } as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      });
+
+      document.documentElement.dataset.workspaceDragging = "false";
+      window.dispatchEvent(new CustomEvent("bindernotes:workspace-movement-end"));
+
+      await waitFor(() => expect(excalidrawMock.refresh).toHaveBeenCalled());
+      expect(onViewportChange.mock.calls).not.toContainEqual([expect.objectContaining({ scrollY: 0 })]);
+      expect(onViewportChange).toHaveBeenLastCalledWith(expect.objectContaining({ scrollY: 80 }));
+    } finally {
+      document.documentElement.dataset.workspaceDragging = "false";
+      globalThis.ResizeObserver = OriginalResizeObserver;
+    }
+  });
 });

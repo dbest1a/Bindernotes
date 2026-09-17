@@ -2,6 +2,7 @@ import {
   scheduleStudyItemReview,
   type StudyReviewRating,
 } from "@/lib/study-scheduler";
+import { readJsonArray, writeJsonArray } from "@/lib/safe-json-storage";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -90,13 +91,13 @@ export function studyReviewEventsStorageKey(ownerId: string) {
 }
 
 export function listStudyItems(ownerId: string, storage = defaultStorage()): StudyItem[] {
-  return readArray<StudyItem>(storage, studyItemsStorageKey(ownerId))
+  return readJsonArray<StudyItem>(storage, studyItemsStorageKey(ownerId))
     .filter((item) => item.owner_id === ownerId)
     .sort((left, right) => Date.parse(left.due_at) - Date.parse(right.due_at));
 }
 
 export function listStudyReviewEvents(ownerId: string, storage = defaultStorage()): StudyReviewEvent[] {
-  return readArray<StudyReviewEvent>(storage, studyReviewEventsStorageKey(ownerId))
+  return readJsonArray<StudyReviewEvent>(storage, studyReviewEventsStorageKey(ownerId))
     .filter((event) => event.owner_id === ownerId)
     .sort((left, right) => Date.parse(right.reviewed_at) - Date.parse(left.reviewed_at));
 }
@@ -133,7 +134,7 @@ export function createStudyItem(input: CreateStudyItemInput, storage = defaultSt
   }
 
   const next = [item, ...listStudyItems(input.ownerId, storage)];
-  writeArray(storage, studyItemsStorageKey(input.ownerId), next);
+  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), next);
   return item;
 }
 
@@ -158,8 +159,8 @@ export function recordStudyReviewEvent(input: RecordStudyReviewInput, storage = 
     response_length: input.response?.length ?? 0,
   };
   const nextItems = items.map((candidate) => (candidate.id === updatedItem.id ? updatedItem : candidate));
-  writeArray(storage, studyItemsStorageKey(input.ownerId), nextItems);
-  writeArray(storage, studyReviewEventsStorageKey(input.ownerId), [
+  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), nextItems);
+  writeJsonArray(storage, studyReviewEventsStorageKey(input.ownerId), [
     event,
     ...listStudyReviewEvents(input.ownerId, storage),
   ].slice(0, 500));
@@ -175,23 +176,6 @@ export function assertReviewQueueBetaEnabled(betaEnabled: boolean) {
 
 function defaultStorage(): StorageLike | undefined {
   return typeof window === "undefined" ? undefined : window.localStorage;
-}
-
-function readArray<T>(storage: StorageLike | undefined, key: string): T[] {
-  if (!storage) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(storage.getItem(key) ?? "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeArray<T>(storage: StorageLike | undefined, key: string, values: T[]) {
-  storage?.setItem(key, JSON.stringify(values));
 }
 
 function safeStoragePart(value: string) {

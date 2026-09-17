@@ -60,6 +60,11 @@ import {
 describe("useWorkspacePreferences", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    mocks.globalTheme = {
+      ...mocks.globalTheme,
+      id: "space",
+      accent: "174 67% 48%",
+    };
     mocks.clearThemeOverride.mockReset();
     mocks.getWorkspacePreferencesRecord.mockReset();
     mocks.setTheme.mockReset();
@@ -145,6 +150,32 @@ describe("useWorkspacePreferences", () => {
         studySurface: "warm-paper",
       }),
     );
+  });
+
+  it("applies global theme changes without reloading account preferences", async () => {
+    const saved = createDefaultWorkspacePreferences("user-1", "binder-1");
+    mocks.getWorkspacePreferencesRecord.mockResolvedValue(saved);
+
+    const { result, rerender } = renderHook(() =>
+      useWorkspacePreferences("user-1", "binder-1", null),
+    );
+
+    await waitFor(() => {
+      expect(result.current.active).not.toBeNull();
+      expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.globalTheme = {
+      ...mocks.globalTheme,
+      id: "paper-studio",
+      accent: "24 95% 53%",
+    };
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.active?.theme.id).toBe("paper-studio");
+    });
+    expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalledTimes(1);
   });
 
   it("unlocks a canvas edit draft without moving frames, reapplying presets, or persisting", async () => {

@@ -1,7 +1,6 @@
 import type { JSONContent } from "@tiptap/react";
 import type {
   Highlight,
-  HighlightColor,
   HighlightSelectorBlock,
   HighlightSelectorJson,
   HighlightSelectorTextPosition,

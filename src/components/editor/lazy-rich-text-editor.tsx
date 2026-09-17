@@ -1,11 +1,16 @@
 import { lazy, Suspense } from "react";
 import type { RichTextEditorProps } from "@/components/editor/rich-text-editor";
 
-const RichTextEditorChunk = lazy(() =>
+const loadRichTextEditor = () =>
   import("@/components/editor/rich-text-editor").then((module) => ({
     default: module.RichTextEditor,
-  })),
-);
+  }));
+
+const RichTextEditorChunk = lazy(loadRichTextEditor);
+
+export function preloadRichTextEditor() {
+  void loadRichTextEditor();
+}
 
 export function RichTextEditor(props: RichTextEditorProps) {
   return (

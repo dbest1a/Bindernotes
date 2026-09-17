@@ -13,8 +13,17 @@ const cwd = process.cwd();
 const loadedFiles = loadClientEnvFiles({ cwd, env: process.env, mode });
 assertRequiredClientEnv(process.env);
 
-runNodeBin("typescript", "bin/tsc", ["-b"]);
-runNodeBin("vite", "bin/vite.js", ["build", "--configLoader", "runner", "--mode", mode]);
+runNodeBin("typescript", "bin/tsc", ["--noEmit", "-p", "tsconfig.json"]);
+runNodeBin("typescript", "bin/tsc", ["--noEmit", "-p", "tsconfig.node.json"]);
+runNodeBin("vite", "bin/vite.js", [
+  "build",
+  "--config",
+  "vite.config.ts",
+  "--configLoader",
+  "runner",
+  "--mode",
+  mode,
+]);
 
 validateBuiltClientOutput({ cwd, env: process.env, outDir: "dist" });
 console.log(

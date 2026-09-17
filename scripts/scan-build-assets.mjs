@@ -5,7 +5,9 @@ import { gzipSync } from "node:zlib";
 const distDir = join(process.cwd(), "dist");
 const assetsDir = join(distDir, "assets");
 const indexHtmlPath = join(distDir, "index.html");
-const mainEntryMaxBytes = Number(process.env.BINDERNOTES_MAIN_ENTRY_BUDGET_BYTES ?? 815_000);
+const mainEntryMaxBytes = Number(process.env.BINDERNOTES_MAIN_ENTRY_BUDGET_BYTES ?? 120_000);
+const mainCssMaxBytes = Number(process.env.BINDERNOTES_MAIN_CSS_BUDGET_BYTES ?? 450_000);
+const initialGzipMaxBytes = Number(process.env.BINDERNOTES_INITIAL_GZIP_BUDGET_BYTES ?? 300_000);
 
 const files = collectFiles(assetsDir)
   .filter((file) => /\.(js|css)$/.test(file))
@@ -37,6 +39,10 @@ const initialAssetNames = Array.from(
 
 const mainEntry = mainJsName ? files.find((file) => file.name === mainJsName) ?? null : null;
 const mainCss = mainCssName ? files.find((file) => file.name === mainCssName) ?? null : null;
+const initialAssets = initialAssetNames
+  .map((name) => files.find((file) => file.name === name))
+  .filter(Boolean);
+const initialGzipBytes = initialAssets.reduce((total, file) => total + file.gzipBytes, 0);
 const whiteboardChunk = findLargestJs(/whiteboard-(engine|module)|excalidraw/i);
 const whiteboardCss = findLargestCss(/whiteboard-(engine|module)|excalidraw/i);
 const mermaidChunk = findLargestJs(/mermaid|diagram/i);
@@ -46,6 +52,7 @@ console.log("Build asset scan");
 console.log("================");
 console.log(formatHighlight("main entry", mainEntry));
 console.log(formatHighlight("main CSS", mainCss));
+console.log(`initial JS/CSS: ${formatBytes(initialGzipBytes)} gzip across ${initialAssets.length} assets`);
 console.log(formatHighlight("whiteboard chunk", whiteboardChunk));
 console.log(formatHighlight("whiteboard CSS", whiteboardCss));
 console.log(formatHighlight("mermaid chunk", mermaidChunk));
@@ -65,12 +72,26 @@ if (!mainEntry) {
   );
 }
 
+if (!mainCss) {
+  failures.push("main stylesheet could not be identified from dist/index.html");
+} else if (mainCss.bytes > mainCssMaxBytes) {
+  failures.push(
+    `main CSS ${formatBytes(mainCss.bytes)} exceeds budget ${formatBytes(mainCssMaxBytes)}`,
+  );
+}
+
+if (initialGzipBytes > initialGzipMaxBytes) {
+  failures.push(
+    `initial JS/CSS ${formatBytes(initialGzipBytes)} gzip exceeds budget ${formatBytes(initialGzipMaxBytes)}`,
+  );
+}
+
 if (!whiteboardChunk) {
   console.log("Note: no named whiteboard chunk was found; this is only OK if whiteboard code was not emitted.");
 }
 
 const forbiddenInitialAssets = initialAssetNames.filter((name) =>
-  /whiteboard|excalidraw|rich-text-editor|tiptap|mermaid|workspace-settings/i.test(name),
+  /authenticated-app-providers|query-vendor|supabase|workspace-preferences|whiteboard|excalidraw|rich-text-editor|tiptap|mermaid|workspace-settings/i.test(name),
 );
 if (forbiddenInitialAssets.length > 0) {
   failures.push(

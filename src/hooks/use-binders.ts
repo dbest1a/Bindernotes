@@ -21,6 +21,7 @@ import {
   upsertLesson,
 } from "@/services/binder-service";
 import { seedSystemSuites } from "@/services/system-seed-service";
+import { queryKeys, updateDashboardQueriesData } from "@/lib/query-keys";
 import type {
   BinderBundle,
   BinderOverviewData,
@@ -37,6 +38,15 @@ const DEFAULT_QUERY_STALE_TIME = 30_000;
 const HIGHLIGHT_SYNC_EVENT = "binder-notes:highlight-sync";
 const HIGHLIGHT_SYNC_STORAGE_KEY = "binder-notes:highlight-sync:v1";
 const NOTE_SYNC_STORAGE_KEY = "binder-notes:note-sync:v1";
+const WORKSPACE_DETAIL_QUERY_ROOTS = new Set<string>([
+  queryKeys.folder.all[0],
+  queryKeys.binder.all[0],
+  queryKeys.binderOverview.all[0],
+]);
+const SYSTEM_SUITE_QUERY_ROOTS = new Set<string>([
+  ...WORKSPACE_DETAIL_QUERY_ROOTS,
+  queryKeys.historySuite.all[0],
+]);
 
 type HighlightSyncPayload = {
   id: string;
@@ -65,7 +75,7 @@ export function useDashboard(profile: Profile | null, options?: DashboardQueryOp
   const includeSystemStatus = options?.includeSystemStatus ?? true;
   const enabled = options?.enabled ?? true;
   return useQuery({
-    queryKey: ["dashboard", profile?.id, profile?.role, includeSystemStatus],
+    queryKey: queryKeys.dashboard.detail(profile?.id, profile?.role, includeSystemStatus),
     queryFn: () => getDashboard(profile!, { includeSystemStatus }),
     enabled: Boolean(profile) && enabled,
     staleTime: DEFAULT_QUERY_STALE_TIME,
@@ -82,20 +92,19 @@ export function useDashboardWorkspaceMutations(profile: Profile | null) {
     }
 
     void queryClient.invalidateQueries({
-      predicate: (query) =>
-        Array.isArray(query.queryKey) &&
-        query.queryKey[0] === "dashboard" &&
-        query.queryKey[1] === profile.id,
+      queryKey: queryKeys.dashboard.forProfile(profile.id),
     });
     void queryClient.invalidateQueries({
       predicate: (query) =>
         Array.isArray(query.queryKey) &&
-        ["folder", "binder", "binder-overview"].includes(String(query.queryKey[0] ?? "")) &&
+        WORKSPACE_DETAIL_QUERY_ROOTS.has(String(query.queryKey[0] ?? "")) &&
         query.queryKey.includes(profile.id),
     });
     if (binderId) {
-      void queryClient.invalidateQueries({ queryKey: ["binder", binderId, profile.id] });
-      void queryClient.invalidateQueries({ queryKey: ["binder-overview", binderId, profile.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.binder.detail(binderId, profile.id) });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.binderOverview.detail(binderId, profile.id),
+      });
     }
   };
 
@@ -142,7 +151,7 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
         return;
       }
 
-      void queryClient.invalidateQueries({ queryKey: ["binder", binderId, profile.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.binder.detail(binderId, profile.id) });
     };
 
     const handleStorage = (event: StorageEvent) => {
@@ -174,7 +183,7 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
   }, [binderId, profile, queryClient]);
 
   return useQuery({
-    queryKey: ["binder", binderId, profile?.id],
+    queryKey: queryKeys.binder.detail(binderId, profile?.id),
     queryFn: () => getBinderBundle(binderId!, profile!),
     enabled: Boolean(binderId && profile),
     staleTime: DEFAULT_QUERY_STALE_TIME,
@@ -184,7 +193,7 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
 
 export function useFolderWorkspace(folderId: string | undefined, profile: Profile | null) {
   return useQuery({
-    queryKey: ["folder", folderId, profile?.id],
+    queryKey: queryKeys.folder.detail(folderId, profile?.id),
     queryFn: () => getFolderWorkspace(folderId!, profile!),
     enabled: Boolean(folderId && profile),
     staleTime: DEFAULT_QUERY_STALE_TIME,
@@ -194,7 +203,7 @@ export function useFolderWorkspace(folderId: string | undefined, profile: Profil
 
 export function useBinderOverview(binderId: string | undefined, profile: Profile | null) {
   return useQuery({
-    queryKey: ["binder-overview", binderId, profile?.id],
+    queryKey: queryKeys.binderOverview.detail(binderId, profile?.id),
     queryFn: () => getBinderOverview(binderId!, profile!),
     enabled: Boolean(binderId && profile),
     staleTime: DEFAULT_QUERY_STALE_TIME,
@@ -226,19 +235,13 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
       }));
 
       if (profile) {
-        queryClient.setQueryData<DashboardData | undefined>(
-          ["dashboard", profile.id, profile.role],
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  notes: upsertNoteByScope(current.notes, savedNote),
-                }
-              : current,
-        );
+        updateDashboardQueriesData<DashboardData>(queryClient, profile.id, (current) => ({
+          ...current,
+          notes: upsertNoteByScope(current.notes, savedNote),
+        }));
 
         queryClient.setQueryData<BinderOverviewData | undefined>(
-          ["binder-overview", savedNote.binder_id, profile.id],
+          queryKeys.binderOverview.detail(savedNote.binder_id, profile.id),
           (current) =>
             current
               ? {
@@ -251,7 +254,7 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
         queryClient.invalidateQueries({
           predicate: (query) =>
             Array.isArray(query.queryKey) &&
-            query.queryKey[0] === "folder" &&
+            query.queryKey[0] === queryKeys.folder.all[0] &&
             query.queryKey[2] === profile.id,
         });
       }
@@ -591,7 +594,7 @@ function updateBinderBundleCache(
   }
 
   queryClient.setQueryData<BinderBundle | undefined>(
-    ["binder", binderId, profile.id],
+    queryKeys.binder.detail(binderId, profile.id),
     (current) => (current ? updater(current) : current),
   );
 }
@@ -606,7 +609,7 @@ function snapshotBinderBundle(
     return { previous: undefined as BinderBundle | undefined };
   }
 
-  const key = ["binder", binderId, profile.id] as const;
+  const key = queryKeys.binder.detail(binderId, profile.id);
   const previous = queryClient.getQueryData<BinderBundle>(key);
   if (previous) {
     queryClient.setQueryData<BinderBundle>(key, updater(previous));
@@ -625,7 +628,7 @@ function restoreBinderBundle(
     return;
   }
 
-  queryClient.setQueryData(["binder", binderId, profile.id], context.previous);
+  queryClient.setQueryData(queryKeys.binder.detail(binderId, profile.id), context.previous);
 }
 
 function buildOptimisticHighlight(
@@ -691,7 +694,7 @@ function upsertNoteByScope(items: LearnerNote[], item: LearnerNote) {
 export function useAdminMutations(profile: Profile | null) {
   const queryClient = useQueryClient();
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["dashboard", profile?.id, profile?.role] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.forProfile(profile?.id) });
   };
 
   return {
@@ -699,29 +702,25 @@ export function useAdminMutations(profile: Profile | null) {
       mutationFn: (input: Parameters<typeof upsertBinder>[0]) =>
         upsertBinder({ ...input, ownerId: profile!.id }),
       onSuccess: (binder) => {
-        queryClient.setQueriesData<DashboardData | undefined>(
-          {
-            queryKey: ["dashboard", profile?.id, profile?.role],
-          },
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  binders: upsertById(current.binders, binder).sort(
-                    (left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at),
-                  ),
-                }
-              : current,
-        );
+        updateDashboardQueriesData<DashboardData>(queryClient, profile?.id, (current) => ({
+          ...current,
+          binders: upsertById(current.binders, binder).sort(
+            (left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at),
+          ),
+        }));
         invalidate();
-        queryClient.invalidateQueries({ queryKey: ["binder", binder.id, profile?.id] });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.binder.detail(binder.id, profile?.id),
+        });
       },
     }),
     lesson: useMutation({
       mutationFn: upsertLesson,
       onSuccess: (lesson) => {
         invalidate();
-        queryClient.invalidateQueries({ queryKey: ["binder", lesson.binder_id, profile?.id] });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.binder.detail(lesson.binder_id, profile?.id),
+        });
       },
     }),
     deleteLesson: useMutation({
@@ -735,9 +734,7 @@ export function useAdminMutations(profile: Profile | null) {
         queryClient.invalidateQueries({
           predicate: (query) =>
             Array.isArray(query.queryKey) &&
-            ["binder", "binder-overview", "folder", "history-suite"].includes(
-              String(query.queryKey[0] ?? ""),
-            ),
+            SYSTEM_SUITE_QUERY_ROOTS.has(String(query.queryKey[0] ?? "")),
         });
       },
     }),

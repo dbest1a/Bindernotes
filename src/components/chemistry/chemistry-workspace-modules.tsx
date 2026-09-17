@@ -5,7 +5,6 @@ import {
   Beaker,
   BookOpen,
   Brain,
-  CheckCircle2,
   ClipboardCheck,
   FlaskConical,
   GitCompare,

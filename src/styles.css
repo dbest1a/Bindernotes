@@ -288,6 +288,23 @@
 
 .whiteboard-focus-exit-hint {
   animation: whiteboard-focus-hint-in 180ms ease-out both;
+  background: linear-gradient(135deg, rgb(15 23 42 / 0.96), rgb(30 41 59 / 0.94)) !important;
+  border-color: rgb(148 163 184 / 0.48) !important;
+  box-shadow:
+    0 18px 48px rgb(2 6 23 / 0.42),
+    0 0 0 1px rgb(255 255 255 / 0.08) inset !important;
+  color: rgb(248 250 252) !important;
+  line-height: 1.45;
+  text-shadow: 0 1px 2px rgb(2 6 23 / 0.72);
+}
+
+.whiteboard-focus-exit-hint--fullscreen {
+  top: calc(env(safe-area-inset-top) + 5.75rem) !important;
+  z-index: calc(var(--whiteboard-toolbar-layer) + 24) !important;
+}
+
+.whiteboard-focus-exit-hint--embedded {
+  top: 4.5rem !important;
 }
 
 @keyframes whiteboard-focus-hint-in {
@@ -3511,7 +3528,7 @@
   :root[data-beta-desmos-v2="true"] .workspace-window[data-dragging="true"],
   :root[data-beta-whiteboard-smooth-move="true"] .workspace-window[data-dragging="true"] {
     transition: none !important;
-    will-change: transform, left, top, width, height;
+    will-change: transform;
   }
 
   :root[data-beta-desmos-v2="true"] .workspace-window[data-dragging="true"] *,
@@ -3527,6 +3544,24 @@
 
   :root[data-workspace-dragging="true"] .whiteboard-excalidraw-host,
   :root[data-workspace-dragging="true"] [data-desmos-status] {
+    contain: layout paint style;
+  }
+
+  :root[data-beta-desmos-v2="true"] .workspace-window[data-dragging="true"][data-stable-embedded-movement="true"],
+  :root[data-beta-whiteboard-smooth-move="true"] .workspace-window[data-dragging="true"][data-stable-embedded-movement="true"] {
+    transform: none !important;
+    contain: layout paint style;
+  }
+
+  :root[data-beta-desmos-v2="true"] .whiteboard-module-card[data-dragging="true"][data-whiteboard-module="desmos-graph"],
+  :root[data-beta-whiteboard-smooth-move="true"] .whiteboard-module-card[data-dragging="true"][data-whiteboard-module="desmos-graph"] {
+    transition: none !important;
+    contain: layout paint style;
+  }
+
+  :root[data-beta-desmos-v2="true"] .whiteboard-module-card[data-dragging="true"][data-whiteboard-module="desmos-graph"] [data-desmos-status],
+  :root[data-beta-whiteboard-smooth-move="true"] .whiteboard-module-card[data-dragging="true"][data-whiteboard-module="desmos-graph"] [data-desmos-status] {
+    pointer-events: none;
     contain: layout paint style;
   }
 
@@ -9170,7 +9205,17 @@
 :root[data-performance-mode="true"] .ui-click-tile,
 :root[data-performance-mode="true"] .dashboard-card,
 :root[data-performance-mode="true"] .binder-card,
-:root[data-performance-mode="true"] .ui-button-motion {
+:root[data-performance-mode="true"] .ui-button-motion,
+:root[data-performance-mode="true"] .study-panels-shell__top,
+:root[data-performance-mode="true"] .study-panels-tabs,
+:root[data-performance-mode="true"] .study-panels-tab,
+:root[data-performance-mode="true"] .study-panels-guided-actions,
+:root[data-performance-mode="true"] .study-panels-guided-actions__buttons button,
+:root[data-performance-mode="true"] .study-panels-action-row-toggle,
+:root[data-performance-mode="true"] .study-panels-compact-action-row__content,
+:root[data-performance-mode="true"] .study-panels-drawer,
+:root[data-performance-mode="true"] .study-panels-tool-card,
+:root[data-performance-mode="true"] .study-panels-card {
   animation: none !important;
   transition-duration: 0.01ms !important;
 }
@@ -9212,7 +9257,11 @@
 :root[data-performance-mode="true"] .ui-click-tile:hover,
 :root[data-performance-mode="true"] .dashboard-card:hover,
 :root[data-performance-mode="true"] .binder-card:hover,
-:root[data-performance-mode="true"] .ui-button-motion:hover {
+:root[data-performance-mode="true"] .ui-button-motion:hover,
+:root[data-performance-mode="true"] .study-panels-tab:hover,
+:root[data-performance-mode="true"] .study-panels-guided-actions__buttons button:hover,
+:root[data-performance-mode="true"] .study-panels-action-row-toggle:hover,
+:root[data-performance-mode="true"] .study-panels-tool-card:hover {
   box-shadow: 0 1px 0 hsl(var(--foreground) / 0.06) inset !important;
   transform: none !important;
 }

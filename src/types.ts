@@ -472,6 +472,7 @@ export type WorkspaceModuleId =
   | "recent-highlights"
   | "tasks"
   | "related-concepts"
+  | "learning-accelerators"
   | "flashcards"
   | "mini-tools";
 

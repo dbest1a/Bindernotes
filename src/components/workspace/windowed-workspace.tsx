@@ -866,7 +866,6 @@ export function WindowedWorkspace({
 
               return (
                 <WorkspaceWindow
-                  boundsHeight={Math.max(240, viewportSize.height > 0 ? viewportSize.height - 8 : canvasHeight)}
                   boundsWidth={Math.max(320, viewportSize.width > 0 ? viewportSize.width - 8 : canvasWidth)}
                   canvasHeight={canvasHeight}
                   canvasWidth={canvasWidth}

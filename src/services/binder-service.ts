@@ -5,7 +5,6 @@ import {
   demoComments,
   demoConceptEdges,
   demoConceptNodes,
-  demoDashboard,
   demoFolderBinders,
   demoFolders,
   demoHighlights,
@@ -48,7 +47,6 @@ import {
   loadWorkspacePreferences,
   normalizeWorkspacePreferences,
   saveGlobalThemeSettings,
-  saveWorkspacePreferences,
 } from "@/lib/workspace-preferences";
 import {
   deriveLessonTitle,
@@ -242,73 +240,6 @@ function createLegacyLocalSampleUnavailableError() {
   return new Error("This bundled study binder is not available in account workspaces.");
 }
 
-function buildSyntheticSystemFolderArtifacts(
-  binders: Binder[],
-  viewerId?: string,
-): {
-  folders: Folder[];
-  folderLinks: FolderBinderLink[];
-} {
-  const foldersById = new Map<string, Folder>();
-  const folderLinks: FolderBinderLink[] = [];
-
-  binders.forEach((binder) => {
-    const suite =
-      (binder.suite_template_id
-        ? systemSuiteTemplates.find((candidate) => candidate.id === binder.suite_template_id) ?? null
-        : null) ?? findSystemSuiteByBinderId(binder.id);
-    if (!suite) {
-      return;
-    }
-
-    const folder = foldersById.get(`folder-${suite.id}`) ?? buildSystemFolderFromSuite(suite);
-    foldersById.set(folder.id, folder);
-    folderLinks.push({
-      id: `folder-link:${folder.id}:${binder.id}`,
-      owner_id: viewerId ?? folder.owner_id,
-      folder_id: folder.id,
-      binder_id: binder.id,
-      created_at: folder.created_at,
-      updated_at: folder.updated_at,
-    });
-  });
-
-  return {
-    folders: [...foldersById.values()],
-    folderLinks,
-  };
-}
-
-function mergeFolders(remoteFolders: Folder[], syntheticFolders: Folder[]) {
-  const byId = new Map(remoteFolders.map((folder) => [folder.id, folder]));
-  syntheticFolders.forEach((folder) => {
-    if (!byId.has(folder.id)) {
-      byId.set(folder.id, folder);
-    }
-  });
-  return [...byId.values()];
-}
-
-function mergeFolderLinks(
-  remoteLinks: FolderBinderLink[],
-  syntheticLinks: FolderBinderLink[],
-) {
-  const byId = new Map<string, FolderBinderLink>();
-  remoteLinks.forEach((link) => {
-    byId.set(link.id, link);
-  });
-  syntheticLinks.forEach((link) => {
-    const identity = `${link.folder_id}:${link.binder_id}`;
-    const alreadyPresent = [...byId.values()].some(
-      (candidate) => `${candidate.folder_id}:${candidate.binder_id}` === identity,
-    );
-    if (!alreadyPresent) {
-      byId.set(link.id, link);
-    }
-  });
-  return [...byId.values()];
-}
-
 function getDemoBinderById(binderId: string) {
   return getLocalBundledBinders().find((binder) => binder.id === binderId) ?? null;
 }
@@ -459,10 +390,6 @@ function debugWorkspaceQueryInfo(input: {
     rowCount: input.rowCount ?? null,
     userId: input.userId ?? null,
   });
-}
-
-function isNonEmptyString(value: string | null): value is string {
-  return typeof value === "string" && value.length > 0;
 }
 
 async function ensureSeededWorkspacePresetsForBinder(
@@ -2499,15 +2426,6 @@ function loadDemoState(): DemoState {
   }
 }
 
-function saveDemoState(state: DemoState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(DEMO_HIGHLIGHT_RESET_MARKER_KEY, "true");
-  window.localStorage.setItem(DEMO_DATA_STORAGE_KEY, JSON.stringify(state));
-}
-
 function createEmptyShadowState(): ShadowState {
   return {
     notes: [],
@@ -2540,14 +2458,6 @@ function loadShadowState(): ShadowState {
   }
 }
 
-function saveShadowState(state: ShadowState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(SHADOW_DATA_STORAGE_KEY, JSON.stringify(state));
-}
-
 function getShadowBinderState(ownerId: string, binderId: string) {
   const shadowState = loadShadowState();
   return {
@@ -2561,105 +2471,6 @@ function getShadowBinderState(ownerId: string, binderId: string) {
       (highlight) => highlight.owner_id === ownerId && highlight.binder_id === binderId,
     ),
   };
-}
-
-function upsertShadowLearnerNote(note: LearnerNote): LearnerNote {
-  const shadowState = loadShadowState();
-  const index = shadowState.notes.findIndex(
-    (item) =>
-      item.id === note.id ||
-      (item.owner_id === note.owner_id &&
-        item.binder_id === note.binder_id &&
-        item.lesson_id === note.lesson_id),
-  );
-
-  if (index >= 0) {
-    shadowState.notes[index] = {
-      ...shadowState.notes[index],
-      ...note,
-      id: shadowState.notes[index].id,
-    };
-  } else {
-    shadowState.notes.unshift(note);
-  }
-
-  saveShadowState(shadowState);
-  return index >= 0 ? shadowState.notes[index] : note;
-}
-
-function upsertShadowHighlight(highlight: Highlight): Highlight {
-  const shadowState = loadShadowState();
-  const index = shadowState.highlights.findIndex(
-    (item) => item.id === highlight.id && item.owner_id === highlight.owner_id,
-  );
-
-  if (index >= 0) {
-    shadowState.highlights[index] = {
-      ...shadowState.highlights[index],
-      ...highlight,
-    };
-  } else {
-    shadowState.highlights.unshift(highlight);
-  }
-
-  saveShadowState(shadowState);
-  persistHighlightMetadata(highlight);
-  return index >= 0 ? shadowState.highlights[index] : highlight;
-}
-
-function deleteShadowHighlight(ownerId: string, highlightId: string) {
-  const shadowState = loadShadowState();
-  shadowState.highlights = shadowState.highlights.filter(
-    (highlight) => !(highlight.id === highlightId && highlight.owner_id === ownerId),
-  );
-  saveShadowState(shadowState);
-  removeStoredHighlightMetadata(highlightId);
-}
-
-function resetShadowHighlights(ownerId: string, binderId: string, lessonId?: string) {
-  const shadowState = loadShadowState();
-  shadowState.highlights = shadowState.highlights.filter((highlight) => {
-    if (highlight.owner_id !== ownerId || highlight.binder_id !== binderId) {
-      return true;
-    }
-
-    return lessonId ? highlight.lesson_id !== lessonId : false;
-  });
-  saveShadowState(shadowState);
-  removeStoredHighlightMetadataByScope({ binderId, lessonId });
-}
-
-function createShadowComment(comment: Comment): Comment {
-  const shadowState = loadShadowState();
-  shadowState.comments.unshift(comment);
-  saveShadowState(shadowState);
-  return comment;
-}
-
-function updateShadowComment(commentId: string, ownerId: string, body: string): Comment {
-  const shadowState = loadShadowState();
-  const index = shadowState.comments.findIndex(
-    (comment) => comment.id === commentId && comment.owner_id === ownerId,
-  );
-  if (index < 0) {
-    throw new Error("Comment not found.");
-  }
-
-  shadowState.comments[index] = {
-    ...shadowState.comments[index],
-    body,
-    updated_at: now(),
-  };
-  saveShadowState(shadowState);
-  return shadowState.comments[index];
-}
-
-function deleteShadowComment(commentId: string, ownerId: string) {
-  const shadowState = loadShadowState();
-  shadowState.comments = shadowState.comments.filter(
-    (comment) => !(comment.id === commentId && comment.owner_id === ownerId),
-  );
-  saveShadowState(shadowState);
 }
 
 function getShadowWorkspacePreferences(
@@ -2684,26 +2495,6 @@ function getShadowWorkspacePreferences(
     binderId,
     suiteTemplateId: preferences.suiteTemplateId ?? suiteTemplateId ?? null,
   });
-}
-
-function upsertShadowWorkspacePreferences(
-  preferences: WorkspacePreferences,
-): WorkspacePreferences {
-  const normalized = normalizeWorkspacePreferences(preferences);
-  const shadowState = loadShadowState();
-  const index = shadowState.workspacePreferences.findIndex(
-    (item) => item.userId === normalized.userId && item.binderId === normalized.binderId,
-  );
-
-  if (index >= 0) {
-    shadowState.workspacePreferences[index] = normalized;
-  } else {
-    shadowState.workspacePreferences.push(normalized);
-  }
-
-  saveShadowState(shadowState);
-  saveGlobalThemeSettings(normalized.theme);
-  return normalized;
 }
 
 function mergeShadowNotes(remoteNotes: LearnerNote[], shadowNotes: LearnerNote[]) {

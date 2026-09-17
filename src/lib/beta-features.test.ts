@@ -34,6 +34,19 @@ const betaRevampFlagKeys = [
   "betaRevampNarrowAiStudyTools",
 ] as const;
 
+const learningAcceleratorFlagKeys = [
+  "transferForge",
+  "evidenceLock",
+  "misstepMuseum",
+  "conceptWeather",
+  "representationSwitchboard",
+  "examGhostMode",
+  "whiteboardReplay",
+  "prereqXray",
+  "memoryWeave",
+  "oneMinuteLab",
+] as const;
+
 describe("beta feature preference gates", () => {
   it("defines the Beta Revamp group with market-research-driven user-facing flags", () => {
     const betaRevampGroup = betaFeatureGroups.find((group) => group.label === "Beta Revamp");
@@ -93,6 +106,7 @@ describe("beta feature preference gates", () => {
       "compactExcalidrawTools",
       "whiteboardPerformanceDiagnostics",
       ...betaRevampFlagKeys,
+      ...learningAcceleratorFlagKeys,
     ]);
 
     const revampFlag = betaFeatureFlagDefinitions.find((flag) => flag.key === "revampBeta");
@@ -146,6 +160,39 @@ describe("beta feature preference gates", () => {
     expect(defaultBetaFeaturesPreference.whiteboardPerformanceDiagnostics).toBe(false);
   });
 
+  it("defines ten non-AI learning accelerator beta flags with searchable student-facing copy", () => {
+    const group = betaFeatureGroups.find((candidate) => candidate.id === "learningAccelerators");
+
+    expect(group).toEqual(
+      expect.objectContaining({
+        id: "learningAccelerators",
+        label: "Learning Accelerators",
+      }),
+    );
+    expect(group?.flagKeys).toEqual(learningAcceleratorFlagKeys);
+
+    for (const key of learningAcceleratorFlagKeys) {
+      const flag = betaFeatureFlagDefinitions.find((candidate) => candidate.key === key);
+      expect(flag?.groupId).toBe("learningAccelerators");
+      expect(flag?.dataAttribute).toBe(`data-beta-${key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)}`);
+      expect(flag?.description).not.toMatch(/\bAI\b|artificial intelligence|OpenAI|API/i);
+      expect(flag?.searchAliases).toEqual(
+        expect.arrayContaining(["learning", "study", "no ai", "beta"]),
+      );
+      expect(defaultBetaFeaturesPreference[key]).toBe(false);
+    }
+
+    expect(betaFeatureFlagDefinitions.find((flag) => flag.key === "transferForge")?.searchAliases).toEqual(
+      expect.arrayContaining(["transfer", "practice"]),
+    );
+    expect(betaFeatureFlagDefinitions.find((flag) => flag.key === "evidenceLock")?.searchAliases).toEqual(
+      expect.arrayContaining(["evidence", "source"]),
+    );
+    expect(betaFeatureFlagDefinitions.find((flag) => flag.key === "misstepMuseum")?.searchAliases).toEqual(
+      expect.arrayContaining(["mistake", "repair"]),
+    );
+  });
+
   it("sanitizes and persists Revamp Beta while mapping old internal gates to the one switch", () => {
     const storage = createStorage();
     const preference = sanitizeBetaFeaturesPreference({
@@ -188,6 +235,16 @@ describe("beta feature preference gates", () => {
       betaRevampMobileStudyMode: false,
       betaRevampCalmWorkspaceUi: false,
       betaRevampNarrowAiStudyTools: false,
+      transferForge: false,
+      evidenceLock: false,
+      misstepMuseum: false,
+      conceptWeather: false,
+      representationSwitchboard: false,
+      examGhostMode: false,
+      whiteboardReplay: false,
+      prereqXray: false,
+      memoryWeave: false,
+      oneMinuteLab: false,
     });
     expect(storage.snapshot()[betaFeaturesStorageKeyForUser("user-1")]).not.toContain("unknownFlag");
     expect(storage.snapshot()[betaFeaturesStorageKeyForUser("user-1")]).not.toContain("compactStudyChrome");
@@ -219,6 +276,16 @@ describe("beta feature preference gates", () => {
       betaRevampMobileStudyMode: false,
       betaRevampCalmWorkspaceUi: false,
       betaRevampNarrowAiStudyTools: false,
+      transferForge: false,
+      evidenceLock: false,
+      misstepMuseum: false,
+      conceptWeather: false,
+      representationSwitchboard: false,
+      examGhostMode: false,
+      whiteboardReplay: false,
+      prereqXray: false,
+      memoryWeave: false,
+      oneMinuteLab: false,
     });
     expect(isBetaFeatureFlagActive(loaded, "canvasRework")).toBe(true);
     expect(isBetaFeatureFlagActive(loaded, "revampBeta")).toBe(false);
@@ -255,6 +322,16 @@ describe("beta feature preference gates", () => {
       betaRevampMobileStudyMode: false,
       betaRevampCalmWorkspaceUi: false,
       betaRevampNarrowAiStudyTools: false,
+      transferForge: false,
+      evidenceLock: false,
+      misstepMuseum: false,
+      conceptWeather: false,
+      representationSwitchboard: false,
+      examGhostMode: false,
+      whiteboardReplay: false,
+      prereqXray: false,
+      memoryWeave: false,
+      oneMinuteLab: false,
     });
     expect(isBetaFeatureFlagActive(loaded, "desmosV2")).toBe(true);
     expect(isBetaFeatureFlagActive(loaded, "whiteboardSmoothMove")).toBe(true);

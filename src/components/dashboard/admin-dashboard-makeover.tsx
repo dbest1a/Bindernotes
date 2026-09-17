@@ -73,7 +73,6 @@ import {
 } from "@/hooks/use-dashboard-workspace-view";
 import type { Binder, BinderLesson, DashboardData, Folder, Profile } from "@/types";
 import {
-  createDashboardOrganizationDraft,
   loadDashboardOrganizationDraft,
   moveBinderToFolder,
   resetDashboardOrganizationDraft,

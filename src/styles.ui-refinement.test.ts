@@ -23,6 +23,9 @@ describe("UI refinement polish styles", () => {
     expect(css).toMatch(
       /\.whiteboard-focus-return,[\s\S]*\[data-whiteboard-focus-return="true"\][\s\S]*z-index:\s*calc\(var\(--whiteboard-toolbar-layer\) \+ 10\) !important/s,
     );
+    expect(css).toMatch(/\.whiteboard-focus-exit-hint[\s\S]*background:\s*linear-gradient\(135deg,\s*rgb\(15 23 42 \/ 0\.96\),\s*rgb\(30 41 59 \/ 0\.94\)\) !important/s);
+    expect(css).toMatch(/\.whiteboard-focus-exit-hint[\s\S]*color:\s*rgb\(248 250 252\) !important/s);
+    expect(css).toMatch(/\.whiteboard-focus-exit-hint--fullscreen[\s\S]*top:\s*calc\(env\(safe-area-inset-top\) \+ 5\.75rem\) !important/s);
     expect(css).toMatch(/\.study-panels-tabbar button,[\s\S]*min-height:\s*2\.1rem/s);
     expect(css).toMatch(/\.whiteboard-module-layout[\s\S]*gap:\s*0\.5rem/s);
   });

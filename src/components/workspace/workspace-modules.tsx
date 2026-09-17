@@ -1,6 +1,7 @@
 import { Clock3, FlaskConical, ListChecks, Pin, Search, Send, Sparkles, StickyNote, X } from "lucide-react";
 import { Suspense, lazy, useMemo, type ReactElement, type ReactNode } from "react";
 import type { JSONContent } from "@tiptap/react";
+import { preloadRichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import type { MathWorkspaceModuleBindings } from "@/components/math/math-workspace-modules";
 import {
   BinderNotebookModule,
@@ -8,6 +9,7 @@ import {
   SourceLessonModule,
 } from "@/components/workspace/study-core-modules";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import { LearningAcceleratorsModule } from "@/components/workspace/learning-accelerators";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -198,6 +200,68 @@ const LazyChemistryDataTableModule = lazy(() =>
 const LazyRecallLab = lazy(() =>
   import("@/components/workspace/recall-lab").then((module) => ({ default: module.RecallLab })),
 );
+
+const preloadWorkspaceModuleChunks: Partial<Record<WorkspaceModuleId, () => void>> = {
+  "private-notes": preloadRichTextEditor,
+  "binder-notebook": preloadRichTextEditor,
+  "formula-sheet": () => void import("@/components/math/math-blocks"),
+  "math-blocks": () => void import("@/components/math/math-blocks"),
+  "graph-panel": () => void import("@/components/math/math-workspace-modules"),
+  "desmos-graph": () => void import("@/components/math/math-workspace-modules"),
+  "scientific-calculator": () => void import("@/components/math/math-workspace-modules"),
+  "saved-graphs": () => void import("@/components/math/math-workspace-modules"),
+  whiteboard: () => void import("@/components/whiteboard/whiteboard-module"),
+  "history-timeline": () => void import("@/components/history/history-suite-modules"),
+  "history-evidence": () => void import("@/components/history/history-suite-modules"),
+  "history-argument": () => void import("@/components/history/history-suite-modules"),
+  "history-myth-checks": () => void import("@/components/history/history-suite-modules"),
+  flashcards: () => void import("@/components/workspace/recall-lab"),
+};
+
+const chemistryWorkspaceModuleIds = new Set<WorkspaceModuleId>([
+  "chem-concept-cards",
+  "chem-lab-coach",
+  "chem-quick-tools",
+  "chem-periodic-table",
+  "chem-element-builder",
+  "chem-electron-config-builder",
+  "chem-periodic-trends-graph",
+  "chem-molecule-builder",
+  "chem-geometry-viewer",
+  "chem-reaction-balancer",
+  "chem-tri-reaction-view",
+  "chem-stoichiometry-coach",
+  "chem-molar-mass-calculator",
+  "chem-solution-mixer",
+  "chem-molarity-calculator",
+  "chem-desmos-concentration-graph",
+  "chem-ph-calculator",
+  "chem-titration-lab",
+  "chem-desmos-titration-curve",
+  "chem-kinetics-simulator",
+  "chem-desmos-kinetics-plot",
+  "chem-data-table",
+  "chem-calorimetry-lab",
+  "chem-energy-diagram",
+  "chem-calculation-sheet",
+  "chem-safety-cards",
+  "chem-review-queue",
+  "chem-lab-notebook",
+  "chem-reference-safety",
+]);
+
+export function preloadWorkspaceModule(moduleId: WorkspaceModuleId | null | undefined) {
+  if (!moduleId) {
+    return;
+  }
+
+  if (chemistryWorkspaceModuleIds.has(moduleId)) {
+    void import("@/components/chemistry/chemistry-workspace-modules");
+    return;
+  }
+
+  preloadWorkspaceModuleChunks[moduleId]?.();
+}
 
 export type WorkspaceLibraryContext = {
   folders: Folder[];
@@ -1257,6 +1321,12 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         </WorkspacePanel>
       );
     },
+  },
+  "learning-accelerators": {
+    id: "learning-accelerators",
+    title: "Learning Accelerators",
+    description: "Non-AI transfer, evidence, mistake-repair, and representation tools",
+    render: (context) => <LearningAcceleratorsModule context={context} />,
   },
   flashcards: {
     id: "flashcards",

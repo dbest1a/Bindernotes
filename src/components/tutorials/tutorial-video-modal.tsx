@@ -108,9 +108,7 @@ export function TutorialVideoModal({
                   poster={tutorial.posterSrc}
                   preload="metadata"
                   src={tutorial.videoSrc}
-                >
-                  <track kind="captions" label="English" srcLang="en" />
-                </video>
+                />
               )}
             </div>
 

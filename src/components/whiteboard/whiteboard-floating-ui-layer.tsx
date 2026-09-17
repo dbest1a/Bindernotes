@@ -160,7 +160,7 @@ export function WhiteboardFloatingUiLayer({
           </Button>
           <Button
             className="whiteboard-action-button justify-start"
-            data-testid="whiteboard-delete-broken-board"
+            data-testid="whiteboard-delete-board"
             onClick={() => {
               if (!deleteConfirming) {
                 setDeleteConfirming(true);
@@ -175,7 +175,7 @@ export function WhiteboardFloatingUiLayer({
             variant={deleteConfirming ? "destructive" : "outline"}
           >
             <Trash2 data-icon="inline-start" />
-            {deleteConfirming ? "Confirm delete board" : "Delete broken board"}
+            {deleteConfirming ? "Confirm delete board" : "Delete board"}
           </Button>
           <div className="grid grid-cols-2 gap-2" data-testid="whiteboard-corner-controls">
             {onBack ? (

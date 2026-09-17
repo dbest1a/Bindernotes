@@ -22,6 +22,19 @@ export const betaRevampFeatureFlagKeys = [
   "betaRevampNarrowAiStudyTools",
 ] as const;
 
+export const learningAcceleratorFeatureFlagKeys = [
+  "transferForge",
+  "evidenceLock",
+  "misstepMuseum",
+  "conceptWeather",
+  "representationSwitchboard",
+  "examGhostMode",
+  "whiteboardReplay",
+  "prereqXray",
+  "memoryWeave",
+  "oneMinuteLab",
+] as const;
+
 const betaRevampSearchAliases = [
   "beta",
   "revamp",
@@ -38,6 +51,19 @@ const betaRevampSearchAliases = [
   "mobile",
   "AI",
   "study loop",
+] as const;
+
+const learningAcceleratorSearchAliases = [
+  "learning",
+  "study",
+  "no ai",
+  "beta",
+  "practice",
+  "reasoning",
+  "retention",
+  "metacognition",
+  "workspace",
+  "source",
 ] as const;
 
 export const betaFeatureFlagDefinitions = [
@@ -298,6 +324,168 @@ export const betaFeatureFlagDefinitions = [
       "homework-answer",
     ],
   },
+  {
+    dataAttribute: "data-beta-transfer-forge",
+    description:
+      "Create transfer practice from the current lesson by changing the surface while keeping the same underlying idea.",
+    groupId: "learningAccelerators",
+    key: "transferForge",
+    label: "Transfer Forge",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "transfer",
+      "practice",
+      "new problem",
+      "same idea",
+      "variation",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-evidence-lock",
+    description:
+      "Require important study claims to point back to a lesson, highlight, formula, graph, note, or whiteboard source.",
+    groupId: "learningAccelerators",
+    key: "evidenceLock",
+    label: "Evidence Lock",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "evidence",
+      "source",
+      "proof",
+      "claim",
+      "highlight",
+      "citation",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-misstep-museum",
+    description:
+      "Turn mistakes and almost-right answers into repair prompts that students can revisit before an exam.",
+    groupId: "learningAccelerators",
+    key: "misstepMuseum",
+    label: "Misstep Museum",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "mistake",
+      "repair",
+      "wrong answer",
+      "misconception",
+      "review",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-concept-weather",
+    description:
+      "Show a calm binder forecast for concepts that are clear, foggy, stale, overloaded, or exam-ready.",
+    groupId: "learningAccelerators",
+    key: "conceptWeather",
+    label: "Concept Weather",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "concept",
+      "weather",
+      "forecast",
+      "confidence",
+      "stale",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-representation-switchboard",
+    description:
+      "Ask students to explain one idea across words, formulas, graphs, tables, whiteboards, and evidence.",
+    groupId: "learningAccelerators",
+    key: "representationSwitchboard",
+    label: "Representation Switchboard",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "representation",
+      "switchboard",
+      "graph",
+      "formula",
+      "whiteboard",
+      "explain",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-exam-ghost-mode",
+    description:
+      "Run a cold-recall pass that hides support, asks for an answer, then reveals what was missing.",
+    groupId: "learningAccelerators",
+    key: "examGhostMode",
+    label: "Exam Ghost Mode",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "exam",
+      "ghost",
+      "recall",
+      "test",
+      "cold recall",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-whiteboard-replay",
+    description:
+      "Create a replay checklist that helps students narrate their whiteboard, graph, formula, and note reasoning.",
+    groupId: "learningAccelerators",
+    key: "whiteboardReplay",
+    label: "Whiteboard Replay",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "whiteboard",
+      "replay",
+      "board",
+      "desmos",
+      "reasoning",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-prereq-xray",
+    description:
+      "Spot likely prerequisite gaps from lesson title, source structure, formulas, graph use, and note signals.",
+    groupId: "learningAccelerators",
+    key: "prereqXray",
+    label: "Prereq X-Ray",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "prereq",
+      "prerequisite",
+      "xray",
+      "gap",
+      "foundation",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-memory-weave",
+    description:
+      "Give tiny connection missions that weave the current lesson into older lessons, notes, and concepts.",
+    groupId: "learningAccelerators",
+    key: "memoryWeave",
+    label: "Memory Weave",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "memory",
+      "weave",
+      "connection",
+      "concept",
+      "lesson link",
+    ],
+  },
+  {
+    dataAttribute: "data-beta-one-minute-lab",
+    description:
+      "Launch a one-minute experiment using the current lesson's formulas, graph, source, timeline, or whiteboard tools.",
+    groupId: "learningAccelerators",
+    key: "oneMinuteLab",
+    label: "One-Minute Lab",
+    searchAliases: [
+      ...learningAcceleratorSearchAliases,
+      "one minute",
+      "lab",
+      "experiment",
+      "micro lab",
+      "quick",
+    ],
+  },
 ] as const;
 
 export const betaFeatureGroups = [
@@ -321,10 +509,18 @@ export const betaFeatureGroups = [
     id: "betaRevamp",
     label: "Beta Revamp",
   },
+  {
+    description:
+      "Non-AI learning tools that turn existing BinderNotes signals into transfer practice, evidence checks, mistake repair, and multi-representation study.",
+    flagKeys: learningAcceleratorFeatureFlagKeys,
+    id: "learningAccelerators",
+    label: "Learning Accelerators",
+  },
 ] as const;
 
 export type UserFacingBetaFeatureFlagKey = (typeof betaFeatureFlagDefinitions)[number]["key"];
 export type BetaRevampFeatureFlagKey = (typeof betaRevampFeatureFlagKeys)[number];
+export type LearningAcceleratorFeatureFlagKey = (typeof learningAcceleratorFeatureFlagKeys)[number];
 export type RevampBetaFeatureAliasKey = (typeof revampBetaFeatureAliases)[number];
 export type BetaFeatureFlagKey = UserFacingBetaFeatureFlagKey | RevampBetaFeatureAliasKey;
 
@@ -343,6 +539,16 @@ export type BetaFeaturesPreference = {
   betaRevampMobileStudyMode: boolean;
   betaRevampCalmWorkspaceUi: boolean;
   betaRevampNarrowAiStudyTools: boolean;
+  transferForge: boolean;
+  evidenceLock: boolean;
+  misstepMuseum: boolean;
+  conceptWeather: boolean;
+  representationSwitchboard: boolean;
+  examGhostMode: boolean;
+  whiteboardReplay: boolean;
+  prereqXray: boolean;
+  memoryWeave: boolean;
+  oneMinuteLab: boolean;
 };
 
 export const defaultBetaFeaturesPreference: BetaFeaturesPreference = {
@@ -360,6 +566,16 @@ export const defaultBetaFeaturesPreference: BetaFeaturesPreference = {
   betaRevampMobileStudyMode: false,
   betaRevampCalmWorkspaceUi: false,
   betaRevampNarrowAiStudyTools: false,
+  transferForge: false,
+  evidenceLock: false,
+  misstepMuseum: false,
+  conceptWeather: false,
+  representationSwitchboard: false,
+  examGhostMode: false,
+  whiteboardReplay: false,
+  prereqXray: false,
+  memoryWeave: false,
+  oneMinuteLab: false,
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -412,6 +628,16 @@ export function sanitizeBetaFeaturesPreference(value: unknown): BetaFeaturesPref
   const betaRevampMobileStudyMode = value.betaRevampMobileStudyMode === true;
   const betaRevampCalmWorkspaceUi = value.betaRevampCalmWorkspaceUi === true;
   const betaRevampNarrowAiStudyTools = value.betaRevampNarrowAiStudyTools === true;
+  const transferForge = value.transferForge === true;
+  const evidenceLock = value.evidenceLock === true;
+  const misstepMuseum = value.misstepMuseum === true;
+  const conceptWeather = value.conceptWeather === true;
+  const representationSwitchboard = value.representationSwitchboard === true;
+  const examGhostMode = value.examGhostMode === true;
+  const whiteboardReplay = value.whiteboardReplay === true;
+  const prereqXray = value.prereqXray === true;
+  const memoryWeave = value.memoryWeave === true;
+  const oneMinuteLab = value.oneMinuteLab === true;
 
   return {
     enabled:
@@ -428,7 +654,17 @@ export function sanitizeBetaFeaturesPreference(value: unknown): BetaFeaturesPref
       betaRevampMathStudyLoop ||
       betaRevampMobileStudyMode ||
       betaRevampCalmWorkspaceUi ||
-      betaRevampNarrowAiStudyTools,
+      betaRevampNarrowAiStudyTools ||
+      transferForge ||
+      evidenceLock ||
+      misstepMuseum ||
+      conceptWeather ||
+      representationSwitchboard ||
+      examGhostMode ||
+      whiteboardReplay ||
+      prereqXray ||
+      memoryWeave ||
+      oneMinuteLab,
     revampBeta,
     canvasRework,
     desmosV2,
@@ -442,6 +678,16 @@ export function sanitizeBetaFeaturesPreference(value: unknown): BetaFeaturesPref
     betaRevampMobileStudyMode,
     betaRevampCalmWorkspaceUi,
     betaRevampNarrowAiStudyTools,
+    transferForge,
+    evidenceLock,
+    misstepMuseum,
+    conceptWeather,
+    representationSwitchboard,
+    examGhostMode,
+    whiteboardReplay,
+    prereqXray,
+    memoryWeave,
+    oneMinuteLab,
   };
 }
 
@@ -468,6 +714,10 @@ export function isBetaFeatureFlagActive(
 
   if (betaRevampFeatureFlagKeys.includes(flag as BetaRevampFeatureFlagKey)) {
     return preference.enabled && preference[flag as BetaRevampFeatureFlagKey];
+  }
+
+  if (learningAcceleratorFeatureFlagKeys.includes(flag as LearningAcceleratorFeatureFlagKey)) {
+    return preference.enabled && preference[flag as LearningAcceleratorFeatureFlagKey];
   }
 
   return false;

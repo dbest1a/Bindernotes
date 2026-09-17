@@ -10,14 +10,7 @@ import type {
   WorkspacePresetDefinition,
 } from "@/types";
 import { demoLessons } from "@/lib/demo-data";
-import {
-  RUSSIAN_REVOLUTION_BINDER_ID,
-  russianRevolutionBinder,
-  russianRevolutionEventTemplates,
-  russianRevolutionLessons,
-  russianRevolutionMythCheckTemplates,
-  russianRevolutionSourceTemplates,
-} from "@/lib/russian-revolution-seeds";
+import { RUSSIAN_REVOLUTION_BINDER_ID } from "@/lib/russian-revolution-seeds";
 
 const now = new Date().toISOString();
 const systemOwnerId = "system-seed-admin";

@@ -94,7 +94,6 @@ import {
   resetCanvasReworkLayoutToStarter,
   tidyCanvasReworkLayoutToViewport,
   tidyWorkspaceLayout as tidyWorkspaceToViewport,
-  updateWorkspaceAppearance,
   workspacePresets,
   workspaceViewModeOptions,
 } from "@/lib/workspace-preferences";

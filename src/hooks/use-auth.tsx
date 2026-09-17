@@ -8,9 +8,8 @@ import {
   useState,
 } from "react";
 import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase-config";
 import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
-import { getProfile } from "@/services/auth-profile";
 import type { Profile, Role } from "@/types";
 
 type AuthState = {
@@ -26,6 +25,11 @@ type AuthState = {
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+async function loadSupabaseClient() {
+  const { supabase } = await import("@/lib/supabase");
+  return supabase;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,84 +47,126 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [profile]);
 
   useEffect(() => {
-    if (!supabase) {
+    if (!isSupabaseConfigured) {
       setIsLoading(false);
       return;
     }
 
     let active = true;
+    let unsubscribe: (() => void) | undefined;
 
-    const hydrateAuthState = async (
-      nextSession: Session | null,
-      options?: {
-        foreground?: boolean;
-        refreshProfile?: boolean;
-      },
-    ) => {
-      if (!active) {
-        return;
-      }
-
-      const currentUserId = sessionRef.current?.user?.id ?? null;
-      const nextUserId = nextSession?.user?.id ?? null;
-      const userChanged = currentUserId !== nextUserId;
-      const shouldBlock = options?.foreground ?? (userChanged || !sessionRef.current);
-
-      if (shouldBlock) {
-        setIsLoading(true);
-      }
-
-      setSession(nextSession);
-      sessionRef.current = nextSession;
-
-      const user = nextSession?.user;
-      if (!user) {
-        setProfile(null);
-        profileRef.current = null;
-        setIsLoading(false);
-        return;
-      }
-
-      if (!userChanged && profileRef.current && !options?.refreshProfile) {
-        if (shouldBlock) {
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      try {
-        const nextProfile = await getProfile(user.id, user.email ?? "");
+    void loadSupabaseClient()
+      .then(async (supabase) => {
         if (!active) {
           return;
         }
-        setProfile(nextProfile);
-        profileRef.current = nextProfile;
-      } catch (error) {
-        console.error("Failed to hydrate Supabase profile.", error);
-        if (!active) {
+        if (!supabase) {
+          setIsLoading(false);
           return;
         }
-        if (!profileRef.current || userChanged) {
-          setProfile(null);
-          profileRef.current = null;
-        }
-      } finally {
-        if (active && shouldBlock) {
-          setIsLoading(false);
-        }
-      }
-    };
 
-    supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
+        const hydrateAuthState = async (
+          nextSession: Session | null,
+          options?: {
+            foreground?: boolean;
+            refreshProfile?: boolean;
+          },
+        ) => {
+          if (!active) {
+            return;
+          }
+
+          const currentUserId = sessionRef.current?.user?.id ?? null;
+          const nextUserId = nextSession?.user?.id ?? null;
+          const userChanged = currentUserId !== nextUserId;
+          const shouldBlock = options?.foreground ?? (userChanged || !sessionRef.current);
+
+          if (shouldBlock) {
+            setIsLoading(true);
+          }
+
+          setSession(nextSession);
+          sessionRef.current = nextSession;
+
+          const user = nextSession?.user;
+          if (!user) {
+            setProfile(null);
+            profileRef.current = null;
+            setIsLoading(false);
+            return;
+          }
+
+          if (!userChanged && profileRef.current && !options?.refreshProfile) {
+            if (shouldBlock) {
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          try {
+            const { getProfile } = await import("@/services/auth-profile");
+            const nextProfile = await getProfile(user.id, user.email ?? "");
+            if (!active) {
+              return;
+            }
+            setProfile(nextProfile);
+            profileRef.current = nextProfile;
+          } catch (error) {
+            console.error("Failed to hydrate Supabase profile.", error);
+            if (!active) {
+              return;
+            }
+            if (!profileRef.current || userChanged) {
+              setProfile(null);
+              profileRef.current = null;
+            }
+          } finally {
+            if (active && shouldBlock) {
+              setIsLoading(false);
+            }
+          }
+        };
+
+        const { data, error } = await supabase.auth.getSession();
         if (error) {
           throw error;
         }
-        return hydrateAuthState(data.session, {
+
+        await hydrateAuthState(data.session, {
           foreground: true,
           refreshProfile: true,
         });
+
+        if (!active) {
+          return;
+        }
+
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, nextSession) => {
+          const nextUserId = nextSession?.user?.id ?? null;
+          const currentUserId = sessionRef.current?.user?.id ?? null;
+
+          if (
+            event === "TOKEN_REFRESHED" &&
+            currentUserId === nextUserId &&
+            profileRef.current
+          ) {
+            setSession(nextSession);
+            sessionRef.current = nextSession;
+            return;
+          }
+
+          void hydrateAuthState(nextSession, {
+            foreground: shouldBlockAuthHydration(event, {
+              currentUserId,
+              hasProfile: Boolean(profileRef.current),
+              nextUserId,
+            }),
+            refreshProfile: shouldRefreshProfile(event),
+          });
+        });
+        unsubscribe = () => subscription.unsubscribe();
       })
       .catch((error) => {
         console.error("Failed to hydrate Supabase session.", error);
@@ -132,35 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      const nextUserId = nextSession?.user?.id ?? null;
-      const currentUserId = sessionRef.current?.user?.id ?? null;
-
-      if (
-        event === "TOKEN_REFRESHED" &&
-        currentUserId === nextUserId &&
-        profileRef.current
-      ) {
-        setSession(nextSession);
-        sessionRef.current = nextSession;
-        return;
-      }
-
-      void hydrateAuthState(nextSession, {
-        foreground: shouldBlockAuthHydration(event, {
-          currentUserId,
-          hasProfile: Boolean(profileRef.current),
-          nextUserId,
-        }),
-        refreshProfile: shouldRefreshProfile(event),
-      });
-    });
-
     return () => {
       active = false;
-      subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
@@ -172,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isConfigured: isSupabaseConfigured,
       isLoading,
       signIn: async (email, password) => {
+        const supabase = await loadSupabaseClient();
         if (!supabase) {
           setIsLoading(false);
           throw createSupabaseRequiredError();
@@ -185,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signInWithGoogle: async (nextPath = "/dashboard") => {
+        const supabase = await loadSupabaseClient();
         if (!supabase) {
           throw new Error("Google sign-in is only available when Supabase auth is configured.");
         }
@@ -210,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signUp: async (email, password, fullName, _role) => {
+        const supabase = await loadSupabaseClient();
         if (!supabase) {
           setIsLoading(false);
           throw createSupabaseRequiredError();
@@ -248,7 +271,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        if (supabase) {
+        if (isSupabaseConfigured) {
+          let supabase;
+          try {
+            supabase = await loadSupabaseClient();
+          } catch (error) {
+            setIsLoading(false);
+            throw error;
+          }
+          if (!supabase) {
+            setSession(null);
+            setProfile(null);
+            setIsLoading(false);
+            return;
+          }
           const { error } = await supabase.auth.signOut();
           if (error) {
             setIsLoading(false);

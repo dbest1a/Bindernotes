@@ -30,7 +30,10 @@ import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-li
 import { WhiteboardCanvas } from "@/components/whiteboard/whiteboard-canvas";
 import { WhiteboardFloatingUiLayer } from "@/components/whiteboard/whiteboard-floating-ui-layer";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
-import { WhiteboardPinnedObjectLayer } from "@/components/whiteboard/whiteboard-pinned-object-layer";
+import {
+  WhiteboardPinnedObjectLayer,
+  syncWhiteboardPinnedModuleLayerToViewport,
+} from "@/components/whiteboard/whiteboard-pinned-object-layer";
 import { WhiteboardTemplatePicker } from "@/components/whiteboard/whiteboard-template-picker";
 import { WhiteboardToolbar } from "@/components/whiteboard/whiteboard-toolbar";
 import {
@@ -152,6 +155,24 @@ function getBoardPinnedGeometrySnapshot(modules: WhiteboardModuleElement[]) {
       ].join(":"),
     )
     .join("|");
+}
+
+function keepSceneCameraInSync(
+  scene: WhiteboardSceneData,
+  transform: WhiteboardViewportTransform,
+): WhiteboardSceneData {
+  const appState =
+    scene.appState && typeof scene.appState === "object" ? (scene.appState as Record<string, unknown>) : {};
+
+  return {
+    ...scene,
+    appState: {
+      ...appState,
+      scrollX: transform.scrollX,
+      scrollY: transform.scrollY,
+      zoom: { value: transform.zoom },
+    },
+  };
 }
 
 function mapSaveResultStatus(status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "unavailable"): WhiteboardSaveStatus {
@@ -327,6 +348,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const pendingViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
   const viewportUpdateRafRef = useRef<number | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+  const pinnedObjectLayerRef = useRef<HTMLDivElement | null>(null);
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
     defaultWhiteboardViewportTransform,
   );
@@ -445,6 +467,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     }
 
     viewportTransformRef.current = transform;
+    syncWhiteboardPinnedModuleLayerToViewport(pinnedObjectLayerRef.current, transform);
     pendingViewportTransformRef.current = transform;
     if (viewportUpdateRafRef.current !== null) {
       return;
@@ -819,13 +842,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      const nextScene = keepSceneCameraInSync(
+        latestSceneRef.current ?? current.scene,
+        viewportTransformRef.current,
+      );
       const nextBoard = {
         ...current,
-        scene: latestSceneRef.current ?? current.scene,
+        scene: nextScene,
         modules: updater(current.modules),
       };
       setActiveBoard(nextBoard);
       boardRef.current = nextBoard;
+      latestSceneRef.current = nextScene;
       rememberBoardPinnedGeometry(nextBoard.modules);
       persistBoard(nextBoard);
     },
@@ -1341,7 +1369,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             ) : null}
             {showFocusExitHint ? (
               <div
-                className="whiteboard-focus-exit-hint pointer-events-none fixed left-1/2 top-16 z-[160] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-border bg-popover/95 px-4 py-3 text-center text-sm text-popover-foreground shadow-xl"
+                className="whiteboard-focus-exit-hint whiteboard-focus-exit-hint--fullscreen pointer-events-none fixed left-1/2 z-[160] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border px-4 py-3 text-center text-sm font-semibold shadow-xl"
                 data-testid="whiteboard-focus-exit-hint"
                 role="status"
               >
@@ -1361,6 +1389,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               context={context}
               fixed
               getViewportTransform={getLatestViewportTransform}
+              layerRef={pinnedObjectLayerRef}
               modules={activeBoard.modules}
               onAddLinkedModule={addLinkedModule}
               onChangeModule={(moduleElement) =>
@@ -1662,7 +1691,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               boards={boards}
               compact={compactWhiteboardTools}
               onArchiveBoard={archiveBoardById}
-              onCreateBlankBoard={compactWhiteboardTools ? createBlankBoard : undefined}
+              onCreateBlankBoard={createBlankBoard}
               onCreateScratchBoard={compactWhiteboardTools ? () => activateScratchBoard(mathWhiteboardTemplates[0]) : undefined}
               onSelectBoard={selectBoard}
               showLimitStatus={saveStatus === "limit" || (compactWhiteboardTools && templatesOpen && boards.length >= MAX_WHITEBOARDS_PER_USER)}
@@ -1714,7 +1743,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         <div className="whiteboard-module-surface relative h-full min-h-0 overflow-hidden rounded-xl border border-border/70 bg-[#10131a]">
           {showFocusExitHint ? (
             <div
-              className="whiteboard-focus-exit-hint pointer-events-none absolute left-1/2 top-3 z-[160] w-[min(24rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg border border-border bg-popover/95 px-3 py-2 text-center text-xs font-medium text-popover-foreground shadow-xl"
+              className="whiteboard-focus-exit-hint whiteboard-focus-exit-hint--embedded pointer-events-none absolute left-1/2 z-[160] w-[min(24rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-lg border px-3 py-2 text-center text-xs font-semibold shadow-xl"
               data-testid="whiteboard-focus-exit-hint"
               role="status"
             >
@@ -1734,6 +1763,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               <WhiteboardPinnedObjectLayer
                 context={context}
                 getViewportTransform={getLatestViewportTransform}
+                layerRef={pinnedObjectLayerRef}
                 modules={activeBoard.modules}
                 onAddLinkedModule={addLinkedModule}
                 onChangeModule={(moduleElement) =>

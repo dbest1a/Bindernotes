@@ -24,7 +24,6 @@ describe("WorkspaceWindow", () => {
 
     render(
       <WorkspaceWindow
-        boundsHeight={720}
         boundsWidth={1024}
         canvasHeight={720}
         canvasWidth={1024}
@@ -57,7 +56,6 @@ describe("WorkspaceWindow", () => {
 
     render(
       <WorkspaceWindow
-        boundsHeight={720}
         boundsWidth={900}
         canvasHeight={1600}
         canvasWidth={900}
@@ -99,7 +97,6 @@ describe("WorkspaceWindow", () => {
 
     const { container } = render(
       <WorkspaceWindow
-        boundsHeight={1200}
         boundsWidth={1200}
         canvasHeight={1200}
         canvasWidth={1200}
@@ -147,7 +144,6 @@ describe("WorkspaceWindow", () => {
 
     const { container } = render(
       <WorkspaceWindow
-        boundsHeight={1200}
         boundsWidth={1200}
         canvasHeight={1200}
         canvasWidth={1200}
@@ -192,13 +188,106 @@ describe("WorkspaceWindow", () => {
     expect(windowElement?.style.transform).toBe("");
   });
 
+  it("moves Desmos with stable left/top writes instead of transform previews", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    const onCommit = vi.fn();
+
+    const { container } = render(
+      <WorkspaceWindow
+        boundsWidth={1200}
+        canvasHeight={1200}
+        canvasWidth={1200}
+        frame={{ ...frame, x: 120, y: 80, w: 640, h: 480 }}
+        locked={false}
+        moduleId="desmos-graph"
+        onCommit={onCommit}
+        onToggleCollapsed={vi.fn()}
+        peerFrames={[]}
+        safeEdgePadding={false}
+        smoothMovementEnabled
+        snapBehavior="off"
+        snapEnabled={false}
+        topZ={8}
+        workspaceStyle="full-studio"
+      >
+        <section>
+          <header data-window-drag-handle="true">Desmos graph</header>
+          <p>Graph body</p>
+        </section>
+      </WorkspaceWindow>,
+    );
+
+    const windowElement = container.querySelector<HTMLElement>('[data-window-module-id="desmos-graph"]');
+    const handle = screen.getAllByText("Desmos graph")[0];
+    fireEvent.pointerDown(handle, { clientX: 180, clientY: 120 });
+
+    expect(onCommit).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(window, { clientX: 200, clientY: 140 });
+
+    expect(windowElement?.style.left).toBe("140px");
+    expect(windowElement?.style.top).toBe("100px");
+    expect(windowElement?.style.transform).toBe("");
+
+    fireEvent.pointerUp(window);
+
+    expect(onCommit.mock.calls.at(-1)?.[1]).toMatchObject({
+      x: 140,
+      y: 100,
+      z: 9,
+    });
+  });
+
+  it("does not snap a stabilized Desmos drag to the right edge on commit", () => {
+    const onCommit = vi.fn();
+
+    render(
+      <WorkspaceWindow
+        boundsWidth={1400}
+        canvasHeight={900}
+        canvasWidth={1400}
+        frame={{ ...frame, x: 100, y: 80, w: 640, h: 480 }}
+        locked={false}
+        moduleId="desmos-graph"
+        onCommit={onCommit}
+        onToggleCollapsed={vi.fn()}
+        peerFrames={[]}
+        safeEdgePadding={false}
+        smoothMovementEnabled
+        snapBehavior="edges"
+        snapEnabled
+        topZ={8}
+        workspaceStyle="full-studio"
+      >
+        <section>
+          <header data-window-drag-handle="true">Desmos graph snap</header>
+          <p>Graph body</p>
+        </section>
+      </WorkspaceWindow>,
+    );
+
+    const handle = screen.getAllByText("Desmos graph snap")[0];
+    fireEvent.pointerDown(handle, { clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(window, { clientX: 750, clientY: 120 });
+    fireEvent.pointerUp(window);
+
+    expect(onCommit.mock.calls.at(-1)?.[1]).toMatchObject({
+      x: 750,
+      y: 100,
+      w: 640,
+      h: 480,
+    });
+  });
+
   it("snaps a dragged window to the right canvas edge without resizing it", () => {
     const onCommit = vi.fn();
 
     const { container } = render(
       <div className="workspace-canvas-shell">
         <WorkspaceWindow
-          boundsHeight={720}
           boundsWidth={900}
           canvasHeight={720}
           canvasWidth={900}
@@ -258,7 +347,6 @@ describe("WorkspaceWindow", () => {
     const { container } = render(
       <div className="workspace-canvas-shell">
         <WorkspaceWindow
-          boundsHeight={900}
           boundsWidth={1200}
           canvasHeight={900}
           canvasWidth={1200}
@@ -316,7 +404,6 @@ describe("WorkspaceWindow", () => {
     const { container } = render(
       <div className="workspace-canvas-shell">
         <WorkspaceWindow
-          boundsHeight={720}
           boundsWidth={900}
           canvasHeight={1200}
           canvasWidth={1600}
@@ -366,7 +453,6 @@ describe("WorkspaceWindow", () => {
 
     render(
       <WorkspaceWindow
-        boundsHeight={720}
         boundsWidth={1200}
         canvasHeight={900}
         canvasWidth={1200}
@@ -412,7 +498,6 @@ describe("WorkspaceWindow", () => {
     const { container } = render(
       <div className="workspace-canvas-shell">
         <WorkspaceWindow
-          boundsHeight={900}
           boundsWidth={1200}
           canvasHeight={900}
           canvasWidth={1200}
@@ -468,7 +553,6 @@ describe("WorkspaceWindow", () => {
     const { container } = render(
       <div className="workspace-canvas-shell">
         <WorkspaceWindow
-          boundsHeight={900}
           boundsWidth={900}
           canvasHeight={1200}
           canvasWidth={1800}

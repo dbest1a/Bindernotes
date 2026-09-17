@@ -39,7 +39,6 @@ import type {
   Binder,
   BinderLesson,
   MathBlock,
-  Profile,
   PublishStatus,
   SeedHealth,
   WorkspaceDiagnostic,

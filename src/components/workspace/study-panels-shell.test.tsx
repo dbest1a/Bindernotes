@@ -11,6 +11,8 @@ import {
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import type { WorkspacePreferences } from "@/types";
 
+const preloadWorkspaceModuleMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/components/workspace/workspace-modules", () => {
   const module = (title: string, body: string) => ({
     title,
@@ -18,6 +20,7 @@ vi.mock("@/components/workspace/workspace-modules", () => {
   });
 
   return {
+    preloadWorkspaceModule: preloadWorkspaceModuleMock,
     workspaceModuleRegistry: {
       lesson: module("Source lesson", "Lesson body"),
       "private-notes": module("Private notes", "Notes body"),
@@ -93,6 +96,7 @@ vi.mock("@/components/workspace/workspace-modules", () => {
 
 beforeEach(() => {
   window.localStorage.clear();
+  preloadWorkspaceModuleMock.mockClear();
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
     callback(0);
     return 0;
@@ -215,8 +219,47 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByText("Formula body")).toBeTruthy();
   });
 
+  it("preloads tab and drawer module chunks before the student clicks them", () => {
+    renderStudyPanelsShell();
+    preloadWorkspaceModuleMock.mockClear();
+
+    fireEvent.pointerEnter(screen.getByRole("tab", { name: /graph/i }));
+
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("desmos-graph");
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("formula-sheet");
+    expect(screen.queryByText("Graph body")).toBeNull();
+
+    preloadWorkspaceModuleMock.mockClear();
+    fireEvent.focus(screen.getByRole("tab", { name: /notes/i }));
+
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("private-notes");
+
+    fireEvent.click(screen.getByRole("button", { name: /tools/i }));
+    preloadWorkspaceModuleMock.mockClear();
+    fireEvent.pointerEnter(screen.getByRole("button", { name: /open scientific calculator/i }));
+
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("scientific-calculator");
+    expect(screen.queryByText("Calculator body")).toBeNull();
+  });
+
+  it("warms visible study panel chunks during default performance mode without mounting heavy modules", () => {
+    vi.stubGlobal("requestIdleCallback", (callback: () => void) => {
+      callback();
+      return 1;
+    });
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+
+    renderStudyPanelsShell();
+
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("private-notes");
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("desmos-graph");
+    expect(preloadWorkspaceModuleMock).toHaveBeenCalledWith("formula-sheet");
+    expect(screen.queryByText("Graph body")).toBeNull();
+    expect(screen.queryByText("Formula body")).toBeNull();
+  });
+
   it("uses keyboard-accessible panel tabs", () => {
-    const { container } = renderStudyPanelsShell();
+    renderStudyPanelsShell();
     const tablist = screen.getByRole("tablist", { name: /study panel modules/i });
     const lessonTab = within(tablist).getByRole("tab", { name: /lesson/i });
     const notesTab = within(tablist).getByRole("tab", { name: /notes/i });

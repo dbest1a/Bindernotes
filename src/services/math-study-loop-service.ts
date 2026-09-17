@@ -1,5 +1,6 @@
 import { createStudyItem, type StudyItem } from "@/services/study-items-service";
-import type { CalculatorMode, MathGraphState, ModuleExpression } from "@/types/math-learning";
+import { readJsonArray, writeJsonArray } from "@/lib/safe-json-storage";
+import type { CalculatorMode, ModuleExpression } from "@/types/math-learning";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -143,19 +144,19 @@ export function mathStudyGraphLinksStorageKey(ownerId: string) {
 }
 
 export function listProblemLogEntries(ownerId: string, storage = defaultStorage()): MathProblemLogEntry[] {
-  return readArray<MathProblemLogEntry>(storage, mathStudyProblemLogsStorageKey(ownerId))
+  return readJsonArray<MathProblemLogEntry>(storage, mathStudyProblemLogsStorageKey(ownerId))
     .filter((entry) => entry.owner_id === ownerId)
     .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
 
 export function listFormulaTheoremCards(ownerId: string, storage = defaultStorage()): MathFormulaTheoremCard[] {
-  return readArray<MathFormulaTheoremCard>(storage, mathStudyFormulaCardsStorageKey(ownerId))
+  return readJsonArray<MathFormulaTheoremCard>(storage, mathStudyFormulaCardsStorageKey(ownerId))
     .filter((card) => card.owner_id === ownerId)
     .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
 
 export function listStudyGraphLinks(ownerId: string, storage = defaultStorage()): MathStudyGraphLink[] {
-  return readArray<MathStudyGraphLink>(storage, mathStudyGraphLinksStorageKey(ownerId))
+  return readJsonArray<MathStudyGraphLink>(storage, mathStudyGraphLinksStorageKey(ownerId))
     .filter((link) => link.owner_id === ownerId)
     .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
@@ -193,7 +194,7 @@ export function createProblemLogEntry(
     throw new Error("Problem logs need a title, source, and attempt.");
   }
 
-  writeArray(storage, mathStudyProblemLogsStorageKey(input.ownerId), [
+  writeJsonArray(storage, mathStudyProblemLogsStorageKey(input.ownerId), [
     entry,
     ...listProblemLogEntries(input.ownerId, storage),
   ]);
@@ -227,7 +228,7 @@ export function createFormulaTheoremCard(
     throw new Error("Formula and theorem cards need a title, statement, and meaning.");
   }
 
-  writeArray(storage, mathStudyFormulaCardsStorageKey(input.ownerId), [
+  writeJsonArray(storage, mathStudyFormulaCardsStorageKey(input.ownerId), [
     card,
     ...listFormulaTheoremCards(input.ownerId, storage).filter((candidate) => candidate.title !== card.title),
   ]);
@@ -261,7 +262,7 @@ export function saveStudyGraphLink(
     throw new Error("Graph links need a title and reflection.");
   }
 
-  writeArray(storage, mathStudyGraphLinksStorageKey(input.ownerId), [
+  writeJsonArray(storage, mathStudyGraphLinksStorageKey(input.ownerId), [
     link,
     ...listStudyGraphLinks(input.ownerId, storage),
   ]);
@@ -321,7 +322,7 @@ export function addProblemMistakeToReview({
         }
       : entry,
   );
-  writeArray(storage, mathStudyProblemLogsStorageKey(ownerId), nextLogs);
+  writeJsonArray(storage, mathStudyProblemLogsStorageKey(ownerId), nextLogs);
   return item;
 }
 
@@ -346,23 +347,6 @@ function clampConfidence(value: number) {
 
 function defaultStorage(): StorageLike | undefined {
   return typeof window === "undefined" ? undefined : window.localStorage;
-}
-
-function readArray<T>(storage: StorageLike | undefined, key: string): T[] {
-  if (!storage) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(storage.getItem(key) ?? "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeArray<T>(storage: StorageLike | undefined, key: string, values: T[]) {
-  storage?.setItem(key, JSON.stringify(values));
 }
 
 function safeStoragePart(value: string) {

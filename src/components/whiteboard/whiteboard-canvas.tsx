@@ -83,9 +83,8 @@ export function WhiteboardCanvas({
     return { width: 1440, height: 900, offsetLeft: 0, offsetTop: 0 };
   }, []);
 
-  const emitViewportChange = useCallback(
-    (appState: unknown) => {
-      const nextTransform = extractWhiteboardViewportTransform(appState, getViewportSize());
+  const emitViewportTransform = useCallback(
+    (nextTransform: WhiteboardViewportTransform) => {
       const currentTransform = latestViewportTransformRef.current;
       if (currentTransform && whiteboardViewportTransformsEqual(currentTransform, nextTransform)) {
         return;
@@ -94,7 +93,34 @@ export function WhiteboardCanvas({
       latestViewportTransformRef.current = nextTransform;
       onViewportChange?.(nextTransform);
     },
-    [getViewportSize, onViewportChange],
+    [onViewportChange],
+  );
+
+  const emitViewportChange = useCallback(
+    (appState: unknown) => {
+      emitViewportTransform(extractWhiteboardViewportTransform(appState, getViewportSize()));
+    },
+    [emitViewportTransform, getViewportSize],
+  );
+
+  const emitLatestViewportMetrics = useCallback(
+    (fallbackAppState: unknown) => {
+      const latestTransform = latestViewportTransformRef.current;
+      if (!latestTransform) {
+        emitViewportChange(fallbackAppState);
+        return;
+      }
+
+      const size = getViewportSize();
+      emitViewportTransform({
+        ...latestTransform,
+        viewportWidth: size.width,
+        viewportHeight: size.height,
+        offsetLeft: size.offsetLeft,
+        offsetTop: size.offsetTop,
+      });
+    },
+    [emitViewportChange, emitViewportTransform, getViewportSize],
   );
 
   const handleScrollChange = useCallback(
@@ -147,8 +173,8 @@ export function WhiteboardCanvas({
     recordWhiteboardPerformanceDiagnostic("excalidraw-refresh", {
       boardId: board.id,
     });
-    emitViewportChange(api?.getAppState?.() ?? initialData.appState ?? {});
-  }, [board.id, emitViewportChange, initialData.appState]);
+    emitLatestViewportMetrics(api?.getAppState?.() ?? initialData.appState ?? {});
+  }, [board.id, emitLatestViewportMetrics, initialData.appState]);
 
   const finishDrawingPointerById = useCallback(
     (pointerId?: number) => {

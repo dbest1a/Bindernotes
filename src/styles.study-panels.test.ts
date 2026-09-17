@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const css = readFileSync("src/styles.css", "utf8");
+const css = readFileSync("src/styles.css", "utf8").replace(/\r\n/g, "\n");
 
 function firstRule(selector: string) {
   const start = css.indexOf(`${selector} {`);

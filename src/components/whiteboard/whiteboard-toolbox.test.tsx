@@ -73,7 +73,7 @@ describe("compact whiteboard toolbox beta surfaces", () => {
     expect(screen.getByText("Blank Board")).toBeTruthy();
   });
 
-  it("puts New blank board beside recent boards in compact mode without always showing the limit badge", () => {
+  it("puts New board beside recent boards in compact mode without always showing the limit badge", () => {
     const onCreateBlankBoard = vi.fn();
 
     render(
@@ -86,7 +86,7 @@ describe("compact whiteboard toolbox beta surfaces", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /new blank board/i }));
+    fireEvent.click(screen.getByRole("button", { name: /new board/i }));
 
     expect(onCreateBlankBoard).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("whiteboard-board-count")).toBeNull();
@@ -116,7 +116,7 @@ describe("compact whiteboard toolbox beta surfaces", () => {
     expect(screen.queryByRole("button", { name: /archive/i })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /open scratch board/i }));
-    fireEvent.click(screen.getByRole("button", { name: /new blank board/i }));
+    fireEvent.click(screen.getByRole("button", { name: /new board/i }));
 
     expect(onCreateScratchBoard).toHaveBeenCalledTimes(2);
     expect(onCreateBlankBoard).not.toHaveBeenCalled();

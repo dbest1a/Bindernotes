@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Navigate,
   Outlet,
@@ -9,9 +8,8 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
-import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,19 +17,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 const LazyAppShell = lazy(() =>
   import("@/components/layout/app-shell").then((module) => ({ default: module.AppShell })),
 );
+const LazyAuthenticatedAppProviders = lazy(() =>
+  import("@/components/system/authenticated-app-providers").then((module) => ({
+    default: module.AuthenticatedAppProviders,
+  })),
+);
 const LazyTutorialPromptHost = lazy(() =>
   import("@/components/tutorials/tutorial-prompt").then((module) => ({
     default: module.TutorialPromptHost,
-  })),
-);
-const LazyUserAppearanceSync = lazy(() =>
-  import("@/components/theme/user-appearance-sync").then((module) => ({
-    default: module.UserAppearanceSync,
-  })),
-);
-const LazySyncRecoveryBridge = lazy(() =>
-  import("@/components/system/sync-recovery-bridge").then((module) => ({
-    default: module.SyncRecoveryBridge,
   })),
 );
 const LandingPage = lazy(() =>
@@ -111,31 +104,12 @@ const TutorialPage = lazy(() =>
 );
 
 export function App() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            retry: 1,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-          },
-        },
-      }),
-  );
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <SignedInBackgroundServices />
-          <Router>
-            <AppRoutes />
-          </Router>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
   );
 }
 
@@ -191,21 +165,6 @@ function AppRoutes() {
         </Routes>
       </Suspense>
     </RouteErrorBoundary>
-  );
-}
-
-function SignedInBackgroundServices() {
-  const { user } = useAuth();
-
-  if (!user) {
-    return null;
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <LazyUserAppearanceSync />
-      <LazySyncRecoveryBridge />
-    </Suspense>
   );
 }
 
@@ -389,12 +348,12 @@ function ProtectedRoute({ children }: { children?: ReactNode }) {
   }
 
   return (
-    <>
+    <LazyAuthenticatedAppProviders>
       <Suspense fallback={null}>
         <LazyTutorialPromptHost />
       </Suspense>
       {children ? <>{children}</> : <Outlet />}
-    </>
+    </LazyAuthenticatedAppProviders>
   );
 }
 

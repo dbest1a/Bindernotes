@@ -16,6 +16,7 @@ import {
   personalNotesPreferencesUpdatedEvent,
   savePersonalNotesPreferences,
 } from "@/lib/personal-notes";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   MathBlock,
   PersonalNotesPreferences,
@@ -25,7 +26,7 @@ import type { JSONContent } from "@tiptap/react";
 
 export function usePersonalNotes(profile: Profile | null) {
   return useQuery({
-    queryKey: ["personal-notes", profile?.id],
+    queryKey: queryKeys.personalNotes.forProfile(profile?.id),
     queryFn: () => getPersonalNotesWorkspace(profile!),
     enabled: Boolean(profile),
     staleTime: 20_000,
@@ -38,8 +39,8 @@ export const usePersonalNotesWorkspace = usePersonalNotes;
 export function usePersonalNotesMutations(profile: Profile | null) {
   const queryClient = useQueryClient();
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["personal-notes", profile?.id] });
-    queryClient.invalidateQueries({ queryKey: ["dashboard", profile?.id] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.personalNotes.forProfile(profile?.id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.forProfile(profile?.id) });
   };
 
   return {
@@ -132,7 +133,8 @@ export function usePersonalNotesMutations(profile: Profile | null) {
         queryClient.invalidateQueries({
           predicate: (query) =>
             Array.isArray(query.queryKey) &&
-            (query.queryKey[0] === "dashboard" || query.queryKey[0] === "binder"),
+            query.queryKey[0] === queryKeys.binder.all[0] &&
+            query.queryKey[2] === profile?.id,
         });
       },
     }),
@@ -178,8 +180,8 @@ export function useCreateLoosePersonalNote(profile: Profile | null) {
         ownerId: profile!.id,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["personal-notes", profile?.id] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", profile?.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.personalNotes.forProfile(profile?.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.forProfile(profile?.id) });
     },
   });
 }

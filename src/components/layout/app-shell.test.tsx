@@ -41,6 +41,19 @@ const betaRevampFlagKeys = [
   "betaRevampNarrowAiStudyTools",
 ] as const;
 
+const learningAcceleratorFlagKeys = [
+  "transferForge",
+  "evidenceLock",
+  "misstepMuseum",
+  "conceptWeather",
+  "representationSwitchboard",
+  "examGhostMode",
+  "whiteboardReplay",
+  "prereqXray",
+  "memoryWeave",
+  "oneMinuteLab",
+] as const;
+
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     profile: authMock.profile,
@@ -109,6 +122,15 @@ describe("AppShell profile settings", () => {
     expect(screen.getByTestId("app-settings-section-appearance")).toBeTruthy();
     expect(screen.getByTestId("app-settings-section-learning")).toBeTruthy();
     expect(screen.getByTestId("app-settings-section-performance")).toBeTruthy();
+  });
+
+  it("keeps settings reachable from the compact header without nesting main landmarks", () => {
+    renderShell();
+
+    fireEvent.click(screen.getByTestId("compact-open-settings"));
+
+    expect(screen.getByTestId("app-settings-window")).toBeTruthy();
+    expect(document.querySelector(".app-route-transition-shell")?.tagName).toBe("DIV");
   });
 
   it("searches the full settings window without leaving the profile menu overloaded", async () => {
@@ -625,6 +647,7 @@ describe("AppShell profile settings", () => {
       "compactExcalidrawTools",
       "whiteboardPerformanceDiagnostics",
       ...betaRevampFlagKeys,
+      ...learningAcceleratorFlagKeys,
     ]);
     expect(screen.getByTestId("beta-flag-revampBeta")).toBeTruthy();
     expect(screen.getByTestId("beta-flag-canvasRework")).toBeTruthy();
@@ -633,6 +656,9 @@ describe("AppShell profile settings", () => {
     expect(screen.getByTestId("beta-flag-compactExcalidrawTools")).toBeTruthy();
     expect(screen.getByTestId("beta-flag-whiteboardPerformanceDiagnostics")).toBeTruthy();
     for (const key of betaRevampFlagKeys) {
+      expect(screen.getByTestId(`beta-flag-${key}`)).toBeTruthy();
+    }
+    for (const key of learningAcceleratorFlagKeys) {
       expect(screen.getByTestId(`beta-flag-${key}`)).toBeTruthy();
     }
     expect(screen.queryByTestId("beta-flag-compactStudyChrome")).toBeNull();

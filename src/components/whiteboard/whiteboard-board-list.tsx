@@ -67,7 +67,7 @@ export function WhiteboardBoardList({
           </Button>
         </div>
       ) : null}
-      {compact && onCreateBlankBoard ? (
+      {onCreateBlankBoard ? (
         <Button
           className="whiteboard-new-board-button justify-start"
           data-testid="whiteboard-new-blank-near-recent"
@@ -77,7 +77,7 @@ export function WhiteboardBoardList({
           variant="outline"
         >
           <Plus data-icon="inline-start" />
-          New blank board
+          New board
         </Button>
       ) : null}
       <div className={compact ? "grid gap-2" : "grid max-h-48 gap-2 overflow-auto pr-1"}>

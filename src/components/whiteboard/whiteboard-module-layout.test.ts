@@ -22,6 +22,8 @@ describe("WhiteboardModule workspace layout", () => {
     expect(source).toContain("onExitWhiteboardFocus");
     expect(source).toContain('data-testid="whiteboard-focus-exit"');
     expect(source).toContain('data-testid="whiteboard-focus-exit-hint"');
+    expect(source).toContain("whiteboard-focus-exit-hint--fullscreen");
+    expect(source).toContain("whiteboard-focus-exit-hint--embedded");
     expect(source).toContain("Back to workspace");
     expect(source).toContain("5000");
   });

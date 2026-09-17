@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   applyWorkspaceViewModeToViewport,
   applyGlobalAppearanceToWorkspace,
@@ -77,6 +77,8 @@ export function useWorkspacePreferences(
 ) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const { clearThemeOverride, globalTheme, setTheme } = useTheme();
+  const globalThemeRef = useRef(globalTheme);
+  globalThemeRef.current = globalTheme;
   const [saved, setSaved] = useState<WorkspacePreferences | null>(() =>
     createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
   );
@@ -93,7 +95,8 @@ export function useWorkspacePreferences(
     }
 
     let cancelled = false;
-    const bootPreferences = createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme);
+    const loadTheme = globalThemeRef.current;
+    const bootPreferences = createBootWorkspacePreferences(userId, binderId, suiteTemplateId, loadTheme);
     setSaved(bootPreferences);
     setDraft(bootPreferences);
     setSaveError(null);
@@ -108,7 +111,7 @@ export function useWorkspacePreferences(
           userId,
           binderId,
           suiteTemplateId,
-          globalTheme,
+          loadTheme,
         );
         saveWorkspaceViewPreference(getWorkspaceViewMode(normalized));
         setSaved(normalized);
@@ -120,7 +123,7 @@ export function useWorkspacePreferences(
           return;
         }
         const fallback =
-          createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme) ??
+          createBootWorkspacePreferences(userId, binderId, suiteTemplateId, loadTheme) ??
           createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
         setSaved(fallback);
         setDraft(fallback);
@@ -129,7 +132,7 @@ export function useWorkspacePreferences(
     return () => {
       cancelled = true;
     };
-  }, [binderId, globalTheme, suiteTemplateId, userId]);
+  }, [binderId, suiteTemplateId, userId]);
 
   useEffect(() => {
     const active = draft ?? saved;

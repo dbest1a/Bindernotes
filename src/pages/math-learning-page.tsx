@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
-  BookOpen,
   BookOpenCheck,
   CheckCircle2,
   Cuboid,
@@ -14,7 +13,6 @@ import {
   ListChecks,
   Plus,
   Save,
-  Sparkles,
 } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import { MathStudyLoopPanel } from "@/components/study/math-study-loop-panel";
@@ -50,7 +48,6 @@ import type {
   MathCourse,
   MathModule,
   QuestionBankItem,
-  QuestionChoice,
   QuestionType,
 } from "@/types/math-learning";
 

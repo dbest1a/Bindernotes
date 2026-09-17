@@ -1838,23 +1838,6 @@ function themeVarsAreDark(themeVars: WorkspaceTheme["vars"]) {
   return hslLightness(themeVars.background) < 30;
 }
 
-function softAccentForThemeVars(themeVars: WorkspaceTheme["vars"], accent: HslColor) {
-  return adjustHsl(accent, themeVarsAreDark(themeVars) ? 22 : 90, 70);
-}
-
-function applyAccentToThemeVars(
-  themeVars: WorkspaceTheme["vars"],
-  accentValue: string,
-): WorkspaceTheme["vars"] {
-  const accent = parseHslParts(accentValue);
-
-  return {
-    ...themeVars,
-    primary: accentValue,
-    accent: softAccentForThemeVars(themeVars, accent),
-  };
-}
-
 function buildCustomThemeVars(palette: AppearanceCustomPalette): WorkspaceTheme["vars"] {
   const primary = hexToHsl(palette.primary);
   const secondary = hexToHsl(palette.secondary);
@@ -4588,7 +4571,7 @@ function buildWindowLayoutFromZones(
     let y = WINDOW_PADDING;
 
     zoneModules.forEach((moduleId) => {
-      const frame = placeModuleFrame(moduleId, zone, zoneWidth, xMap.positions[zone], y, z, preferences.moduleLayout);
+      const frame = placeModuleFrame(moduleId, zoneWidth, xMap.positions[zone], y, z, preferences.moduleLayout);
       layout[moduleId] = frame;
       y = frame.y + frame.h + WINDOW_GAP;
       z += 1;
@@ -4726,7 +4709,6 @@ function packPresetWindowLayout(
 
 function placeModuleFrame(
   moduleId: WorkspaceModuleId,
-  zone: Exclude<WorkspaceZone, "bottom">,
   zoneWidth: number,
   x: number,
   y: number,

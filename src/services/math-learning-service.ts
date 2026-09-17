@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import {
   getSeedModuleBySlug,
-  getSeedQuestionChoices,
   mathSeedChoices,
   mathSeedCourses,
   mathSeedModules,

@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-card";
+import { syncWhiteboardPinnedModuleLayerToViewport } from "@/components/whiteboard/whiteboard-pinned-object-layer";
 import type { WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 import type { WhiteboardViewportTransform } from "@/lib/whiteboards/whiteboard-coordinate-utils";
 
@@ -163,7 +164,7 @@ describe("WhiteboardModuleCard", () => {
     expect(screen.queryByTestId("whiteboard-card-options-menu")).toBeNull();
   });
 
-  it("offers Desmos normal board, fixed-size board, and screen pin choices", () => {
+  it("offers all three Desmos pin choices", () => {
     const onChange = vi.fn();
     render(
       <WhiteboardModuleCard
@@ -356,6 +357,99 @@ describe("WhiteboardModuleCard", () => {
     );
   });
 
+  it("keeps a dropped board-pinned Desmos card at its final frame if camera sync runs before React commits", () => {
+    const onChange = vi.fn();
+    render(
+      <div data-testid="whiteboard-pinned-object-layer">
+        <WhiteboardModuleCard
+          live
+          moduleElement={moduleElement({
+            anchorMode: "board",
+            moduleId: "desmos-graph",
+            pinned: true,
+            width: 420,
+            height: 320,
+          })}
+          onBringToFront={vi.fn()}
+          onChange={onChange}
+          onRemove={vi.fn()}
+          presentation="live"
+          viewportTransform={viewportTransform}
+        >
+          Live graph
+        </WhiteboardModuleCard>
+      </div>,
+    );
+
+    const layer = screen.getByTestId("whiteboard-pinned-object-layer");
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 260, clientY: 280, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 260, clientY: 280, pointerId: 1 });
+
+    expect(card.getAttribute("data-dragging")).toBeNull();
+    expect(card.dataset.cardSceneX).toBe("130");
+    expect(card.dataset.cardSceneY).toBe("140");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(260px, 280px, 0) scale(2)");
+
+    syncWhiteboardPinnedModuleLayerToViewport(layer, viewportTransform);
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchorMode: "board",
+        moduleId: "desmos-graph",
+        pinned: true,
+        x: 130,
+        y: 140,
+      }),
+    );
+    expect(card.getAttribute("style")).toContain("transform: translate3d(260px, 280px, 0) scale(2)");
+  });
+
+  it("ignores transient camera drift on pointer-up so a board-pinned Desmos card cannot jump upward on drop", () => {
+    const onChange = vi.fn();
+    let currentTransform = viewportTransform;
+    render(
+      <WhiteboardModuleCard
+        live
+        getViewportTransform={() => currentTransform}
+        moduleElement={moduleElement({
+          anchorMode: "board",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 420,
+          height: 320,
+        })}
+        onBringToFront={vi.fn()}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live graph
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 260, clientY: 280, pointerId: 1 });
+    currentTransform = { ...viewportTransform, scrollY: 40 };
+    fireEvent.pointerUp(window, { clientX: 260, clientY: 280, pointerId: 1 });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anchorMode: "board",
+        moduleId: "desmos-graph",
+        pinned: true,
+        x: 130,
+        y: 140,
+      }),
+    );
+    expect(card.getAttribute("style")).toContain("transform: translate3d(260px, 280px, 0) scale(2)");
+  });
+
   it("marks parent movement while a pinned Desmos card is being dragged", () => {
     const onChange = vi.fn();
     document.documentElement.dataset.workspaceDragging = "false";
@@ -390,6 +484,132 @@ describe("WhiteboardModuleCard", () => {
 
     expect(card.getAttribute("data-dragging")).toBeNull();
     expect(document.documentElement.dataset.workspaceDragging).toBe("false");
+  });
+
+  it("does not re-render-promote a pinned Desmos card at drag start", () => {
+    const onBringToFront = vi.fn();
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 720,
+          height: 560,
+        })}
+        onBringToFront={onBringToFront}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live graph
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+
+    expect(onBringToFront).not.toHaveBeenCalled();
+    expect(card.getAttribute("data-dragging")).toBe("true");
+
+    fireEvent.pointerUp(window, { clientX: 220, clientY: 260, pointerId: 1 });
+  });
+
+  it("does not re-render-promote a zoom-scaled board-pinned Desmos card on pointer down", () => {
+    const onBringToFront = vi.fn();
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          anchorMode: "board",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 420,
+          height: 320,
+          zIndex: 1,
+        })}
+        onBringToFront={onBringToFront}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        <div data-testid="desmos-card-content">Live graph</div>
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const beforeStyle = card.getAttribute("style");
+    const header = card.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 200, clientY: 240, pointerId: 1 });
+
+    expect(onBringToFront).not.toHaveBeenCalled();
+    expect(card.getAttribute("data-dragging")).toBe("true");
+    expect(card.getAttribute("style")).toBe(beforeStyle);
+
+    fireEvent.pointerUp(window, { clientX: 200, clientY: 240, pointerId: 1 });
+  });
+
+  it("does not re-render-promote zoom-scaled Desmos board content on pointer down", () => {
+    const onBringToFront = vi.fn();
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          anchorMode: "board",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 420,
+          height: 320,
+          zIndex: 1,
+        })}
+        onBringToFront={onBringToFront}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        <div data-testid="desmos-card-content">Live graph</div>
+      </WhiteboardModuleCard>,
+    );
+
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const beforeStyle = card.getAttribute("style");
+    fireEvent.pointerDown(screen.getByTestId("desmos-card-content"), { clientX: 300, clientY: 300, pointerId: 1 });
+
+    expect(onBringToFront).not.toHaveBeenCalled();
+    expect(card.getAttribute("style")).toBe(beforeStyle);
+  });
+
+  it("keeps all three pin modes available for live Desmos cards", () => {
+    render(
+      <WhiteboardModuleCard
+        live
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          moduleId: "desmos-graph",
+          pinned: true,
+          width: 720,
+          height: 560,
+        })}
+        onBringToFront={vi.fn()}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+        presentation="live"
+        viewportTransform={viewportTransform}
+      >
+        Live graph
+      </WhiteboardModuleCard>,
+    );
+
+    fireEvent.click(screen.getByTestId("whiteboard-card-pin-button"));
+
+    expect(screen.getByTestId("whiteboard-card-anchor-board")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-card-anchor-board-fixed")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-card-anchor-viewport")).toBeTruthy();
   });
 
   it("resizing at zoom 2 grows board size by half the screen delta", () => {
