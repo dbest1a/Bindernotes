@@ -5,6 +5,7 @@ import { runReviewCases } from './review-cases.mjs';
 import { runAssetCases } from './asset-cases.mjs';
 import { runAccountCases } from './account-cases.mjs';
 import { runArchiveCases } from './archive-cases.mjs';
+import { runNoteSearchCases } from './note-search-cases.mjs';
 
 const users = {
   a: '10000000-0000-4000-8000-000000000001', b: '10000000-0000-4000-8000-000000000002',
@@ -239,6 +240,7 @@ export async function run({ sql, concurrentSql }) {
   await runReviewCases({sql,concurrentSql,roleSql,as,users,json});
   await runAssetCases({sql,concurrentSql,roleSql,as,users});
   await runArchiveCases({sql,as,users,json});
+  await runNoteSearchCases({sql,as,users,json});
   await runAccountCases({sql,as,json});
   console.log(`${count} database scenarios plus billing/review authorization/concurrency passed.`);
 }

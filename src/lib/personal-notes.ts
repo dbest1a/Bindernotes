@@ -65,6 +65,7 @@ export type PersonalNoteSourceReference = {
 };
 
 export type PersonalNotesFilterOptions = {
+  bodyMatches?: ReadonlySet<string>;
   query: string;
   sourceFilter: PersonalNotesSourceFilter;
   showBinderNotes: boolean;
@@ -306,7 +307,7 @@ export function filterPersonalNotesEntries(
       return true;
     }
 
-    return entry.searchText.includes(query);
+    return entry.searchText.includes(query) || options.bodyMatches?.has(`${entry.kind}:${entry.id}`) === true;
   });
 }
 

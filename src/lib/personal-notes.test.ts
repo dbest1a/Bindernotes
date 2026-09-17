@@ -199,6 +199,14 @@ describe("Personal Notes unified model", () => {
       .toBe("learner-note-1");
   });
 
+  it("merges remote body matches while preserving source and tag filters", () => {
+    const entries = buildPersonalNotesEntries({ learnerNotes: [learnerNote()], personalNotes: [personalNote()], personalDocuments: [], personalBinders: [], binders: [binder()], lessons: [lesson()], folders: [] });
+    const options = { query: "server-only phrase", sourceFilter: "all" as const, showBinderNotes: true, bodyMatches: new Set(["binder-note:learner-note-1", "personal-note:personal-note-1"]) };
+    expect(filterPersonalNotesEntries(entries, options)).toHaveLength(2);
+    expect(filterPersonalNotesEntries(entries, { ...options, showBinderNotes: false }).map((entry) => entry.id)).toEqual(["personal-note-1"]);
+    expect(filterPersonalNotesEntries(entries, { ...options, tag: "absent" })).toHaveLength(0);
+  });
+
   it("creates quiet health signals and a review queue from note metadata", () => {
     const entries = buildPersonalNotesEntries({
       learnerNotes: [learnerNote({ math_blocks: [{ id: "m1", type: "latex", latex: "x^2", label: "Quadratic" }] })],

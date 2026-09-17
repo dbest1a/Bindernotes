@@ -1,3 +1,4 @@
+import { usePersonalNoteSearch } from "@/hooks/use-personal-note-search";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { Editor, JSONContent } from "@tiptap/react";
 import {
@@ -258,18 +259,20 @@ export function PersonalNotesPage() {
   const shellRef = useRef<HTMLElement | null>(null);
 
   const entries = data?.entries ?? [];
+  const bodySearch = usePersonalNoteSearch(profile?.id, query, entries.some((entry) => entry.contentLoaded === false));
   const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const filteredEntries = useMemo(
     () =>
       filterPersonalNotesEntries(entries, {
         query,
+        bodyMatches: bodySearch.matches,
         sourceFilter,
         showBinderNotes: preferences.showBinderNotes,
         folderName: folderFilter,
         tag: tagFilter,
       }),
-    [entries, folderFilter, preferences.showBinderNotes, query, sourceFilter, tagFilter],
+    [entries, folderFilter, preferences.showBinderNotes, query, sourceFilter, tagFilter, bodySearch.matches],
   );
   const notebookCategories = useMemo(
     () => buildNotebookCategories(entries, preferences.showBinderNotes),
@@ -301,12 +304,13 @@ export function PersonalNotesPage() {
         : notebookTreeEntries;
     return filterPersonalNotesEntries(baseEntries, {
       query,
+      bodyMatches: bodySearch.matches,
       sourceFilter: "all",
       showBinderNotes: preferences.showBinderNotes,
       folderName: null,
       tag: tagFilter,
     });
-  }, [notebookTreeEntries, preferences.showBinderNotes, query, selectedNotebookBinder, selectedNotebookScope, tagFilter]);
+  }, [notebookTreeEntries, preferences.showBinderNotes, query, selectedNotebookBinder, selectedNotebookScope, tagFilter, bodySearch.matches]);
   const notesListTitle = selectedNotebookBinder
     ? `${selectedNotebookBinder.scopeLabel} / ${selectedNotebookBinder.title}`
     : selectedNotebookScope?.label ?? (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`);
@@ -891,7 +895,7 @@ export function PersonalNotesPage() {
         ) : (
           <>
             <div className="z-20 shrink-0 border-b border-border/70 bg-background/95 px-2 py-2 shadow-sm backdrop-blur sm:px-3">
-              <div className="flex min-h-11 min-w-0 items-center gap-2">
+              <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-2" data-testid="personal-notes-toolbar">
                 <div className="flex min-w-0 shrink-0 items-center gap-2">
                   <h1 className="truncate text-sm font-semibold tracking-tight sm:text-base">Personal Notes</h1>
                   <Badge className="hidden sm:inline-flex" variant="secondary">{mainNotesCount} main</Badge>
@@ -906,6 +910,7 @@ export function PersonalNotesPage() {
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     aria-label="Search Personal Notes"
+                    maxLength={200}
                     className="h-9 border-border/70 bg-secondary/35 pl-9 text-sm"
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search or type a command"
@@ -913,7 +918,7 @@ export function PersonalNotesPage() {
                   />
                 </label>
 
-                <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto">
                   <Button
                     aria-expanded={filtersOpen}
                     aria-haspopup="menu"
@@ -1044,6 +1049,8 @@ export function PersonalNotesPage() {
                   </Button>
                 </div>
               </div>
+              {bodySearch.searching && <p role="status" className="mt-2 text-xs text-muted-foreground">Searching note text…</p>}
+              {bodySearch.error && <p role="alert" className="mt-2 text-xs">Note text search could not finish. <button type="button" className="underline" onClick={() => void bodySearch.retry()}>Retry search</button></p>}
             </div>
 
             {filtersOpen ? (

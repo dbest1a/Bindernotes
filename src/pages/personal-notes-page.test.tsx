@@ -49,6 +49,8 @@ const mocks = vi.hoisted(() => ({
   saveBinderLinkedNote: vi.fn(),
   setPinned: vi.fn(),
   saveContent: vi.fn(),
+  searchBodies: vi.fn(),
+  readContent: vi.fn(),
   editorChain: {
     focus: vi.fn(),
     toggleBold: vi.fn(),
@@ -69,6 +71,8 @@ const mocks = vi.hoisted(() => ({
     },
   },
 }));
+vi.mock("@/services/personal-note-search-service", () => ({ searchPersonalNoteBodies: mocks.searchBodies }));
+vi.mock("@/services/personal-notes-service", async (original) => ({ ...await original<typeof import("@/services/personal-notes-service")>(), getPersonalNoteEntryContent: mocks.readContent }));
 vi.mock("@/services/canonical-review-service", () => ({ createCloudStudyItem: mocks.createCloudStudyItem }));
 
 const timestamp = "2026-04-29T12:00:00.000Z";
@@ -358,6 +362,8 @@ function renderPage(path = "/notes") {
 
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
+    mocks.searchBodies.mockReset().mockResolvedValue(new Set());
+    mocks.readContent.mockReset().mockImplementation(async (entry: PersonalNotesEntry) => ({ ...entry, contentLoaded: true, content: doc("Opened saved body") }));
     mocks.createCloudStudyItem.mockReset().mockResolvedValue({ id: "cloud-review-1" });
     saveQueue.setAccount(null);
     saveQueue.setAccount(profile.id);
@@ -391,6 +397,16 @@ describe("PersonalNotesPage", () => {
     mocks.personalNotesState.isLoading = false;
     mocks.preferences = null;
     vi.restoreAllMocks();
+  });
+
+  it("finds a body-only match in unloaded metadata and opens only the selected result", async () => {
+    mocks.personalNotesState.data = { ...workspaceWithEntries, entries: workspaceWithEntries.entries.map((entry) => ({ ...entry, contentLoaded: false, content: doc(""), searchText: entry.title.toLowerCase() })) };
+    mocks.searchBodies.mockResolvedValue(new Set(["personal-note:personal-note-1"]));
+    renderPage();
+    fireEvent.change(screen.getByLabelText("Search Personal Notes"), { target: { value: "rare body words" } });
+    await waitFor(() => expect(mocks.searchBodies).toHaveBeenCalledWith(profile.id, "rare body words", expect.any(AbortSignal)));
+    await waitFor(() => expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Loose reading note"));
+    expect(mocks.readContent).toHaveBeenCalledWith(expect.objectContaining({ id: "personal-note-1" }), profile.id, expect.any(AbortSignal));
   });
 
   it("shows an empty notebook state instead of unavailable when the workspace loads empty", () => {
