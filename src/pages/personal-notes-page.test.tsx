@@ -7,7 +7,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
 import { defaultPersonalNotesPreferences } from "@/lib/personal-notes";
-import { listStudyItems } from "@/services/study-items-service";
 import type { LearnerNote, PersonalNote, PersonalNotesData, PersonalNotesEntry, Profile } from "@/types";
 
 const profile: Profile = {
@@ -44,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   createBinder: vi.fn(),
   createFolder: vi.fn(),
   createDocument: vi.fn(),
+  createCloudStudyItem: vi.fn(),
   savePersonalNote: vi.fn(),
   savePersonalDocument: vi.fn(),
   saveBinderLinkedNote: vi.fn(),
@@ -69,6 +69,7 @@ const mocks = vi.hoisted(() => ({
     },
   },
 }));
+vi.mock("@/services/canonical-review-service", () => ({ createCloudStudyItem: mocks.createCloudStudyItem }));
 
 const timestamp = "2026-04-29T12:00:00.000Z";
 
@@ -357,6 +358,7 @@ function renderPage(path = "/notes") {
 
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
+    mocks.createCloudStudyItem.mockReset().mockResolvedValue({ id: "cloud-review-1" });
     saveQueue.setAccount(null);
     saveQueue.setAccount(profile.id);
     mocks.saveContent.mockReset().mockImplementation(async (operation: {expectedRevision: number}) => ({revision: operation.expectedRevision + 1}));
@@ -1165,7 +1167,7 @@ describe("PersonalNotesPage", () => {
     expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("false");
   });
 
-  it("adds the selected note to Review Queue only when the Review Queue beta is enabled", () => {
+  it("adds the selected note to Review Queue only when the Review Queue beta is enabled", async () => {
     mocks.personalNotesState.data = workspaceWithEntries;
 
     renderPage("/notes/n/learner-note-1");
@@ -1179,20 +1181,20 @@ describe("PersonalNotesPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add to Review" }));
 
-    const items = listStudyItems(profile.id);
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({
-      owner_id: profile.id,
-      source_kind: "note",
-      source_id: "learner-note-1",
-      source_title: "Russian Revolution private note",
-      binder_id: "binder-history",
-      binder_title: "The Russian Revolution",
+    expect(mocks.createCloudStudyItem).toHaveBeenCalledTimes(1);
+    const input = mocks.createCloudStudyItem.mock.calls[0][0];
+    expect(input).toMatchObject({
+      ownerId: profile.id,
+      sourceKind: "note",
+      sourceId: "learner-note-1",
+      sourceTitle: "Russian Revolution private note",
+      binderId: "binder-history",
+      binderTitle: "The Russian Revolution",
       type: "free_response",
     });
-    expect(items[0].prompt).toContain("Russian Revolution private note");
-    expect(items[0].answer).toContain("Timeline notes");
-    expect(screen.getByRole("status", { name: "Review Queue status" }).textContent).toContain("Added to Review Queue");
+    expect(input.prompt).toContain("Russian Revolution private note");
+    expect(input.answer).toContain("Timeline notes");
+    await waitFor(() => expect(screen.getByRole("status", { name: "Review Queue status" }).textContent).toContain("Added to Review Queue"));
   });
 
   it("shows beta source metadata and jump-to-source only when a real source exists", () => {

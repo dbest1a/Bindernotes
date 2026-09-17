@@ -15,6 +15,7 @@ afterEach(() => saveQueue.setAccount(null));
 const storageMocks = vi.hoisted(() => ({
   canvas: null as { board: BinderWhiteboard; onSceneChange: (scene: WhiteboardSceneData) => void; onRetireScene: (scene: WhiteboardSceneData) => void } | null,
   deferLoads: false,
+  metadata: null as BinderWhiteboard[] | null,
   pendingLoads: [] as Array<{ boardId: string; resolve: (result: WhiteboardListResult) => void }>,
   pendingSaves: [] as Array<{
     board: BinderWhiteboard;
@@ -40,6 +41,7 @@ vi.mock("@/lib/whiteboards/whiteboard-storage", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/whiteboards/whiteboard-storage")>();
   return {
     ...actual,
+    listWhiteboards: vi.fn((scope, options) => storageMocks.metadata ? Promise.resolve({ boards: storageMocks.metadata, backend: "supabase", status: "loaded", message: "Loaded" }) : actual.listWhiteboards(scope, options)),
     loadWhiteboard: vi.fn((scope, boardId: string) => storageMocks.deferLoads ? new Promise<WhiteboardListResult>((resolve) => storageMocks.pendingLoads.push({ boardId, resolve })) : actual.loadWhiteboard(scope, boardId)),
     saveWhiteboard: vi.fn((board: BinderWhiteboard, options?: { expectedRevision?: number }) =>
       new Promise<WhiteboardSaveResult>((resolve) => {
@@ -164,6 +166,7 @@ describe("WhiteboardModule persistence ordering", () => {
     storageMocks.pendingSaves = [];
     storageMocks.pendingLoads = [];
     storageMocks.deferLoads = false;
+    storageMocks.metadata = null;
     storageMocks.canvas = null;
     window.localStorage.clear();
     vi.useRealTimers();
@@ -262,6 +265,24 @@ describe("WhiteboardModule persistence ordering", () => {
       storageMocks.pendingLoads[0].resolve({ boards: [a], backend: "supabase", status: "loaded", message: "Loaded" });
     });
     expect(storageMocks.canvas!.board.id).toBe("board-b");
+  });
+
+  it("hydrates only the selected metadata row and rejects a late first-board scene", async () => {
+    const a = board([]); const b = { ...board([]), id: "board-b", title: "Board B", scene: { elements: [{ id: "saved-b" }] } };
+    storageMocks.metadata = [a, b].map((item) => ({ ...item, metadataOnly: true, scene: { elements: [] }, modules: [] }));
+    storageMocks.deferLoads = true;
+    renderWhiteboard();
+    await waitFor(() => expect(storageMocks.pendingLoads).toHaveLength(1));
+    expect(screen.queryByTestId("whiteboard-excalidraw-host")).toBeNull();
+    expect(storageMocks.pendingSaves).toHaveLength(0);
+    fireEvent.click(screen.getByTestId("whiteboard-open-board-b"));
+    await act(async () => {
+      storageMocks.pendingLoads[1].resolve({ boards: [b], backend: "supabase", status: "loaded", message: "Loaded" });
+      storageMocks.pendingLoads[0].resolve({ boards: [a], backend: "supabase", status: "loaded", message: "Loaded" });
+    });
+    expect(storageMocks.canvas!.board).toMatchObject({ id: "board-b", scene: { elements: [{ id: "saved-b" }] } });
+    expect(storageMocks.canvas!.board.metadataOnly).not.toBe(true);
+    expect(storageMocks.pendingSaves).toHaveLength(0);
   });
 
   it("offers an explicit remote choice after conflict and remounts the canvas", async () => {

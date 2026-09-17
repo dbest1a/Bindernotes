@@ -31,6 +31,8 @@ export const queryKeys = {
   personalNotes: {
     all: ["personal-notes"] as const,
     forProfile: (profileId: OptionalId) => ["personal-notes", profileId] as const,
+    detail: (profileId: OptionalId, kind: string | undefined, id: OptionalId, updatedAt: string | undefined) =>
+      ["personal-notes", profileId, "content", kind, id, updatedAt] as const,
   },
   historySuite: {
     all: ["history-suite"] as const,

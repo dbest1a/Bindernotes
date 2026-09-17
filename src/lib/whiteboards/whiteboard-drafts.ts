@@ -66,6 +66,7 @@ if (typeof window !== "undefined") {
 }
 
 export function getWhiteboardDraft(board: BinderWhiteboard, selectedBackup?: string) {
+  if (board.metadataOnly) throw new Error("Load the selected whiteboard scene before creating a draft.");
   const key = identity(board);
   let draft = drafts.get(key);
   if (!draft) {
@@ -117,8 +118,17 @@ export function mergeWhiteboardDrafts(boards: BinderWhiteboard[], scope: Whitebo
     }
   } catch { /* Visible controller errors report unavailable device storage. */ }
   drafts.forEach((draft) => { const state = draft.getSnapshot(); if (state.dirty && belongs(state.snapshot)) recovered.set(state.snapshot.id, state.snapshot); });
-  boards.filter((board) => board.ownerId === scope.ownerId).forEach((board) => recovered.set(board.id, board));
-  return [...recovered.values()].map(whiteboardDraftSnapshot);
+  boards.filter((board) => board.ownerId === scope.ownerId).forEach((board) => {
+    if (!board.metadataOnly || !recovered.has(board.id)) recovered.set(board.id, board);
+  });
+  return [...recovered.values()].map((board) => {
+    if (!board.metadataOnly) return whiteboardDraftSnapshot(board);
+    const draft = drafts.get(identity(board));
+    if (draft && (draft.getSnapshot().dirty || draft.getServerRevision() === board.revision)) {
+      return { ...draft.getSnapshot().snapshot, revision: draft.getServerRevision() };
+    }
+    return board;
+  });
 }
 
 export function listWhiteboardBackups(board: BinderWhiteboard) {

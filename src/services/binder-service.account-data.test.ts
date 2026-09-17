@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
 
   type QueryState = {
     filters: QueryFilter[];
+    range?: [number, number];
   };
 
   const state = {
@@ -29,6 +30,8 @@ const mocks = vi.hoisted(() => {
     folders: [] as Folder[],
     folderBinders: [] as FolderBinderLink[],
     lessons: [] as BinderLesson[],
+    summaries: [] as Record<string, unknown>[],
+    metadataError: null as { message: string } | null,
     notes: [] as LearnerNote[],
     comments: [] as Comment[],
     highlights: [] as Highlight[],
@@ -60,9 +63,9 @@ const mocks = vi.hoisted(() => {
           error: null,
         };
       case "binder_lessons":
-        return { data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters), error: null };
+        return { data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters), error: state.metadataError };
       case "dashboard_lesson_summaries":
-        return { data: [], error: null };
+        return { data: applyFilters(state.summaries, query.filters), error: null };
       case "learner_notes":
         return { data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters), error: null };
       case "comments":
@@ -102,12 +105,13 @@ const mocks = vi.hoisted(() => {
         return builder;
       }),
       order: vi.fn(() => builder),
+      range: vi.fn((from: number, to: number) => { query.range = [from, to]; return builder; }),
       maybeSingle: vi.fn(() => {
         const rows = resolveTable(table, query).data;
         return Promise.resolve({ data: rows[0] ?? null, error: null });
       }),
       then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-        Promise.resolve(resolveTable(table, query)).then(resolve, reject),
+        Promise.resolve((() => { const result = resolveTable(table, query); return { ...result, data: query.range ? result.data.slice(query.range[0], query.range[1] + 1) : result.data }; })()).then(resolve, reject),
     };
 
     return builder;
@@ -145,6 +149,8 @@ describe("binder-service account dashboard data", () => {
 
   beforeEach(() => {
     mocks.from.mockClear();
+    mocks.state.summaries = [];
+    mocks.state.metadataError = null;
     mocks.state.binders = [
       {
         id: "binder-jacob-math-notes",
@@ -226,6 +232,19 @@ describe("binder-service account dashboard data", () => {
     expect(dashboard.recentLessons.map((lesson) => lesson.id)).toEqual(
       chemistryShowcaseLessons.slice(0, 6).map((lesson) => lesson.id),
     );
+  });
+
+  it("does not omit lessons when nonempty summaries are partial or stale", async () => {
+    mocks.state.summaries = [{ ...mocks.state.lessons[0], lesson_id: "lesson-demo", title: "Outdated title", updated_at: "2020-01-01", plain_text_excerpt: "Stale body" }];
+    const dashboard = await getDashboard(profile, { includeSystemStatus: false });
+    expect(dashboard.lessons.find((lesson) => lesson.id === "lesson-demo")?.title).toBe("Demo lesson");
+    expect(dashboard.lessons.some((lesson) => lesson.id === "lesson-real")).toBe(true);
+    expect(JSON.stringify(dashboard.lessons)).not.toContain("Stale body");
+  });
+
+  it("surfaces authoritative metadata failure instead of accepting an unverified partial summary", async () => {
+    mocks.state.metadataError = { message: "network failed" };
+    await expect(getDashboard(profile, { includeSystemStatus: false })).rejects.toThrow("complete lesson list");
   });
 
   it("shows the bundled Chemistry 101 + AP Chemistry course in account Chemistry folders without a Supabase seed mirror", async () => {

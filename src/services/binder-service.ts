@@ -1,3 +1,5 @@
+import { readMetadataPages, readMetadataForIds } from "@/lib/metadata-pages";
+import { reconcileLessonSummaries, type LessonMetadata } from "@/lib/dashboard-summary-coverage";
 import type { JSONContent } from "@tiptap/react";
 import { ContentConflictError } from "@/lib/revisioned-save";
 import { supabase, supabaseProjectRef } from "@/lib/supabase";
@@ -104,6 +106,7 @@ const DASHBOARD_BINDER_SELECT = [
   "created_at",
   "updated_at",
 ].join(", ");
+export const DASHBOARD_LESSON_METADATA_SELECT = "id,binder_id,title,order_index,is_preview,created_at,updated_at";
 export const DASHBOARD_LESSON_SUMMARY_SELECT = [
   "lesson_id",
   "binder_id",
@@ -297,20 +300,6 @@ function normalizeDashboardBinder(binder: Binder): Binder {
   return {
     ...binder,
     suite_template_id: binder.suite_template_id ?? inferSuiteTemplateIdFromBinderId(binder.id),
-  };
-}
-
-function lessonFromDashboardSummary(row: DashboardLessonSummaryRow): BinderLesson {
-  return {
-    id: row.lesson_id,
-    binder_id: row.binder_id,
-    title: row.title,
-    order_index: row.order_index,
-    content: emptyDoc(row.plain_text_excerpt ?? ""),
-    math_blocks: [],
-    is_preview: row.is_preview,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
   };
 }
 
@@ -748,31 +737,6 @@ function isSupabaseContentReferenceError(error: unknown) {
     message.includes("foreign key") ||
     details.includes("foreign key") ||
     hint.includes("foreign key")
-  );
-}
-
-function isLearnerNoteFolderReferenceError(error: unknown) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const record = error as {
-    code?: string;
-    message?: string;
-    details?: string;
-    hint?: string;
-  };
-  const message = (record.message ?? "").toLowerCase();
-  const details = (record.details ?? "").toLowerCase();
-  const hint = (record.hint ?? "").toLowerCase();
-
-  return (
-    record.code === "23503" &&
-    (message.includes("learner_notes_folder_id_fkey") ||
-      details.includes("learner_notes_folder_id_fkey") ||
-      hint.includes("learner_notes_folder_id_fkey") ||
-      (message.includes("folders") && message.includes("learner_notes")) ||
-      (details.includes("folders") && details.includes("learner_notes")))
   );
 }
 
@@ -1245,25 +1209,15 @@ export async function getDashboard(
     };
   }
 
-  const bindersQuery =
-    profile.role === "admin"
-      ? supabase.from("binders").select(DASHBOARD_BINDER_SELECT).order("updated_at", { ascending: false })
-      : supabase
-          .from("binders")
-          .select(DASHBOARD_BINDER_SELECT)
-          .eq("status", "published")
-          .order("pinned", { ascending: false })
-          .order("updated_at", { ascending: false });
-
+  const bindersQuery = () => profile.role === "admin"
+    ? supabase!.from("binders").select(DASHBOARD_BINDER_SELECT)
+    : supabase!.from("binders").select(DASHBOARD_BINDER_SELECT).eq("status", "published");
   const [bindersResult, foldersResult, folderBindersResult, notesResult] = await Promise.all([
-    bindersQuery,
-    supabase.from("folders").select("*").order("updated_at", { ascending: false }),
-    supabase.from("folder_binders").select("*"),
-    supabase
-      .from("learner_notes")
-      .select(DASHBOARD_NOTE_SUMMARY_SELECT)
-      .eq("owner_id", profile.id)
-      .order("updated_at", { ascending: false }),
+    readMetadataPages((from, to) => bindersQuery().order("pinned", { ascending: false }).order("updated_at", { ascending: false }).order("id").range(from, to)),
+    readMetadataPages((from, to) => supabase!.from("folders").select("*").order("id").range(from, to)),
+    readMetadataPages((from, to) => supabase!.from("folder_binders").select("*").order("id").range(from, to)),
+    readMetadataPages((from, to) => supabase!.from("learner_notes").select(DASHBOARD_NOTE_SUMMARY_SELECT)
+      .eq("owner_id", profile.id).order("updated_at", { ascending: false }).order("id").range(from, to)),
   ]);
 
   debugWorkspaceQueryFailure({
@@ -1324,44 +1278,31 @@ export async function getDashboard(
   }
 
   const candidateBinderIds = candidateBinders.map((binder) => binder.id);
-  const lessonSummaryResult =
-    candidateBinderIds.length > 0
-      ? await supabase
-          .from("dashboard_lesson_summaries")
-          .select(DASHBOARD_LESSON_SUMMARY_SELECT)
-          .in("binder_id", candidateBinderIds)
-          .order("updated_at", { ascending: false })
-      : { data: [], error: null };
-  let lessonRows = lessonSummaryResult.error
-    ? []
-    : ((lessonSummaryResult.data ?? []) as DashboardLessonSummaryRow[]).map(lessonFromDashboardSummary);
-  let lessonsError = lessonSummaryResult.error;
-  let lessonsDebugTable = "dashboard_lesson_summaries";
-  let lessonsDebugSelect = DASHBOARD_LESSON_SUMMARY_SELECT;
-  let lessonsUsedSummary = !lessonSummaryResult.error;
-
-  if (candidateBinderIds.length > 0 && (lessonSummaryResult.error || lessonRows.length === 0)) {
+  const [lessonSummaryResult, lessonMetadataResult] = candidateBinderIds.length > 0
+    ? await Promise.all([
+      readMetadataForIds(candidateBinderIds, (ids, from, to) => supabase!.from("dashboard_lesson_summaries")
+        .select(DASHBOARD_LESSON_SUMMARY_SELECT).in("binder_id", ids).order("lesson_id").range(from, to)),
+      readMetadataForIds(candidateBinderIds, (ids, from, to) => supabase!.from("binder_lessons")
+        .select(DASHBOARD_LESSON_METADATA_SELECT).in("binder_id", ids).order("id").range(from, to)),
+    ]) : [{ data: [], error: null }, { data: [], error: null }];
+  // A failed metadata read cannot establish that missing summaries mean no lessons.
+  if (lessonMetadataResult.error) throw new Error("The complete lesson list could not be loaded. Please retry.");
+  const coverage = reconcileLessonSummaries(
+    (lessonMetadataResult.data ?? []) as unknown as LessonMetadata[],
+    (lessonSummaryResult.data ?? []) as unknown as DashboardLessonSummaryRow[],
+  );
+  const lessonRows = coverage.lessons;
+  const lessonsError = lessonMetadataResult.error;
+  const lessonsDebugTable = "binder_lessons";
+  const lessonsDebugSelect = DASHBOARD_LESSON_METADATA_SELECT;
+  const lessonsUsedSummary = !lessonSummaryResult.error && coverage.complete;
+  if (!lessonsUsedSummary) {
     debugWorkspaceQueryInfo({
-      event: "dashboard_summary_fallback",
-      table: "dashboard_lesson_summaries",
-      select: DASHBOARD_LESSON_SUMMARY_SELECT,
-      filters: [`binder_id in (${candidateBinderIds.join(", ")})`, "order updated_at desc"],
-      reason: lessonSummaryResult.error ? "summary_query_failed" : "missing_summary_rows",
-      fallbackTable: "binder_lessons",
-      rowCount: lessonRows.length,
-      userId: profile.id,
+      event: "dashboard_summary_fallback", table: "dashboard_lesson_summaries", select: DASHBOARD_LESSON_SUMMARY_SELECT,
+      filters: ["binder_id in (" + candidateBinderIds.join(", ") + ")"],
+      reason: lessonSummaryResult.error ? "summary_query_failed" : "missing_summary_rows_or_stale_coverage",
+      fallbackTable: "binder_lessons", rowCount: coverage.repaired, userId: profile.id,
     });
-
-    const fullLessonsResult = await supabase
-      .from("binder_lessons")
-      .select("*")
-      .in("binder_id", candidateBinderIds)
-      .order("updated_at", { ascending: false });
-    lessonRows = fullLessonsResult.error ? [] : ((fullLessonsResult.data ?? []) as BinderLesson[]);
-    lessonsError = fullLessonsResult.error;
-    lessonsDebugTable = "binder_lessons";
-    lessonsDebugSelect = "*";
-    lessonsUsedSummary = false;
   }
 
   debugWorkspaceQueryFailure({
@@ -1372,7 +1313,7 @@ export async function getDashboard(
         ? [
             `binder_id in (${candidateBinderIds.join(", ")})`,
             "order updated_at desc",
-            lessonsUsedSummary ? "source = summaries" : "source = full fallback",
+            lessonsUsedSummary ? "source = summaries" : "source = authoritative metadata",
           ]
         : ["no binder ids"],
     error: lessonsError,

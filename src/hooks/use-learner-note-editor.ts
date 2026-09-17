@@ -78,7 +78,7 @@ export function useLearnerNoteEditor(options: {
 
   useEffect(() => {
     if (!editor || !options.note || editor.save.getSnapshot().dirty) return;
-    if (options.note.id !== editor.save.getSnapshot().snapshot.id && !adoptedNote) {
+    if (options.note.id !== editor.save.getSnapshot().snapshot.id && adoptedNote?.scope !== scope) {
       editor.save.retire(); editors.delete(scope); setAdoptedNote({ scope, note: options.note }); return;
     }
     if (contentRevision(options.note) <= editor.save.getServerRevision()) return;

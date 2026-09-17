@@ -112,7 +112,7 @@ describe("Supabase backend performance layer", () => {
     expect(DASHBOARD_NOTE_SUMMARY_SELECT).not.toContain("math_blocks");
   });
 
-  it("keeps the dashboard full-lesson fallback explicit and trackable during rollout", () => {
+  it("checks authoritative metadata coverage without a full-body fallback", () => {
     const source = binderServiceSource();
     const summaryReadIndex = source.indexOf('.from("dashboard_lesson_summaries")');
     const fallbackReadIndex = source.indexOf('.from("binder_lessons")', summaryReadIndex);
@@ -120,7 +120,9 @@ describe("Supabase backend performance layer", () => {
     expect(summaryReadIndex).toBeGreaterThan(-1);
     expect(fallbackReadIndex).toBeGreaterThan(summaryReadIndex);
     expect(source).toContain("dashboard_summary_fallback");
-    expect(source).toContain("missing_summary_rows");
+    expect(source).toContain("missing_summary_rows_or_stale_coverage");
+    expect(source).toContain("reconcileLessonSummaries(");
+    expect(source).toContain(".select(DASHBOARD_LESSON_METADATA_SELECT)");
     expect(source).toContain("summary_query_failed");
     expect(source).toContain("DASHBOARD_NOTE_SUMMARY_SELECT");
   });

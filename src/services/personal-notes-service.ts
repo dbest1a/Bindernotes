@@ -1,3 +1,5 @@
+import { readMetadataPages, readMetadataForIds } from "@/lib/metadata-pages";
+import { editorDocumentSchema, mathBlockSchema } from "@/lib/personal-content-contract";
 import type { JSONContent } from "@tiptap/react";
 import { ContentConflictError } from "@/lib/revisioned-save";
 import { supabase } from "@/lib/supabase";
@@ -18,9 +20,18 @@ import type {
   PersonalNoteDocument,
   PersonalNoteFolder,
   PersonalNotesData,
+  PersonalNotesEntry,
   PersonalNotesLoadIssue,
   Profile,
 } from "@/types";
+
+export const LEARNER_NOTE_METADATA_SELECT = "id,owner_id,binder_id,lesson_id,folder_id,title,pinned,revision,created_at,updated_at";
+export const PERSONAL_NOTE_METADATA_SELECT = "id,owner_id,title,folder_id,binder_id,document_id,tags,pinned,revision,archived_at,created_at,updated_at";
+export const PERSONAL_DOCUMENT_METADATA_SELECT = "id,owner_id,binder_id,title,tags,pinned,revision,archived_at,created_at,updated_at";
+const LESSON_METADATA_SELECT = "id,binder_id,title,order_index,is_preview,created_at,updated_at";
+function metadataContent<T>(row: T): T & { content: JSONContent; math_blocks: [] } {
+  return { ...row, content: emptyDoc(""), math_blocks: [] };
+}
 
 const now = () => new Date().toISOString();
 
@@ -97,51 +108,19 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
   }
 
   const learnerNotes = await getBinderLinkedLearnerNotes(profile);
-  const [
-    personalNotesResult,
-    personalFoldersResult,
-    personalBindersResult,
-    personalDocumentsResult,
-  ] = await Promise.all([
-    readPersonalTable<PersonalNote>(
-      "personal_notes",
-      supabase
-        .from("personal_notes")
-        .select("*")
-        .eq("owner_id", profile.id)
-        .is("archived_at", null)
-        .order("updated_at", { ascending: false }),
-    ),
-    readPersonalTable<PersonalNoteFolder>(
-      "personal_note_folders",
-      supabase
-        .from("personal_note_folders")
-        .select("*")
-        .eq("owner_id", profile.id)
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("updated_at", { ascending: false }),
-    ),
-    readPersonalTable<PersonalNoteBinder>(
-      "personal_note_binders",
-      supabase
-        .from("personal_note_binders")
-        .select("*")
-        .eq("owner_id", profile.id)
-        .order("pinned", { ascending: false })
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("updated_at", { ascending: false }),
-    ),
-    readPersonalTable<PersonalNoteDocument>(
-      "personal_note_documents",
-      supabase
-        .from("personal_note_documents")
-        .select("*")
-        .eq("owner_id", profile.id)
-        .is("archived_at", null)
-        .order("pinned", { ascending: false })
-        .order("updated_at", { ascending: false }),
-    ),
+  const pageTable = (table: string, select: string, active = false) => readMetadataPages((from, to) => {
+    let query = supabase!.from(table).select(select).eq("owner_id", profile.id);
+    if (active) query = query.is("archived_at", null);
+    return query.order("id").range(from, to);
+  });
+  const [personalNotesResult, personalFoldersResult, personalBindersResult, personalDocumentsResult] = await Promise.all([
+    readPersonalTable<PersonalNote>("personal_notes", pageTable("personal_notes", PERSONAL_NOTE_METADATA_SELECT, true)),
+    readPersonalTable<PersonalNoteFolder>("personal_note_folders", pageTable("personal_note_folders", "*")),
+    readPersonalTable<PersonalNoteBinder>("personal_note_binders", pageTable("personal_note_binders", "*")),
+    readPersonalTable<PersonalNoteDocument>("personal_note_documents", pageTable("personal_note_documents", PERSONAL_DOCUMENT_METADATA_SELECT, true)),
   ]);
+  personalNotesResult.data = personalNotesResult.data.map(metadataContent);
+  personalDocumentsResult.data = personalDocumentsResult.data.map(metadataContent);
 
   const binderIds = [...new Set(learnerNotes.map((note) => note.binder_id))];
   const lessonIds = [...new Set(learnerNotes.map((note) => note.lesson_id))];
@@ -149,13 +128,13 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
 
   const [bindersResult, lessonsResult, foldersResult] = await Promise.all([
     binderIds.length
-      ? supabase.from("binders").select("*").in("id", binderIds)
+      ? readMetadataForIds(binderIds, (ids, from, to) => supabase!.from("binders").select("*").in("id", ids).order("id").range(from, to))
       : Promise.resolve({ data: [], error: null }),
     lessonIds.length
-      ? supabase.from("binder_lessons").select("*").in("id", lessonIds)
+      ? readMetadataForIds(lessonIds, (ids, from, to) => supabase!.from("binder_lessons").select(LESSON_METADATA_SELECT).in("id", ids).order("id").range(from, to))
       : Promise.resolve({ data: [], error: null }),
     folderIds.length
-      ? supabase.from("folders").select("*").in("id", folderIds)
+      ? readMetadataForIds(folderIds, (ids, from, to) => supabase!.from("folders").select("*").in("id", ids).order("id").range(from, to))
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -164,12 +143,7 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
     throw referenceError;
   }
 
-  let workspaceData: Pick<PersonalNotesData, "binders" | "folders" | "folderBinders" | "lessons"> = {
-    binders: [],
-    folders: [],
-    folderBinders: [],
-    lessons: [],
-  };
+  let workspaceData: Pick<PersonalNotesData, "binders" | "folders" | "folderBinders" | "lessons">;
   try {
     const dashboard = await getDashboard(profile, { includeSystemStatus: false });
     workspaceData = {
@@ -191,7 +165,7 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
   const lessons = mergeById(workspaceData.lessons, (lessonsResult.data ?? []) as BinderLesson[]);
   const folders = mergeById(workspaceData.folders, (foldersResult.data ?? []) as Folder[]);
 
-  return buildPersonalNotesData({
+  const workspace = buildPersonalNotesData({
     learnerNotes,
     ...activePersonalTree({
       personalNotes: personalNotesResult.data,
@@ -210,23 +184,33 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
       personalDocumentsResult.issue,
     ].filter(Boolean) as PersonalNotesLoadIssue[],
   });
+  return { ...workspace, entries: workspace.entries.map((entry) => ({ ...entry, contentLoaded: false, excerpt: "Open to load content" })) };
 }
 
 export const getPersonalNotesData = getPersonalNotesWorkspace;
 
 export async function getBinderLinkedLearnerNotes(profile: Profile): Promise<LearnerNote[]> {
   const client = requireSupabase();
-  const { data, error } = await client
-    .from("learner_notes")
-    .select("*")
-    .eq("owner_id", profile.id)
-    .order("updated_at", { ascending: false });
+  const { data, error } = await readMetadataPages((from, to) => client
+    .from("learner_notes").select(LEARNER_NOTE_METADATA_SELECT)
+    .eq("owner_id", profile.id).order("id").range(from, to));
+  if (error) throw error;
+  return (data ?? []).map(metadataContent) as LearnerNote[];
+}
 
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? []) as LearnerNote[];
+export async function getPersonalNoteEntryContent(entry: PersonalNotesEntry, ownerId: string, signal?: AbortSignal): Promise<PersonalNotesEntry> {
+  if (entry.note.owner_id !== ownerId) throw new Error("This note belongs to a different account.");
+  const table = entry.kind === "binder-note" ? "learner_notes" : entry.kind === "personal-document" ? "personal_note_documents" : "personal_notes";
+  let query = requireSupabase().from(table).select("*").eq("owner_id", ownerId).eq("id", entry.id);
+  if (table !== "learner_notes") query = query.is("archived_at", null);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query.single();
+  if (error) throw error;
+  if (!data || data.id !== entry.id || data.owner_id !== ownerId) throw new Error("The selected note could not be loaded.");
+  const content = editorDocumentSchema.parse(data.content);
+  const mathBlocks = mathBlockSchema.array().parse(data.math_blocks ?? []);
+  return { ...entry, note: { ...data, content, math_blocks: mathBlocks }, title: data.title, content, math_blocks: mathBlocks,
+    pinned: data.pinned, tags: data.tags ?? [], updated_at: data.updated_at, contentLoaded: true };
 }
 
 export async function createPersonalNoteFolder(input: {

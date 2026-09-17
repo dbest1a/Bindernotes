@@ -25,7 +25,7 @@ export function usePersonalContentEditor(entry: PersonalNotesEntry | null, owner
   const queryClient = useQueryClient();
   const identity = entry ? `${entry.kind}:${entry.id}` : "";
   const editor = useMemo(() => {
-    if (!entry || !ownerId) return null;
+    if (!entry || entry.contentLoaded === false || !ownerId) return null;
     const key = `${ownerId}:${identity}`;
     let existing = editors.get(key);
     if (!existing) {
@@ -48,8 +48,14 @@ export function usePersonalContentEditor(entry: PersonalNotesEntry | null, owner
       editors.set(key, existing);
     }
     return existing;
-  }, [identity, ownerId, queryClient]);
+  }, [identity, entry?.contentLoaded, ownerId, queryClient]);
   const state = useSyncExternalStore(editor?.subscribe ?? noopSubscribe, editor?.getSnapshot ?? getEmpty, getEmpty);
+
+  useEffect(() => {
+    if (!editor || !entry || entry.contentLoaded === false || !ownerId || editor.getSnapshot().dirty) return;
+    const revision = contentRevision(entry.note);
+    if (revision > editor.getServerRevision()) editor.useRemote(personalContentFromEntry(entry, ownerId), revision);
+  }, [editor, entry, ownerId]);
 
   useEffect(() => {
     if (autosave) editor?.schedule();

@@ -148,6 +148,8 @@ export type PersonalNotesAnnotatorMode = "off" | "floating" | "hotkeys" | "top" 
 export type PersonalNotesSidebarNavigationMode = "project-tree" | "scope-drill-in";
 
 export type PersonalNotesEntry = {
+  /** False for collection metadata; the editor must load the selected body first. */
+  contentLoaded?: boolean;
   kind: PersonalNotesEntryKind;
   id: string;
   title: string;

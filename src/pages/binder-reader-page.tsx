@@ -106,12 +106,11 @@ import {
   getWorkspaceModuleMinimumSize,
   WORKSPACE_MAX_CANVAS_HEIGHT,
 } from "@/lib/workspace-layout-engine";
-import { emptyDoc } from "@/lib/utils";
 import {
   scheduleUserRecentItem,
   scheduleWorkspaceActivityEvent,
 } from "@/services/activity-service";
-import { createStudyItem } from "@/services/study-items-service";
+import { createCloudStudyItem } from "@/services/canonical-review-service";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
   BinderNotebookLessonEntry,
@@ -219,6 +218,7 @@ export function BinderReaderPage() {
   const [activeHistoryEventId, setActiveHistoryEventId] = useState<string | null>(null);
   const [activeHistorySourceId, setActiveHistorySourceId] = useState<string | null>(null);
   const [presetLoadError, setPresetLoadError] = useState<Error | null>(null);
+  const [reviewSaveMessage, setReviewSaveMessage] = useState("");
   const workspaceRootRef = useRef<HTMLElement | null>(null);
   const handledWhiteboardOpenIntentRef = useRef<string | null>(null);
   const revampLessonEntryGuardRef = useRef<string | null>(null);
@@ -1796,7 +1796,6 @@ export function BinderReaderPage() {
       ),
     [selectedLesson],
   );
-  const selectedLessonTitle = selectedLesson?.title ?? "Study notes";
   const notebookStructure = useMemo<{
     entries: BinderNotebookLessonEntry[];
     sections: BinderNotebookSection[];
@@ -1947,12 +1946,12 @@ export function BinderReaderPage() {
   );
 
   const handleAddSelectionToReview = useCallback(
-    (selection: LessonTextSelection) => {
+    async (selection: LessonTextSelection) => {
       if (!profile?.id || !binderQuery.data || !selectedLesson || !selection.text.trim()) {
         return;
       }
 
-      createStudyItem({
+      try { await createCloudStudyItem({
         answer: selection.text.trim(),
         betaEnabled: reviewQueueBeta,
         binderId: binderQuery.data.binder.id,
@@ -1965,6 +1964,8 @@ export function BinderReaderPage() {
         sourceTitle: selectedLesson.title,
         type: "highlight_recall",
       });
+      setReviewSaveMessage("Source passage saved to your account's Review Queue.");
+      } catch (error) { setReviewSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
     },
     [binderQuery.data, profile?.id, reviewQueueBeta, selectedLesson],
   );
@@ -2659,6 +2660,7 @@ export function BinderReaderPage() {
       data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
+      {reviewSaveMessage && <p className="rounded-lg border bg-background p-3 text-sm" role="status">{reviewSaveMessage}</p>}
       {noteEditor.state === "conflict" ? (
         <section className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-background p-4" role="alert">
           <p>This lesson note changed in another tab. Your draft is preserved.</p>

@@ -56,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PersonalNotesTrash } from "@/components/personal-notes-trash";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { useAuth } from "@/hooks/use-auth";
+import { usePersonalEntryContent } from "@/hooks/use-personal-entry-content";
 import { usePersonalContentEditor } from "@/hooks/use-personal-content-editor";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
@@ -70,9 +71,8 @@ import {
   getPersonalNoteSourceReferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
-import { emptyDoc } from "@/lib/utils";
 import { extractPlainText } from "@/lib/workspace-records";
-import { createStudyItem } from "@/services/study-items-service";
+import { createCloudStudyItem } from "@/services/canonical-review-service";
 import type {
   Binder,
   BinderLesson,
@@ -310,10 +310,12 @@ export function PersonalNotesPage() {
     ? `${selectedNotebookBinder.scopeLabel} / ${selectedNotebookBinder.title}`
     : selectedNotebookScope?.label ?? (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`);
   const routeSelectedId = params.noteId ?? params.documentId ?? null;
-  const selectedEntry = useMemo(() => {
+  const selectedMetadataEntry = useMemo(() => {
     const wanted = routeSelectedId ?? selectedId;
     return filteredEntries.find((entry) => entry.id === wanted) ?? filteredEntries[0] ?? null;
   }, [filteredEntries, routeSelectedId, selectedId]);
+  const contentQuery = usePersonalEntryContent(selectedMetadataEntry, profile?.id);
+  const selectedEntry = contentQuery.data;
   const editor = usePersonalContentEditor(selectedEntry, profile?.id ?? null, preferences.autosave);
   const draftTitle = editor.snapshot.title;
   const draftContent = editor.snapshot.content;
@@ -636,7 +638,7 @@ export function PersonalNotesPage() {
     }
   };
 
-  const addSelectedNoteToReview = useCallback(() => {
+  const addSelectedNoteToReview = useCallback(async () => {
     if (!profile?.id || !selectedEntry || !reviewQueueBeta) {
       return;
     }
@@ -646,7 +648,7 @@ export function PersonalNotesPage() {
     const answer = plainText || noteTitle;
 
     try {
-      createStudyItem({
+      await createCloudStudyItem({
         answer,
         betaEnabled: reviewQueueBeta,
         binderId: selectedEntry.sourceBinderId ?? selectedEntry.personalBinderId ?? null,
@@ -666,12 +668,18 @@ export function PersonalNotesPage() {
   }, [draftContent, draftTitle, profile?.id, reviewQueueBeta, selectedEntry]);
 
   useEffect(() => {
-    if (searchParams.get("action") === "new-note" && !selectedEntry && !isLoading) {
+    if (searchParams.get("action") === "new-note" && !selectedMetadataEntry && !isLoading) {
       void createLooseNote();
     }
-  }, [createLooseNote, isLoading, searchParams, selectedEntry]);
+  }, [createLooseNote, isLoading, searchParams, selectedMetadataEntry]);
 
-  const editorPanel = (
+  const editorPanel = contentQuery.loadingContent ? (
+    <p role="status" className="p-6">Loading note content…</p>
+  ) : selectedMetadataEntry && contentQuery.isError && !selectedEntry ? (
+    <div role="alert" className="p-6"><p>The note content could not be loaded. Your saved note is unchanged.</p>
+      <Button onClick={() => void contentQuery.refetch()} type="button">Retry loading note</Button>
+    </div>
+  ) : (
     <>
       {editor.backups.length ? (
         <details className="m-3 rounded-md border p-3">

@@ -19,6 +19,14 @@ beforeEach(() => {
 afterEach(() => { saveQueue.setAccount(null); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("durable whiteboard drafts", () => {
+  it("never creates a save controller from unloaded metadata and preserves a dirty scene across metadata refresh", () => {
+    const metadata = { ...board(), metadataOnly: true };
+    expect(() => getWhiteboardDraft(metadata)).toThrow("selected whiteboard scene");
+    expect(mergeWhiteboardDrafts([metadata], { ownerId: "owner", binderId: "binder", lessonId: "lesson" })).toEqual([metadata]);
+    const draft = getWhiteboardDraft(board());
+    draft.edit((value) => ({ ...value, scene: { elements: [{ id: "unsaved-stroke" }] } }), false);
+    expect(mergeWhiteboardDrafts([{ ...metadata, revision: 10 }], { ownerId: "owner", binderId: "binder", lessonId: "lesson" })[0].scene.elements).toEqual([{ id: "unsaved-stroke" }]);
+  });
   it("captures immutable per-board scenes before the debounce and survives navigation", async () => {
     vi.useFakeTimers();
     const a = getWhiteboardDraft(board()); const b = getWhiteboardDraft(board("board-b"));

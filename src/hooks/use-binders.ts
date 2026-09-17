@@ -211,7 +211,7 @@ export function useBinderOverview(binderId: string | undefined, profile: Profile
   });
 }
 
-export function useLearnerNoteMutation(profile: Profile | null, binderId?: string) {
+export function useLearnerNoteMutation(profile: Profile | null, _binderId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
