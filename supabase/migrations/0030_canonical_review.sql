@@ -35,7 +35,7 @@ create function private.require_review_time(p_value jsonb) returns void
 language plpgsql set search_path='' as $$
 begin
   if jsonb_typeof(p_value) is distinct from 'string'
-    or (p_value#>>'{}') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})$'
+    or (p_value#>>'{}') !~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$'
     or not isfinite((p_value#>>'{}')::timestamptz) then raise exception 'INVALID_REVIEW_TIME' using errcode='22023'; end if;
 end;
 $$;

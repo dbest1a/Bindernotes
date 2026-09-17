@@ -27,6 +27,7 @@ function editorFor(saved: SavedReviewRecord) {
   let editor = editors.get(key);
   if (!editor) {
     editor = new RevisionedSave<Edit>({
+      metricOperation: "review_save",
       ownerId, entityKey: id, snapshot: { record: saved.record, events: [] }, serverRevision: saved.revision,
       storage: {
         read() {
