@@ -34,13 +34,15 @@ export async function runAssetCases({ sql, concurrentSql, roleSql, as, users }) 
     as(null, `select count(*) from storage.objects where bucket_id='private-assets';`, "anon"),
     "0",
   );
-  assert.equal(
-    as(
-      users.b,
-      `with removed as(delete from storage.objects where bucket_id='private-assets' returning id) select count(*) from removed;`,
-    ),
-    "0",
-  );
+  const foreignDelete = `with removed as(delete from storage.objects where bucket_id='private-assets' returning id) select count(*) from removed;`;
+  // Current Storage has a statement-level direct-DELETE guard, even when RLS
+  // would remove zero rows. Assert it, then test RLS under the exact transaction
+  // setting used by Storage's own API. Do not disable triggers or bypass RLS.
+  // https://github.com/supabase/storage/blob/master/migrations/tenant/0055-prevent-direct-deletes.sql
+  if (sql("select to_regprocedure('storage.protect_delete()') is not null;") === "t")
+    assert.throws(() => as(users.b, foreignDelete), /Direct deletion from storage tables is not allowed/);
+  const storageApiDelete = (statement) => `set local storage.allow_delete_query='true';${statement}`;
+  assert.equal(as(users.b, storageApiDelete(foreignDelete)), "0");
   assert.throws(
     () =>
       as(
@@ -60,7 +62,9 @@ export async function runAssetCases({ sql, concurrentSql, roleSql, as, users }) 
   );
   as(
     null,
-    `delete from storage.objects where bucket_id='private-assets' and name='${path}';select public.finish_user_asset_deletion('${id}','${users.a}');`,
+    storageApiDelete(
+      `delete from storage.objects where bucket_id='private-assets' and name='${path}';select public.finish_user_asset_deletion('${id}','${users.a}');`,
+    ),
     "service_role",
   );
   assert.equal(sql(`select count(*) from public.user_assets where id='${id}';`), "0");
@@ -99,7 +103,9 @@ export async function runAssetCases({ sql, concurrentSql, roleSql, as, users }) 
   );
   as(
     users.admin,
-    "insert into storage.objects(bucket_id,name) values('tutorial-videos','operator.mp4');delete from storage.objects where bucket_id='tutorial-videos' and name='operator.mp4';",
+    storageApiDelete(
+      "insert into storage.objects(bucket_id,name) values('tutorial-videos','operator.mp4');delete from storage.objects where bucket_id='tutorial-videos' and name='operator.mp4';",
+    ),
   );
   const competing = await Promise.all(
     Array.from({ length: 12 }, () =>
