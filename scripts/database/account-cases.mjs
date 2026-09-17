@@ -54,6 +54,31 @@ export async function runAccountCases({ sql, concurrentSql, roleSql, as, json })
     () => sql(`update public.quiz_sets set user_id='${owner}' where id='${catalogQuiz}';`),
     /QUIZ_SHARED_ATTEMPTS_REQUIRE_TRANSFER/,
   );
+  const racingQuiz = "quiz-owner-race-" + randomUUID();
+  sql(`insert into public.quiz_sets(id,user_id,title) values('${racingQuiz}',null,'Concurrent catalog');`);
+  const [quizTransfer, quizAttempt] = await Promise.all([
+    concurrentSql(
+      roleSql(
+        "service_role",
+        null,
+        `update public.quiz_sets set user_id='${owner}' where id='${racingQuiz}';select pg_sleep(0.15);`,
+      ),
+    ),
+    concurrentSql(
+      roleSql(
+        "service_role",
+        null,
+        `insert into public.quiz_attempts(id,user_id,quiz_set_id) values('${randomUUID()}','${other}','${racingQuiz}');select pg_sleep(0.15);`,
+      ),
+    ),
+  ]);
+  assert.equal(
+    [quizTransfer, quizAttempt].filter((result) => result.status === 0).length,
+    1,
+    "Quiz ownership transfer and foreign attempt cannot both commit",
+  );
+  if (quizTransfer.status === 0) assert.match(quizAttempt.stderr, /PRIVATE_PARENT_OWNERSHIP/);
+  else assert.match(quizTransfer.stderr, /QUIZ_SHARED_ATTEMPTS_REQUIRE_TRANSFER/);
   const record = {
     id: note,
     title: "Private deletion fixture",
@@ -106,6 +131,64 @@ export async function runAccountCases({ sql, concurrentSql, roleSql, as, json })
   // Explicit fixture transfer mirrors the required operator workflow; no student
   // records are deleted to make the account test proceed.
   sql(`update public.binders set owner_id='${other}' where id='${shared}';`);
+  // A legitimate cross-owner reply must survive its parent's account deletion.
+  // Catalog-derived edges also cover legacy mismatches in lab/report, whiteboard
+  // and History parent chains without rewriting any existing student record.
+  const parentComment = randomUUID(),
+    reply = randomUUID();
+  sql(
+    `insert into public.comments(id,owner_id,binder_id,lesson_id,body) values('${parentComment}','${owner}','${shared}','${shared}-lesson','Parent');insert into public.comments(id,owner_id,binder_id,lesson_id,parent_id,body) values('${reply}','${other}','${shared}','${shared}-lesson','${parentComment}','Foreign reply');`,
+  );
+  assert.throws(
+    () =>
+      as(
+        null,
+        `select public.begin_account_deletion('${owner}','${randomUUID()}',null,null);`,
+        "service_role",
+      ),
+    /ACCOUNT_SHARED_CONTENT_REQUIRES_TRANSFER/,
+  );
+  assert.equal(sql(`select body from public.comments where id='${reply}';`), "Foreign reply");
+  sql(`update public.comments set owner_id='${other}' where id='${parentComment}';`);
+  const edges = Number(sql("select count(*) from private.account_owned_cascade_edges();"));
+  assert(edges >= 20, "Guard must discover all existing single-column owned cascade edges");
+  assert.equal(
+    Number(
+      sql(
+        "select count(*) from pg_trigger where tgname like 'account_cascade_guard_%' and not tgisinternal;",
+      ),
+    ),
+    edges,
+  );
+  const commentOwner = randomUUID(),
+    raceParent = randomUUID(),
+    raceReply = randomUUID();
+  sql(
+    `insert into auth.users(id,email) values('${commentOwner}','comment-${commentOwner}@disposable.invalid');insert into public.comments(id,owner_id,binder_id,lesson_id,body) values('${raceParent}','${commentOwner}','${shared}','${shared}-lesson','Concurrent parent');`,
+  );
+  const [commentDeletion, commentAttachment] = await Promise.all([
+    concurrentSql(
+      roleSql(
+        "service_role",
+        null,
+        `select public.begin_account_deletion('${commentOwner}','${randomUUID()}',null,null);select pg_sleep(0.15);`,
+      ),
+    ),
+    concurrentSql(
+      roleSql(
+        "service_role",
+        null,
+        `insert into public.comments(id,owner_id,binder_id,lesson_id,parent_id,body) values('${raceReply}','${other}','${shared}','${shared}-lesson','${raceParent}','Concurrent reply');select pg_sleep(0.15);`,
+      ),
+    ),
+  ]);
+  assert.equal(
+    [commentDeletion, commentAttachment].filter((result) => result.status === 0).length,
+    1,
+    "A foreign comment attachment and parent account deletion cannot both commit",
+  );
+  if (commentDeletion.status === 0) assert.match(commentAttachment.stderr, /SHARED_SOURCE_ACCOUNT_DELETING/);
+  else assert.match(commentDeletion.stderr, /ACCOUNT_SHARED_CONTENT_REQUIRES_TRANSFER/);
   // Competing source attachment vs deletion cannot commit together. This uses
   // separate real PostgreSQL transactions, including privileged background writes.
   for (let attempt = 0; attempt < 2; attempt++) {

@@ -170,6 +170,16 @@ try {
   console.log(
     "PASS: complete actual repository system+math seed payload, twice, through trusted transaction",
   );
+  const chemistry = fixture.binders.find((binder) => binder.slug === "chemistry-101-ap-chemistry");
+  assert(chemistry, "Trusted payload must include Chemistry");
+  assert.equal(sql(`select count(*) from public.binder_lessons where binder_id='${chemistry.id}';`), "77");
+  assert.equal(
+    sql(
+      `select role from public.profiles where id=(select owner_id from public.binders where id='${chemistry.id}');`,
+    ),
+    "admin",
+  );
+  console.log("PASS: trusted operator-owned Chemistry catalog persists all77 lessons");
   const typeCheck = spawnSync(
     process.execPath,
     [path.join(projectRoot, "scripts/database/generate-types.mjs"), `--database=${db}`, "--check"],
