@@ -1,3 +1,5 @@
+import { timedSaveMetric } from "./operation-metrics";
+import type { OperationMetric } from "./telemetry-contract";
 /** A request keeps its identity through uncertain failures and reloads. */
 export type SaveOperation<T> = {
   operationId: string;
@@ -44,6 +46,7 @@ export class RevisionedSave<T> {
   private active = true;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running: Promise<void> | null = null;
+  private retryCount = 0;
 
   constructor(private readonly options: {
     ownerId: string;
@@ -55,6 +58,7 @@ export class RevisionedSave<T> {
     online?: () => boolean;
     createOperationId?: () => string;
     delay?: number;
+    metricOperation?: OperationMetric["operation"];
   }) {
     this.draft = {
       version: 1, ownerId: options.ownerId, entityKey: options.entityKey,
@@ -117,6 +121,7 @@ export class RevisionedSave<T> {
     while (this.active && this.draft.localRevision !== this.draft.savedRevision) {
       if (!(this.options.online?.() ?? (typeof navigator === "undefined" || navigator.onLine))) {
         this.publish({ state: "offline", error: this.view.durable ? "Offline. Your draft is backed up on this device." : this.storageError() });
+        timedSaveMetric(this.options.metricOperation ?? "content_save", this.retryCount, this.draft.snapshot)("offline");
         return;
       }
       const operation = this.draft.pending ?? {
@@ -128,6 +133,7 @@ export class RevisionedSave<T> {
       this.draft.pending = operation;
       const durable = this.persist();
       this.publish({ state: "saving", durable, error: durable ? null : this.storageError() });
+      const measure = timedSaveMetric(this.options.metricOperation ?? "content_save", this.retryCount, operation.snapshot);
       try {
         const result = await this.options.write(structuredClone(operation));
         if (!this.active) return;
@@ -137,11 +143,15 @@ export class RevisionedSave<T> {
         this.draft.serverRevision = result.revision;
         this.draft.savedRevision = operation.localRevision;
         this.draft.pending = null;
+        this.retryCount = 0;
         const persisted = this.persist();
         this.publish({ state: this.draft.localRevision === operation.localRevision ? "saved" : "pending", durable: persisted, error: persisted ? null : this.storageError() });
+        measure(persisted ? "saved" : "device_storage_failed");
       } catch (error) {
         if (!this.active) return;
         this.publish({ state: error instanceof ContentConflictError ? "conflict" : "error", error: error instanceof Error ? error.message : "The save failed. Your draft is still available; retry or copy it." });
+        this.retryCount++;
+        measure(error instanceof ContentConflictError ? "conflict" : "failed");
         return;
       }
     }
