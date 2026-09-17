@@ -19,7 +19,9 @@ describe("useMathWorkspace graph modes", () => {
     expect(result.current.setCurrentGraphState).not.toBe(retiredCallback);
     act(() => retiredCallback(oldGraph));
     expect(result.current.state.currentGraphState).toBeNull();
-    expect(window.localStorage.getItem("binder-notes:math-lab:v3:user-1:lesson-B")).not.toContain("private-A");
+    expect(window.localStorage.getItem("binder-notes:math-lab:v3:user-1:lesson-B")).not.toContain(
+      "private-A",
+    );
     rerender({ scope: "lesson-A" });
     act(() => retiredCallback(oldGraph));
     expect(result.current.state.currentGraphState).toBeNull();
@@ -33,10 +35,9 @@ describe("useMathWorkspace graph modes", () => {
   ])("never writes previous private state into $user/$scope", (nextScope) => {
     const nextKey = `binder-notes:math-lab:v3:${nextScope.user}:${nextScope.scope}`;
     window.localStorage.setItem(nextKey, JSON.stringify({ calculatorExpression: "B existing" }));
-    const { result, rerender } = renderHook(
-      ({ user, scope }) => useMathWorkspace(user, scope),
-      { initialProps: { user: "user-1", scope: "lesson-1" } },
-    );
+    const { result, rerender } = renderHook(({ user, scope }) => useMathWorkspace(user, scope), {
+      initialProps: { user: "user-1", scope: "lesson-1" },
+    });
     act(() => result.current.setExpression("A private expression"));
     const writes = vi.spyOn(Storage.prototype, "setItem");
     rerender(nextScope);
@@ -44,7 +45,9 @@ describe("useMathWorkspace graph modes", () => {
     const newScopeWrites = writes.mock.calls.filter(([key]) => key === nextKey);
     expect(newScopeWrites.length).toBeGreaterThan(0);
     expect(newScopeWrites.every(([, value]) => !value.includes("A private expression"))).toBe(true);
-    expect(window.localStorage.getItem("binder-notes:math-lab:v3:user-1:lesson-1")).toContain("A private expression");
+    expect(window.localStorage.getItem("binder-notes:math-lab:v3:user-1:lesson-1")).toContain(
+      "A private expression",
+    );
     writes.mockRestore();
   });
 

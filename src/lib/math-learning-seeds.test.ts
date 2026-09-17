@@ -43,7 +43,11 @@ describe("math learning seeds", () => {
       ]),
     );
     expect(mathSeedTopics.filter((topic) => topic.course_id === "course-jacob-math-notes")).toHaveLength(8);
-    expect(mathSeedModules.filter((module) => module.course_id === "course-jacob-math-notes")).toHaveLength(35);
-    expect(mathSeedQuestions.filter((question) => question.course_id === "course-jacob-math-notes").length).toBeGreaterThanOrEqual(62);
+    expect(mathSeedModules.filter((module) => module.course_id === "course-jacob-math-notes")).toHaveLength(
+      35,
+    );
+    expect(
+      mathSeedQuestions.filter((question) => question.course_id === "course-jacob-math-notes").length,
+    ).toBeGreaterThanOrEqual(62);
   });
 });

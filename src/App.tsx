@@ -37,22 +37,28 @@ const HomepageBetaPage = lazy(() =>
 const OgreDungeonRunnerPage = lazy(() =>
   import("@/pages/ogre-dungeon-runner-page").then((module) => ({ default: module.OgreDungeonRunnerPage })),
 );
-const AuthPage = lazy(() =>
-  import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })),
+const AuthPage = lazy(() => import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })));
+const AccountPage = lazy(() =>
+  import("@/pages/account-page").then((module) => ({ default: module.AccountPage })),
 );
-const AccountPage = lazy(() => import("@/pages/account-page").then(module => ({ default: module.AccountPage })));
-const PasswordRecoveryPage = lazy(() => import("@/pages/password-recovery-page").then(module => ({ default: module.PasswordRecoveryPage })));
+const PasswordRecoveryPage = lazy(() =>
+  import("@/pages/password-recovery-page").then((module) => ({ default: module.PasswordRecoveryPage })),
+);
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })),
 );
 const PersonalNotesPage = lazy(() =>
   import("@/pages/personal-notes-page").then((module) => ({ default: module.PersonalNotesPage })),
 );
-const AccountDataPage = lazy(() => import("@/pages/account-data-page").then((module) => ({ default: module.AccountDataPage })));
+const AccountDataPage = lazy(() =>
+  import("@/pages/account-data-page").then((module) => ({ default: module.AccountDataPage })),
+);
 const ReviewPage = lazy(() =>
   import("@/pages/review-page").then((module) => ({ default: module.ReviewPage })),
 );
-const CreatorWorkspacePage = lazy(() => import("@/pages/creator-workspace-page").then((module) => ({ default: module.CreatorWorkspacePage })));
+const CreatorWorkspacePage = lazy(() =>
+  import("@/pages/creator-workspace-page").then((module) => ({ default: module.CreatorWorkspacePage })),
+);
 const FolderPage = lazy(() =>
   import("@/pages/folder-page").then((module) => ({ default: module.FolderPage })),
 );
@@ -121,11 +127,26 @@ export function App() {
 function AppRoutes() {
   const location = useLocation();
   const { validateSession, sessionCheckMessage, user } = useAuth();
-  useEffect(() => { void validateSession?.(); }, [location.pathname, location.search, user?.id, validateSession]);
+  useEffect(() => {
+    void validateSession?.();
+  }, [location.pathname, location.search, user?.id, validateSession]);
 
   return (
     <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
-      {sessionCheckMessage && <div role="alert" className="flex flex-wrap items-center gap-3 border-b bg-secondary px-4 py-3 text-sm"><span>{sessionCheckMessage}</span><Button size="sm" variant="outline" onClick={() => void validateSession()}>Retry session check</Button><Link className="underline" to={user ? "/account" : "/auth"}>{user ? "Open Account" : "Sign in"}</Link></div>}
+      {sessionCheckMessage && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 border-b bg-secondary px-4 py-3 text-sm"
+        >
+          <span>{sessionCheckMessage}</span>
+          <Button size="sm" variant="outline" onClick={() => void validateSession()}>
+            Retry session check
+          </Button>
+          <Link className="underline" to={user ? "/account" : "/auth"}>
+            {user ? "Open Account" : "Sign in"}
+          </Link>
+        </div>
+      )}
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -164,10 +185,7 @@ function AppRoutes() {
               <Route path="/math/quizzes/:quizId" element={<MathQuizPage />} />
               <Route path="/math/quizzes/:quizId/attempt" element={<MathQuizAttemptPage />} />
               <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
-              <Route
-                path="/binders/:binderId/documents/:lessonId"
-                element={<BinderReaderPage />}
-              />
+              <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
               <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
               <Route path="/admin" element={<AdminStudioPage />} />
               <Route path="/tutorial" element={<TutorialPage />} />
@@ -282,12 +300,7 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Route render failed", error, info);
 
-    if (
-      shouldRecoverFromDynamicImportFailure(
-        error,
-        this.props.resetKey || window.location.pathname,
-      )
-    ) {
+    if (shouldRecoverFromDynamicImportFailure(error, this.props.resetKey || window.location.pathname)) {
       reloadAfterDynamicImportFailure();
     }
   }
@@ -375,9 +388,6 @@ function LegacyBinderRoute() {
   const lessonId = searchParams.get("lesson");
 
   return (
-    <Navigate
-      replace
-      to={lessonId ? `/binders/${binderId}/documents/${lessonId}` : `/binders/${binderId}`}
-    />
+    <Navigate replace to={lessonId ? `/binders/${binderId}/documents/${lessonId}` : `/binders/${binderId}`} />
   );
 }

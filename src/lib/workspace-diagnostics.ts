@@ -1,12 +1,11 @@
-import { buildSystemFolderFromSuite, SYSTEM_BINDER_IDS, systemSuiteTemplates } from "@/lib/history-suite-seeds";
+import {
+  buildSystemFolderFromSuite,
+  SYSTEM_BINDER_IDS,
+  systemSuiteTemplates,
+} from "@/lib/history-suite-seeds";
 import { createLegacySeedHealth, findSystemSuiteByBinderId, isMissingSeedError } from "@/lib/seed-health";
 import { supabaseProjectRef } from "@/lib/supabase";
-import type {
-  Binder,
-  SeedHealth,
-  SuiteTemplate,
-  WorkspaceDiagnostic,
-} from "@/types";
+import type { Binder, SeedHealth, SuiteTemplate, WorkspaceDiagnostic } from "@/types";
 
 type CountCheck = {
   count: number | null;
@@ -48,12 +47,13 @@ export function buildWorkspaceDiagnostics(input: {
     const seededSuite = input.suites.find((candidate) => candidate.id === suite.id);
     const suiteBinders = input.binders.filter((binder) => resolveSuiteIdForBinder(binder) === suite.id);
     const expectedFolderId = buildSystemFolderFromSuite(suite).id;
-    const suiteFolders = input.folders.filter((folder) => resolveSuiteIdForFolder(folder) === suite.id || folder.id === expectedFolderId);
+    const suiteFolders = input.folders.filter(
+      (folder) => resolveSuiteIdForFolder(folder) === suite.id || folder.id === expectedFolderId,
+    );
     const seedVersion = versionsBySuiteId.get(suite.id) ?? null;
     const presetCount = presetCountBySuiteId.get(suite.id) ?? 0;
     const legacyReady = Boolean(
-      suiteSchemaMissing &&
-        suiteBinders.some((binder) => (input.lessonsByBinderId[binder.id] ?? 0) > 0),
+      suiteSchemaMissing && suiteBinders.some((binder) => (input.lessonsByBinderId[binder.id] ?? 0) > 0),
     );
 
     if (!seededSuite) {
@@ -146,12 +146,18 @@ function resolveSuiteIdForBinder(binder: Binder) {
   return binder.suite_template_id ?? findSystemSuiteByBinderId(binder.id)?.id ?? null;
 }
 
-function resolveSuiteIdForFolder(folder: { id: string; suite_template_id?: string | null; source?: string | null }) {
+function resolveSuiteIdForFolder(folder: {
+  id: string;
+  suite_template_id?: string | null;
+  source?: string | null;
+}) {
   if (folder.suite_template_id) {
     return folder.suite_template_id;
   }
 
-  const suite = systemSuiteTemplates.find((candidate) => buildSystemFolderFromSuite(candidate).id === folder.id);
+  const suite = systemSuiteTemplates.find(
+    (candidate) => buildSystemFolderFromSuite(candidate).id === folder.id,
+  );
   return suite?.id ?? null;
 }
 
@@ -182,9 +188,7 @@ export function buildSeedHealthFromCounts(input: {
   const versionsBySuiteId = new Map(
     input.currentSeedVersions.map((version) => [version.suite_template_id, version.version]),
   );
-  const legacySchemaMode = input.diagnostics.some((diagnostic) =>
-    isLegacySystemSchemaDiagnostic(diagnostic),
-  );
+  const legacySchemaMode = input.diagnostics.some((diagnostic) => isLegacySystemSchemaDiagnostic(diagnostic));
 
   return systemSuiteTemplates.map((suite) => {
     const seededSuite = input.suites.find((candidate) => candidate.id === suite.id);
@@ -195,8 +199,7 @@ export function buildSeedHealthFromCounts(input: {
       input.fallbackSeedHealth?.find((health) => health.suiteTemplateId === suite.id)?.expectedVersion ??
       "unknown";
     const legacyReady =
-      legacySchemaMode &&
-      suiteBinders.some((binder) => (input.lessonsByBinderId?.[binder.id] ?? 0) > 0);
+      legacySchemaMode && suiteBinders.some((binder) => (input.lessonsByBinderId?.[binder.id] ?? 0) > 0);
 
     if (legacyReady) {
       return createLegacySeedHealth(
@@ -213,8 +216,7 @@ export function buildSeedHealthFromCounts(input: {
         status: "missing" as const,
         expectedVersion,
         actualVersion: version,
-        message:
-          suiteDiagnostics[0]?.message ?? `${suite.title} is not seeded in this environment yet.`,
+        message: suiteDiagnostics[0]?.message ?? `${suite.title} is not seeded in this environment yet.`,
         missingBinders: [systemBinderIdForSuite(suite.id)].filter(Boolean) as string[],
       };
     }
@@ -241,8 +243,8 @@ export function buildSeedHealthFromCounts(input: {
 function isLegacySystemSchemaDiagnostic(diagnostic: WorkspaceDiagnostic | null | undefined) {
   return Boolean(
     diagnostic &&
-      diagnostic.code === "missing_table" &&
-      ["suite_templates", "seed_versions", "workspace_presets"].includes(diagnostic.scope),
+    diagnostic.code === "missing_table" &&
+    ["suite_templates", "seed_versions", "workspace_presets"].includes(diagnostic.scope),
   );
 }
 
@@ -311,7 +313,7 @@ export function classifyQueryError(scope: string, error: unknown): WorkspaceDiag
     code === "42703" ||
     code === "PGRST204" ||
     (normalized.includes("column") && normalized.includes("does not exist")) ||
-    normalized.includes("could not find the") && normalized.includes("column")
+    (normalized.includes("could not find the") && normalized.includes("column"))
   ) {
     return {
       code: "missing_column",
@@ -324,7 +326,11 @@ export function classifyQueryError(scope: string, error: unknown): WorkspaceDiag
     };
   }
 
-  if (code === "42501" || normalized.includes("permission denied") || normalized.includes("row-level security")) {
+  if (
+    code === "42501" ||
+    normalized.includes("permission denied") ||
+    normalized.includes("row-level security")
+  ) {
     return {
       code: "rls_denied",
       scope,

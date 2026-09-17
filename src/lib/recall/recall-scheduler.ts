@@ -10,9 +10,7 @@ import type {
 const dayMs = 24 * 60 * 60 * 1000;
 
 export function normalizeRecallAnswer(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, " ");
+  return value.trim().replace(/\s+/g, " ");
 }
 
 export function compareRecallAnswer(answer: string, expected: string) {
@@ -144,7 +142,10 @@ export function buildCheckpointSession(
   },
 ): RecallSessionSummary {
   const now = options.now ?? new Date();
-  const queue = buildGuidedRecallQueue(cards, scope, options.goal ?? "Checkpoint prep", now).slice(0, options.count);
+  const queue = buildGuidedRecallQueue(cards, scope, options.goal ?? "Checkpoint prep", now).slice(
+    0,
+    options.count,
+  );
 
   return {
     id: `recall-session-${now.getTime()}`,

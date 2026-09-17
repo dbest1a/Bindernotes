@@ -105,7 +105,10 @@ type SettingsSearchAliasKey =
   | "secondaryPresetStrip"
   | "facelift";
 
-const legacySettingsSearchAliases: Record<Exclude<SettingsSearchAliasKey, "notes" | "save">, readonly string[]> = {
+const legacySettingsSearchAliases: Record<
+  Exclude<SettingsSearchAliasKey, "notes" | "save">,
+  readonly string[]
+> = {
   snap: ["snap", "alignment", "magnet", "grid"],
   safeEdgePadding: ["safe", "padding", "bezel", "edge", "corner", "margin", "edge margin"],
   fit: ["fit", "fit visible", "fit to screen", "viewport", "screen"],
@@ -129,7 +132,16 @@ const legacySettingsSearchAliases: Record<Exclude<SettingsSearchAliasKey, "notes
     "menu",
     "whiteboard menu",
   ],
-  launcher: ["launcher", "module launcher", "canvas launcher", "side menu", "selected module", "inspector", "builder", "launch"],
+  launcher: [
+    "launcher",
+    "module launcher",
+    "canvas launcher",
+    "side menu",
+    "selected module",
+    "inspector",
+    "builder",
+    "launch",
+  ],
   secondaryPresetStrip: [
     "selector",
     "preset",
@@ -215,7 +227,10 @@ export function WorkspaceSettings({
   const isFullStudio = isCanvasSurface || preferences.workspaceStyle === "full-studio";
   const isGuided = preferences.workspaceStyle === "guided";
   const hasAdvancedCustomization = showAdvancedCustomization || isLayoutMode;
-  const normalizedSettingsQuery = useMemo(() => normalizeSearch(deferredSettingsQuery), [deferredSettingsQuery]);
+  const normalizedSettingsQuery = useMemo(
+    () => normalizeSearch(deferredSettingsQuery),
+    [deferredSettingsQuery],
+  );
   const isSearchingSettings = normalizedSettingsQuery.length > 0;
   const aliases = (...keys: Array<SettingsSearchAliasKey>) =>
     lookupSettingsAliases(revampBetaEnabled, ...keys);
@@ -265,12 +280,7 @@ export function WorkspaceSettings({
     description: string,
     aliasKeys: Array<keyof typeof settingsSearchAliases> = [],
   ) =>
-    isSearchingSettings &&
-    matchesSetting([
-      title,
-      description,
-      ...aliasKeys.flatMap((key) => aliases(key)),
-    ]);
+    isSearchingSettings && matchesSetting([title, description, ...aliasKeys.flatMap((key) => aliases(key))]);
   const layoutPresetsFolderMatch = folderMatches(
     "Layout & Presets",
     "Workspace presentation mode, presets, fit, tidy, and reset to preset controls.",
@@ -326,22 +336,24 @@ export function WorkspaceSettings({
     ...aliases("mobile"),
     ...aliases("facelift"),
   ]);
-  const showFaceliftSettings = isFacelift && matchesSetting([
-    "Facelift",
-    "Facelift surface",
-    "Facelift Simple",
-    "Facelift Canvas",
-    "Facelift density",
-    "Navigation behavior",
-    "Module header mode",
-    "Preset behavior",
-    "Mobile behavior",
-    "workspace",
-    "binder",
-    "folder",
-    "document",
-    ...aliases("facelift", "mobile", "preset"),
-  ]);
+  const showFaceliftSettings =
+    isFacelift &&
+    matchesSetting([
+      "Facelift",
+      "Facelift surface",
+      "Facelift Simple",
+      "Facelift Canvas",
+      "Facelift density",
+      "Navigation behavior",
+      "Module header mode",
+      "Preset behavior",
+      "Mobile behavior",
+      "workspace",
+      "binder",
+      "folder",
+      "document",
+      ...aliases("facelift", "mobile", "preset"),
+    ]);
   const showPresetSettings = matchesSetting([
     "Presets",
     "Start from a mode",
@@ -355,16 +367,18 @@ export function WorkspaceSettings({
     "advanced",
     ...aliases("preset"),
   ]);
-  const showStudyPanelSettings = isModular && matchesSetting([
-    "Study panels",
-    "Panel density",
-    "Side panel",
-    "Save layout per binder",
-    "Show secondary preset strip",
-    "compact",
-    "responsive",
-    ...aliases("mobile", "header", "secondaryPresetStrip", "save"),
-  ]);
+  const showStudyPanelSettings =
+    isModular &&
+    matchesSetting([
+      "Study panels",
+      "Panel density",
+      "Side panel",
+      "Save layout per binder",
+      "Show secondary preset strip",
+      "compact",
+      "responsive",
+      ...aliases("mobile", "header", "secondaryPresetStrip", "save"),
+    ]);
   const showColorSettings = matchesSetting([
     "Colors & Study Surface",
     "Workspace colors",
@@ -401,19 +415,21 @@ export function WorkspaceSettings({
     "Phone and tablet layouts adapt automatically so settings stay touch-friendly.",
     ...aliases("mobile"),
   ]);
-  const showCanvasSettings = isCanvasSurface && matchesSetting([
-    "Snapping & Canvas",
-    "Canvas / workspace",
-    "Background",
-    "Vertical workspace",
-    "Snap mode",
-    "Safe edge padding",
-    "Focus mode",
-    "Whiteboard",
-    "phone",
-    "mobile",
-    ...aliases("snap", "safeEdgePadding", "fit", "tidy", "mobile", "whiteboard"),
-  ]);
+  const showCanvasSettings =
+    isCanvasSurface &&
+    matchesSetting([
+      "Snapping & Canvas",
+      "Canvas / workspace",
+      "Background",
+      "Vertical workspace",
+      "Snap mode",
+      "Safe edge padding",
+      "Focus mode",
+      "Whiteboard",
+      "phone",
+      "mobile",
+      ...aliases("snap", "safeEdgePadding", "fit", "tidy", "mobile", "whiteboard"),
+    ]);
   const showGraphSettings = matchesSetting([
     "Tools & Modules",
     "Graphs",
@@ -427,16 +443,18 @@ export function WorkspaceSettings({
     "Default highlight meaning",
     "Reset highlights",
   ]);
-  const showAdvancedSettings = hasAdvancedCustomization && matchesSetting([
-    "Advanced",
-    "Sticky notes",
-    "Reduced chrome",
-    "Utility UI",
-    "Canvas launcher",
-    "header",
-    "space",
-    ...aliases("launcher"),
-  ]);
+  const showAdvancedSettings =
+    hasAdvancedCustomization &&
+    matchesSetting([
+      "Advanced",
+      "Sticky notes",
+      "Reduced chrome",
+      "Utility UI",
+      "Canvas launcher",
+      "header",
+      "space",
+      ...aliases("launcher"),
+    ]);
   const showLayoutSettings =
     hasAdvancedCustomization &&
     isLayoutMode &&
@@ -458,8 +476,7 @@ export function WorkspaceSettings({
   const renderStudyModeSettings = showStudyModeSettings || layoutPresetsFolderMatch;
   const renderFaceliftSettings = showFaceliftSettings || faceliftFolderMatch;
   const renderPresetSettings = showPresetSettings || layoutPresetsFolderMatch;
-  const renderCustomizationDepthSettings =
-    showCustomizationDepthSettings || layoutPresetsFolderMatch;
+  const renderCustomizationDepthSettings = showCustomizationDepthSettings || layoutPresetsFolderMatch;
   const renderStudyPanelSettings = showStudyPanelSettings || moduleDisplayFolderMatch;
   const renderColorSettings = showColorSettings || colorsFolderMatch;
   const renderModuleDisplaySettings = showModuleDisplaySettings || moduleDisplayFolderMatch;
@@ -495,7 +512,7 @@ export function WorkspaceSettings({
   const isFolderExpanded = (folderId: SettingsFolderId) =>
     isSearchingSettings || (folderId === "facelift" && isFacelift)
       ? true
-      : expandedFolders[folderId] ?? defaultExpandedFolders[folderId];
+      : (expandedFolders[folderId] ?? defaultExpandedFolders[folderId]);
   const toggleFolder = (folderId: SettingsFolderId) => {
     setExpandedFolders((current) => ({
       ...current,
@@ -572,9 +589,7 @@ export function WorkspaceSettings({
     closeAfterApplyingPresentation();
   };
 
-  const updateFacelift = (
-    patch: Partial<Omit<WorkspacePreferences["facelift"], "canvas">>,
-  ) => {
+  const updateFacelift = (patch: Partial<Omit<WorkspacePreferences["facelift"], "canvas">>) => {
     const nextPreferences = {
       ...preferences,
       workspacePresentationMode: "facelift",
@@ -706,91 +721,93 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Layout & Presets"
           >
-        {renderStudyModeSettings ? (
-        <Section
-          description="Choose how much workspace control BinderNotes should expose without hiding the classic Study Panels option."
-          title="Workspace view"
-        >
-          <div className="grid gap-2">
-            {workspaceViewModeOptions.map((viewMode) => (
-              <button
-                aria-label={`Workspace view ${viewMode.name}`}
-                className={cn(
-                  "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  activeWorkspaceViewMode === viewMode.id
-                    ? "border-primary bg-accent/75"
-                    : "border-border/70 bg-background/55",
-                )}
-                data-workspace-view-option={viewMode.id}
-                key={viewMode.id}
-                onClick={() => changeWorkspaceViewMode(viewMode.id)}
-                type="button"
+            {renderStudyModeSettings ? (
+              <Section
+                description="Choose how much workspace control BinderNotes should expose without hiding the classic Study Panels option."
+                title="Workspace view"
               >
-                <span className="block text-sm font-medium">{viewMode.name}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {viewMode.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Section>
-        ) : null}
+                <div className="grid gap-2">
+                  {workspaceViewModeOptions.map((viewMode) => (
+                    <button
+                      aria-label={`Workspace view ${viewMode.name}`}
+                      className={cn(
+                        "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
+                        activeWorkspaceViewMode === viewMode.id
+                          ? "border-primary bg-accent/75"
+                          : "border-border/70 bg-background/55",
+                      )}
+                      data-workspace-view-option={viewMode.id}
+                      key={viewMode.id}
+                      onClick={() => changeWorkspaceViewMode(viewMode.id)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-medium">{viewMode.name}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {viewMode.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
 
-        {renderPresetSettings ? (
-        <Section
-          description={
-            isLayoutMode
-              ? "Start from a mode that fits the way you want to study."
-              : "Switch the workspace balance without opening layout editing."
-          }
-          title="Presets"
-        >
-          <div className="grid gap-2">
-            {visiblePresets.map((preset) => (
-              <button
-                className={cn(
-                  "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  preferences.preset === preset.id
-                    ? "border-primary bg-accent/75"
-                    : "border-border/70 bg-background/55",
-                )}
-                key={preset.id}
-                onClick={() => {
-                  setNext(applyPresetToViewport(preferences, preset.id, getWorkspaceSettingsViewport()));
-                  closeAfterApplyingPresentation();
-                }}
-                type="button"
+            {renderPresetSettings ? (
+              <Section
+                description={
+                  isLayoutMode
+                    ? "Start from a mode that fits the way you want to study."
+                    : "Switch the workspace balance without opening layout editing."
+                }
+                title="Presets"
               >
-                <span className="block text-sm font-medium">{preset.name}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {preset.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Section>
-        ) : null}
+                <div className="grid gap-2">
+                  {visiblePresets.map((preset) => (
+                    <button
+                      className={cn(
+                        "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
+                        preferences.preset === preset.id
+                          ? "border-primary bg-accent/75"
+                          : "border-border/70 bg-background/55",
+                      )}
+                      key={preset.id}
+                      onClick={() => {
+                        setNext(
+                          applyPresetToViewport(preferences, preset.id, getWorkspaceSettingsViewport()),
+                        );
+                        closeAfterApplyingPresentation();
+                      }}
+                      type="button"
+                    >
+                      <span className="block text-sm font-medium">{preset.name}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {preset.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Section>
+            ) : null}
 
-        {renderCustomizationDepthSettings ? (
-        <div className="mt-6 rounded-xl border border-border/70 bg-background/55 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold">Customization depth</h3>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Keep the normal workspace compact, or expand the full canvas and module controls.
-              </p>
-            </div>
-            <Button
-              onClick={() => setShowAdvancedCustomization((current) => !current)}
-              size="sm"
-              type="button"
-              variant={hasAdvancedCustomization ? "default" : "outline"}
-            >
-              {hasAdvancedCustomization ? "Expanded" : "Customize"}
-            </Button>
-          </div>
-        </div>
-        ) : null}
+            {renderCustomizationDepthSettings ? (
+              <div className="mt-6 rounded-xl border border-border/70 bg-background/55 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">Customization depth</h3>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Keep the normal workspace compact, or expand the full canvas and module controls.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setShowAdvancedCustomization((current) => !current)}
+                    size="sm"
+                    type="button"
+                    variant={hasAdvancedCustomization ? "default" : "outline"}
+                  >
+                    {hasAdvancedCustomization ? "Expanded" : "Customize"}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -802,95 +819,115 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Facelift"
           >
-        {renderFaceliftSettings ? (
-          <Section
-            description="Tune the redesigned student workspace without changing the classic Simple or Canvas settings."
-            title="Facelift workspace"
-          >
-            <div className="grid gap-4">
-              <ControlGroup title="Facelift surface">
-                {(["simple", "canvas"] as FaceliftSurfaceMode[]).map((surfaceMode) => (
-                  <ThemeChoice
-                    active={preferences.facelift.surfaceMode === surfaceMode}
-                    key={surfaceMode}
-                    onClick={() => changeFaceliftSurfaceMode(surfaceMode)}
-                  >
-                    {surfaceMode === "simple" ? "Facelift Simple" : "Facelift Canvas"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+            {renderFaceliftSettings ? (
+              <Section
+                description="Tune the redesigned student workspace without changing the classic Simple or Canvas settings."
+                title="Facelift workspace"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup title="Facelift surface">
+                    {(["simple", "canvas"] as FaceliftSurfaceMode[]).map((surfaceMode) => (
+                      <ThemeChoice
+                        active={preferences.facelift.surfaceMode === surfaceMode}
+                        key={surfaceMode}
+                        onClick={() => changeFaceliftSurfaceMode(surfaceMode)}
+                      >
+                        {surfaceMode === "simple" ? "Facelift Simple" : "Facelift Canvas"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Facelift density">
-                {(["comfortable", "compact", "focus"] as FaceliftDensity[]).map((density) => (
-                  <ThemeChoice
-                    active={preferences.facelift.density === density}
-                    key={density}
-                    onClick={() => updateFacelift({ density })}
-                  >
-                    {density === "comfortable" ? "Comfortable" : density === "compact" ? "Compact" : "Focus"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Facelift density">
+                    {(["comfortable", "compact", "focus"] as FaceliftDensity[]).map((density) => (
+                      <ThemeChoice
+                        active={preferences.facelift.density === density}
+                        key={density}
+                        onClick={() => updateFacelift({ density })}
+                      >
+                        {density === "comfortable"
+                          ? "Comfortable"
+                          : density === "compact"
+                            ? "Compact"
+                            : "Focus"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Navigation behavior">
-                {(["map", "sidebar", "topline"] as FaceliftNavigationMode[]).map((navigationMode) => (
-                  <ThemeChoice
-                    active={preferences.facelift.navigationMode === navigationMode}
-                    key={navigationMode}
-                    onClick={() => updateFacelift({ navigationMode })}
-                  >
-                    {navigationMode === "map" ? "Map" : navigationMode === "sidebar" ? "Sidebar" : "Topline"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Navigation behavior">
+                    {(["map", "sidebar", "topline"] as FaceliftNavigationMode[]).map((navigationMode) => (
+                      <ThemeChoice
+                        active={preferences.facelift.navigationMode === navigationMode}
+                        key={navigationMode}
+                        onClick={() => updateFacelift({ navigationMode })}
+                      >
+                        {navigationMode === "map"
+                          ? "Map"
+                          : navigationMode === "sidebar"
+                            ? "Sidebar"
+                            : "Topline"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Module header mode">
-                {(["normal", "compact", "minimal"] as FaceliftModuleChrome[]).map((moduleChrome) => (
-                  <ThemeChoice
-                    active={preferences.facelift.moduleChrome === moduleChrome}
-                    key={moduleChrome}
-                    onClick={() => updateFacelift({ moduleChrome })}
-                  >
-                    {moduleChrome === "normal" ? "Normal" : moduleChrome === "compact" ? "Compact" : "Minimal"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Module header mode">
+                    {(["normal", "compact", "minimal"] as FaceliftModuleChrome[]).map((moduleChrome) => (
+                      <ThemeChoice
+                        active={preferences.facelift.moduleChrome === moduleChrome}
+                        key={moduleChrome}
+                        onClick={() => updateFacelift({ moduleChrome })}
+                      >
+                        {moduleChrome === "normal"
+                          ? "Normal"
+                          : moduleChrome === "compact"
+                            ? "Compact"
+                            : "Minimal"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Preset behavior">
-                {(["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).map((presetBehavior) => (
-                  <ThemeChoice
-                    active={preferences.facelift.presetBehavior === presetBehavior}
-                    key={presetBehavior}
-                    onClick={() => updateFacelift({ presetBehavior })}
-                  >
-                    {presetBehavior === "auto-fit" ? "Auto-fit" : presetBehavior === "preserve" ? "Preserve" : "Manual"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Preset behavior">
+                    {(["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).map(
+                      (presetBehavior) => (
+                        <ThemeChoice
+                          active={preferences.facelift.presetBehavior === presetBehavior}
+                          key={presetBehavior}
+                          onClick={() => updateFacelift({ presetBehavior })}
+                        >
+                          {presetBehavior === "auto-fit"
+                            ? "Auto-fit"
+                            : presetBehavior === "preserve"
+                              ? "Preserve"
+                              : "Manual"}
+                        </ThemeChoice>
+                      ),
+                    )}
+                  </ControlGroup>
 
-              <ControlGroup title="Mobile behavior">
-                {(["tabs", "stack"] as FaceliftMobileBehavior[]).map((mobileBehavior) => (
-                  <ThemeChoice
-                    active={preferences.facelift.mobileBehavior === mobileBehavior}
-                    key={mobileBehavior}
-                    onClick={() => updateFacelift({ mobileBehavior })}
-                  >
-                    {mobileBehavior === "tabs" ? "Tabs" : "Stack"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Mobile behavior">
+                    {(["tabs", "stack"] as FaceliftMobileBehavior[]).map((mobileBehavior) => (
+                      <ThemeChoice
+                        active={preferences.facelift.mobileBehavior === mobileBehavior}
+                        key={mobileBehavior}
+                        onClick={() => updateFacelift({ mobileBehavior })}
+                      >
+                        {mobileBehavior === "tabs" ? "Tabs" : "Stack"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Compact controls">
-                <ToggleChoice
-                  active={preferences.facelift.compactControls}
-                  description="Keep secondary controls tucked into compact rows."
-                  label={preferences.facelift.compactControls ? "Compact" : "Expanded"}
-                  onClick={() => updateFacelift({ compactControls: !preferences.facelift.compactControls })}
-                />
-              </ControlGroup>
-            </div>
-          </Section>
-        ) : null}
+                  <ControlGroup title="Compact controls">
+                    <ToggleChoice
+                      active={preferences.facelift.compactControls}
+                      description="Keep secondary controls tucked into compact rows."
+                      label={preferences.facelift.compactControls ? "Compact" : "Expanded"}
+                      onClick={() =>
+                        updateFacelift({ compactControls: !preferences.facelift.compactControls })
+                      }
+                    />
+                  </ControlGroup>
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -902,186 +939,186 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Module Display"
           >
-        {renderStudyPanelSettings ? (
-          <Section
-            description="Keep study panels orderly without opening the full canvas controls."
-            title="Study panels"
-          >
-            <div className="grid gap-4">
-              <ControlGroup title="Panel density">
-                {(["comfortable", "compact"] as const).map((density) => (
-                  <ThemeChoice
-                    active={preferences.modular.panelDensity === density}
-                    key={density}
-                    onClick={() =>
-                      setNext({
-                        ...preferences,
-                        modular: {
-                          ...preferences.modular,
-                          panelDensity: density,
-                        },
-                      })
-                    }
-                  >
-                    {density === "comfortable" ? "Comfortable" : "Compact"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+            {renderStudyPanelSettings ? (
+              <Section
+                description="Keep study panels orderly without opening the full canvas controls."
+                title="Study panels"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup title="Panel density">
+                    {(["comfortable", "compact"] as const).map((density) => (
+                      <ThemeChoice
+                        active={preferences.modular.panelDensity === density}
+                        key={density}
+                        onClick={() =>
+                          setNext({
+                            ...preferences,
+                            modular: {
+                              ...preferences.modular,
+                              panelDensity: density,
+                            },
+                          })
+                        }
+                      >
+                        {density === "comfortable" ? "Comfortable" : "Compact"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Side panel">
-                {(["left", "right"] as const).map((position) => (
-                  <ThemeChoice
-                    active={preferences.modular.sidePanelPosition === position}
-                    key={position}
-                    onClick={() =>
-                      setNext({
-                        ...preferences,
-                        modular: {
-                          ...preferences.modular,
-                          sidePanelPosition: position,
-                        },
-                      })
-                    }
-                  >
-                    {position === "left" ? "Left side" : "Right side"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Side panel">
+                    {(["left", "right"] as const).map((position) => (
+                      <ThemeChoice
+                        active={preferences.modular.sidePanelPosition === position}
+                        key={position}
+                        onClick={() =>
+                          setNext({
+                            ...preferences,
+                            modular: {
+                              ...preferences.modular,
+                              sidePanelPosition: position,
+                            },
+                          })
+                        }
+                      >
+                        {position === "left" ? "Left side" : "Right side"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Save layout per binder">
-                <ToggleChoice
-                  active={preferences.modular.saveLayoutPerBinder}
-                  description="Remember this binder's selected preset and panel mix."
-                  label={preferences.modular.saveLayoutPerBinder ? "On" : "Off"}
-                  onClick={() =>
-                    setNext({
-                      ...preferences,
-                      modular: {
-                        ...preferences.modular,
-                        saveLayoutPerBinder: !preferences.modular.saveLayoutPerBinder,
-                      },
-                    })
-                  }
-                />
-              </ControlGroup>
+                  <ControlGroup title="Save layout per binder">
+                    <ToggleChoice
+                      active={preferences.modular.saveLayoutPerBinder}
+                      description="Remember this binder's selected preset and panel mix."
+                      label={preferences.modular.saveLayoutPerBinder ? "On" : "Off"}
+                      onClick={() =>
+                        setNext({
+                          ...preferences,
+                          modular: {
+                            ...preferences.modular,
+                            saveLayoutPerBinder: !preferences.modular.saveLayoutPerBinder,
+                          },
+                        })
+                      }
+                    />
+                  </ControlGroup>
 
-              <ControlGroup title="Show secondary preset strip">
-                <ToggleChoice
-                  active={preferences.modular.showSecondaryPresetStrip}
-                  ariaLabel="Show secondary preset strip"
-                  description={
-                    preferences.modular.showSecondaryPresetStrip
-                      ? "The extra preset row is visible below the module tabs."
-                      : "Hide the extra preset row so modules start higher in the workspace."
-                  }
-                  label={preferences.modular.showSecondaryPresetStrip ? "Shown" : "Hidden"}
-                  onClick={() =>
-                    setNext({
-                      ...preferences,
-                      modular: {
-                        ...preferences.modular,
-                        showSecondaryPresetStrip: !preferences.modular.showSecondaryPresetStrip,
-                      },
-                    })
-                  }
-                />
-              </ControlGroup>
-            </div>
-          </Section>
-        ) : null}
+                  <ControlGroup title="Show secondary preset strip">
+                    <ToggleChoice
+                      active={preferences.modular.showSecondaryPresetStrip}
+                      ariaLabel="Show secondary preset strip"
+                      description={
+                        preferences.modular.showSecondaryPresetStrip
+                          ? "The extra preset row is visible below the module tabs."
+                          : "Hide the extra preset row so modules start higher in the workspace."
+                      }
+                      label={preferences.modular.showSecondaryPresetStrip ? "Shown" : "Hidden"}
+                      onClick={() =>
+                        setNext({
+                          ...preferences,
+                          modular: {
+                            ...preferences.modular,
+                            showSecondaryPresetStrip: !preferences.modular.showSecondaryPresetStrip,
+                          },
+                        })
+                      }
+                    />
+                  </ControlGroup>
+                </div>
+              </Section>
+            ) : null}
 
-        {renderModuleDisplaySettings ? (
-        <Section
-          description="Keep module chrome readable without crowding lesson, notes, or tool surfaces."
-          title="Module chrome"
-        >
-          <div className="grid gap-4">
-            <div className="grid gap-4">
-              <ControlGroup title="Density">
-                {densityOptions.map((density) => (
-                  <ThemeChoice
-                    active={preferences.theme.density === density}
-                    key={density}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        density,
-                      }))
-                    }
-                  >
-                    {density}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
-              <ControlGroup title="Maximize module space">
-                <ToggleChoice
-                  active={preferences.theme.compactMode}
-                  description={
-                    preferences.theme.compactMode
-                      ? "Large module headers stay compact so source and notes get more room."
-                      : "Keep the normal decorative module headers."
-                  }
-                  label="Maximize module space"
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      compactMode: !current.compactMode,
-                    }))
-                  }
-                />
-              </ControlGroup>
-              <ControlGroup title="Roundness">
-                {roundnessOptions.map((roundness) => (
-                  <ThemeChoice
-                    active={preferences.theme.roundness === roundness}
-                    key={roundness}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        roundness,
-                      }))
-                    }
-                  >
-                    {roundness}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
-              <ControlGroup title="Shadow">
-                {shadowOptions.map((shadow) => (
-                  <ThemeChoice
-                    active={preferences.theme.shadow === shadow}
-                    key={shadow}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        shadow,
-                      }))
-                    }
-                  >
-                    {shadow}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
-              <ControlGroup title="Font">
-                {fontOptions.map((font) => (
-                  <ThemeChoice
-                    active={preferences.theme.font === font}
-                    key={font}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        font,
-                      }))
-                    }
-                  >
-                    {font}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
-            </div>
-          </div>
-        </Section>
-        ) : null}
+            {renderModuleDisplaySettings ? (
+              <Section
+                description="Keep module chrome readable without crowding lesson, notes, or tool surfaces."
+                title="Module chrome"
+              >
+                <div className="grid gap-4">
+                  <div className="grid gap-4">
+                    <ControlGroup title="Density">
+                      {densityOptions.map((density) => (
+                        <ThemeChoice
+                          active={preferences.theme.density === density}
+                          key={density}
+                          onClick={() =>
+                            updateTheme((current) => ({
+                              ...current,
+                              density,
+                            }))
+                          }
+                        >
+                          {density}
+                        </ThemeChoice>
+                      ))}
+                    </ControlGroup>
+                    <ControlGroup title="Maximize module space">
+                      <ToggleChoice
+                        active={preferences.theme.compactMode}
+                        description={
+                          preferences.theme.compactMode
+                            ? "Large module headers stay compact so source and notes get more room."
+                            : "Keep the normal decorative module headers."
+                        }
+                        label="Maximize module space"
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            compactMode: !current.compactMode,
+                          }))
+                        }
+                      />
+                    </ControlGroup>
+                    <ControlGroup title="Roundness">
+                      {roundnessOptions.map((roundness) => (
+                        <ThemeChoice
+                          active={preferences.theme.roundness === roundness}
+                          key={roundness}
+                          onClick={() =>
+                            updateTheme((current) => ({
+                              ...current,
+                              roundness,
+                            }))
+                          }
+                        >
+                          {roundness}
+                        </ThemeChoice>
+                      ))}
+                    </ControlGroup>
+                    <ControlGroup title="Shadow">
+                      {shadowOptions.map((shadow) => (
+                        <ThemeChoice
+                          active={preferences.theme.shadow === shadow}
+                          key={shadow}
+                          onClick={() =>
+                            updateTheme((current) => ({
+                              ...current,
+                              shadow,
+                            }))
+                          }
+                        >
+                          {shadow}
+                        </ThemeChoice>
+                      ))}
+                    </ControlGroup>
+                    <ControlGroup title="Font">
+                      {fontOptions.map((font) => (
+                        <ThemeChoice
+                          active={preferences.theme.font === font}
+                          key={font}
+                          onClick={() =>
+                            updateTheme((current) => ({
+                              ...current,
+                              font,
+                            }))
+                          }
+                        >
+                          {font}
+                        </ThemeChoice>
+                      ))}
+                    </ControlGroup>
+                  </div>
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1093,88 +1130,88 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Colors & Study Surface"
           >
-        {renderColorSettings ? (
-        <Section
-          description="Theme, density, roundness, and color stay consistent across the app."
-          title="Color Settings"
-        >
-          <div className="grid gap-4">
-            <ControlGroup title="Workspace colors">
-              <ToggleChoice
-                active={preferences.appearance.saveLocalAppearance}
-                description={
-                  preferences.appearance.saveLocalAppearance
-                    ? "Remember this workspace's color choices."
-                    : "Use the current app theme when this workspace opens."
-                }
-                label="Save color scheme for this workspace"
-                onClick={() =>
-                  setNext({
-                    ...preferences,
-                    appearance: {
-                      ...preferences.appearance,
-                      saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
-                    },
-                  })
-                }
-              />
-            </ControlGroup>
+            {renderColorSettings ? (
+              <Section
+                description="Theme, density, roundness, and color stay consistent across the app."
+                title="Color Settings"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup title="Workspace colors">
+                    <ToggleChoice
+                      active={preferences.appearance.saveLocalAppearance}
+                      description={
+                        preferences.appearance.saveLocalAppearance
+                          ? "Remember this workspace's color choices."
+                          : "Use the current app theme when this workspace opens."
+                      }
+                      label="Save color scheme for this workspace"
+                      onClick={() =>
+                        setNext({
+                          ...preferences,
+                          appearance: {
+                            ...preferences.appearance,
+                            saveLocalAppearance: !preferences.appearance.saveLocalAppearance,
+                          },
+                        })
+                      }
+                    />
+                  </ControlGroup>
 
-            <ControlGroup title="App Theme">
-              <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
-                {workspaceThemes.map((theme) => (
-                  <button
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
-                      preferences.appearance.appTheme === theme.id
-                        ? "border-primary bg-accent/70"
-                        : "border-border/70 bg-background/55",
-                    )}
-                    key={theme.id}
-                    onClick={() => updateAppTheme(theme.id as WorkspaceThemeId)}
-                    type="button"
-                  >
-                    <span className="mb-3 flex gap-2">
-                      {[theme.vars.primary, theme.vars.accent, theme.vars.secondary].map((value) => (
-                        <span
-                          className="size-5 rounded-full border border-border/60"
-                          key={value}
-                          style={{ background: `hsl(${value})` }}
-                        />
+                  <ControlGroup title="App Theme">
+                    <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
+                      {workspaceThemes.map((theme) => (
+                        <button
+                          className={cn(
+                            "rounded-xl border p-3 text-left transition hover:bg-secondary/80",
+                            preferences.appearance.appTheme === theme.id
+                              ? "border-primary bg-accent/70"
+                              : "border-border/70 bg-background/55",
+                          )}
+                          key={theme.id}
+                          onClick={() => updateAppTheme(theme.id as WorkspaceThemeId)}
+                          type="button"
+                        >
+                          <span className="mb-3 flex gap-2">
+                            {[theme.vars.primary, theme.vars.accent, theme.vars.secondary].map((value) => (
+                              <span
+                                className="size-5 rounded-full border border-border/60"
+                                key={value}
+                                style={{ background: `hsl(${value})` }}
+                              />
+                            ))}
+                          </span>
+                          <span className="block text-sm font-medium">{theme.name}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {theme.description}
+                          </span>
+                        </button>
                       ))}
-                    </span>
-                    <span className="block text-sm font-medium">{theme.name}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {theme.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </ControlGroup>
+                    </div>
+                  </ControlGroup>
 
-            <ControlGroup title="Accent">
-              {accentOptions.map((accent) => (
-                <ThemeChoice
-                  active={preferences.appearance.accent === accent.id}
-                  key={accent.id}
-                  onClick={() => updateAccent(accent.id)}
-                >
-                  {accent.name}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
+                  <ControlGroup title="Accent">
+                    {accentOptions.map((accent) => (
+                      <ThemeChoice
+                        active={preferences.appearance.accent === accent.id}
+                        key={accent.id}
+                        onClick={() => updateAccent(accent.id)}
+                      >
+                        {accent.name}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-            {preferences.appearance.appTheme === "custom" ? (
-              <ControlGroup title="Custom colors">
-                <CustomPaletteControls
-                  onChange={updateCustomColor}
-                  palette={preferences.appearance.customPalette}
-                />
-              </ControlGroup>
+                  {preferences.appearance.appTheme === "custom" ? (
+                    <ControlGroup title="Custom colors">
+                      <CustomPaletteControls
+                        onChange={updateCustomColor}
+                        palette={preferences.appearance.customPalette}
+                      />
+                    </ControlGroup>
+                  ) : null}
+                </div>
+              </Section>
             ) : null}
-          </div>
-        </Section>
-        ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1186,81 +1223,80 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Motion & Performance"
           >
-        {renderMotionSettings ? (
-        <Section
-          description="Dial motion up only when you actually want it."
-          title="Motion"
-        >
-          <div className="grid gap-4">
-            <ControlGroup title="Animation level">
-              {animationLevelOptions.map((level) => (
-                <ThemeChoice
-                  active={preferences.theme.animationLevel === level}
-                  key={level}
-                  onClick={() =>
-                    setNext({
-                      ...preferences,
-                      modular: {
-                        ...preferences.modular,
-                        motionLevel: isModular ? level : preferences.modular.motionLevel,
-                      },
-                      theme: {
-                        ...preferences.theme,
-                        animationLevel: level,
-                      },
-                    })
-                  }
-                >
-                  {animationLabels[level]}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
+            {renderMotionSettings ? (
+              <Section description="Dial motion up only when you actually want it." title="Motion">
+                <div className="grid gap-4">
+                  <ControlGroup title="Animation level">
+                    {animationLevelOptions.map((level) => (
+                      <ThemeChoice
+                        active={preferences.theme.animationLevel === level}
+                        key={level}
+                        onClick={() =>
+                          setNext({
+                            ...preferences,
+                            modular: {
+                              ...preferences.modular,
+                              motionLevel: isModular ? level : preferences.modular.motionLevel,
+                            },
+                            theme: {
+                              ...preferences.theme,
+                              animationLevel: level,
+                            },
+                          })
+                        }
+                      >
+                        {animationLabels[level]}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-            <ControlGroup title="Hover motion">
-              <ToggleChoice
-                active={preferences.theme.hoverMotion}
-                description="Panel lift and tile motion"
-                label={preferences.theme.hoverMotion ? "Enabled" : "Off"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    hoverMotion: !current.hoverMotion,
-                  }))
-                }
-              />
-            </ControlGroup>
+                  <ControlGroup title="Hover motion">
+                    <ToggleChoice
+                      active={preferences.theme.hoverMotion}
+                      description="Panel lift and tile motion"
+                      label={preferences.theme.hoverMotion ? "Enabled" : "Off"}
+                      onClick={() =>
+                        updateTheme((current) => ({
+                          ...current,
+                          hoverMotion: !current.hoverMotion,
+                        }))
+                      }
+                    />
+                  </ControlGroup>
 
-            <ControlGroup title="Enhanced Visuals">
-              <ToggleChoice
-                active={performanceMode.enhancedModeEnabled}
-                ariaLabel="Enhanced Visuals"
-                description={
-                  performanceMode.effectivePerformanceMode
-                    ? "Performance Mode is active. Menus, drawing, and module switching prioritize speed."
-                    : "Richer motion, shadows, and visual effects are active."
-                }
-                label={performanceMode.enhancedModeEnabled ? "On" : "Off"}
-                onClick={() =>
-                  performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
-                }
-              />
-              <p className="rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                Adds richer motion, shadows, and visual effects. Turn off for the fastest study and whiteboard experience.
-              </p>
-            </ControlGroup>
-          </div>
-        </Section>
-        ) : null}
-        {renderResponsiveSettings ? (
-          <Section
-            description="Phone and tablet layouts adapt automatically while desktop keeps the full canvas experience."
-            title="Responsive layout"
-          >
-            <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
-              BinderNotes uses viewport size, touch input, and reduced-motion preferences to keep settings usable on phone, tablet, and desktop.
-            </div>
-          </Section>
-        ) : null}
+                  <ControlGroup title="Enhanced Visuals">
+                    <ToggleChoice
+                      active={performanceMode.enhancedModeEnabled}
+                      ariaLabel="Enhanced Visuals"
+                      description={
+                        performanceMode.effectivePerformanceMode
+                          ? "Performance Mode is active. Menus, drawing, and module switching prioritize speed."
+                          : "Richer motion, shadows, and visual effects are active."
+                      }
+                      label={performanceMode.enhancedModeEnabled ? "On" : "Off"}
+                      onClick={() =>
+                        performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                      }
+                    />
+                    <p className="rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                      Adds richer motion, shadows, and visual effects. Turn off for the fastest study and
+                      whiteboard experience.
+                    </p>
+                  </ControlGroup>
+                </div>
+              </Section>
+            ) : null}
+            {renderResponsiveSettings ? (
+              <Section
+                description="Phone and tablet layouts adapt automatically while desktop keeps the full canvas experience."
+                title="Responsive layout"
+              >
+                <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+                  BinderNotes uses viewport size, touch input, and reduced-motion preferences to keep settings
+                  usable on phone, tablet, and desktop.
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1272,120 +1308,121 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Snapping & Canvas"
           >
-        {renderCanvasSettings ? (
-          <Section
-            description="Adjust the study atmosphere and how much room the canvas gives you vertically."
-            title="Canvas / workspace"
-          >
-            <div className="grid gap-4">
-              <ControlGroup layout="grid" title="Background">
-                {backgroundStyleOptions.map((backgroundStyle) => (
-                  <ThemeChoice
-                    active={preferences.theme.backgroundStyle === backgroundStyle}
-                    className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                    key={backgroundStyle}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        backgroundStyle,
-                      }))
-                    }
-                  >
-                    {backgroundLabels[backgroundStyle]}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+            {renderCanvasSettings ? (
+              <Section
+                description="Adjust the study atmosphere and how much room the canvas gives you vertically."
+                title="Canvas / workspace"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup layout="grid" title="Background">
+                    {backgroundStyleOptions.map((backgroundStyle) => (
+                      <ThemeChoice
+                        active={preferences.theme.backgroundStyle === backgroundStyle}
+                        className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                        key={backgroundStyle}
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            backgroundStyle,
+                          }))
+                        }
+                      >
+                        {backgroundLabels[backgroundStyle]}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup layout="stack" title="Vertical workspace">
-                {verticalSpaceOptions.map((verticalSpace) => (
-                  <ThemeChoice
-                    active={preferences.theme.verticalSpace === verticalSpace}
-                    className="min-h-12 w-full justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                    key={verticalSpace}
-                    onClick={() =>
-                      updateTheme((current) => ({
-                        ...current,
-                        verticalSpace,
-                      }))
-                    }
-                  >
-                    {verticalSpaceLabels[verticalSpace]}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup layout="stack" title="Vertical workspace">
+                    {verticalSpaceOptions.map((verticalSpace) => (
+                      <ThemeChoice
+                        active={preferences.theme.verticalSpace === verticalSpace}
+                        className="min-h-12 w-full justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                        key={verticalSpace}
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            verticalSpace,
+                          }))
+                        }
+                      >
+                        {verticalSpaceLabels[verticalSpace]}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Snap mode">
-                {(["off", "edges", "modules"] as const).map((snapBehavior) => (
-                  <ThemeChoice
-                    active={preferences.canvas.snapBehavior === snapBehavior}
-                    key={snapBehavior}
-                    onClick={() =>
-                      setNext({
-                        ...preferences,
-                        canvas: {
-                          ...preferences.canvas,
-                          snapBehavior,
-                        },
-                        theme: {
-                          ...preferences.theme,
-                          snapMode: snapBehavior !== "off",
-                        },
-                      })
-                    }
-                  >
-                    {snapBehavior === "off"
-                      ? "Off"
-                      : snapBehavior === "edges"
-                        ? "Edges"
-                        : "Edges + modules"}
-                  </ThemeChoice>
-                ))}
-              </ControlGroup>
+                  <ControlGroup title="Snap mode">
+                    {(["off", "edges", "modules"] as const).map((snapBehavior) => (
+                      <ThemeChoice
+                        active={preferences.canvas.snapBehavior === snapBehavior}
+                        key={snapBehavior}
+                        onClick={() =>
+                          setNext({
+                            ...preferences,
+                            canvas: {
+                              ...preferences.canvas,
+                              snapBehavior,
+                            },
+                            theme: {
+                              ...preferences.theme,
+                              snapMode: snapBehavior !== "off",
+                            },
+                          })
+                        }
+                      >
+                        {snapBehavior === "off"
+                          ? "Off"
+                          : snapBehavior === "edges"
+                            ? "Edges"
+                            : "Edges + modules"}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-              <ControlGroup title="Safe Edge Padding">
-                <ToggleChoice
-                  active={preferences.canvas.safeEdgePadding}
-                  ariaLabel={`Safe Edge Padding ${preferences.canvas.safeEdgePadding ? "On" : "Off"}`}
-                  description={
-                    preferences.canvas.safeEdgePadding
-                      ? "Keep an 8px edge margin while editing."
-                      : "Allow windows to sit exactly on canvas edges and corners."
-                  }
-                  label={preferences.canvas.safeEdgePadding ? "On" : "Off"}
-                  onClick={() =>
-                    setNext({
-                      ...preferences,
-                      canvas: {
-                        ...preferences.canvas,
-                        safeEdgePadding: !preferences.canvas.safeEdgePadding,
-                      },
-                    })
-                  }
-                />
-              </ControlGroup>
+                  <ControlGroup title="Safe Edge Padding">
+                    <ToggleChoice
+                      active={preferences.canvas.safeEdgePadding}
+                      ariaLabel={`Safe Edge Padding ${preferences.canvas.safeEdgePadding ? "On" : "Off"}`}
+                      description={
+                        preferences.canvas.safeEdgePadding
+                          ? "Keep an 8px edge margin while editing."
+                          : "Allow windows to sit exactly on canvas edges and corners."
+                      }
+                      label={preferences.canvas.safeEdgePadding ? "On" : "Off"}
+                      onClick={() =>
+                        setNext({
+                          ...preferences,
+                          canvas: {
+                            ...preferences.canvas,
+                            safeEdgePadding: !preferences.canvas.safeEdgePadding,
+                          },
+                        })
+                      }
+                    />
+                  </ControlGroup>
 
-              <ControlGroup title="Focus mode">
-                <ToggleChoice
-                  active={preferences.theme.focusMode}
-                  description="Reduce workspace chrome and let the canvas feel more immersive"
-                  label={preferences.theme.focusMode ? "On" : "Off"}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      focusMode: !current.focusMode,
-                    }))
-                  }
-                />
-              </ControlGroup>
+                  <ControlGroup title="Focus mode">
+                    <ToggleChoice
+                      active={preferences.theme.focusMode}
+                      description="Reduce workspace chrome and let the canvas feel more immersive"
+                      label={preferences.theme.focusMode ? "On" : "Off"}
+                      onClick={() =>
+                        updateTheme((current) => ({
+                          ...current,
+                          focusMode: !current.focusMode,
+                        }))
+                      }
+                    />
+                  </ControlGroup>
 
-              <ControlGroup title="Whiteboard">
-                <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
-                  Math Whiteboard uses local draft autosave, graph-paper templates, and live BinderNotes module cards.
+                  <ControlGroup title="Whiteboard">
+                    <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+                      Math Whiteboard uses local draft autosave, graph-paper templates, and live BinderNotes
+                      module cards.
+                    </div>
+                  </ControlGroup>
                 </div>
-              </ControlGroup>
-            </div>
-          </Section>
-        ) : null}
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1397,119 +1434,116 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Tools & Modules"
           >
-        {renderGraphSettings ? (
-        <Section
-          description="Keep graphs readable without having to enter layout mode."
-          title="Graphs"
-        >
-          <div className="grid gap-4">
-            <ControlGroup layout="grid" title="Graph appearance">
-              {graphAppearanceOptions.map((graphAppearance) => (
-                <ThemeChoice
-                  active={preferences.theme.graphAppearance === graphAppearance}
-                  className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                  key={graphAppearance}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      graphAppearance,
-                    }))
-                  }
-                >
-                  {graphAppearanceLabels[graphAppearance]}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
+            {renderGraphSettings ? (
+              <Section description="Keep graphs readable without having to enter layout mode." title="Graphs">
+                <div className="grid gap-4">
+                  <ControlGroup layout="grid" title="Graph appearance">
+                    {graphAppearanceOptions.map((graphAppearance) => (
+                      <ThemeChoice
+                        active={preferences.theme.graphAppearance === graphAppearance}
+                        className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                        key={graphAppearance}
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            graphAppearance,
+                          }))
+                        }
+                      >
+                        {graphAppearanceLabels[graphAppearance]}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
 
-            <ControlGroup layout="grid" title="Graph chrome">
-              {graphChromeOptions.map((graphChrome) => (
-                <ThemeChoice
-                  active={preferences.theme.graphChrome === graphChrome}
-                  className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                  key={graphChrome}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      graphChrome,
-                    }))
-                  }
-                >
-                  {graphChromeLabels[graphChrome]}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
-          </div>
-        </Section>
-        ) : null}
-
-        {renderHighlightSettings ? (
-        <Section
-          description="Keep highlight capture consistent with the way you study."
-          title="Highlights"
-        >
-          <div className="grid gap-4">
-            <ControlGroup layout="grid" title="Default highlight meaning">
-              {highlightColorOptions.map((option) => (
-                <ThemeChoice
-                  active={preferences.theme.defaultHighlightColor === option.id}
-                  className="min-h-12 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
-                  key={option.id}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      defaultHighlightColor: option.id,
-                    }))
-                  }
-                >
-                  {option.name}
-                </ThemeChoice>
-              ))}
-            </ControlGroup>
-
-            {onResetLessonHighlights || onResetBinderHighlights ? (
-              <ControlGroup layout="stack" title="Reset highlights">
-                {onResetLessonHighlights ? (
-                  <button
-                    className="rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-left transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isResettingHighlights}
-                    onClick={() =>
-                      void confirmAndRunReset(
-                        onResetLessonHighlights,
-                        lessonTitle ? `"${lessonTitle}"` : "this lesson",
-                      )
-                    }
-                    type="button"
-                  >
-                    <span className="block text-sm font-medium">Reset current lesson highlights</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      Clear saved highlights for the lesson you are looking at right now.
-                    </span>
-                  </button>
-                ) : null}
-
-                {onResetBinderHighlights ? (
-                  <button
-                    className="rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-left transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isResettingHighlights}
-                    onClick={() =>
-                      void confirmAndRunReset(
-                        onResetBinderHighlights,
-                        binderTitle ? `"${binderTitle}"` : "this binder",
-                      )
-                    }
-                    type="button"
-                  >
-                    <span className="block text-sm font-medium">Reset binder highlights</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      Clear all saved highlights for this binder if the state gets messy.
-                    </span>
-                  </button>
-                ) : null}
-              </ControlGroup>
+                  <ControlGroup layout="grid" title="Graph chrome">
+                    {graphChromeOptions.map((graphChrome) => (
+                      <ThemeChoice
+                        active={preferences.theme.graphChrome === graphChrome}
+                        className="min-h-11 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                        key={graphChrome}
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            graphChrome,
+                          }))
+                        }
+                      >
+                        {graphChromeLabels[graphChrome]}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
+                </div>
+              </Section>
             ) : null}
-          </div>
-        </Section>
-        ) : null}
+
+            {renderHighlightSettings ? (
+              <Section
+                description="Keep highlight capture consistent with the way you study."
+                title="Highlights"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup layout="grid" title="Default highlight meaning">
+                    {highlightColorOptions.map((option) => (
+                      <ThemeChoice
+                        active={preferences.theme.defaultHighlightColor === option.id}
+                        className="min-h-12 justify-start whitespace-normal px-3 py-2.5 text-left leading-5"
+                        key={option.id}
+                        onClick={() =>
+                          updateTheme((current) => ({
+                            ...current,
+                            defaultHighlightColor: option.id,
+                          }))
+                        }
+                      >
+                        {option.name}
+                      </ThemeChoice>
+                    ))}
+                  </ControlGroup>
+
+                  {onResetLessonHighlights || onResetBinderHighlights ? (
+                    <ControlGroup layout="stack" title="Reset highlights">
+                      {onResetLessonHighlights ? (
+                        <button
+                          className="rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-left transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isResettingHighlights}
+                          onClick={() =>
+                            void confirmAndRunReset(
+                              onResetLessonHighlights,
+                              lessonTitle ? `"${lessonTitle}"` : "this lesson",
+                            )
+                          }
+                          type="button"
+                        >
+                          <span className="block text-sm font-medium">Reset current lesson highlights</span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            Clear saved highlights for the lesson you are looking at right now.
+                          </span>
+                        </button>
+                      ) : null}
+
+                      {onResetBinderHighlights ? (
+                        <button
+                          className="rounded-xl border border-border/70 bg-background/55 px-3 py-3 text-left transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isResettingHighlights}
+                          onClick={() =>
+                            void confirmAndRunReset(
+                              onResetBinderHighlights,
+                              binderTitle ? `"${binderTitle}"` : "this binder",
+                            )
+                          }
+                          type="button"
+                        >
+                          <span className="block text-sm font-medium">Reset binder highlights</span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            Clear all saved highlights for this binder if the state gets messy.
+                          </span>
+                        </button>
+                      ) : null}
+                    </ControlGroup>
+                  ) : null}
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1521,51 +1555,51 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Advanced"
           >
-        {renderAdvancedSettings ? (
-          <Section
-            description="Keep normal study mode minimal, and hide extra helper UI unless you want it."
-            title="Power-user settings"
-          >
-            <div className="grid gap-4">
-              <ControlGroup title="Sticky notes">
-                <ToggleChoice
-                  active={preferences.enabledModules.includes("comments")}
-                  description="Show or hide floating sticky notes and the annotation manager"
-                  label={preferences.enabledModules.includes("comments") ? "Shown" : "Hidden"}
-                  onClick={() => toggleModule("comments")}
-                />
-              </ControlGroup>
+            {renderAdvancedSettings ? (
+              <Section
+                description="Keep normal study mode minimal, and hide extra helper UI unless you want it."
+                title="Power-user settings"
+              >
+                <div className="grid gap-4">
+                  <ControlGroup title="Sticky notes">
+                    <ToggleChoice
+                      active={preferences.enabledModules.includes("comments")}
+                      description="Show or hide floating sticky notes and the annotation manager"
+                      label={preferences.enabledModules.includes("comments") ? "Shown" : "Hidden"}
+                      onClick={() => toggleModule("comments")}
+                    />
+                  </ControlGroup>
 
-              <ControlGroup title="Reduced chrome in locked mode">
-                <ToggleChoice
-                  active={preferences.theme.reducedChrome}
-                  description="Hide extra panel framing while studying"
-                  label={preferences.theme.reducedChrome ? "On" : "Off"}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      reducedChrome: !current.reducedChrome,
-                    }))
-                  }
-                />
-              </ControlGroup>
+                  <ControlGroup title="Reduced chrome in locked mode">
+                    <ToggleChoice
+                      active={preferences.theme.reducedChrome}
+                      description="Hide extra panel framing while studying"
+                      label={preferences.theme.reducedChrome ? "On" : "Off"}
+                      onClick={() =>
+                        updateTheme((current) => ({
+                          ...current,
+                          reducedChrome: !current.reducedChrome,
+                        }))
+                      }
+                    />
+                  </ControlGroup>
 
-              <ControlGroup title="Utility UI">
-                <ToggleChoice
-                  active={preferences.theme.showUtilityUi}
-                  description="Wide edit-layout launcher, selected-module controls, preset chips, and extra status controls"
-                  label={preferences.theme.showUtilityUi ? "Shown" : "Minimal"}
-                  onClick={() =>
-                    updateTheme((current) => ({
-                      ...current,
-                      showUtilityUi: !current.showUtilityUi,
-                    }))
-                  }
-                />
-              </ControlGroup>
-            </div>
-          </Section>
-        ) : null}
+                  <ControlGroup title="Utility UI">
+                    <ToggleChoice
+                      active={preferences.theme.showUtilityUi}
+                      description="Wide edit-layout launcher, selected-module controls, preset chips, and extra status controls"
+                      label={preferences.theme.showUtilityUi ? "Shown" : "Minimal"}
+                      onClick={() =>
+                        updateTheme((current) => ({
+                          ...current,
+                          showUtilityUi: !current.showUtilityUi,
+                        }))
+                      }
+                    />
+                  </ControlGroup>
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
 
@@ -1577,85 +1611,95 @@ export function WorkspaceSettings({
             onToggle={toggleFolder}
             title="Edit Layout"
           >
-        {renderLayoutSettings ? (
-          <Section
-            description={
-              isFullStudio
-                ? "Show or hide windows, and collapse the ones you want out of the way."
-                : "Tune which supporting windows are visible without opening the full studio controls."
-            }
-            title="Layout"
-          >
-            <ControlGroup title="Canvas launcher">
-              <ToggleChoice
-                active={preferences.theme.showUtilityUi}
-                ariaLabel={`Canvas launcher ${preferences.theme.showUtilityUi ? "Shown" : "Hidden"}`}
+            {renderLayoutSettings ? (
+              <Section
                 description={
-                  preferences.theme.showUtilityUi
-                    ? "Show the wide module launcher and selected-module controls above the canvas."
-                    : "Hide the wide launcher and use this side menu to add or restore modules."
-                }
-                label={preferences.theme.showUtilityUi ? "Shown" : "Hidden"}
-                onClick={() =>
-                  updateTheme((current) => ({
-                    ...current,
-                    showUtilityUi: !current.showUtilityUi,
-                  }))
-                }
-              />
-            </ControlGroup>
-
-            <div className="grid gap-2">
-              {workspaceModules
-                .filter((module) =>
                   isFullStudio
-                    ? true
-                    : ["lesson", "private-notes", "comments", "lesson-outline", "search", "desmos-graph", "scientific-calculator", "recent-highlights", "whiteboard"].includes(module.id),
-                )
-                .map((module) => {
-                const enabled = preferences.enabledModules.includes(module.id);
-                const collapsed = preferences.moduleLayout[module.id]?.collapsed;
-                return (
-                  <div
-                    className="rounded-xl border border-border/70 bg-background/55 p-3"
-                    key={module.id}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">{module.name}</p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {module.description}
-                        </p>
-                      </div>
-                      <Button
-                        disabled={module.steady && enabled}
-                        onClick={() => toggleModule(module.id)}
-                        size="sm"
-                        type="button"
-                        variant={enabled ? "default" : "outline"}
-                      >
-                        {enabled ? "Visible" : "Hidden"}
-                      </Button>
-                    </div>
-                    {enabled && isFullStudio ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          onClick={() => toggleCollapsed(module.id)}
-                          size="sm"
-                          type="button"
-                          variant={collapsed ? "default" : "outline"}
+                    ? "Show or hide windows, and collapse the ones you want out of the way."
+                    : "Tune which supporting windows are visible without opening the full studio controls."
+                }
+                title="Layout"
+              >
+                <ControlGroup title="Canvas launcher">
+                  <ToggleChoice
+                    active={preferences.theme.showUtilityUi}
+                    ariaLabel={`Canvas launcher ${preferences.theme.showUtilityUi ? "Shown" : "Hidden"}`}
+                    description={
+                      preferences.theme.showUtilityUi
+                        ? "Show the wide module launcher and selected-module controls above the canvas."
+                        : "Hide the wide launcher and use this side menu to add or restore modules."
+                    }
+                    label={preferences.theme.showUtilityUi ? "Shown" : "Hidden"}
+                    onClick={() =>
+                      updateTheme((current) => ({
+                        ...current,
+                        showUtilityUi: !current.showUtilityUi,
+                      }))
+                    }
+                  />
+                </ControlGroup>
+
+                <div className="grid gap-2">
+                  {workspaceModules
+                    .filter((module) =>
+                      isFullStudio
+                        ? true
+                        : [
+                            "lesson",
+                            "private-notes",
+                            "comments",
+                            "lesson-outline",
+                            "search",
+                            "desmos-graph",
+                            "scientific-calculator",
+                            "recent-highlights",
+                            "whiteboard",
+                          ].includes(module.id),
+                    )
+                    .map((module) => {
+                      const enabled = preferences.enabledModules.includes(module.id);
+                      const collapsed = preferences.moduleLayout[module.id]?.collapsed;
+                      return (
+                        <div
+                          className="rounded-xl border border-border/70 bg-background/55 p-3"
+                          key={module.id}
                         >
-                          {collapsed ? "Collapsed" : "Expanded"}
-                        </Button>
-                        {module.steady ? <Badge variant="secondary">Core</Badge> : null}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </Section>
-        ) : null}
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium">{module.name}</p>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                {module.description}
+                              </p>
+                            </div>
+                            <Button
+                              disabled={module.steady && enabled}
+                              onClick={() => toggleModule(module.id)}
+                              size="sm"
+                              type="button"
+                              variant={enabled ? "default" : "outline"}
+                            >
+                              {enabled ? "Visible" : "Hidden"}
+                            </Button>
+                          </div>
+                          {enabled && isFullStudio ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                onClick={() => toggleCollapsed(module.id)}
+                                size="sm"
+                                type="button"
+                                variant={collapsed ? "default" : "outline"}
+                              >
+                                {collapsed ? "Collapsed" : "Expanded"}
+                              </Button>
+                              {module.steady ? <Badge variant="secondary">Core</Badge> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                </div>
+              </Section>
+            ) : null}
           </SettingsFolder>
         ) : null}
       </div>
@@ -1681,10 +1725,7 @@ function SettingsFolder({
   const contentId = `workspace-settings-folder-${id}`;
 
   return (
-    <section
-      className="workspace-settings-folder"
-      data-settings-folder={id}
-    >
+    <section className="workspace-settings-folder" data-settings-folder={id}>
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
@@ -1694,9 +1735,7 @@ function SettingsFolder({
       >
         <span className="min-w-0">
           <span className="block text-sm font-semibold">{title}</span>
-          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-            {description}
-          </span>
+          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
         </span>
         <span className="workspace-settings-folder__chevron" aria-hidden="true">
           {expanded ? "-" : "+"}
@@ -1725,9 +1764,7 @@ function Section({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>
-          {description ? (
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-          ) : null}
+          {description ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p> : null}
         </div>
       </div>
       {children}
@@ -1750,8 +1787,7 @@ function ControlGroup({
       <div
         className={cn(
           layout === "stack" && "grid gap-2",
-          layout === "grid" &&
-            "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]",
+          layout === "grid" && "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]",
           layout === "wrap" && "flex flex-wrap gap-2",
         )}
       >
@@ -1837,9 +1873,7 @@ function ToggleChoice({
     >
       <span className="block text-sm font-medium">{label}</span>
       {description ? (
-        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-          {description}
-        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
       ) : null}
     </button>
   );
@@ -1868,10 +1902,7 @@ function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
 
-function loadSettingsFolderState(
-  storageKey: string,
-  defaults: Record<SettingsFolderId, boolean>,
-) {
+function loadSettingsFolderState(storageKey: string, defaults: Record<SettingsFolderId, boolean>) {
   if (typeof window === "undefined") {
     return defaults;
   }
@@ -1891,10 +1922,7 @@ function loadSettingsFolderState(
   }
 }
 
-function saveSettingsFolderState(
-  storageKey: string,
-  expandedFolders: Record<SettingsFolderId, boolean>,
-) {
+function saveSettingsFolderState(storageKey: string, expandedFolders: Record<SettingsFolderId, boolean>) {
   if (typeof window === "undefined") {
     return;
   }

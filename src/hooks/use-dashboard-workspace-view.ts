@@ -54,10 +54,7 @@ export function loadAdminDashboardWidthPreference(profileId: string): DashboardW
   }
 }
 
-export function saveAdminDashboardWidthPreference(
-  profileId: string,
-  width: DashboardWorkspaceWidth,
-) {
+export function saveAdminDashboardWidthPreference(profileId: string, width: DashboardWorkspaceWidth) {
   if (typeof window === "undefined") {
     return;
   }
@@ -71,9 +68,7 @@ export function sanitizeDashboardWorkspaceViewPreference(
   return {
     density: value?.density === "compact" ? "compact" : "comfortable",
     scope:
-      value?.scope === "folders" ||
-      value?.scope === "binders" ||
-      value?.scope === "documents"
+      value?.scope === "folders" || value?.scope === "binders" || value?.scope === "documents"
         ? value.scope
         : "all",
     showRecentDocuments: value?.showRecentDocuments === false ? false : true,
@@ -105,10 +100,7 @@ export function saveDashboardWorkspaceViewPreference(
     return;
   }
 
-  window.localStorage.setItem(
-    getDashboardWorkspaceViewStorageKey(profileId),
-    JSON.stringify(preference),
-  );
+  window.localStorage.setItem(getDashboardWorkspaceViewStorageKey(profileId), JSON.stringify(preference));
 }
 
 export function useDashboardWorkspaceViewPreference(profileId: string) {

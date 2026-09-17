@@ -80,7 +80,9 @@ describe("WhiteboardCanvas", () => {
 
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
 
-    expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-toolbar-layer")).toBe("true");
+    expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-toolbar-layer")).toBe(
+      "true",
+    );
     expect(typeof excalidrawMock.props?.onScrollChange).toBe("function");
   });
 
@@ -92,11 +94,13 @@ describe("WhiteboardCanvas", () => {
     onViewportChange.mockClear();
 
     act(() => {
-      (excalidrawMock.props?.onScrollChange as (scrollX: number, scrollY: number, zoom: { value: number }) => void)(
-        320,
-        -140,
-        { value: 2.5 },
-      );
+      (
+        excalidrawMock.props?.onScrollChange as (
+          scrollX: number,
+          scrollY: number,
+          zoom: { value: number },
+        ) => void
+      )(320, -140, { value: 2.5 });
     });
 
     expect(onViewportChange).toHaveBeenCalledWith(
@@ -111,17 +115,21 @@ describe("WhiteboardCanvas", () => {
   it("uses onChange appState as a fallback for toolbar camera updates", async () => {
     const onViewportChange = vi.fn();
     const onSceneChange = vi.fn();
-    render(<WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onViewportChange={onViewportChange} />);
+    render(
+      <WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onViewportChange={onViewportChange} />,
+    );
 
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
     onViewportChange.mockClear();
 
     act(() => {
-      (excalidrawMock.props?.onChange as (
-        elements: readonly unknown[],
-        appState: WhiteboardSceneData["appState"],
-        files: Record<string, unknown>,
-      ) => void)([], { scrollX: 999, scrollY: 888, zoom: { value: 4 } }, {});
+      (
+        excalidrawMock.props?.onChange as (
+          elements: readonly unknown[],
+          appState: WhiteboardSceneData["appState"],
+          files: Record<string, unknown>,
+        ) => void
+      )([], { scrollX: 999, scrollY: 888, zoom: { value: 4 } }, {});
     });
 
     expect(onSceneChange).not.toHaveBeenCalled();
@@ -181,11 +189,13 @@ describe("WhiteboardCanvas", () => {
 
     fireEvent.pointerDown(host, { pointerId: 1 });
     act(() => {
-      (excalidrawMock.props?.onChange as (
-        elements: readonly unknown[],
-        appState: WhiteboardSceneData["appState"],
-        files: Record<string, unknown>,
-      ) => void)([{ id: "stroke-after-pointerup", version: 1 }], {}, {});
+      (
+        excalidrawMock.props?.onChange as (
+          elements: readonly unknown[],
+          appState: WhiteboardSceneData["appState"],
+          files: Record<string, unknown>,
+        ) => void
+      )([{ id: "stroke-after-pointerup", version: 1 }], {}, {});
     });
 
     fireEvent.pointerUp(host, { pointerId: 1 });
@@ -206,7 +216,12 @@ describe("WhiteboardCanvas", () => {
   it("keeps Excalidraw initialData stable across unrelated parent rerenders", async () => {
     const whiteboard = board();
     const { rerender } = render(
-      <WhiteboardCanvas board={whiteboard} fullscreen={false} onSceneChange={vi.fn()} onViewportChange={vi.fn()} />,
+      <WhiteboardCanvas
+        board={whiteboard}
+        fullscreen={false}
+        onSceneChange={vi.fn()}
+        onViewportChange={vi.fn()}
+      />,
     );
 
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
@@ -259,11 +274,13 @@ describe("WhiteboardCanvas", () => {
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
 
     act(() => {
-      (excalidrawMock.props?.onScrollChange as (scrollX: number, scrollY: number, zoom: { value: number }) => void)(
-        50,
-        60,
-        { value: 1.25 },
-      );
+      (
+        excalidrawMock.props?.onScrollChange as (
+          scrollX: number,
+          scrollY: number,
+          zoom: { value: number },
+        ) => void
+      )(50, 60, { value: 1.25 });
     });
 
     expect(onSceneChange).not.toHaveBeenCalled();
@@ -417,25 +434,48 @@ describe("WhiteboardCanvas", () => {
     render(<WhiteboardCanvas board={saved} onSceneChange={vi.fn()} />);
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
     expect(excalidrawMock.props?.theme).toBe("dark");
-    expect(excalidrawMock.props?.initialData).toMatchObject({ elements, appState: { viewBackgroundColor: "#ffffff" } });
+    expect(excalidrawMock.props?.initialData).toMatchObject({
+      elements,
+      appState: { viewBackgroundColor: "#ffffff" },
+    });
     expect(saved.scene.appState?.viewBackgroundColor).toBe("#11131a");
-    cleanup(); excalidrawMock.props = null;
-    render(<WhiteboardCanvas board={board({ scene: { elements, appState: { viewBackgroundColor: "#fff3bf" }, files: {} } })} onSceneChange={vi.fn()} />);
+    cleanup();
+    excalidrawMock.props = null;
+    render(
+      <WhiteboardCanvas
+        board={board({ scene: { elements, appState: { viewBackgroundColor: "#fff3bf" }, files: {} } })}
+        onSceneChange={vi.fn()}
+      />,
+    );
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
-    expect((excalidrawMock.props as Record<string, unknown> | null)?.initialData).toMatchObject({ elements, appState: { viewBackgroundColor: "#fff3bf" } });
+    expect((excalidrawMock.props as Record<string, unknown> | null)?.initialData).toMatchObject({
+      elements,
+      appState: { viewBackgroundColor: "#fff3bf" },
+    });
   });
 
   it("flushes an immutable final scene through the retired board callback on unmount", async () => {
-    const onSceneChange = vi.fn(); const onRetireScene = vi.fn();
-    const view = render(<WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onRetireScene={onRetireScene} />);
+    const onSceneChange = vi.fn();
+    const onRetireScene = vi.fn();
+    const view = render(
+      <WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onRetireScene={onRetireScene} />,
+    );
     await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
     vi.useFakeTimers();
     const elements = [{ id: "last-stroke", version: 1 }];
-    act(() => (excalidrawMock.props!.onChange as (elements: unknown[], state: unknown, files: unknown) => void)(elements, {}, {}));
+    act(() =>
+      (excalidrawMock.props!.onChange as (elements: unknown[], state: unknown, files: unknown) => void)(
+        elements,
+        {},
+        {},
+      ),
+    );
     elements[0].id = "mutated-after-event";
     view.unmount();
     expect(onSceneChange).not.toHaveBeenCalled();
-    expect(onRetireScene).toHaveBeenCalledWith(expect.objectContaining({ elements: [{ id: "last-stroke", version: 1 }] }));
+    expect(onRetireScene).toHaveBeenCalledWith(
+      expect.objectContaining({ elements: [{ id: "last-stroke", version: 1 }] }),
+    );
     act(() => vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS));
     expect(onRetireScene).toHaveBeenCalledTimes(1);
   });
@@ -459,18 +499,22 @@ describe("WhiteboardCanvas", () => {
     document.documentElement.dataset.workspaceDragging = "true";
 
     try {
-      render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={onViewportChange} />);
+      render(
+        <WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onViewportChange={onViewportChange} />,
+      );
 
       await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
       await waitFor(() => expect(resizeCallbacks).toHaveLength(1));
       onViewportChange.mockClear();
 
       act(() => {
-        (excalidrawMock.props?.onScrollChange as (scrollX: number, scrollY: number, zoom: { value: number }) => void)(
-          0,
-          80,
-          { value: 1 },
-        );
+        (
+          excalidrawMock.props?.onScrollChange as (
+            scrollX: number,
+            scrollY: number,
+            zoom: { value: number },
+          ) => void
+        )(0, 80, { value: 1 });
       });
       expect(onViewportChange).toHaveBeenLastCalledWith(expect.objectContaining({ scrollY: 80 }));
 

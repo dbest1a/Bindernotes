@@ -120,9 +120,7 @@ export function snapWindowFrame({
   const bounds = resolveViewportBounds(viewport, safeEdgePadding, viewportBounds);
   const minSize = moduleId ? getWorkspaceModuleMinimumSize(moduleId) : { width: 160, height: 160 };
   const boundedFrame =
-    interaction === "move"
-      ? clampMovedFrame(frame, bounds)
-      : clampResizedFrame(frame, bounds, minSize);
+    interaction === "move" ? clampMovedFrame(frame, bounds) : clampResizedFrame(frame, bounds, minSize);
 
   if (snapBehavior === "off") {
     return {
@@ -221,13 +219,13 @@ export function fitWindowFramesToViewport({
     availableWidth / Math.max(bounds.width, 1),
     availableHeight / Math.max(bounds.height, 1),
   );
-  const underfilled =
-    bounds.width < availableWidth * 0.68 && bounds.height < availableHeight * 0.74;
-  const scale = bounds.width > availableWidth || bounds.height > availableHeight
-    ? Math.min(1, overflowScale)
-    : underfilled
-      ? Math.min(1.16, overflowScale)
-      : 1;
+  const underfilled = bounds.width < availableWidth * 0.68 && bounds.height < availableHeight * 0.74;
+  const scale =
+    bounds.width > availableWidth || bounds.height > availableHeight
+      ? Math.min(1, overflowScale)
+      : underfilled
+        ? Math.min(1.16, overflowScale)
+        : 1;
   const scaledFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> = { ...frames };
   const fittedWidth = bounds.width * scale;
   const fittedHeight = bounds.height * scale;
@@ -375,13 +373,7 @@ export function tidyFreeformWorkspaceFrames({
   }
 
   if (visibleModules.length === 1) {
-    nextFrames[primary] = makeFrame(
-      padding,
-      padding,
-      usableWidth,
-      usableHeight,
-      frames[primary]?.z ?? 1,
-    );
+    nextFrames[primary] = makeFrame(padding, padding, usableWidth, usableHeight, frames[primary]?.z ?? 1);
     return {
       frames: nextFrames,
       changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
@@ -415,22 +407,13 @@ export function tidyFreeformWorkspaceFrames({
   const primaryX = primaryOnRight ? padding + secondaryWidth + gap : padding;
   const secondaryX = primaryOnRight ? padding : padding + primaryWidth + gap;
 
-  nextFrames[primary] = makeFrame(
-    primaryX,
-    padding,
-    primaryWidth,
-    usableHeight,
-    primaryFrame.z,
-  );
+  nextFrames[primary] = makeFrame(primaryX, padding, primaryWidth, usableHeight, primaryFrame.z);
 
   const totalSecondaryArea = secondary.reduce((total, moduleId) => {
     const frame = frames[moduleId]!;
     return total + Math.max(1, frame.w * frame.h);
   }, 0);
-  const availableSecondaryHeight = Math.max(
-    1,
-    usableHeight - gap * Math.max(0, secondary.length - 1),
-  );
+  const availableSecondaryHeight = Math.max(1, usableHeight - gap * Math.max(0, secondary.length - 1));
   let nextY = padding;
 
   secondary.forEach((moduleId, index) => {
@@ -440,9 +423,7 @@ export function tidyFreeformWorkspaceFrames({
     const weightedHeight = Math.round(
       (availableSecondaryHeight * Math.max(1, current.w * current.h)) / totalSecondaryArea,
     );
-    const height = isLast
-      ? padding + usableHeight - nextY
-      : Math.max(minimum.height, weightedHeight);
+    const height = isLast ? padding + usableHeight - nextY : Math.max(minimum.height, weightedHeight);
     nextFrames[moduleId] = makeFrame(
       secondaryX,
       nextY,
@@ -533,13 +514,7 @@ export function tidyWorkspaceFrames({
   }
 
   if (secondary.length === 0) {
-    nextFrames[primary] = makeFrame(
-      padding,
-      padding,
-      usableWidth,
-      usableHeight,
-      frames[primary]?.z ?? 1,
-    );
+    nextFrames[primary] = makeFrame(padding, padding, usableWidth, usableHeight, frames[primary]?.z ?? 1);
     return {
       frames: nextFrames,
       changed: !sameFrames(pickFrames(frames, visibleModules), pickFrames(nextFrames, visibleModules)),
@@ -564,9 +539,7 @@ export function tidyWorkspaceFrames({
       nextFrames[moduleId] = makeFrame(
         padding + index * (helperWidth + gap),
         padding + usableHeight - helperHeight,
-        index === secondary.length - 1
-          ? usableWidth - helperWidth * index - gap * index
-          : helperWidth,
+        index === secondary.length - 1 ? usableWidth - helperWidth * index - gap * index : helperWidth,
         helperHeight,
         frames[moduleId]?.z ?? index + 2,
       );
@@ -580,13 +553,7 @@ export function tidyWorkspaceFrames({
   const railWidth = clamp(Math.round(usableWidth * 0.34), 340, Math.min(520, usableWidth - 440));
   const primaryWidth = Math.max(420, usableWidth - railWidth - gap);
   const railX = padding + primaryWidth + gap;
-  nextFrames[primary] = makeFrame(
-    padding,
-    padding,
-    primaryWidth,
-    usableHeight,
-    frames[primary]?.z ?? 1,
-  );
+  nextFrames[primary] = makeFrame(padding, padding, primaryWidth, usableHeight, frames[primary]?.z ?? 1);
 
   const weights = secondary.map((moduleId) => secondaryModuleWeight(moduleId));
   const totalWeight = weights.reduce((total, weight) => total + weight, 0);
@@ -709,15 +676,7 @@ function layoutDesignedPreset({
     );
     const primaryWidth = usableWidth - railWidth - gap;
     place(primaryModule, 0, 0, primaryWidth, usableHeight, 1);
-    placeVerticalStack(
-      railModules,
-      primaryWidth + gap,
-      0,
-      railWidth,
-      usableHeight,
-      2,
-      weights,
-    );
+    placeVerticalStack(railModules, primaryWidth + gap, 0, railWidth, usableHeight, 2, weights);
   };
 
   const placeVerticalStack = (
@@ -846,23 +805,37 @@ function layoutDesignedPreset({
   if (presetId === "math-guided-study" || presetId === "math-simple-presentation") {
     const railMinimum = has("private-notes") ? 480 : 420;
     const lessonMinimum = usableWidth < 1320 ? 420 : 580;
-    placeRightRail("lesson", ["private-notes", "math-blocks", "formula-sheet", "desmos-graph"], 0.58, lessonMinimum, railMinimum, {
-      "private-notes": 1.25,
-      "math-blocks": 1,
-      "formula-sheet": 0.9,
-      "desmos-graph": 1,
-    });
+    placeRightRail(
+      "lesson",
+      ["private-notes", "math-blocks", "formula-sheet", "desmos-graph"],
+      0.58,
+      lessonMinimum,
+      railMinimum,
+      {
+        "private-notes": 1.25,
+        "math-blocks": 1,
+        "formula-sheet": 0.9,
+        "desmos-graph": 1,
+      },
+    );
     return commit();
   }
 
   if (presetId === "math-practice-mode") {
     if (has("whiteboard")) {
-      placeRightRail("whiteboard", ["math-blocks", "private-notes", "formula-sheet", "lesson"], 0.58, 640, 420, {
-        "math-blocks": 1.15,
-        "private-notes": 1.2,
-        "formula-sheet": 0.85,
-        lesson: 0.8,
-      });
+      placeRightRail(
+        "whiteboard",
+        ["math-blocks", "private-notes", "formula-sheet", "lesson"],
+        0.58,
+        640,
+        420,
+        {
+          "math-blocks": 1.15,
+          "private-notes": 1.2,
+          "formula-sheet": 0.85,
+          lesson: 0.8,
+        },
+      );
       return commit();
     }
 
@@ -876,13 +849,20 @@ function layoutDesignedPreset({
 
   if (presetId === "full-math-canvas") {
     if (has("whiteboard") && !has("desmos-graph")) {
-      placeRightRail("whiteboard", ["private-notes", "formula-sheet", "math-blocks", "lesson", "related-concepts"], 0.6, 640, has("private-notes") ? 480 : 320, {
-        "private-notes": 1.25,
-        "formula-sheet": 0.9,
-        "math-blocks": 1,
-        lesson: 1,
-        "related-concepts": 0.85,
-      });
+      placeRightRail(
+        "whiteboard",
+        ["private-notes", "formula-sheet", "math-blocks", "lesson", "related-concepts"],
+        0.6,
+        640,
+        has("private-notes") ? 480 : 320,
+        {
+          "private-notes": 1.25,
+          "formula-sheet": 0.9,
+          "math-blocks": 1,
+          lesson: 1,
+          "related-concepts": 0.85,
+        },
+      );
       return commit();
     }
 
@@ -894,13 +874,20 @@ function layoutDesignedPreset({
     }
 
     if (!has("math-blocks") || !has("lesson") || !has("related-concepts")) {
-      placeRightRail("desmos-graph", ["private-notes", "formula-sheet", "math-blocks", "lesson", "related-concepts"], 0.56, 620, has("private-notes") ? 480 : 320, {
-        "private-notes": 1.25,
-        "formula-sheet": 0.9,
-        "math-blocks": 1,
-        lesson: 1,
-        "related-concepts": 0.85,
-      });
+      placeRightRail(
+        "desmos-graph",
+        ["private-notes", "formula-sheet", "math-blocks", "lesson", "related-concepts"],
+        0.56,
+        620,
+        has("private-notes") ? 480 : 320,
+        {
+          "private-notes": 1.25,
+          "formula-sheet": 0.9,
+          "math-blocks": 1,
+          lesson: 1,
+          "related-concepts": 0.85,
+        },
+      );
       return commit();
     }
 
@@ -916,12 +903,26 @@ function layoutDesignedPreset({
     const splitWidth = Math.floor((railWidth - gap) / 2);
 
     place("desmos-graph", 0, 0, primaryWidth, graphHeight, 1);
-    place(has("whiteboard") ? "whiteboard" : "math-blocks", 0, graphHeight + gap, primaryWidth, blocksHeight, 2);
+    place(
+      has("whiteboard") ? "whiteboard" : "math-blocks",
+      0,
+      graphHeight + gap,
+      primaryWidth,
+      blocksHeight,
+      2,
+    );
     if (has("whiteboard")) {
       place("math-blocks", railX, 0, railWidth, notesHeight, 3);
     }
     place("private-notes", railX, has("whiteboard") ? notesHeight + gap : 0, railWidth, notesHeight, 3);
-    place("lesson", railX, (has("whiteboard") ? notesHeight * 2 : notesHeight) + gap, railWidth, lessonHeight, 4);
+    place(
+      "lesson",
+      railX,
+      (has("whiteboard") ? notesHeight * 2 : notesHeight) + gap,
+      railWidth,
+      lessonHeight,
+      4,
+    );
     place("formula-sheet", railX, notesHeight + lessonHeight + gap * 2, splitWidth, bottomHeight, 5);
     place(
       "related-concepts",
@@ -935,12 +936,7 @@ function layoutDesignedPreset({
   }
 
   if (presetId === "history-guided") {
-    if (
-      has("lesson") &&
-      has("history-timeline") &&
-      has("history-evidence") &&
-      has("private-notes")
-    ) {
+    if (has("lesson") && has("history-timeline") && has("history-evidence") && has("private-notes")) {
       const leftWidth = Math.floor((usableWidth - gap) / 2);
       const rightWidth = usableWidth - leftWidth - gap;
       const topMinimum = Math.max(
@@ -1029,7 +1025,12 @@ export function validateWindowFrameLayout({
     );
 
   visibleFrames.forEach(({ frame, moduleId }) => {
-    if (frame.x < 0 || frame.y < 0 || frame.x + frame.w > viewport.width || frame.y + frame.h > viewport.height) {
+    if (
+      frame.x < 0 ||
+      frame.y < 0 ||
+      frame.x + frame.w > viewport.width ||
+      frame.y + frame.h > viewport.height
+    ) {
       errors.push(`Panel ${moduleId} is offscreen for the current viewport.`);
     }
   });
@@ -1105,19 +1106,73 @@ function buildHorizontalSnapCandidates(
 
     if (interaction === "move") {
       candidates.push(
-        candidate("x", "module-gap", "Module right gap", peerRight + WORKSPACE_LAYOUT_GAP, peerRight + WORKSPACE_LAYOUT_GAP, left, guideStart, guideEnd),
-        candidate("x", "module-gap", "Module left gap", peerLeft - WORKSPACE_LAYOUT_GAP, peerLeft - WORKSPACE_LAYOUT_GAP - frame.w, right, guideStart, guideEnd),
+        candidate(
+          "x",
+          "module-gap",
+          "Module right gap",
+          peerRight + WORKSPACE_LAYOUT_GAP,
+          peerRight + WORKSPACE_LAYOUT_GAP,
+          left,
+          guideStart,
+          guideEnd,
+        ),
+        candidate(
+          "x",
+          "module-gap",
+          "Module left gap",
+          peerLeft - WORKSPACE_LAYOUT_GAP,
+          peerLeft - WORKSPACE_LAYOUT_GAP - frame.w,
+          right,
+          guideStart,
+          guideEnd,
+        ),
         candidate("x", "module-align", "Align left edges", peerLeft, peerLeft, left, guideStart, guideEnd),
-        candidate("x", "module-align", "Align right edges", peerRight, peerRight - frame.w, right, guideStart, guideEnd),
-        candidate("x", "module-center", "Align centers", peerCenter, peerCenter - frame.w / 2, center, guideStart, guideEnd),
+        candidate(
+          "x",
+          "module-align",
+          "Align right edges",
+          peerRight,
+          peerRight - frame.w,
+          right,
+          guideStart,
+          guideEnd,
+        ),
+        candidate(
+          "x",
+          "module-center",
+          "Align centers",
+          peerCenter,
+          peerCenter - frame.w / 2,
+          center,
+          guideStart,
+          guideEnd,
+        ),
       );
       return;
     }
 
     candidates.push(
-      candidate("x", "module-gap", "Resize to module gap", peerLeft - WORKSPACE_LAYOUT_GAP, peerLeft - WORKSPACE_LAYOUT_GAP, right, guideStart, guideEnd),
+      candidate(
+        "x",
+        "module-gap",
+        "Resize to module gap",
+        peerLeft - WORKSPACE_LAYOUT_GAP,
+        peerLeft - WORKSPACE_LAYOUT_GAP,
+        right,
+        guideStart,
+        guideEnd,
+      ),
       candidate("x", "module-align", "Align right edges", peerRight, peerRight, right, guideStart, guideEnd),
-      candidate("x", "module-center", "Resize to center", peerCenter, peerCenter, right, guideStart, guideEnd),
+      candidate(
+        "x",
+        "module-center",
+        "Resize to center",
+        peerCenter,
+        peerCenter,
+        right,
+        guideStart,
+        guideEnd,
+      ),
     );
   });
 
@@ -1172,19 +1227,82 @@ function buildVerticalSnapCandidates(
 
     if (interaction === "move") {
       candidates.push(
-        candidate("y", "module-gap", "Module bottom gap", peerBottom + WORKSPACE_LAYOUT_GAP, peerBottom + WORKSPACE_LAYOUT_GAP, top, guideStart, guideEnd),
-        candidate("y", "module-gap", "Module top gap", peerTop - WORKSPACE_LAYOUT_GAP, peerTop - WORKSPACE_LAYOUT_GAP - frame.h, bottom, guideStart, guideEnd),
+        candidate(
+          "y",
+          "module-gap",
+          "Module bottom gap",
+          peerBottom + WORKSPACE_LAYOUT_GAP,
+          peerBottom + WORKSPACE_LAYOUT_GAP,
+          top,
+          guideStart,
+          guideEnd,
+        ),
+        candidate(
+          "y",
+          "module-gap",
+          "Module top gap",
+          peerTop - WORKSPACE_LAYOUT_GAP,
+          peerTop - WORKSPACE_LAYOUT_GAP - frame.h,
+          bottom,
+          guideStart,
+          guideEnd,
+        ),
         candidate("y", "module-align", "Align top edges", peerTop, peerTop, top, guideStart, guideEnd),
-        candidate("y", "module-align", "Align bottom edges", peerBottom, peerBottom - frame.h, bottom, guideStart, guideEnd),
-        candidate("y", "module-center", "Align centers", peerCenter, peerCenter - frame.h / 2, center, guideStart, guideEnd),
+        candidate(
+          "y",
+          "module-align",
+          "Align bottom edges",
+          peerBottom,
+          peerBottom - frame.h,
+          bottom,
+          guideStart,
+          guideEnd,
+        ),
+        candidate(
+          "y",
+          "module-center",
+          "Align centers",
+          peerCenter,
+          peerCenter - frame.h / 2,
+          center,
+          guideStart,
+          guideEnd,
+        ),
       );
       return;
     }
 
     candidates.push(
-      candidate("y", "module-gap", "Resize to module gap", peerTop - WORKSPACE_LAYOUT_GAP, peerTop - WORKSPACE_LAYOUT_GAP, bottom, guideStart, guideEnd),
-      candidate("y", "module-align", "Align bottom edges", peerBottom, peerBottom, bottom, guideStart, guideEnd),
-      candidate("y", "module-center", "Resize to center", peerCenter, peerCenter, bottom, guideStart, guideEnd),
+      candidate(
+        "y",
+        "module-gap",
+        "Resize to module gap",
+        peerTop - WORKSPACE_LAYOUT_GAP,
+        peerTop - WORKSPACE_LAYOUT_GAP,
+        bottom,
+        guideStart,
+        guideEnd,
+      ),
+      candidate(
+        "y",
+        "module-align",
+        "Align bottom edges",
+        peerBottom,
+        peerBottom,
+        bottom,
+        guideStart,
+        guideEnd,
+      ),
+      candidate(
+        "y",
+        "module-center",
+        "Resize to center",
+        peerCenter,
+        peerCenter,
+        bottom,
+        guideStart,
+        guideEnd,
+      ),
     );
   });
 
@@ -1205,8 +1323,8 @@ function candidate(
 }
 
 function findBestCandidate(candidates: SnapCandidate[], threshold: number) {
-  const eligible = candidates.filter((candidate) =>
-    Math.abs(candidate.current - candidate.position) <= threshold,
+  const eligible = candidates.filter(
+    (candidate) => Math.abs(candidate.current - candidate.position) <= threshold,
   );
   const canvasEdge = eligible
     .filter((candidate) => candidate.kind === "canvas-edge")
@@ -1261,8 +1379,16 @@ function clampResizedFrame(
   bounds: ViewportBounds,
   minimums: { width: number; height: number },
 ) {
-  const width = clamp(Math.round(frame.w), minimums.width, Math.max(minimums.width, bounds.maxX - bounds.minX));
-  const height = clamp(Math.round(frame.h), minimums.height, Math.max(minimums.height, bounds.maxY - bounds.minY));
+  const width = clamp(
+    Math.round(frame.w),
+    minimums.width,
+    Math.max(minimums.width, bounds.maxX - bounds.minX),
+  );
+  const height = clamp(
+    Math.round(frame.h),
+    minimums.height,
+    Math.max(minimums.height, bounds.maxY - bounds.minY),
+  );
 
   return {
     ...frame,
@@ -1290,8 +1416,16 @@ function resolvePrimaryModule(
     "chem-bonding-studio": ["chem-molecule-builder", "chem-geometry-viewer", "lesson"],
     "chem-reaction-studio": ["chem-tri-reaction-view", "chem-reaction-balancer", "lesson"],
     "chem-stoichiometry-lab": ["chem-stoichiometry-coach", "chem-molar-mass-calculator", "lesson"],
-    "chem-solutions-molarity-lab": ["chem-solution-mixer", "chem-desmos-concentration-graph", "chem-lab-notebook"],
-    "chem-acid-base-titration-lab": ["chem-titration-lab", "chem-desmos-titration-curve", "chem-ph-calculator"],
+    "chem-solutions-molarity-lab": [
+      "chem-solution-mixer",
+      "chem-desmos-concentration-graph",
+      "chem-lab-notebook",
+    ],
+    "chem-acid-base-titration-lab": [
+      "chem-titration-lab",
+      "chem-desmos-titration-curve",
+      "chem-ph-calculator",
+    ],
     "chem-kinetics-graph-lab": ["chem-desmos-kinetics-plot", "chem-kinetics-simulator", "chem-data-table"],
     "chem-thermochemistry-studio": ["chem-calorimetry-lab", "chem-energy-diagram", "chem-lab-notebook"],
     "chem-full-studio": ["chem-periodic-table", "chem-reaction-balancer", "lesson"],

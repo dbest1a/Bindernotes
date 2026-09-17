@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { AcidBaseCalculatorModule, KineticsSimulatorModule, SolutionMixerModule, ThermochemistryModule } from "@/components/chemistry/chemistry-workspace-modules";
+import {
+  AcidBaseCalculatorModule,
+  KineticsSimulatorModule,
+  SolutionMixerModule,
+  ThermochemistryModule,
+} from "@/components/chemistry/chemistry-workspace-modules";
 
 afterEach(cleanup);
 

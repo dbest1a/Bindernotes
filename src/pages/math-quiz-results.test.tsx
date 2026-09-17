@@ -7,20 +7,34 @@ import type { QuizAttemptResults } from "@/services/quiz-attempt-results-service
 import type { QuestionBankItem } from "@/types/math-learning";
 
 const mocks = vi.hoisted(() => ({
-  owner: "learner-a", result: null as QuizAttemptResults | null, isError: false,
-  resultQuery: vi.fn(), start: vi.fn(), submit: vi.fn(), complete: vi.fn(), saveQuestion: vi.fn(),
+  owner: "learner-a",
+  result: null as QuizAttemptResults | null,
+  isError: false,
+  resultQuery: vi.fn(),
+  start: vi.fn(),
+  submit: vi.fn(),
+  complete: vi.fn(),
+  saveQuestion: vi.fn(),
 }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ profile: { id: mocks.owner }, isLoading: false }) }));
-vi.mock("@/hooks/use-quiz-attempt-results", () => ({ useQuizAttemptResults: (...args: unknown[]) => {
-  mocks.resultQuery(...args);
-  return { data: mocks.result, isLoading: false, isError: mocks.isError, refetch: vi.fn() };
-} }));
+vi.mock("@/hooks/use-quiz-attempt-results", () => ({
+  useQuizAttemptResults: (...args: unknown[]) => {
+    mocks.resultQuery(...args);
+    return { data: mocks.result, isLoading: false, isError: mocks.isError, refetch: vi.fn() };
+  },
+}));
 vi.mock("@/hooks/use-math-learning", () => ({
-  useQuizSet: () => ({ data: { id: "quiz-a", title: "Current changed quiz", questions: [practiceQuestion] }, isLoading: false, isError: false }),
+  useQuizSet: () => ({
+    data: { id: "quiz-a", title: "Current changed quiz", questions: [practiceQuestion] },
+    isLoading: false,
+    isError: false,
+  }),
   useStartQuizAttempt: () => ({ mutateAsync: mocks.start }),
   useSubmitQuestionAttempt: () => ({ mutateAsync: mocks.submit }),
   useCompleteQuizAttempt: () => ({ mutateAsync: mocks.complete }),
-  useMathCourses: () => ({ data: [] }), useMathModules: () => ({ data: [] }), useQuestionBank: () => ({ data: [] }),
+  useMathCourses: () => ({ data: [] }),
+  useMathModules: () => ({ data: [] }),
+  useQuestionBank: () => ({ data: [] }),
   useSaveQuestion: () => ({ mutateAsync: mocks.saveQuestion, isPending: false }),
 }));
 
@@ -83,12 +97,21 @@ describe("quiz submission", () => {
       renderAttempt();
       expect(screen.getByRole("textbox", { name: "Numeric answer: Current question title" })).toBeTruthy();
       expect(errors).not.toHaveBeenCalled();
-    } finally { errors.mockRestore(); }
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("does not start duplicate attempts while the first start is pending", async () => {
-    let resolveStart: (value: { id: string }) => void = () => { throw new Error("Start has not run"); };
-    mocks.start.mockImplementation(() => new Promise((resolve) => { resolveStart = resolve; }));
+    let resolveStart: (value: { id: string }) => void = () => {
+      throw new Error("Start has not run");
+    };
+    mocks.start.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
     renderAttempt();
     const submit = screen.getByRole("button", { name: "Submit answers" });
     fireEvent.click(submit);
@@ -100,8 +123,15 @@ describe("quiz submission", () => {
   });
 
   it("does not continue an old account's submission after the active account changes", async () => {
-    let resolveStart: (value: { id: string }) => void = () => { throw new Error("Start has not run"); };
-    mocks.start.mockImplementation(() => new Promise((resolve) => { resolveStart = resolve; }));
+    let resolveStart: (value: { id: string }) => void = () => {
+      throw new Error("Start has not run");
+    };
+    mocks.start.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
+    );
     const view = renderAttempt();
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
     mocks.owner = "learner-b";
@@ -117,7 +147,9 @@ describe("quiz submission", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
     await waitFor(() => expect(screen.getByText("Score: 0 / 1")).toBeTruthy());
     expect(mocks.start).toHaveBeenCalledTimes(1);
-    expect(mocks.submit).toHaveBeenCalledWith(expect.objectContaining({ attemptId: "attempt-a", userId: "learner-a", answer: {} }));
+    expect(mocks.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ attemptId: "attempt-a", userId: "learner-a", answer: {} }),
+    );
     expect(mocks.complete).toHaveBeenCalledWith(expect.objectContaining({ attemptId: "attempt-a" }));
   });
 
@@ -136,7 +168,11 @@ describe("quiz submission", () => {
 
 describe("numeric question authoring", () => {
   it("cannot turn a blank expected value into a zero answer key", () => {
-    render(<MemoryRouter><MathQuestionEditorPage /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <MathQuestionEditorPage />
+      </MemoryRouter>,
+    );
     fireEvent.change(screen.getByLabelText("Question type"), { target: { value: "numeric" } });
     const save = screen.getByRole("button", { name: "Save question" });
     expect(save.hasAttribute("disabled")).toBe(true);
@@ -150,22 +186,89 @@ describe("numeric question authoring", () => {
 });
 
 function resultRouter() {
-  return <MemoryRouter initialEntries={["/math/quizzes/quiz-a/results/attempt-a"]}><Routes><Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} /></Routes></MemoryRouter>;
+  return (
+    <MemoryRouter initialEntries={["/math/quizzes/quiz-a/results/attempt-a"]}>
+      <Routes>
+        <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
 }
-function renderResults() { return render(resultRouter()); }
+function renderResults() {
+  return render(resultRouter());
+}
 function renderAttempt() {
   return render(attemptRouter());
 }
 function attemptRouter() {
-  return <MemoryRouter initialEntries={["/math/quizzes/quiz-a/attempt"]}><Routes>
-    <Route path="/math/quizzes/:quizId/attempt" element={<MathQuizAttemptPage />} />
-    <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
-  </Routes></MemoryRouter>;
+  return (
+    <MemoryRouter initialEntries={["/math/quizzes/quiz-a/attempt"]}>
+      <Routes>
+        <Route path="/math/quizzes/:quizId/attempt" element={<MathQuizAttemptPage />} />
+        <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
 }
 function savedResults(): QuizAttemptResults {
   return {
-    attempt: { id: "attempt-a", quiz_set_id: "quiz-a", user_id: "learner-a", started_at: "2026-09-17T00:00:00Z", completed_at: "2026-09-17T00:01:00Z", score: 0, total_points: 1, metadata_json: { quizTitle: "Original quiz" } },
-    answers: [{ id: "answer-a", quiz_attempt_id: "attempt-a", question_id: "question-a", user_id: "learner-a", submitted_answer_json: { numeric: "42" }, is_correct: false, points_awarded: 0, created_at: "2026-09-17T00:00:30Z", feedback_json: { totalPoints: 1, message: "Saved feedback", questionSnapshot: { id: "question-a", title: "Original question title", promptMarkdown: "Original question", promptLatex: null, explanationMarkdown: "Original explanation", type: "numeric", choices: [] } } }],
+    attempt: {
+      id: "attempt-a",
+      quiz_set_id: "quiz-a",
+      user_id: "learner-a",
+      started_at: "2026-09-17T00:00:00Z",
+      completed_at: "2026-09-17T00:01:00Z",
+      score: 0,
+      total_points: 1,
+      metadata_json: { quizTitle: "Original quiz" },
+    },
+    answers: [
+      {
+        id: "answer-a",
+        quiz_attempt_id: "attempt-a",
+        question_id: "question-a",
+        user_id: "learner-a",
+        submitted_answer_json: { numeric: "42" },
+        is_correct: false,
+        points_awarded: 0,
+        created_at: "2026-09-17T00:00:30Z",
+        feedback_json: {
+          totalPoints: 1,
+          message: "Saved feedback",
+          questionSnapshot: {
+            id: "question-a",
+            title: "Original question title",
+            promptMarkdown: "Original question",
+            promptLatex: null,
+            explanationMarkdown: "Original explanation",
+            type: "numeric",
+            choices: [],
+          },
+        },
+      },
+    ],
   };
 }
-const practiceQuestion: QuestionBankItem = { id: "question-a", course_id: null, topic_id: null, module_id: null, note_id: null, graph_state_id: null, type: "numeric", title: "Current question title", prompt_markdown: "Current prompt", prompt_latex: null, answer_json: { expected: 1 }, explanation_markdown: "Current explanation", explanation_latex: null, difficulty: "foundational", calculator_allowed: false, estimated_time_seconds: null, source_type: "manual", status: "draft", created_by: "learner-a", created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z" };
+const practiceQuestion: QuestionBankItem = {
+  id: "question-a",
+  course_id: null,
+  topic_id: null,
+  module_id: null,
+  note_id: null,
+  graph_state_id: null,
+  type: "numeric",
+  title: "Current question title",
+  prompt_markdown: "Current prompt",
+  prompt_latex: null,
+  answer_json: { expected: 1 },
+  explanation_markdown: "Current explanation",
+  explanation_latex: null,
+  difficulty: "foundational",
+  calculator_allowed: false,
+  estimated_time_seconds: null,
+  source_type: "manual",
+  status: "draft",
+  created_by: "learner-a",
+  created_at: "2026-09-17T00:00:00Z",
+  updated_at: "2026-09-17T00:00:00Z",
+};

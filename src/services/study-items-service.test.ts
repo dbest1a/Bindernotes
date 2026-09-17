@@ -69,13 +69,15 @@ describe("study items service", () => {
       type: "mistake_review",
     });
 
-    expect(listStudyItems("user-1").map((item) => item.type)).toEqual(expect.arrayContaining([
-      "mistake_review",
-      "numeric_problem",
-      "formula_card",
-      "highlight_recall",
-      "free_response",
-    ]));
+    expect(listStudyItems("user-1").map((item) => item.type)).toEqual(
+      expect.arrayContaining([
+        "mistake_review",
+        "numeric_problem",
+        "formula_card",
+        "highlight_recall",
+        "free_response",
+      ]),
+    );
   });
 
   it("keeps stored items account-scoped and filters out another owner", () => {

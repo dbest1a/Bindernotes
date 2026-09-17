@@ -28,11 +28,7 @@ describe("queryKeys", () => {
       "learner",
       false,
     ]);
-    expect(queryKeys.binder.detail("binder-1", "learner-1")).toEqual([
-      "binder",
-      "binder-1",
-      "learner-1",
-    ]);
+    expect(queryKeys.binder.detail("binder-1", "learner-1")).toEqual(["binder", "binder-1", "learner-1"]);
   });
 
   it("updates every dashboard variant without creating a stale prefix cache", () => {

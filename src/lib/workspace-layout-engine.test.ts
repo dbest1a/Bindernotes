@@ -15,9 +15,7 @@ function frame(x: number, y: number, w = 300, h = 240, z = 1): WorkspaceWindowFr
 }
 
 function visibleFrames(layout: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>) {
-  return Object.values(layout).filter((candidate): candidate is WorkspaceWindowFrame =>
-    Boolean(candidate),
-  );
+  return Object.values(layout).filter((candidate): candidate is WorkspaceWindowFrame => Boolean(candidate));
 }
 
 function framesOverlap(left: WorkspaceWindowFrame, right: WorkspaceWindowFrame) {

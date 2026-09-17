@@ -12,10 +12,7 @@ import {
   saveWorkspaceViewPreference,
 } from "@/lib/workspace-presentation-storage";
 import { useTheme } from "@/hooks/use-theme";
-import {
-  getWorkspacePreferencesRecord,
-  upsertWorkspacePreferencesRecord,
-} from "@/services/binder-service";
+import { getWorkspacePreferencesRecord, upsertWorkspacePreferencesRecord } from "@/services/binder-service";
 import type { WorkspacePreferences } from "@/types";
 
 function normalizeLoadedWorkspacePreferences(
@@ -62,13 +59,7 @@ function createBootWorkspacePreferences(
   const bootMode = loadWorkspaceViewPreference();
   const modeAdjusted = applyWorkspaceViewModeToViewport(fallback, bootMode, getBootViewport());
 
-  return normalizeLoadedWorkspacePreferences(
-    modeAdjusted,
-    userId,
-    binderId,
-    suiteTemplateId,
-    globalTheme,
-  );
+  return normalizeLoadedWorkspacePreferences(modeAdjusted, userId, binderId, suiteTemplateId, globalTheme);
 }
 
 export function useWorkspacePreferences(
@@ -173,9 +164,7 @@ export function useWorkspacePreferences(
     setDraft((current) => {
       const base =
         current ??
-        (userId && binderId
-          ? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId)
-          : null);
+        (userId && binderId ? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId) : null);
       return base && userId && binderId
         ? normalizeLoadedWorkspacePreferences(updater(base), userId, binderId, suiteTemplateId)
         : base;
@@ -188,7 +177,8 @@ export function useWorkspacePreferences(
       return;
     }
     const version = ++saveVersionRef.current;
-    const isCurrent = () => mountedRef.current && scopeRef.current === scope && version === saveVersionRef.current;
+    const isCurrent = () =>
+      mountedRef.current && scopeRef.current === scope && version === saveVersionRef.current;
     setSaveError(null);
     void upsertWorkspacePreferencesRecord(next)
       .then((persisted) => {

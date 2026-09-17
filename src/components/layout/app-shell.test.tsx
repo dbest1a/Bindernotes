@@ -31,7 +31,9 @@ const themeMock = vi.hoisted(() => ({
   setThemeId: vi.fn(),
 }));
 const creatorMock = vi.hoisted(() => ({ allowed: false }));
-vi.mock("@/hooks/use-creator-access", () => ({ useCreatorAccess: () => ({ access: { allowed: creatorMock.allowed }, loading: false, error: "" }) }));
+vi.mock("@/hooks/use-creator-access", () => ({
+  useCreatorAccess: () => ({ access: { allowed: creatorMock.allowed }, loading: false, error: "" }),
+}));
 
 const betaRevampFlagKeys = [
   "betaRevampCalmStudyHomepage",
@@ -219,16 +221,11 @@ describe("AppShell profile settings", () => {
     });
 
     expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
-    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
-      "admin-makeover",
-    );
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain("admin-makeover");
   });
 
   it("uses the cached Minimal dashboard shell while the profile is still loading", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
     authMock.profile = null;
 
     renderShell();
@@ -278,9 +275,7 @@ describe("AppShell profile settings", () => {
     });
 
     expect(document.documentElement.getAttribute("data-admin-dashboard")).toBe("makeover");
-    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain(
-      '"admin-makeover"',
-    );
+    expect(window.localStorage.getItem("binder-notes:admin-dashboard-view")).toContain('"admin-makeover"');
   });
 
   it("shows tutorial prompt controls in the settings window for admins and learners", async () => {
@@ -368,9 +363,7 @@ describe("AppShell profile settings", () => {
     expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("true");
     expect(document.documentElement.getAttribute("data-enhanced-visuals")).toBe("true");
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("false");
-    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
-      '"enabled":true',
-    );
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain('"enabled":true');
 
     fireEvent.click(screen.getByTestId("performance-mode-toggle"));
 
@@ -380,9 +373,7 @@ describe("AppShell profile settings", () => {
     expect(document.documentElement.getAttribute("data-enhanced-mode")).toBe("false");
     expect(document.documentElement.getAttribute("data-enhanced-visuals")).toBe("false");
     expect(document.documentElement.getAttribute("data-performance-mode")).toBe("true");
-    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain(
-      '"enabled":false',
-    );
+    expect(window.localStorage.getItem("bindernotes:enhanced-mode:v1")).toContain('"enabled":false');
   });
 
   it("persists admin motion settings and mirrors them to root data attributes", async () => {
@@ -679,7 +670,9 @@ describe("AppShell profile settings", () => {
 
     expect(document.documentElement.getAttribute("data-revamp-beta")).toBe("true");
     expect(screen.getByTestId("app-shell-root").getAttribute("data-revamp-beta")).toBe("true");
-    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).not.toContain("compactStudyChrome");
+    expect(window.localStorage.getItem("bindernotes:beta-features:user-1")).not.toContain(
+      "compactStudyChrome",
+    );
 
     cleanup();
     renderShell();

@@ -39,7 +39,8 @@ describe("minimal dashboard appearance styles", () => {
   });
 
   it("keeps the Minimal New button visually quiet instead of loud and heavy", () => {
-    const newButtonBlock = css.match(/\.minimal-dashboard-new-button\s*{(?<body>[\s\S]*?)\n {2}\}/)?.groups?.body ?? "";
+    const newButtonBlock =
+      css.match(/\.minimal-dashboard-new-button\s*{(?<body>[\s\S]*?)\n {2}\}/)?.groups?.body ?? "";
 
     expect(newButtonBlock).toMatch(/background-color:\s*hsl\(var\(--background\) \/ 0\.94\)/);
     expect(newButtonBlock).toMatch(/font-size:\s*0\.82rem/);
@@ -61,9 +62,7 @@ describe("minimal dashboard appearance styles", () => {
 
   it("lets Minimal View use the full browser width when requested", () => {
     expect(css).toContain('.minimal-dashboard-page[data-minimal-width="full"]');
-    expect(css).toMatch(
-      /\.minimal-dashboard-page\[data-minimal-width="full"\][\s\S]*max-width:\s*none/s,
-    );
+    expect(css).toMatch(/\.minimal-dashboard-page\[data-minimal-width="full"\][\s\S]*max-width:\s*none/s);
     expect(css).toMatch(
       /\.minimal-dashboard-page\[data-minimal-width="full"\][\s\S]*\.minimal-folder-grid[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*13rem\),\s*1fr\)\)/s,
     );
@@ -71,9 +70,7 @@ describe("minimal dashboard appearance styles", () => {
 
   it("defines the redesigned Normal dashboard around the same workspace controls", () => {
     expect(css).toContain(".normal-dashboard-page");
-    expect(css).toMatch(
-      /\.normal-dashboard-page[\s\S]*--minimal-border:\s*hsl\(var\(--border\) \/ 0\.76\)/s,
-    );
+    expect(css).toMatch(/\.normal-dashboard-page[\s\S]*--minimal-border:\s*hsl\(var\(--border\) \/ 0\.76\)/s);
     expect(css).toMatch(
       /\.normal-dashboard-page \.minimal-dashboard-command-bar[\s\S]*grid-template-columns:\s*minmax\(18rem,\s*1fr\)\s*minmax\(14rem,\s*0\.64fr\)\s*minmax\(18rem,\s*0\.85fr\)\s*auto/s,
     );
@@ -86,7 +83,9 @@ describe("minimal dashboard appearance styles", () => {
     expect(css).toContain(".normal-dashboard-page .minimal-dashboard-command-bar::before");
     expect(css).toContain(".normal-dashboard-page .minimal-dashboard-command-bar__identity .inline-flex");
     expect(css).toContain(".normal-dashboard-page .dashboard-life-card:is(:hover, :focus-visible)");
-    expect(css).toContain('.normal-dashboard-page[data-beta-dashboard-polish="on"] .dashboard-life-card::after');
+    expect(css).toContain(
+      '.normal-dashboard-page[data-beta-dashboard-polish="on"] .dashboard-life-card::after',
+    );
     expect(css).toMatch(
       /\.normal-dashboard-page \.minimal-dashboard-stat[\s\S]*background:\s*linear-gradient\(135deg,\s*hsl\(var\(--background\) \/ 0\.92\),\s*hsl\(var\(--accent\) \/ 0\.34\)\)/s,
     );
@@ -103,17 +102,13 @@ describe("minimal dashboard appearance styles", () => {
     expect(css).toMatch(
       /\.minimal-dashboard-page \.minimal-binder-card--drive-row[\s\S]*min-height:\s*4\.85rem/s,
     );
-    expect(css).toMatch(
-      /\.normal-dashboard-page \.minimal-binder-card[\s\S]*min-height:\s*9\.2rem/s,
-    );
+    expect(css).toMatch(/\.normal-dashboard-page \.minimal-binder-card[\s\S]*min-height:\s*9\.2rem/s);
     expect(css).toContain(".dashboard-health-badge");
     expect(css).toContain(".dashboard-continue-shelf");
   });
 
   it("lets the redesigned Normal dashboard persist full width and compact density", () => {
-    expect(css).toMatch(
-      /\.normal-dashboard-page\[data-dashboard-width="full"\][\s\S]*max-width:\s*none/s,
-    );
+    expect(css).toMatch(/\.normal-dashboard-page\[data-dashboard-width="full"\][\s\S]*max-width:\s*none/s);
     expect(css).toMatch(
       /\.normal-dashboard-page\[data-dashboard-density="compact"\] \.minimal-folder-card[\s\S]*min-height:\s*6\.1rem/s,
     );
@@ -145,17 +140,9 @@ describe("minimal dashboard appearance styles", () => {
   });
 
   it("keeps Admin Makeover command menus above sections without horizontal overflow", () => {
-    expect(css).toMatch(
-      /\.admin-dashboard-command-bar\s*{[\s\S]*z-index:\s*6/s,
-    );
-    expect(css).toMatch(
-      /\.admin-dashboard-filebar\s*{[\s\S]*flex-wrap:\s*wrap/s,
-    );
-    expect(css).toMatch(
-      /\.admin-dashboard-filebar__menu\s*{[\s\S]*z-index:\s*40/s,
-    );
-    expect(css).toMatch(
-      /\.admin-dashboard-filebar__path\s*{[\s\S]*flex:\s*1 1 16rem/s,
-    );
+    expect(css).toMatch(/\.admin-dashboard-command-bar\s*{[\s\S]*z-index:\s*6/s);
+    expect(css).toMatch(/\.admin-dashboard-filebar\s*{[\s\S]*flex-wrap:\s*wrap/s);
+    expect(css).toMatch(/\.admin-dashboard-filebar__menu\s*{[\s\S]*z-index:\s*40/s);
+    expect(css).toMatch(/\.admin-dashboard-filebar__path\s*{[\s\S]*flex:\s*1 1 16rem/s);
   });
 });

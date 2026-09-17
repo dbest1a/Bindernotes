@@ -25,7 +25,10 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
   let bounds: [number, number] | null = null;
   const filters: Array<{ column: string; value: unknown; type: "eq" | "is" }> = [];
   let selectOptions: { count?: "exact"; head?: boolean } | undefined;
-  let mutation: { type: "insert" | "update" | "upsert"; values: WhiteboardRecord | WhiteboardRecord[] } | null = null;
+  let mutation: {
+    type: "insert" | "update" | "upsert";
+    values: WhiteboardRecord | WhiteboardRecord[];
+  } | null = null;
 
   const rows = () => (table === "whiteboards" ? mockDb.whiteboards : mockDb.versions);
   const executeSelect = () => {
@@ -35,7 +38,10 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
     }
 
     if (bounds) filtered = filtered.slice(bounds[0], bounds[1] + 1);
-    if (selected !== "*") filtered = filtered.map((row) => Object.fromEntries(selected.split(",").map((key) => [key.trim(), row[key.trim()]])));
+    if (selected !== "*")
+      filtered = filtered.map((row) =>
+        Object.fromEntries(selected.split(",").map((key) => [key.trim(), row[key.trim()]])),
+      );
     return { data: filtered, error: null, count: selectOptions?.count ? filtered.length : null };
   };
   const executeMutation = () => {
@@ -92,7 +98,10 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
     order() {
       return builder;
     },
-    range(from: number, to: number) { bounds = [from, to]; return builder; },
+    range(from: number, to: number) {
+      bounds = [from, to];
+      return builder;
+    },
     upsert(values: WhiteboardRecord) {
       mutation = { type: "upsert", values };
       return builder;
@@ -123,20 +132,39 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: "whiteboards" | "whiteboard_versions") => createQuery(table),
-    rpc: async (name: string, args: { p_board: WhiteboardRecord; p_expected_revision: number; p_create_version: boolean; p_operation_id: string }) => {
+    rpc: async (
+      name: string,
+      args: {
+        p_board: WhiteboardRecord;
+        p_expected_revision: number;
+        p_create_version: boolean;
+        p_operation_id: string;
+      },
+    ) => {
       mockDb.rpcCalls.push({ name, args });
       const index = mockDb.whiteboards.findIndex((row) => row.id === args.p_board.id);
       const previous = index >= 0 ? mockDb.whiteboards[index] : null;
       if (Number(previous?.revision ?? 0) !== args.p_expected_revision) {
         return { data: null, error: { code: "40001", message: "CONTENT_REVISION_CONFLICT" } };
       }
-      if (!previous && mockDb.whiteboards.filter((row) => row.owner_id === args.p_board.owner_id && !row.archived_at).length >= MAX_WHITEBOARDS_PER_USER) {
+      if (
+        !previous &&
+        mockDb.whiteboards.filter((row) => row.owner_id === args.p_board.owner_id && !row.archived_at)
+          .length >= MAX_WHITEBOARDS_PER_USER
+      ) {
         return { data: null, error: { code: "23514", message: "WHITEBOARD_LIMIT_REACHED" } };
       }
-      const row: WhiteboardRecord = { ...previous, ...args.p_board, revision: args.p_expected_revision + 1, created_at: previous?.created_at ?? "2026-04-26T12:00:00.000Z", updated_at: "2026-04-26T12:00:00.000Z" };
+      const row: WhiteboardRecord = {
+        ...previous,
+        ...args.p_board,
+        revision: args.p_expected_revision + 1,
+        created_at: previous?.created_at ?? "2026-04-26T12:00:00.000Z",
+        updated_at: "2026-04-26T12:00:00.000Z",
+      };
       if (index >= 0) mockDb.whiteboards[index] = row;
       else mockDb.whiteboards.unshift(row);
-      if (args.p_create_version) mockDb.versions.push({ whiteboard_id: row.id, owner_id: args.p_board.owner_id });
+      if (args.p_create_version)
+        mockDb.versions.push({ whiteboard_id: row.id, owner_id: args.p_board.owner_id });
       return { data: row, error: null };
     },
   },
@@ -222,7 +250,9 @@ describe("whiteboard Supabase storage", () => {
 
     const saved = await saveWhiteboard({ ...created.board, title: "Renamed board" }, { backend: "supabase" });
     expect(saved.status).toBe("saved");
-    expect((await loadWhiteboard(scope, created.board.id)).boards[0]).toMatchObject({ title: "Renamed board" });
+    expect((await loadWhiteboard(scope, created.board.id)).boards[0]).toMatchObject({
+      title: "Renamed board",
+    });
 
     const archived = await archiveWhiteboard(scope, created.board.id);
     expect(archived.status).toBe("archived");
@@ -252,15 +282,22 @@ describe("whiteboard Supabase storage", () => {
     );
     expect(mockDb.versions[0]).toMatchObject({ owner_id: scope.ownerId, whiteboard_id: "board-1" });
     expect(mockDb.rpcCalls).toHaveLength(1);
-    expect(mockDb.rpcCalls[0]).toMatchObject({ name: "save_whiteboard_snapshot", args: { p_expected_revision: 0, p_create_version: true } });
+    expect(mockDb.rpcCalls[0]).toMatchObject({
+      name: "save_whiteboard_snapshot",
+      args: { p_expected_revision: 0, p_create_version: true },
+    });
   });
   it("keeps list payloads bounded and cannot save an unhydrated metadata row", async () => {
     await saveWhiteboard(board({ id: "metadata-a" }), { backend: "supabase" });
     await saveWhiteboard(board({ id: "metadata-b" }), { backend: "supabase" });
     const list = await listWhiteboards(scope, { metadataOnly: true, offset: 0, limit: 1 });
-    expect(list.backend).toBe("supabase"); expect(list.boards).toHaveLength(1);
-    expect(list.boards[0].metadataOnly).toBe(true); expect(list.boards[0].scene.elements).toEqual([]);
-    await expect(saveWhiteboard(list.boards[0], { backend: "supabase" })).rejects.toThrow("Load the full whiteboard");
+    expect(list.backend).toBe("supabase");
+    expect(list.boards).toHaveLength(1);
+    expect(list.boards[0].metadataOnly).toBe(true);
+    expect(list.boards[0].scene.elements).toEqual([]);
+    await expect(saveWhiteboard(list.boards[0], { backend: "supabase" })).rejects.toThrow(
+      "Load the full whiteboard",
+    );
     const loaded = await loadWhiteboard(scope, list.boards[0].id);
     expect(loaded.boards[0].metadataOnly).not.toBe(true);
     expect(loaded.boards[0].scene.elements).toHaveLength(1);
@@ -269,7 +306,10 @@ describe("whiteboard Supabase storage", () => {
   it("preserves a stale draft and reports an explicit revision conflict", async () => {
     const first = await saveWhiteboard(board(), { backend: "supabase" });
     await saveWhiteboard({ ...first.board, title: "Changed on device B" }, { backend: "supabase" });
-    const stale = await saveWhiteboard({ ...first.board, title: "My pending local changes" }, { backend: "supabase" });
+    const stale = await saveWhiteboard(
+      { ...first.board, title: "My pending local changes" },
+      { backend: "supabase" },
+    );
     expect(stale.status).toBe("conflict");
     expect(stale.board.title).toBe("My pending local changes");
     expect(mockDb.whiteboards[0].title).toBe("Changed on device B");

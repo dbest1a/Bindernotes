@@ -107,7 +107,8 @@ const DASHBOARD_BINDER_SELECT = [
   "created_at",
   "updated_at",
 ].join(", ");
-export const DASHBOARD_LESSON_METADATA_SELECT = "id,binder_id,title,order_index,is_preview,created_at,updated_at";
+export const DASHBOARD_LESSON_METADATA_SELECT =
+  "id,binder_id,title,order_index,is_preview,created_at,updated_at";
 export const DASHBOARD_LESSON_SUMMARY_SELECT = [
   "lesson_id",
   "binder_id",
@@ -231,9 +232,7 @@ function getLocalBundledBinders() {
 
 const SYSTEM_BINDER_ID_SET = new Set<string>(Object.values(SYSTEM_BINDER_IDS));
 const LEGACY_LOCAL_SAMPLE_BINDER_IDS = new Set(
-  demoBinders
-    .map((binder) => binder.id)
-    .filter((binderId) => !SYSTEM_BINDER_ID_SET.has(binderId)),
+  demoBinders.map((binder) => binder.id).filter((binderId) => !SYSTEM_BINDER_ID_SET.has(binderId)),
 );
 
 function isLegacyLocalSampleBinderId(binderId: string) {
@@ -267,14 +266,12 @@ function getBundledLessonIds(binderId: string) {
 }
 
 function getSystemSuiteByFolderId(folderId: string) {
-  return (
-    systemSuiteTemplates.find((suite) => buildSystemFolderFromSuite(suite).id === folderId) ?? null
-  );
+  return systemSuiteTemplates.find((suite) => buildSystemFolderFromSuite(suite).id === folderId) ?? null;
 }
 
 function getLocalSeedHealthForBinder(binder: Binder) {
   const suite = binder.suite_template_id
-    ? systemSuiteTemplates.find((candidate) => candidate.id === binder.suite_template_id) ?? null
+    ? (systemSuiteTemplates.find((candidate) => candidate.id === binder.suite_template_id) ?? null)
     : findSystemSuiteByBinderId(binder.id);
 
   return suite ? createHealthySeedHealth(suite) : null;
@@ -395,9 +392,7 @@ async function ensureSeededWorkspacePresetsForBinder(
   });
 }
 
-async function getDashboardStatus(
-  binders: Binder[],
-): Promise<{
+async function getDashboardStatus(binders: Binder[]): Promise<{
   seedHealth: SeedHealth[];
   diagnostics: WorkspaceDiagnostic[];
 }> {
@@ -431,7 +426,13 @@ async function getDashboardStatus(
     supabase.from("workspace_presets").select("suite_template_id").in("suite_template_id", suiteIds),
     supabase.from("folders").select("id").in("id", systemFolderIds),
     binders.length > 0
-      ? supabase.from("binder_lessons").select("id, binder_id").in("binder_id", binders.map((binder) => binder.id))
+      ? supabase
+          .from("binder_lessons")
+          .select("id, binder_id")
+          .in(
+            "binder_id",
+            binders.map((binder) => binder.id),
+          )
       : Promise.resolve({ data: [], error: null }),
     supabase.from("suite_templates").select("id", { count: "exact", head: true }).in("id", suiteIds),
     supabase
@@ -451,10 +452,7 @@ async function getDashboardStatus(
     supabase
       .from("binder_lessons")
       .select("id", { count: "exact", head: true })
-      .in(
-        "binder_id",
-        Object.values(SYSTEM_BINDER_IDS),
-      ),
+      .in("binder_id", Object.values(SYSTEM_BINDER_IDS)),
   ]);
 
   [
@@ -485,7 +483,10 @@ async function getDashboardStatus(
     {
       table: "binder_lessons",
       select: "id, binder_id",
-      filters: binders.length > 0 ? [`binder_id in (${binders.map((binder) => binder.id).join(", ")})`] : ["no binder ids"],
+      filters:
+        binders.length > 0
+          ? [`binder_id in (${binders.map((binder) => binder.id).join(", ")})`]
+          : ["no binder ids"],
       error: lessonsResult.error,
     },
     {
@@ -504,15 +505,16 @@ async function getDashboardStatus(
     }>,
     workspacePresetRows: (presetsResult.data ?? []) as Array<{ suite_template_id: string }>,
     binders,
-    folders: (foldersResult.data ?? []) as Array<{ id: string; suite_template_id?: string | null; source?: string | null }>,
+    folders: (foldersResult.data ?? []) as Array<{
+      id: string;
+      suite_template_id?: string | null;
+      source?: string | null;
+    }>,
     lessonsByBinderId: Object.fromEntries(
-      ((lessonsResult.data ?? []) as Array<{ binder_id: string }>).reduce(
-        (entries, lesson) => {
-          entries.set(lesson.binder_id, (entries.get(lesson.binder_id) ?? 0) + 1);
-          return entries;
-        },
-        new Map<string, number>(),
-      ),
+      ((lessonsResult.data ?? []) as Array<{ binder_id: string }>).reduce((entries, lesson) => {
+        entries.set(lesson.binder_id, (entries.get(lesson.binder_id) ?? 0) + 1);
+        return entries;
+      }, new Map<string, number>()),
     ),
     queryChecks: [
       { scope: "suite_templates", error: suitesResult.error },
@@ -569,13 +571,10 @@ async function getDashboardStatus(
       }>,
       binders,
       lessonsByBinderId: Object.fromEntries(
-        ((lessonsResult.data ?? []) as Array<{ binder_id: string }>).reduce(
-          (entries, lesson) => {
-            entries.set(lesson.binder_id, (entries.get(lesson.binder_id) ?? 0) + 1);
-            return entries;
-          },
-          new Map<string, number>(),
-        ),
+        ((lessonsResult.data ?? []) as Array<{ binder_id: string }>).reduce((entries, lesson) => {
+          entries.set(lesson.binder_id, (entries.get(lesson.binder_id) ?? 0) + 1);
+          return entries;
+        }, new Map<string, number>()),
       ),
       diagnostics: mergedDiagnostics,
       fallbackSeedHealth: systemSuiteTemplates.map((suite) => createHealthySeedHealth(suite)),
@@ -829,11 +828,7 @@ async function materializeAccountVisibleBundledCourseForSave(
   return true;
 }
 
-async function requireRemoteAccountDataStorage(
-  binderId: string,
-  label: string,
-  ownerId?: string,
-) {
+async function requireRemoteAccountDataStorage(binderId: string, label: string, ownerId?: string) {
   const tryMaterialize = async () => {
     if (!ownerId) {
       return false;
@@ -864,11 +859,7 @@ async function requireRemoteAccountDataStorage(
   throw createAccountDataCloudSaveError(label);
 }
 
-function throwAccountDataErrorInsteadOfShadowFallback(
-  binderId: string,
-  error: unknown,
-  label: string,
-) {
+function throwAccountDataErrorInsteadOfShadowFallback(binderId: string, error: unknown, label: string) {
   try {
     if (shouldUseShadowFallback(binderId, error)) {
       throw createAccountDataCloudSaveError(label);
@@ -1129,10 +1120,7 @@ function mergeDemoLessons(remoteLessons: BinderLesson[], binderId?: string) {
     });
 }
 
-function buildBundledAccountCourseBundle(
-  binder: Binder,
-  profile: Profile,
-): BinderBundle {
+function buildBundledAccountCourseBundle(binder: Binder, profile: Profile): BinderBundle {
   const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
   const shadowState = getShadowBinderState(profile.id, binder.id);
 
@@ -1150,10 +1138,7 @@ function buildBundledAccountCourseBundle(
   };
 }
 
-function buildBundledAccountCourseOverview(
-  binder: Binder,
-  profile: Profile,
-): BinderOverviewData {
+function buildBundledAccountCourseOverview(binder: Binder, profile: Profile): BinderOverviewData {
   const folderArtifacts = getWorkspaceFolderArtifactsForBinder(binder);
   const shadowState = getShadowBinderState(profile.id, binder.id);
 
@@ -1179,10 +1164,7 @@ type DashboardOptions = {
   includeSystemStatus?: boolean;
 };
 
-export async function getDashboard(
-  profile: Profile,
-  options?: DashboardOptions,
-): Promise<DashboardData> {
+export async function getDashboard(profile: Profile, options?: DashboardOptions): Promise<DashboardData> {
   const includeSystemStatus = options?.includeSystemStatus ?? true;
   if (!supabase) {
     const demoState = loadDemoState();
@@ -1210,15 +1192,32 @@ export async function getDashboard(
     };
   }
 
-  const bindersQuery = () => profile.role === "admin"
-    ? supabase!.from("binders").select(DASHBOARD_BINDER_SELECT)
-    : supabase!.from("binders").select(DASHBOARD_BINDER_SELECT).or(`status.eq.published,owner_id.eq.${profile.id}`);
+  const bindersQuery = () =>
+    profile.role === "admin"
+      ? supabase!.from("binders").select(DASHBOARD_BINDER_SELECT)
+      : supabase!
+          .from("binders")
+          .select(DASHBOARD_BINDER_SELECT)
+          .or(`status.eq.published,owner_id.eq.${profile.id}`);
   const [bindersResult, foldersResult, folderBindersResult, notesResult] = await Promise.all([
-    readMetadataPages((from, to) => bindersQuery().order("pinned", { ascending: false }).order("updated_at", { ascending: false }).order("id").range(from, to)),
+    readMetadataPages((from, to) =>
+      bindersQuery()
+        .order("pinned", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    ),
     readMetadataPages((from, to) => supabase!.from("folders").select("*").order("id").range(from, to)),
     readMetadataPages((from, to) => supabase!.from("folder_binders").select("*").order("id").range(from, to)),
-    readMetadataPages((from, to) => supabase!.from("learner_notes").select(DASHBOARD_NOTE_SUMMARY_SELECT)
-      .eq("owner_id", profile.id).order("updated_at", { ascending: false }).order("id").range(from, to)),
+    readMetadataPages((from, to) =>
+      supabase!
+        .from("learner_notes")
+        .select(DASHBOARD_NOTE_SUMMARY_SELECT)
+        .eq("owner_id", profile.id)
+        .order("updated_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
   debugWorkspaceQueryFailure({
@@ -1255,7 +1254,9 @@ export async function getDashboard(
 
   const candidateBinders = mergePublishedDemoBinders(
     ((bindersResult.data ?? []) as unknown as Binder[]).map(normalizeDashboardBinder),
-  ).filter((binder) => (profile.role === "admin" ? binder.status === "published" || binder.owner_id === profile.id : true));
+  ).filter((binder) =>
+    profile.role === "admin" ? binder.status === "published" || binder.owner_id === profile.id : true,
+  );
   let status: { seedHealth: SeedHealth[]; diagnostics: WorkspaceDiagnostic[] } = {
     seedHealth: [],
     diagnostics: [],
@@ -1279,15 +1280,33 @@ export async function getDashboard(
   }
 
   const candidateBinderIds = candidateBinders.map((binder) => binder.id);
-  const [lessonSummaryResult, lessonMetadataResult] = candidateBinderIds.length > 0
-    ? await Promise.all([
-      readMetadataForIds(candidateBinderIds, (ids, from, to) => supabase!.from("dashboard_lesson_summaries")
-        .select(DASHBOARD_LESSON_SUMMARY_SELECT).in("binder_id", ids).order("lesson_id").range(from, to)),
-      readMetadataForIds(candidateBinderIds, (ids, from, to) => supabase!.from("binder_lessons")
-        .select(DASHBOARD_LESSON_METADATA_SELECT).in("binder_id", ids).order("id").range(from, to)),
-    ]) : [{ data: [], error: null }, { data: [], error: null }];
+  const [lessonSummaryResult, lessonMetadataResult] =
+    candidateBinderIds.length > 0
+      ? await Promise.all([
+          readMetadataForIds(candidateBinderIds, (ids, from, to) =>
+            supabase!
+              .from("dashboard_lesson_summaries")
+              .select(DASHBOARD_LESSON_SUMMARY_SELECT)
+              .in("binder_id", ids)
+              .order("lesson_id")
+              .range(from, to),
+          ),
+          readMetadataForIds(candidateBinderIds, (ids, from, to) =>
+            supabase!
+              .from("binder_lessons")
+              .select(DASHBOARD_LESSON_METADATA_SELECT)
+              .in("binder_id", ids)
+              .order("id")
+              .range(from, to),
+          ),
+        ])
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+        ];
   // A failed metadata read cannot establish that missing summaries mean no lessons.
-  if (lessonMetadataResult.error) throw new Error("The complete lesson list could not be loaded. Please retry.");
+  if (lessonMetadataResult.error)
+    throw new Error("The complete lesson list could not be loaded. Please retry.");
   const coverage = reconcileLessonSummaries(
     (lessonMetadataResult.data ?? []) as unknown as LessonMetadata[],
     (lessonSummaryResult.data ?? []) as unknown as DashboardLessonSummaryRow[],
@@ -1299,10 +1318,14 @@ export async function getDashboard(
   const lessonsUsedSummary = !lessonSummaryResult.error && coverage.complete;
   if (!lessonsUsedSummary) {
     debugWorkspaceQueryInfo({
-      event: "dashboard_summary_fallback", table: "dashboard_lesson_summaries", select: DASHBOARD_LESSON_SUMMARY_SELECT,
+      event: "dashboard_summary_fallback",
+      table: "dashboard_lesson_summaries",
+      select: DASHBOARD_LESSON_SUMMARY_SELECT,
       filters: ["binder_id in (" + candidateBinderIds.join(", ") + ")"],
       reason: lessonSummaryResult.error ? "summary_query_failed" : "missing_summary_rows_or_stale_coverage",
-      fallbackTable: "binder_lessons", rowCount: coverage.repaired, userId: profile.id,
+      fallbackTable: "binder_lessons",
+      rowCount: coverage.repaired,
+      userId: profile.id,
     });
   }
 
@@ -1336,9 +1359,7 @@ export async function getDashboard(
   const remoteNotes = notesResult.error
     ? []
     : ((notesResult.data ?? []) as unknown as DashboardNoteSummaryRow[]).map(noteFromDashboardSummary);
-  const notes = notesResult.error
-    ? shadowNotes
-    : mergeShadowNotes(remoteNotes, shadowNotes);
+  const notes = notesResult.error ? shadowNotes : mergeShadowNotes(remoteNotes, shadowNotes);
   const visible = filterVisibleWorkspaceData({
     binders: candidateBinders,
     folders: foldersResult.error ? [] : ((foldersResult.data ?? []) as Folder[]),
@@ -1374,10 +1395,7 @@ function dedupeWorkspaceDiagnostics(diagnostics: WorkspaceDiagnostic[]) {
   });
 }
 
-function buildLocalCanonicalFolderWorkspace(
-  folderId: string,
-  profile: Profile,
-): FolderWorkspaceData | null {
+function buildLocalCanonicalFolderWorkspace(folderId: string, profile: Profile): FolderWorkspaceData | null {
   const canonicalFolderId = normalizeWorkspaceFolderId(folderId);
   if (!canonicalFolderId) {
     return null;
@@ -1440,10 +1458,7 @@ async function buildRemoteCanonicalFolderWorkspace(
   ]);
 
   const initialError =
-    bindersResult.error ||
-    foldersResult.error ||
-    folderBindersResult.error ||
-    notesResult.error;
+    bindersResult.error || foldersResult.error || folderBindersResult.error || notesResult.error;
   if (initialError) {
     throw initialError;
   }
@@ -1493,14 +1508,12 @@ async function buildRemoteCanonicalFolderWorkspace(
     folderBinders,
     notes: notes.filter((note) => binderIds.includes(note.binder_id)),
     lessons: visible.lessons.filter((lesson) => binderIds.includes(lesson.binder_id)),
-    seedHealth: binders[0] && isSystemBinderId(binders[0].id) ? await getSeedHealthForBinder(binders[0]) : null,
+    seedHealth:
+      binders[0] && isSystemBinderId(binders[0].id) ? await getSeedHealthForBinder(binders[0]) : null,
   };
 }
 
-export async function getBinderBundle(
-  binderId: string,
-  profile: Profile,
-): Promise<BinderBundle> {
+export async function getBinderBundle(binderId: string, profile: Profile): Promise<BinderBundle> {
   if (!supabase) {
     if (isLegacyLocalSampleBinderId(binderId)) {
       throw createLegacyLocalSampleUnavailableError();
@@ -1617,11 +1630,11 @@ export async function getBinderBundle(
   return {
     binder,
     lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[], binderId),
-    notes: mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowState?.notes ?? []),
-    comments: mergeShadowComments(
-      (commentsResult.data ?? []) as Comment[],
-      shadowState?.comments ?? [],
+    notes: mergeShadowNotes(
+      learnerNoteRecordSchema.array().parse(notesResult.data ?? []),
+      shadowState?.notes ?? [],
     ),
+    comments: mergeShadowComments((commentsResult.data ?? []) as Comment[], shadowState?.comments ?? []),
     highlights: mergeShadowHighlights(
       mergeStoredHighlightMetadata((highlightsResult.data ?? []) as Highlight[]),
       shadowState?.highlights ?? [],
@@ -1634,10 +1647,7 @@ export async function getBinderBundle(
   };
 }
 
-export async function getFolderWorkspace(
-  folderId: string,
-  profile: Profile,
-): Promise<FolderWorkspaceData> {
+export async function getFolderWorkspace(folderId: string, profile: Profile): Promise<FolderWorkspaceData> {
   if (!supabase) {
     const canonicalWorkspace = buildLocalCanonicalFolderWorkspace(folderId, profile);
     if (canonicalWorkspace) {
@@ -1699,7 +1709,11 @@ export async function getFolderWorkspace(
           .order("updated_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
     binderIds.length
-      ? supabase.from("binder_lessons").select("*").in("binder_id", binderIds).order("order_index", { ascending: true })
+      ? supabase
+          .from("binder_lessons")
+          .select("*")
+          .in("binder_id", binderIds)
+          .order("order_index", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -1722,7 +1736,9 @@ export async function getFolderWorkspace(
     binderIds.includes(lesson.binder_id),
   );
   const remoteLessons = (lessonsResult.data ?? []) as BinderLesson[];
-  const remoteBindersById = new Map(((bindersResult.data ?? []) as Binder[]).map((binder) => [binder.id, binder]));
+  const remoteBindersById = new Map(
+    ((bindersResult.data ?? []) as Binder[]).map((binder) => [binder.id, binder]),
+  );
   for (const candidateBinderId of binderIds) {
     const storageMode = determineBundledContentStorageMode(
       candidateBinderId,
@@ -1749,10 +1765,7 @@ export async function getFolderWorkspace(
   };
 }
 
-export async function getBinderOverview(
-  binderId: string,
-  profile: Profile,
-): Promise<BinderOverviewData> {
+export async function getBinderOverview(binderId: string, profile: Profile): Promise<BinderOverviewData> {
   if (!supabase) {
     if (isLegacyLocalSampleBinderId(binderId)) {
       throw createLegacyLocalSampleUnavailableError();
@@ -1775,7 +1788,11 @@ export async function getBinderOverview(
 
   const [binderResult, lessonsResult, notesResult, folderLinksResult] = await Promise.all([
     supabase.from("binders").select("*").eq("id", binderId).maybeSingle(),
-    supabase.from("binder_lessons").select("*").eq("binder_id", binderId).order("order_index", { ascending: true }),
+    supabase
+      .from("binder_lessons")
+      .select("*")
+      .eq("binder_id", binderId)
+      .order("order_index", { ascending: true }),
     supabase
       .from("learner_notes")
       .select("*")
@@ -1785,8 +1802,7 @@ export async function getBinderOverview(
     supabase.from("folder_binders").select("*").eq("binder_id", binderId),
   ]);
 
-  const initialError =
-    lessonsResult.error || notesResult.error || folderLinksResult.error;
+  const initialError = lessonsResult.error || notesResult.error || folderLinksResult.error;
   if (initialError) {
     throw initialError;
   }
@@ -1831,7 +1847,10 @@ export async function getBinderOverview(
   return {
     binder,
     lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[], binderId),
-    notes: mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowState?.notes ?? []),
+    notes: mergeShadowNotes(
+      learnerNoteRecordSchema.array().parse(notesResult.data ?? []),
+      shadowState?.notes ?? [],
+    ),
     folderLinks: folderArtifacts.folderLinks,
     folders: folderArtifacts.folders,
     seedHealth,
@@ -1855,13 +1874,24 @@ export async function upsertLearnerNote(input: {
   const client = getAccountDataSupabaseClient();
   await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
 
-  if (input.id && input.expectedRevision === undefined) throw new Error("The original saved revision is required before updating a lesson note.");
+  if (input.id && input.expectedRevision === undefined)
+    throw new Error("The original saved revision is required before updating a lesson note.");
   const id = input.id ?? crypto.randomUUID();
   const revision = input.expectedRevision ?? 0;
   if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Invalid lesson note revision.");
   const { data, error } = await client.rpc("save_personal_content", {
     p_kind: "learner-note",
-    p_record: { id, owner_id: input.ownerId, binder_id: input.binderId, lesson_id: input.lessonId, folder_id: input.folderId ?? null, title: normalizedTitle, content: input.content, math_blocks: input.mathBlocks, pinned: input.pinned ?? false },
+    p_record: {
+      id,
+      owner_id: input.ownerId,
+      binder_id: input.binderId,
+      lesson_id: input.lessonId,
+      folder_id: input.folderId ?? null,
+      title: normalizedTitle,
+      content: input.content,
+      math_blocks: input.mathBlocks,
+      pinned: input.pinned ?? false,
+    },
     p_expected_revision: revision,
     p_operation_id: input.operationId ?? crypto.randomUUID(),
   });
@@ -1872,16 +1902,34 @@ export async function upsertLearnerNote(input: {
     throw error;
   }
   const saved = learnerNoteRecordSchema.parse(data);
-  if (saved.id !== id || saved.owner_id !== input.ownerId || saved.revision <= revision) throw new Error("The server did not confirm this lesson note revision.");
+  if (saved.id !== id || saved.owner_id !== input.ownerId || saved.revision <= revision)
+    throw new Error("The server did not confirm this lesson note revision.");
   return saved;
 }
 
 /** Explicit conflict resolution reads the lesson scope, including concurrent first-note creation. */
-export async function readLearnerNoteByScope(ownerId: string, binderId: string, lessonId: string): Promise<LearnerNote> {
+export async function readLearnerNoteByScope(
+  ownerId: string,
+  binderId: string,
+  lessonId: string,
+): Promise<LearnerNote> {
   const client = getAccountDataSupabaseClient();
   await requireRemoteAccountDataStorage(binderId, "Private note", ownerId);
-  const { data, error } = await client.from("learner_notes").select("*").eq("owner_id", ownerId).eq("binder_id", binderId).eq("lesson_id", lessonId).single();
-  if (error || !data || data.owner_id !== ownerId || data.lesson_id !== lessonId || data.binder_id !== binderId) throw new Error("The saved lesson note could not be loaded. Your draft is still preserved.");
+  const { data, error } = await client
+    .from("learner_notes")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .eq("binder_id", binderId)
+    .eq("lesson_id", lessonId)
+    .single();
+  if (
+    error ||
+    !data ||
+    data.owner_id !== ownerId ||
+    data.lesson_id !== lessonId ||
+    data.binder_id !== binderId
+  )
+    throw new Error("The saved lesson note could not be loaded. Your draft is still preserved.");
   return learnerNoteRecordSchema.parse(data);
 }
 
@@ -1933,12 +1981,7 @@ export async function createHighlight(input: {
 
   const { data, error } = await runHighlightMutationWithFallback({
     preferredMode: readCachedHighlightSchemaMode(),
-    modern: async () =>
-      await client
-        .from("highlights")
-        .insert(highlightWithOffsets)
-        .select("*")
-        .single(),
+    modern: async () => await client.from("highlights").insert(highlightWithOffsets).select("*").single(),
     legacyWithOffsets: async () =>
       await client
         .from("highlights")
@@ -2081,10 +2124,7 @@ export async function updateHighlight(input: {
   return saved;
 }
 
-export async function deleteHighlight(input: {
-  ownerId: string;
-  highlightId: string;
-}): Promise<void> {
+export async function deleteHighlight(input: { ownerId: string; highlightId: string }): Promise<void> {
   const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
@@ -2168,11 +2208,7 @@ export async function createComment(input: {
   const client = getAccountDataSupabaseClient();
   await requireRemoteAccountDataStorage(input.binderId, "Comment", input.ownerId);
 
-  const { data, error } = await client
-    .from("comments")
-    .insert(comment)
-    .select("*")
-    .single();
+  const { data, error } = await client.from("comments").insert(comment).select("*").single();
 
   if (error) {
     throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Comment");
@@ -2215,10 +2251,7 @@ export async function updateComment(input: {
   return data as Comment;
 }
 
-export async function deleteComment(input: {
-  commentId: string;
-  ownerId: string;
-}) {
+export async function deleteComment(input: { commentId: string; ownerId: string }) {
   const client = getAccountDataSupabaseClient();
 
   const shadowState = loadShadowState();
@@ -2287,7 +2320,8 @@ export async function getWorkspacePreferencesRecord(
 export async function upsertWorkspacePreferencesRecord(
   preferences: WorkspacePreferences,
 ): Promise<WorkspacePreferences> {
-  const suiteTemplateId = preferences.suiteTemplateId ?? (await getBinderSuiteTemplateId(preferences.binderId));
+  const suiteTemplateId =
+    preferences.suiteTemplateId ?? (await getBinderSuiteTemplateId(preferences.binderId));
   const next = {
     ...normalizeWorkspacePreferences(preferences),
     suiteTemplateId,
@@ -2399,9 +2433,7 @@ function loadShadowState(): ShadowState {
 function getShadowBinderState(ownerId: string, binderId: string) {
   const shadowState = loadShadowState();
   return {
-    notes: shadowState.notes.filter(
-      (note) => note.owner_id === ownerId && note.binder_id === binderId,
-    ),
+    notes: shadowState.notes.filter((note) => note.owner_id === ownerId && note.binder_id === binderId),
     comments: shadowState.comments.filter(
       (comment) => comment.owner_id === ownerId && comment.binder_id === binderId,
     ),
@@ -2453,9 +2485,7 @@ function mergeShadowComments(remoteComments: Comment[], shadowComments: Comment[
   for (const comment of shadowComments) {
     byId.set(comment.id, comment);
   }
-  return [...byId.values()].sort(
-    (left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at),
-  );
+  return [...byId.values()].sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
 
 function mergeShadowHighlights(remoteHighlights: Highlight[], shadowHighlights: Highlight[]) {
@@ -2465,9 +2495,7 @@ function mergeShadowHighlights(remoteHighlights: Highlight[], shadowHighlights: 
   for (const highlight of shadowHighlights) {
     byId.set(buildHighlightShadowKey(highlight), highlight);
   }
-  return [...byId.values()].sort(
-    (left, right) => Date.parse(right.created_at) - Date.parse(left.created_at),
-  );
+  return [...byId.values()].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
 function buildHighlightShadowKey(highlight: Highlight) {
@@ -2491,16 +2519,12 @@ function sanitizeDemoHighlights(highlights: Highlight[]) {
     return highlights;
   }
 
-  const filtered = highlights.filter(
-    (highlight) => !DEMO_RESET_LESSON_IDS.has(highlight.lesson_id),
-  );
+  const filtered = highlights.filter((highlight) => !DEMO_RESET_LESSON_IDS.has(highlight.lesson_id));
   window.localStorage.setItem(DEMO_HIGHLIGHT_RESET_MARKER_KEY, "true");
   return filtered;
 }
 
-export async function upsertBinder(
-  input: Partial<UpsertBinderInput> & { ownerId: string },
-): Promise<Binder> {
+export async function upsertBinder(input: Partial<UpsertBinderInput> & { ownerId: string }): Promise<Binder> {
   const title = input.title?.trim();
   if (!title) {
     throw new Error("Binder title is required before saving.");
@@ -2534,11 +2558,7 @@ export async function upsertBinder(
     return saved;
   }
 
-  const { data, error } = await supabase
-    .from("binders")
-    .upsert(binder)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("binders").upsert(binder).select("*").single();
 
   if (error) {
     throw error;
@@ -2574,11 +2594,7 @@ export async function createWorkspaceFolder(input: {
     return saved;
   }
 
-  const { data, error } = await supabase
-    .from("folders")
-    .insert(folder)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("folders").insert(folder).select("*").single();
 
   if (error) {
     throw error;
@@ -2609,11 +2625,7 @@ export async function linkWorkspaceBinderToFolder(input: {
     return saved;
   }
 
-  const { data, error } = await supabase
-    .from("folder_binders")
-    .upsert(link)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("folder_binders").upsert(link).select("*").single();
 
   if (error) {
     throw error;
@@ -2712,11 +2724,7 @@ export async function upsertLesson(input: Partial<UpsertLessonInput>): Promise<B
     return saved;
   }
 
-  const { data, error } = await supabase
-    .from("binder_lessons")
-    .upsert(lesson)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("binder_lessons").upsert(lesson).select("*").single();
 
   if (error) {
     throw error;

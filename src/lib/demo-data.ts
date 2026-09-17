@@ -127,9 +127,16 @@ function argumentBuilderSection(
 }
 
 const DEMO_MATH_BLOCK_METADATA: Record<string, MathBlockMetadata> = {
-  "alg1-like-latex-distribute": { label: "Distributing a negative", sourceHeading: "Working with parentheses" },
+  "alg1-like-latex-distribute": {
+    label: "Distributing a negative",
+    sourceHeading: "Working with parentheses",
+  },
   "alg1-like-latex-terms": { label: "Combining like terms", sourceHeading: "What counts as a like term?" },
-  "alg1-poly-graph-1": { label: "Equivalent quadratic forms", sourceHeading: "Why graphing helps", description: "Expanded and factored quadratics plotted together to show the same parabola." },
+  "alg1-poly-graph-1": {
+    label: "Equivalent quadratic forms",
+    sourceHeading: "Why graphing helps",
+    description: "Expanded and factored quadratics plotted together to show the same parabola.",
+  },
   "alg1-poly-latex-foil": { label: "FOIL example", sourceHeading: "Multiplying" },
   "alg1-factor-latex-gcf": { label: "GCF factoring", sourceHeading: "Start with the greatest common factor" },
   "alg1-factor-latex-diff": { label: "Difference of squares", sourceHeading: "Difference of squares" },
@@ -159,19 +166,41 @@ const DEMO_MATH_BLOCK_METADATA: Record<string, MathBlockMetadata> = {
   "jacob-geometric-series": { label: "Geometric series sum", sourceHeading: "Geometric series" },
   "jacob-sum-diff-cubes": { label: "Difference of cubes", sourceHeading: "Polynomial structure" },
   "jacob-log-rule": { label: "Log product rule", sourceHeading: "Logarithms" },
-  "jacob-parent-functions-graph": { label: "Parent function transformations", sourceHeading: "Parent functions and transformations" },
+  "jacob-parent-functions-graph": {
+    label: "Parent function transformations",
+    sourceHeading: "Parent functions and transformations",
+  },
   "jacob-binomial": { label: "Binomial theorem", sourceHeading: "Binomial theorem" },
   "jacob-matrix-product": { label: "Matrix transformation rule", sourceHeading: "Matrices" },
   "jacob-angle-addition": { label: "Angle addition identity", sourceHeading: "Trig identity families" },
-  "jacob-pythagorean-trig": { label: "Tangent Pythagorean identity", sourceHeading: "Trig identity families" },
+  "jacob-pythagorean-trig": {
+    label: "Tangent Pythagorean identity",
+    sourceHeading: "Trig identity families",
+  },
   "jacob-polar-form": { label: "Polar form of a complex number", sourceHeading: "Complex numbers" },
   "jacob-vector-magnitude": { label: "Vector magnitude", sourceHeading: "Vectors" },
   "jacob-growth-model": { label: "Exponential growth model", sourceHeading: "Growth and decay" },
   "jacob-limit": { label: "Limit notation", sourceHeading: "Series and limits" },
-  "jacob-gradient-surface-3d": { label: "Gradient surface and tangent plane", sourceHeading: "Mental pictures", description: "A 3D bowl with a movable tangent plane for partial derivatives and gradient direction." },
-  "jacob-lagrange-surface-3d": { label: "Constraint on a surface", sourceHeading: "Applications of multivariable derivatives", description: "A 3D surface and circular constraint for visualizing constrained optimization." },
-  "jacob-ode-slope-field": { label: "Logistic solution family", sourceHeading: "First- and second-order equations", description: "A 2D differential-equation graph for carrying capacity and solution behavior." },
-  "jacob-sequence-convergence-graph": { label: "Sequence convergence picture", sourceHeading: "Sequences", description: "Terms of a convergent sequence plotted against its limiting value." },
+  "jacob-gradient-surface-3d": {
+    label: "Gradient surface and tangent plane",
+    sourceHeading: "Mental pictures",
+    description: "A 3D bowl with a movable tangent plane for partial derivatives and gradient direction.",
+  },
+  "jacob-lagrange-surface-3d": {
+    label: "Constraint on a surface",
+    sourceHeading: "Applications of multivariable derivatives",
+    description: "A 3D surface and circular constraint for visualizing constrained optimization.",
+  },
+  "jacob-ode-slope-field": {
+    label: "Logistic solution family",
+    sourceHeading: "First- and second-order equations",
+    description: "A 2D differential-equation graph for carrying capacity and solution behavior.",
+  },
+  "jacob-sequence-convergence-graph": {
+    label: "Sequence convergence picture",
+    sourceHeading: "Sequences",
+    description: "Terms of a convergent sequence plotted against its limiting value.",
+  },
   "latex-limit": { label: "Evaluating a simple limit", sourceHeading: "Limits are local predictions" },
   "graph-limit": { label: "Limit comparison graph", sourceHeading: "Limits are local predictions" },
   "latex-derivative": { label: "Derivative rule", sourceHeading: "Derivatives measure change" },
@@ -317,8 +346,7 @@ export const demoBinders: Binder[] = [
     owner_id: demoAdmin.id,
     title: "Jacob Math Notes",
     slug: "jacob-math-notes",
-    description:
-      "A full polished study binder spanning geometry through real analysis.",
+    description: "A full polished study binder spanning geometry through real analysis.",
     subject: "Mathematics",
     level: "Geometry to Real Analysis",
     status: "published",
@@ -340,8 +368,7 @@ export const demoBinders: Binder[] = [
     level: "Ancient Mediterranean",
     status: "published",
     price_cents: 0,
-    cover_url:
-      "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1400&q=82",
+    cover_url: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1400&q=82",
     pinned: true,
     created_at: now,
     updated_at: now,
@@ -549,7 +576,8 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-sohcahtoa",
         type: "latex",
-        latex: "\\sin\\theta=\\frac{opp}{hyp},\\ \\cos\\theta=\\frac{adj}{hyp},\\ \\tan\\theta=\\frac{opp}{adj}",
+        latex:
+          "\\sin\\theta=\\frac{opp}{hyp},\\ \\cos\\theta=\\frac{adj}{hyp},\\ \\tan\\theta=\\frac{opp}{adj}",
         label: "SOHCAHTOA ratios",
         sourceHeading: "Core trig ratios",
       },
@@ -759,9 +787,7 @@ const jacobLessons: BinderLesson[] = [
         "Logarithms are exponent statements written in a different form.",
       ]),
       heading("Log properties"),
-      paragraph(
-        "Treat product, quotient, and power rules as exponent rules rewritten in logarithmic form.",
-      ),
+      paragraph("Treat product, quotient, and power rules as exponent rules rewritten in logarithmic form."),
     ),
     math_blocks: [
       {
@@ -834,7 +860,8 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-matrix-product",
         type: "latex",
-        latex: "\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\\begin{bmatrix}x\\\\y\\end{bmatrix}=\\begin{bmatrix}ax+by\\\\cx+dy\\end{bmatrix}",
+        latex:
+          "\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}\\begin{bmatrix}x\\\\y\\end{bmatrix}=\\begin{bmatrix}ax+by\\\\cx+dy\\end{bmatrix}",
         label: "Matrix-vector multiplication",
         sourceHeading: "Binomial theorem and matrices",
       },
@@ -1330,7 +1357,8 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-cross-product",
         type: "latex",
-        latex: "\\mathbf{u}\\times\\mathbf{v}=\\begin{vmatrix}\\mathbf{i}&\\mathbf{j}&\\mathbf{k}\\\\u_1&u_2&u_3\\\\v_1&v_2&v_3\\end{vmatrix}",
+        latex:
+          "\\mathbf{u}\\times\\mathbf{v}=\\begin{vmatrix}\\mathbf{i}&\\mathbf{j}&\\mathbf{k}\\\\u_1&u_2&u_3\\\\v_1&v_2&v_3\\end{vmatrix}",
         label: "Cross product",
         sourceHeading: "Vector algebra",
       },
@@ -1366,14 +1394,16 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-gradient",
         type: "latex",
-        latex: "\\nabla f=\\left\\langle \\frac{\\partial f}{\\partial x},\\frac{\\partial f}{\\partial y},\\frac{\\partial f}{\\partial z}\\right\\rangle",
+        latex:
+          "\\nabla f=\\left\\langle \\frac{\\partial f}{\\partial x},\\frac{\\partial f}{\\partial y},\\frac{\\partial f}{\\partial z}\\right\\rangle",
         label: "Gradient",
         sourceHeading: "Operator toolbox",
       },
       {
         id: "jacob-divergence",
         type: "latex",
-        latex: "\\nabla\\cdot\\mathbf{F}=\\frac{\\partial P}{\\partial x}+\\frac{\\partial Q}{\\partial y}+\\frac{\\partial R}{\\partial z}",
+        latex:
+          "\\nabla\\cdot\\mathbf{F}=\\frac{\\partial P}{\\partial x}+\\frac{\\partial Q}{\\partial y}+\\frac{\\partial R}{\\partial z}",
         label: "Divergence",
         sourceHeading: "Operator toolbox",
       },
@@ -1451,14 +1481,16 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-greens",
         type: "latex",
-        latex: "\\oint_C P\\,dx+Q\\,dy=\\iint_R \\left(\\frac{\\partial Q}{\\partial x}-\\frac{\\partial P}{\\partial y}\\right)dA",
+        latex:
+          "\\oint_C P\\,dx+Q\\,dy=\\iint_R \\left(\\frac{\\partial Q}{\\partial x}-\\frac{\\partial P}{\\partial y}\\right)dA",
         label: "Green's Theorem",
         sourceHeading: "Green and Stokes",
       },
       {
         id: "jacob-stokes",
         type: "latex",
-        latex: "\\oint_{\\partial S}\\mathbf{F}\\cdot d\\mathbf{r}=\\iint_S (\\nabla\\times\\mathbf{F})\\cdot d\\mathbf{S}",
+        latex:
+          "\\oint_{\\partial S}\\mathbf{F}\\cdot d\\mathbf{r}=\\iint_S (\\nabla\\times\\mathbf{F})\\cdot d\\mathbf{S}",
         label: "Stokes' Theorem",
         sourceHeading: "Green and Stokes",
       },
@@ -1602,7 +1634,8 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-projection",
         type: "latex",
-        latex: "\\operatorname{proj}_{\\mathbf{u}}\\mathbf{v}=\\frac{\\mathbf{v}\\cdot\\mathbf{u}}{\\mathbf{u}\\cdot\\mathbf{u}}\\mathbf{u}",
+        latex:
+          "\\operatorname{proj}_{\\mathbf{u}}\\mathbf{v}=\\frac{\\mathbf{v}\\cdot\\mathbf{u}}{\\mathbf{u}\\cdot\\mathbf{u}}\\mathbf{u}",
         label: "Projection formula",
         sourceHeading: "Orthogonality and projections",
       },
@@ -1773,7 +1806,8 @@ const jacobLessons: BinderLesson[] = [
       {
         id: "jacob-continuity-eps-delta",
         type: "latex",
-        latex: "\\forall \\varepsilon>0\\ \\exists \\delta>0\\ \\text{ such that } |x-a|<\\delta \\Rightarrow |f(x)-f(a)|<\\varepsilon",
+        latex:
+          "\\forall \\varepsilon>0\\ \\exists \\delta>0\\ \\text{ such that } |x-a|<\\delta \\Rightarrow |f(x)-f(a)|<\\varepsilon",
         label: "Epsilon-delta continuity",
         sourceHeading: "Continuity and uniform continuity",
       },
@@ -1964,9 +1998,12 @@ const romanLessons: BinderLesson[] = [
             sourceType: "Secondary literary history with legendary material",
             date: "Late first century BCE to early first century CE",
             context: "Written under Augustus, long after the founding era",
-            keyIdea: "Livy preserves the royal family conflict, the twins, and the moral meaning Romans attached to the story.",
-            supports: "Roman elites used the founding myth to explain values such as courage, piety, and public order.",
-            reliability: "Excellent for Roman memory and ideology, but not direct proof of eighth-century events.",
+            keyIdea:
+              "Livy preserves the royal family conflict, the twins, and the moral meaning Romans attached to the story.",
+            supports:
+              "Roman elites used the founding myth to explain values such as courage, piety, and public order.",
+            reliability:
+              "Excellent for Roman memory and ideology, but not direct proof of eighth-century events.",
           },
           {
             title: "Plutarch, Life of Romulus",
@@ -1974,7 +2011,8 @@ const romanLessons: BinderLesson[] = [
             date: "Early second century CE",
             context: "A Greek writer collecting and comparing older Roman traditions",
             keyIdea: "Plutarch shows that multiple founding versions circulated even in antiquity.",
-            supports: "The founding story was interpreted, retold, and reshaped rather than fixed once and for all.",
+            supports:
+              "The founding story was interpreted, retold, and reshaped rather than fixed once and for all.",
             reliability: "Useful for comparing traditions, but very distant from the events it describes.",
           },
           {
@@ -1982,9 +2020,12 @@ const romanLessons: BinderLesson[] = [
             sourceType: "Material evidence",
             date: "Modern recovery of eighth-century BCE settlement evidence",
             context: "Burials, settlement traces, and early urban development near the Tiber",
-            keyIdea: "Archaeology supports the existence of growing settlements, not the literal wolf-and-twins narrative.",
-            supports: "Rome likely emerged from real settlement consolidation even though the legend dramatizes the process.",
-            reliability: "Best evidence for what physically existed, but it cannot confirm legendary characters.",
+            keyIdea:
+              "Archaeology supports the existence of growing settlements, not the literal wolf-and-twins narrative.",
+            supports:
+              "Rome likely emerged from real settlement consolidation even though the legend dramatizes the process.",
+            reliability:
+              "Best evidence for what physically existed, but it cannot confirm legendary characters.",
           },
         ],
       ),
@@ -2040,15 +2081,18 @@ const romanLessons: BinderLesson[] = [
             context: "A Roman historian preserving stories about the seven kings",
             keyIdea: "Each king is used to explain a part of Roman religion, warfare, or public building.",
             supports: "Romans treated the monarchy as the training ground for later institutions.",
-            reliability: "Strong for Roman political memory, but shaped by later republican and Augustan concerns.",
+            reliability:
+              "Strong for Roman political memory, but shaped by later republican and Augustan concerns.",
           },
           {
             title: "Forum and early urban archaeology",
             sourceType: "Material evidence",
             date: "Evidence from early Rome, recovered in modern archaeology",
             context: "Drainage, public space development, and settlement consolidation",
-            keyIdea: "Archaeology suggests Rome really did become more urban and organized during the regal period.",
-            supports: "The kingdom stories are embellished, but they may preserve memories of real institutional growth.",
+            keyIdea:
+              "Archaeology suggests Rome really did become more urban and organized during the regal period.",
+            supports:
+              "The kingdom stories are embellished, but they may preserve memories of real institutional growth.",
             reliability: "Best for physical change, weaker for the exact identities of individual kings.",
           },
         ],
@@ -2112,9 +2156,12 @@ const romanLessons: BinderLesson[] = [
             sourceType: "Secondary analytical history",
             date: "Second century BCE",
             context: "A Greek observer trying to explain Roman success",
-            keyIdea: "Polybius describes Rome's mixed constitution and the discipline of its political system.",
-            supports: "Roman expansion depended on institutions that coordinated war, office, and social hierarchy.",
-            reliability: "Valuable because Polybius writes relatively close to Roman expansion, though from an elite perspective.",
+            keyIdea:
+              "Polybius describes Rome's mixed constitution and the discipline of its political system.",
+            supports:
+              "Roman expansion depended on institutions that coordinated war, office, and social hierarchy.",
+            reliability:
+              "Valuable because Polybius writes relatively close to Roman expansion, though from an elite perspective.",
           },
           {
             title: "Roads, colonies, and alliance networks",
@@ -2122,7 +2169,8 @@ const romanLessons: BinderLesson[] = [
             date: "Middle republic",
             context: "Roman roads, Latin colonies, and treaty arrangements across Italy",
             keyIdea: "Rome built infrastructure and legal ties alongside military conquest.",
-            supports: "The conquest of Italy worked because Rome created durable systems for moving troops and binding allies.",
+            supports:
+              "The conquest of Italy worked because Rome created durable systems for moving troops and binding allies.",
             reliability: "Strong for structural change even when the literary narratives are selective.",
           },
         ],
@@ -2179,8 +2227,10 @@ const romanLessons: BinderLesson[] = [
             date: "Second century BCE",
             context: "A Greek historian examining how Rome defeated other powers",
             keyIdea: "Polybius treats Rome's institutions and adaptability as major reasons for victory.",
-            supports: "Rome wins not because it never loses, but because it absorbs defeats and keeps fighting.",
-            reliability: "Strong on military and political analysis, though still shaped by elite perspectives.",
+            supports:
+              "Rome wins not because it never loses, but because it absorbs defeats and keeps fighting.",
+            reliability:
+              "Strong on military and political analysis, though still shaped by elite perspectives.",
           },
           {
             title: "Later Roman memory of Hannibal",
@@ -2188,7 +2238,8 @@ const romanLessons: BinderLesson[] = [
             date: "Various later writers",
             context: "Romans remembering near-disaster from a position of later victory",
             keyIdea: "Hannibal becomes the benchmark for an enemy who almost broke the republic.",
-            supports: "The Second Punic War was remembered as a test that forced Rome to become more adaptive and ruthless.",
+            supports:
+              "The Second Punic War was remembered as a test that forced Rome to become more adaptive and ruthless.",
             reliability: "Useful for Roman memory, but later accounts dramatize events through hindsight.",
           },
         ],
@@ -2238,7 +2289,8 @@ const romanLessons: BinderLesson[] = [
             date: "Mid first century BCE",
             context: "Caesar writing about his own campaigns",
             keyIdea: "Caesar presents himself as disciplined, necessary, and consistently successful.",
-            supports: "Military victory made Caesar politically dangerous because it built public glory and troop loyalty.",
+            supports:
+              "Military victory made Caesar politically dangerous because it built public glory and troop loyalty.",
             reliability: "Primary and invaluable, but openly self-serving.",
           },
           {
@@ -2324,7 +2376,8 @@ const romanLessons: BinderLesson[] = [
             title: "Roads, forts, and military diplomas",
             sourceType: "Material and documentary evidence",
             date: "Early empire",
-            context: "Fortification networks, troop movements, and official documents for service and citizenship",
+            context:
+              "Fortification networks, troop movements, and official documents for service and citizenship",
             keyIdea: "The empire kept order through permanent military and administrative systems.",
             supports: "Imperial stability depended on structured logistics rather than charisma alone.",
             reliability: "Strong evidence for how administration and frontier management actually worked.",
@@ -2373,8 +2426,10 @@ const romanLessons: BinderLesson[] = [
             date: "313 CE",
             context: "Imperial policy associated with Constantine and Licinius",
             keyIdea: "Christian worship becomes legally tolerated rather than criminalized.",
-            supports: "Constantine's reign changes the legal and public place of Christianity inside the empire.",
-            reliability: "Useful for legal policy, though later Christian memory sometimes overstates its simplicity.",
+            supports:
+              "Constantine's reign changes the legal and public place of Christianity inside the empire.",
+            reliability:
+              "Useful for legal policy, though later Christian memory sometimes overstates its simplicity.",
           },
           {
             title: "Eusebius on Constantine",
@@ -2382,7 +2437,8 @@ const romanLessons: BinderLesson[] = [
             date: "Fourth century CE",
             context: "A Christian bishop writing about Constantine's reign",
             keyIdea: "Constantine is framed as a ruler chosen to reshape the empire under Christian favor.",
-            supports: "Later interpretation of Constantine is inseparable from Christian political storytelling.",
+            supports:
+              "Later interpretation of Constantine is inseparable from Christian political storytelling.",
             reliability: "Close to events, but deeply committed to praising Constantine.",
           },
         ],
@@ -2446,8 +2502,10 @@ const romanLessons: BinderLesson[] = [
             date: "Late fourth century CE",
             context: "A soldier-historian writing about frontier war and imperial weakness",
             keyIdea: "Ammianus records how military strain, court politics, and frontier pressure interact.",
-            supports: "The empire weakens through accumulated structural strain, not just through one invasion.",
-            reliability: "Excellent for the later fourth century, though still shaped by elite Roman concerns.",
+            supports:
+              "The empire weakens through accumulated structural strain, not just through one invasion.",
+            reliability:
+              "Excellent for the later fourth century, though still shaped by elite Roman concerns.",
           },
           {
             title: "Augustine, City of God",
@@ -2455,7 +2513,8 @@ const romanLessons: BinderLesson[] = [
             date: "Early fifth century CE",
             context: "Written after the sack of Rome in 410 CE",
             keyIdea: "Augustine responds to the claim that Rome fell because it abandoned old gods.",
-            supports: "Later Romans were already debating whether the crisis was moral, political, military, or theological.",
+            supports:
+              "Later Romans were already debating whether the crisis was moral, political, military, or theological.",
             reliability: "Useful for how Romans interpreted crisis, not for neutral military reporting.",
           },
         ],
@@ -2951,9 +3010,7 @@ export const demoLessons: BinderLesson[] = [
         "Difference of squares: a^2-b^2=(a-b)(a+b)",
         "Quadratic formula: x=(-b +/- sqrt(b^2-4ac))/(2a)",
       ]),
-      blockquote(
-        "Use this lesson as a formula anchor while you work through the rest of the binder.",
-      ),
+      blockquote("Use this lesson as a formula anchor while you work through the rest of the binder."),
     ),
     math_blocks: [
       { id: "alg1-vocab-latex-slope", type: "latex", latex: "m=\\frac{y_2-y_1}{x_2-x_1}" },
@@ -3121,7 +3178,8 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-romulus",
     binder_id: "binder-rise-of-rome",
     label: "Romulus",
-    description: "Legendary founder who turns the city's origin into a story about rule, violence, and legitimacy.",
+    description:
+      "Legendary founder who turns the city's origin into a story about rule, violence, and legitimacy.",
     created_at: now,
   },
   {
@@ -3149,7 +3207,8 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-augustus-person",
     binder_id: "binder-rise-of-rome",
     label: "Augustus",
-    description: "Ruler who stabilizes one-man power by presenting it as restored order rather than monarchy.",
+    description:
+      "Ruler who stabilizes one-man power by presenting it as restored order rather than monarchy.",
     created_at: now,
   },
   {
@@ -3184,14 +3243,16 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-eastern",
     binder_id: "binder-rise-of-rome",
     label: "Eastern Roman Empire",
-    description: "The eastern imperial state centered on Constantinople that continues Roman rule after the west falls.",
+    description:
+      "The eastern imperial state centered on Constantinople that continues Roman rule after the west falls.",
     created_at: now,
   },
   {
     id: "node-rome-monarchy",
     binder_id: "binder-rise-of-rome",
     label: "Monarchy",
-    description: "Kingship in Roman memory, including its role in the anti-monarchical identity of the republic.",
+    description:
+      "Kingship in Roman memory, including its role in the anti-monarchical identity of the republic.",
     created_at: now,
   },
   {
@@ -3205,7 +3266,8 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-imperial-admin",
     binder_id: "binder-rise-of-rome",
     label: "Imperial administration",
-    description: "Taxation, provincial governance, roads, law, and military logistics that held the empire together.",
+    description:
+      "Taxation, provincial governance, roads, law, and military logistics that held the empire together.",
     created_at: now,
   },
   {
@@ -3219,21 +3281,24 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-succession",
     binder_id: "binder-rise-of-rome",
     label: "Succession politics",
-    description: "The recurring problem of choosing emperors without stable constitutional transfer of power.",
+    description:
+      "The recurring problem of choosing emperors without stable constitutional transfer of power.",
     created_at: now,
   },
   {
     id: "node-rome-christianity",
     binder_id: "binder-rise-of-rome",
     label: "Christianity and empire",
-    description: "The growing role of Christianity in imperial law, legitimacy, and civic life in late antiquity.",
+    description:
+      "The growing role of Christianity in imperial law, legitimacy, and civic life in late antiquity.",
     created_at: now,
   },
   {
     id: "node-rome-republic-concept",
     binder_id: "binder-rise-of-rome",
     label: "Republic",
-    description: "A political order built around shared offices, civic duty, elite competition, and suspicion of kingship.",
+    description:
+      "A political order built around shared offices, civic duty, elite competition, and suspicion of kingship.",
     created_at: now,
   },
   {
@@ -3247,14 +3312,16 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-plebeians",
     binder_id: "binder-rise-of-rome",
     label: "Plebeians",
-    description: "Common citizens whose political demands pushed Rome to define rights, offices, and representation.",
+    description:
+      "Common citizens whose political demands pushed Rome to define rights, offices, and representation.",
     created_at: now,
   },
   {
     id: "node-rome-empire",
     binder_id: "binder-rise-of-rome",
     label: "Empire",
-    description: "A system of rule over provinces, armies, taxes, roads, law, and subject peoples across the Mediterranean.",
+    description:
+      "A system of rule over provinces, armies, taxes, roads, law, and subject peoples across the Mediterranean.",
     created_at: now,
   },
   {
@@ -3268,7 +3335,8 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-military-reform",
     binder_id: "binder-rise-of-rome",
     label: "Military reform",
-    description: "Changes in recruitment, loyalty, command, and rewards that helped pull soldiers toward generals.",
+    description:
+      "Changes in recruitment, loyalty, command, and rewards that helped pull soldiers toward generals.",
     created_at: now,
   },
   {
@@ -3282,14 +3350,16 @@ export const demoConceptNodes: ConceptNode[] = [
     id: "node-rome-western-empire",
     binder_id: "binder-rise-of-rome",
     label: "Western Roman Empire",
-    description: "The western imperial structure whose office disappears in 476 while Roman traditions continue elsewhere.",
+    description:
+      "The western imperial structure whose office disappears in 476 while Roman traditions continue elsewhere.",
     created_at: now,
   },
   {
     id: "node-rome-byzantine",
     binder_id: "binder-rise-of-rome",
     label: "Byzantine Empire",
-    description: "The later name for the Eastern Roman Empire, which preserved Roman state claims for centuries.",
+    description:
+      "The later name for the Eastern Roman Empire, which preserved Roman state claims for centuries.",
     created_at: now,
   },
   ...russianRevolutionConceptNodes,

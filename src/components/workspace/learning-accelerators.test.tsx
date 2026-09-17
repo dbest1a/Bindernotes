@@ -44,7 +44,12 @@ function renderModule(featureOverrides: Partial<typeof defaultBetaFeaturesPrefer
     noteTitle: "Polynomial notes",
     noteContent: {
       type: "doc",
-      content: [{ type: "paragraph", content: [{ type: "text", text: "I need to connect zeros to graph crossings." }] }],
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "I need to connect zeros to graph crossings." }],
+        },
+      ],
     },
     noteMath: [],
     highlights: [
@@ -59,7 +64,9 @@ function renderModule(featureOverrides: Partial<typeof defaultBetaFeaturesPrefer
         created_at: "2026-05-24T00:00:00.000Z",
       },
     ],
-    conceptNodes: [{ id: "concept-1", binder_id: "binder-1", label: "Zeros", description: null, created_at: "" }],
+    conceptNodes: [
+      { id: "concept-1", binder_id: "binder-1", label: "Zeros", description: null, created_at: "" },
+    ],
     conceptEdges: [],
     onOpenWorkspaceTool: () => undefined,
   } as unknown as WorkspaceModuleContext;

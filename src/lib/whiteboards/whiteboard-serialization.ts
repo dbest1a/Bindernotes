@@ -126,11 +126,15 @@ export function sanitizeWhiteboardModuleElement(
     x: typeof moduleElement.x === "number" && Number.isFinite(moduleElement.x) ? moduleElement.x : 0,
     y: typeof moduleElement.y === "number" && Number.isFinite(moduleElement.y) ? moduleElement.y : 0,
     width:
-      typeof moduleElement.width === "number" && Number.isFinite(moduleElement.width) && moduleElement.width > 0
+      typeof moduleElement.width === "number" &&
+      Number.isFinite(moduleElement.width) &&
+      moduleElement.width > 0
         ? moduleElement.width
         : 220,
     height:
-      typeof moduleElement.height === "number" && Number.isFinite(moduleElement.height) && moduleElement.height > 0
+      typeof moduleElement.height === "number" &&
+      Number.isFinite(moduleElement.height) &&
+      moduleElement.height > 0
         ? moduleElement.height
         : 160,
     zIndex:
@@ -171,7 +175,10 @@ export function hasPersistentWhiteboardSceneChange(
   previousScene: WhiteboardSceneData,
   nextScene: WhiteboardSceneData,
 ) {
-  return JSON.stringify(pickPersistentSceneState(previousScene)) !== JSON.stringify(pickPersistentSceneState(nextScene));
+  return (
+    JSON.stringify(pickPersistentSceneState(previousScene)) !==
+    JSON.stringify(pickPersistentSceneState(nextScene))
+  );
 }
 
 export function sanitizeWhiteboardForStorage(board: BinderWhiteboard): BinderWhiteboard {

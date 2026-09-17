@@ -48,12 +48,7 @@ import { cn } from "@/lib/utils";
 import type { StudyItemType } from "@/services/study-items-service";
 import { createCloudStudyItem } from "@/services/canonical-review-service";
 import { listStudyGraphLinks } from "@/services/math-study-loop-service";
-import type {
-  MathCourse,
-  MathModule,
-  QuestionBankItem,
-  QuestionType,
-} from "@/types/math-learning";
+import type { MathCourse, MathModule, QuestionBankItem, QuestionType } from "@/types/math-learning";
 
 const questionTypes: QuestionType[] = [
   "multiple_choice",
@@ -92,8 +87,8 @@ export function MathLandingPage() {
             Jacob's Math Notes, upgraded with Desmos graphs and practice that saves.
           </h1>
           <p className="mt-4 max-w-2xl page-copy">
-            Move from Geometry to Real Analysis with formula cards, 2D and 3D graph modules,
-            saved graph states, and linked practice.
+            Move from Geometry to Real Analysis with formula cards, 2D and 3D graph modules, saved graph
+            states, and linked practice.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild>
@@ -164,9 +159,7 @@ export function MathCoursePage() {
       <section className="page-shell p-6">
         <Badge variant="outline">Course</Badge>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight">{bundle.course.title}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-          {bundle.course.description}
-        </p>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{bundle.course.description}</p>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -176,7 +169,11 @@ export function MathCoursePage() {
             <CardDescription>Move through the course by concept.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {bundle.topics.length === 0 ? <p className="text-sm text-muted-foreground">No topics have been published for this course yet.</p> : null}
+            {bundle.topics.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No topics have been published for this course yet.
+              </p>
+            ) : null}
             {bundle.topics.map((topic) => (
               <div
                 className="rounded-lg border border-border/70 bg-background/75 px-3 py-2 text-sm"
@@ -189,7 +186,17 @@ export function MathCoursePage() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {bundle.modules.length === 0 ? <EmptyState title="No modules published yet" description="This course is listed in the catalog, but its study modules are not available yet. Browse Math modules for available lessons." action={<Button asChild variant="outline"><Link to="/math/modules">Browse available modules</Link></Button>} /> : null}
+          {bundle.modules.length === 0 ? (
+            <EmptyState
+              title="No modules published yet"
+              description="This course is listed in the catalog, but its study modules are not available yet. Browse Math modules for available lessons."
+              action={
+                <Button asChild variant="outline">
+                  <Link to="/math/modules">Browse available modules</Link>
+                </Button>
+              }
+            />
+          ) : null}
           {bundle.modules.map((module) => (
             <ModuleCard key={module.id} module={module} />
           ))}
@@ -273,8 +280,11 @@ export function MathModulePage() {
   const graphCards = module.module_json.graphCards ?? [];
   const selectedGraphCard = graphCards.find((graph) => graph.id === selectedGraphCardId) ?? null;
   const expressions = selectedGraphCard
-    ? selectedGraphCard.expressions.map((latex, index) => ({ id: `${selectedGraphCard.id}-${index + 1}`, latex }))
-    : module.module_json.expressions ?? [];
+    ? selectedGraphCard.expressions.map((latex, index) => ({
+        id: `${selectedGraphCard.id}-${index + 1}`,
+        latex,
+      }))
+    : (module.module_json.expressions ?? []);
   const activeGraphState = graphStatesByMode[activeGraphMode];
   const canSaveGraph = module.calculator_mode !== "none" && Boolean(activeGraphState);
   const mathStudyLoopBeta = betaFeatures.isFeatureEnabled("betaRevampMathStudyLoop");
@@ -320,39 +330,45 @@ export function MathModulePage() {
   };
 
   const addFormulaToReview = async (formula: FormulaCard) => {
-    try { await createCloudStudyItem({
-      answer: formula.explanation?.trim() || formula.latex,
-      betaEnabled: reviewQueueBeta,
-      courseId: module.course_id,
-      courseTitle: bundle.course?.title ?? null,
-      ownerId: profile.id,
-      prompt: `Explain when to use ${formula.label}.`,
-      sourceExcerpt: formula.latex,
-      sourceId: formula.id,
-      sourceKind: "formula",
-      sourceTitle: formula.label,
-      type: "formula_card",
-    });
-    setSaveMessage(`${formula.label} added to Review Queue.`);
-    } catch (error) { setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
+    try {
+      await createCloudStudyItem({
+        answer: formula.explanation?.trim() || formula.latex,
+        betaEnabled: reviewQueueBeta,
+        courseId: module.course_id,
+        courseTitle: bundle.course?.title ?? null,
+        ownerId: profile.id,
+        prompt: `Explain when to use ${formula.label}.`,
+        sourceExcerpt: formula.latex,
+        sourceId: formula.id,
+        sourceKind: "formula",
+        sourceTitle: formula.label,
+        type: "formula_card",
+      });
+      setSaveMessage(`${formula.label} added to Review Queue.`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+    }
   };
 
   const addQuestionToReview = async (question: QuestionBankItem) => {
-    try { await createCloudStudyItem({
-      answer: question.explanation_markdown?.trim() || JSON.stringify(question.answer_json),
-      betaEnabled: reviewQueueBeta,
-      courseId: module.course_id,
-      courseTitle: bundle.course?.title ?? null,
-      ownerId: profile.id,
-      prompt: question.title ?? question.prompt_markdown,
-      sourceExcerpt: question.prompt_markdown,
-      sourceId: question.id,
-      sourceKind: "problem",
-      sourceTitle: question.title ?? "Practice problem",
-      type: studyItemTypeForQuestion(question),
-    });
-    setSaveMessage(`${question.title ?? "Practice problem"} added to Review Queue.`);
-    } catch (error) { setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
+    try {
+      await createCloudStudyItem({
+        answer: question.explanation_markdown?.trim() || JSON.stringify(question.answer_json),
+        betaEnabled: reviewQueueBeta,
+        courseId: module.course_id,
+        courseTitle: bundle.course?.title ?? null,
+        ownerId: profile.id,
+        prompt: question.title ?? question.prompt_markdown,
+        sourceExcerpt: question.prompt_markdown,
+        sourceId: question.id,
+        sourceKind: "problem",
+        sourceTitle: question.title ?? "Practice problem",
+        type: studyItemTypeForQuestion(question),
+      });
+      setSaveMessage(`${question.title ?? "Practice problem"} added to Review Queue.`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+    }
   };
 
   return (
@@ -361,7 +377,10 @@ export function MathModulePage() {
         items={[
           { label: "Workspace", to: "/dashboard" },
           { label: "Math", to: "/math" },
-          { label: bundle.course?.title ?? "Course", to: bundle.course ? `/math/courses/${bundle.course.slug}` : "/math" },
+          {
+            label: bundle.course?.title ?? "Course",
+            to: bundle.course ? `/math/courses/${bundle.course.slug}` : "/math",
+          },
           { label: module.title },
         ]}
       />
@@ -371,9 +390,7 @@ export function MathModulePage() {
           <div>
             <Badge variant="outline">{bundle.course?.title ?? "Math module"}</Badge>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight">{module.title}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
-              {module.description}
-            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{module.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={startPractice} type="button">
@@ -524,13 +541,15 @@ export function MathModulePage() {
                 placeholder="Name this graph state"
                 value={snapshotName}
               />
-              <Button disabled={!canSaveGraph || saveGraph.isPending} onClick={saveCurrentGraph} type="button">
+              <Button
+                disabled={!canSaveGraph || saveGraph.isPending}
+                onClick={saveCurrentGraph}
+                type="button"
+              >
                 <Save data-icon="inline-start" />
                 Save graph state
               </Button>
-              {saveMessage ? (
-                <span className="text-sm text-muted-foreground">{saveMessage}</span>
-              ) : null}
+              {saveMessage ? <span className="text-sm text-muted-foreground">{saveMessage}</span> : null}
             </div>
           </CardContent>
         </Card>
@@ -611,9 +630,7 @@ export function MathQuestionBankPage() {
             key={question.id}
             onToggle={(checked) => {
               setSelectedIds((current) =>
-                checked
-                  ? [...current, question.id]
-                  : current.filter((id) => id !== question.id),
+                checked ? [...current, question.id] : current.filter((id) => id !== question.id),
               );
             }}
             question={question}
@@ -689,9 +706,11 @@ export function MathQuestionEditorPage() {
   const selectedModule = modules.find((module) => module.id === draft.moduleId) ?? null;
   const numericExpected = parseFiniteDecimal(draft.numericExpected);
   const numericTolerance = parseFiniteDecimal(draft.numericTolerance);
-  const numericAnswerError = draft.type === "numeric" && (numericExpected === null || numericTolerance === null || numericTolerance < 0)
-    ? "Enter a finite expected answer and a nonnegative numeric tolerance."
-    : null;
+  const numericAnswerError =
+    draft.type === "numeric" &&
+    (numericExpected === null || numericTolerance === null || numericTolerance < 0)
+      ? "Enter a finite expected answer and a nonnegative numeric tolerance."
+      : null;
 
   const saveDraft = async () => {
     if (numericAnswerError) return;
@@ -746,24 +765,37 @@ export function MathQuestionEditorPage() {
               {existingQuestion ? "Edit math question" : "Create math question"}
             </h1>
           </div>
-          <Button disabled={Boolean(numericAnswerError) || saveQuestionMutation.isPending} onClick={saveDraft} type="button">
+          <Button
+            disabled={Boolean(numericAnswerError) || saveQuestionMutation.isPending}
+            onClick={saveDraft}
+            type="button"
+          >
             <Save data-icon="inline-start" />
             Save question
           </Button>
         </div>
-        {numericAnswerError || saveError ? <p className="mt-3 text-sm" role="alert">{numericAnswerError ?? saveError}</p> : null}
+        {numericAnswerError || saveError ? (
+          <p className="mt-3 text-sm" role="alert">
+            {numericAnswerError ?? saveError}
+          </p>
+        ) : null}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.55fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Question setup</CardTitle>
-            <CardDescription>Manual questions can be linked to a course, module, or note later.</CardDescription>
+            <CardDescription>
+              Manual questions can be linked to a course, module, or note later.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-3 md:grid-cols-2">
               <LabelledField label="Title">
-                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+                <Input
+                  value={draft.title}
+                  onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                />
               </LabelledField>
               <LabelledField label="Question type">
                 <select
@@ -914,13 +946,20 @@ export function MathQuizAttemptPage() {
     setAnswers({});
     setPending(false);
     setSaveError(null);
-    return () => { operation.current.generation += 1; };
+    return () => {
+      operation.current.generation += 1;
+    };
   }, [quizId, profile?.id]);
 
   if (quizQuery.isLoading) {
     return <MathPageSkeleton />;
   }
-  if (quizQuery.isError) return <main className="app-page"><p role="alert">The quiz could not be loaded. Please try again.</p></main>;
+  if (quizQuery.isError)
+    return (
+      <main className="app-page">
+        <p role="alert">The quiz could not be loaded. Please try again.</p>
+      </main>
+    );
 
   const quiz = quizQuery.data;
   if (!quiz || !profile) {
@@ -934,21 +973,40 @@ export function MathQuizAttemptPage() {
     setPending(true);
     setSaveError(null);
     try {
-      const activeAttemptId = attemptId ?? (await startAttempt.mutateAsync({ quizSetId: quiz.id, userId: profile.id, quizTitle: quiz.title })).id;
+      const activeAttemptId =
+        attemptId ??
+        (await startAttempt.mutateAsync({ quizSetId: quiz.id, userId: profile.id, quizTitle: quiz.title }))
+          .id;
       if (operation.current.generation !== generation) return;
       setAttemptId(activeAttemptId);
       if (!finish) return;
       const scores = [];
       for (const question of quiz.questions ?? []) {
-        const submitted = await submitAttempt.mutateAsync({ attemptId: activeAttemptId, userId: profile.id, question, answer: answers[question.id] ?? {} });
+        const submitted = await submitAttempt.mutateAsync({
+          attemptId: activeAttemptId,
+          userId: profile.id,
+          question,
+          answer: answers[question.id] ?? {},
+        });
         if (operation.current.generation !== generation) return;
-        scores.push({ pointsAwarded: submitted.score.pointsAwarded, totalPoints: submitted.score.totalPoints });
+        scores.push({
+          pointsAwarded: submitted.score.pointsAwarded,
+          totalPoints: submitted.score.totalPoints,
+        });
       }
-      await completeAttempt.mutateAsync({ attemptId: activeAttemptId, quizSet: quiz, userId: profile.id, scores });
+      await completeAttempt.mutateAsync({
+        attemptId: activeAttemptId,
+        quizSet: quiz,
+        userId: profile.id,
+        scores,
+      });
       if (operation.current.generation !== generation) return;
       navigate(`/math/quizzes/${encodeURIComponent(quiz.id)}/results/${encodeURIComponent(activeAttemptId)}`);
     } catch {
-      if (operation.current.generation === generation) setSaveError("The attempt was not fully saved. Your answers are still here. Retry to finish saving before leaving this page.");
+      if (operation.current.generation === generation)
+        setSaveError(
+          "The attempt was not fully saved. Your answers are still here. Retry to finish saving before leaving this page.",
+        );
     } finally {
       if (operation.current.generation === generation) {
         operation.current.pending = false;
@@ -967,7 +1025,9 @@ export function MathQuizAttemptPage() {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
           </div>
           {!attemptId ? (
-            <Button disabled={pending} onClick={() => void saveAttempt(false)} type="button">Start attempt</Button>
+            <Button disabled={pending} onClick={() => void saveAttempt(false)} type="button">
+              Start attempt
+            </Button>
           ) : (
             <Badge variant="outline">Attempt started</Badge>
           )}
@@ -975,21 +1035,24 @@ export function MathQuizAttemptPage() {
       </section>
 
       {saveError ? <p role="alert">{saveError}</p> : null}
-        <fieldset className="grid gap-4" disabled={pending}>
-          {(quiz.questions ?? []).map((question) => (
-            <QuestionRenderer
-              key={question.id}
-              onAnswerChange={(answer) =>
-                setAnswers((current) => ({ ...current, [question.id]: answer }))
-              }
-              question={question}
-              value={answers[question.id] ?? {}}
-            />
-          ))}
-           <Button className="justify-self-start" disabled={pending || !quiz.questions?.length} onClick={() => void saveAttempt(true)} type="button">
-             {pending ? "Saving attempt…" : "Submit answers"}
-           </Button>
-        </fieldset>
+      <fieldset className="grid gap-4" disabled={pending}>
+        {(quiz.questions ?? []).map((question) => (
+          <QuestionRenderer
+            key={question.id}
+            onAnswerChange={(answer) => setAnswers((current) => ({ ...current, [question.id]: answer }))}
+            question={question}
+            value={answers[question.id] ?? {}}
+          />
+        ))}
+        <Button
+          className="justify-self-start"
+          disabled={pending || !quiz.questions?.length}
+          onClick={() => void saveAttempt(true)}
+          type="button"
+        >
+          {pending ? "Saving attempt…" : "Submit answers"}
+        </Button>
+      </fieldset>
     </main>
   );
 }
@@ -1000,10 +1063,30 @@ export function MathQuizResultsPage() {
   const resultsQuery = useQuizAttemptResults(quizId, attemptId, profile?.id);
   if (isLoading || resultsQuery.isLoading) return <MathPageSkeleton />;
   if (!profile) return <Navigate replace to="/auth" />;
-  if (resultsQuery.isError) return <main className="app-page"><p role="alert">Saved results could not be loaded.</p><Button onClick={() => void resultsQuery.refetch()} type="button">Try again</Button></main>;
+  if (resultsQuery.isError)
+    return (
+      <main className="app-page">
+        <p role="alert">Saved results could not be loaded.</p>
+        <Button onClick={() => void resultsQuery.refetch()} type="button">
+          Try again
+        </Button>
+      </main>
+    );
   const results = resultsQuery.data;
-  if (!results || results.attempt.user_id !== profile.id || results.attempt.id !== attemptId || results.attempt.quiz_set_id !== quizId) {
-    return <main className="app-page"><EmptyState title="Saved attempt unavailable" description="This attempt does not exist or is not available to your account." /></main>;
+  if (
+    !results ||
+    results.attempt.user_id !== profile.id ||
+    results.attempt.id !== attemptId ||
+    results.attempt.quiz_set_id !== quizId
+  ) {
+    return (
+      <main className="app-page">
+        <EmptyState
+          title="Saved attempt unavailable"
+          description="This attempt does not exist or is not available to your account."
+        />
+      </main>
+    );
   }
   return <SavedQuizResults results={results} />;
 }
@@ -1114,7 +1197,12 @@ function FormulaCardGrid({
                 <h2 className="font-semibold tracking-tight">{formula.label}</h2>
               </div>
               {reviewQueueBeta && onAddFormulaToReview ? (
-                <Button onClick={() => onAddFormulaToReview(formula)} size="sm" type="button" variant="outline">
+                <Button
+                  onClick={() => onAddFormulaToReview(formula)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   <BookOpenCheck data-icon="inline-start" />
                   Add to Review
                 </Button>
@@ -1217,17 +1305,19 @@ function PracticeList({
           <EmptyState description="No questions are linked yet." title="Practice coming soon" />
         ) : (
           questions.map((question) => (
-            <div
-              className="rounded-lg border border-border/70 bg-background/75 p-3"
-              key={question.id}
-            >
+            <div className="rounded-lg border border-border/70 bg-background/75 p-3" key={question.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{formatQuestionType(question.type)}</Badge>
                   <Badge variant="outline">{question.difficulty}</Badge>
                 </div>
                 {reviewQueueBeta && onAddQuestionToReview ? (
-                  <Button onClick={() => onAddQuestionToReview(question)} size="sm" type="button" variant="outline">
+                  <Button
+                    onClick={() => onAddQuestionToReview(question)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <BookOpenCheck data-icon="inline-start" />
                     Add to Review
                   </Button>
@@ -1300,8 +1390,17 @@ function QuestionRenderer({
         {question.prompt_latex ? <LatexBlock latex={question.prompt_latex} /> : null}
       </CardHeader>
       <CardContent>
-        {question.type === "short_answer" || question.type === "fill_blank" ? <p className="mb-3 text-sm text-muted-foreground">Answers use an exact-text check. Equivalent mathematical forms or different wording may need review against the explanation.</p> : null}
-        {question.type === "free_response" ? <p className="mb-3 text-sm text-muted-foreground">This response is saved for review. Any completion credit is not a correctness grade.</p> : null}
+        {question.type === "short_answer" || question.type === "fill_blank" ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            Answers use an exact-text check. Equivalent mathematical forms or different wording may need
+            review against the explanation.
+          </p>
+        ) : null}
+        {question.type === "free_response" ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            This response is saved for review. Any completion credit is not a correctness grade.
+          </p>
+        ) : null}
         <QuestionInput question={question} value={value} onAnswerChange={onAnswerChange} />
       </CardContent>
     </Card>
@@ -1324,7 +1423,7 @@ function QuestionInput({
             { id: "true", choice_text: "True" },
             { id: "false", choice_text: "False" },
           ]
-        : question.choices ?? [];
+        : (question.choices ?? []);
     return (
       <div className="grid gap-2">
         {choices.map((choice) => (
@@ -1438,7 +1537,10 @@ function AnswerEditor({
       <LabelledField label="Choices">
         <div className="grid gap-2">
           {draft.choices.map((choice, index) => (
-            <div className="grid gap-2 rounded-lg border border-border/70 bg-background/75 p-3 md:grid-cols-[1fr_auto]" key={choice.id}>
+            <div
+              className="grid gap-2 rounded-lg border border-border/70 bg-background/75 p-3 md:grid-cols-[1fr_auto]"
+              key={choice.id}
+            >
               <Input
                 onChange={(event) => {
                   const choices = [...draft.choices];
@@ -1712,7 +1814,9 @@ function buildAnswerJson(draft: QuestionDraft): QuestionBankItem["answer_json"] 
     return { correctChoiceId: draft.choices.find((choice) => choice.isCorrect)?.id };
   }
   if (draft.type === "multiple_select") {
-    return { correctChoiceIds: draft.choices.filter((choice) => choice.isCorrect).map((choice) => choice.id) };
+    return {
+      correctChoiceIds: draft.choices.filter((choice) => choice.isCorrect).map((choice) => choice.id),
+    };
   }
   if (draft.type === "true_false") {
     return { expectedBoolean: draft.correctBoolean };

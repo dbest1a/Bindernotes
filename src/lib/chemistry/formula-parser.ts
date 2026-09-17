@@ -88,13 +88,21 @@ export function parseFormula(input: string): FormulaParseResult {
 
     if (char === ")") {
       if (stack.length === 1) {
-        return chemistryError("UNBALANCED_PARENTHESIS", "Closing parenthesis has no matching opening parenthesis.", index);
+        return chemistryError(
+          "UNBALANCED_PARENTHESIS",
+          "Closing parenthesis has no matching opening parenthesis.",
+          index,
+        );
       }
 
       const group = stack.pop() ?? {};
       const parsedCount = parseNumber(body, index + 1);
-      if (!Object.keys(group).length || !Number.isSafeInteger(parsedCount.value) || parsedCount.value <= 0
-        || !mergeAtoms(stack[stack.length - 1], group, parsedCount.value)) {
+      if (
+        !Object.keys(group).length ||
+        !Number.isSafeInteger(parsedCount.value) ||
+        parsedCount.value <= 0 ||
+        !mergeAtoms(stack[stack.length - 1], group, parsedCount.value)
+      ) {
         return chemistryError("INVALID_TOKEN", "Groups need atoms and positive safe-integer counts.", index);
       }
       index = parsedCount.next;
@@ -127,7 +135,10 @@ export function parseFormula(input: string): FormulaParseResult {
   }
 
   if (stack.length > 1) {
-    return chemistryError("UNBALANCED_PARENTHESIS", "Formula has an opening parenthesis without a matching close.");
+    return chemistryError(
+      "UNBALANCED_PARENTHESIS",
+      "Formula has an opening parenthesis without a matching close.",
+    );
   }
 
   return {

@@ -97,9 +97,7 @@ export function usePerformanceMode() {
   const publish = useCallback((nextPreference: PerformanceModePreference) => {
     savePerformanceModePreference(nextPreference, getStorage());
     if (hasWindow()) {
-      window.dispatchEvent(
-        new CustomEvent(performanceModePreferenceChangeEvent, { detail: nextPreference }),
-      );
+      window.dispatchEvent(new CustomEvent(performanceModePreferenceChangeEvent, { detail: nextPreference }));
     }
   }, []);
 

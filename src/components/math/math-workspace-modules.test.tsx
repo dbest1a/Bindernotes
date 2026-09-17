@@ -30,13 +30,7 @@ vi.mock("@/lib/desmos-loader", async () => {
 });
 
 vi.mock("@/components/math/desmos-scientific-calculator", () => ({
-  DesmosScientificCalculator: ({
-    fallback,
-    height,
-  }: {
-    fallback?: React.ReactNode;
-    height?: string;
-  }) => (
+  DesmosScientificCalculator: ({ fallback, height }: { fallback?: React.ReactNode; height?: string }) => (
     <div data-testid="desmos-scientific-calculator" data-height={height ?? ""}>
       {fallback}
     </div>
@@ -106,7 +100,9 @@ describe("ScientificCalculatorModule", () => {
   it("keeps the Desmos scientific surface available in the full workspace", () => {
     render(<ScientificCalculatorModule bindings={bindings()} />);
 
-    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe("clamp(520px, 68vh, 720px)");
+    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe(
+      "clamp(520px, 68vh, 720px)",
+    );
   });
 
   it("Revamp Beta gives the calculator a first-class visible input and does not mount Desmos until needed", () => {

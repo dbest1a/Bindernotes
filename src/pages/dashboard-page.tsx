@@ -118,8 +118,7 @@ export function DashboardPage() {
   const debouncedQuery = useDebouncedValue(query);
   const deferredQuery = useDeferredValue(debouncedQuery);
   const showSystemDiagnostics =
-    (profile?.role === "admin" || import.meta.env.DEV) &&
-    searchParams.get("debug") === "system";
+    (profile?.role === "admin" || import.meta.env.DEV) && searchParams.get("debug") === "system";
 
   useEffect(() => {
     markDevPerformance("dashboard-render");
@@ -233,7 +232,13 @@ export function DashboardPage() {
           .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalized))
           .slice(0, 6);
 
-        return { folderSummaries, studyReadyBinders, recentDocuments, lessonsByBinderId, folderNamesByBinderId };
+        return {
+          folderSummaries,
+          studyReadyBinders,
+          recentDocuments,
+          lessonsByBinderId,
+          folderNamesByBinderId,
+        };
       }),
     [dashboardSearchIndex, data, deferredQuery],
   );
@@ -242,10 +247,7 @@ export function DashboardPage() {
   const learnerDiagnosticsMessage = actionableDiagnostics.length
     ? buildLearnerWorkspaceMessage(actionableDiagnostics)
     : null;
-  const runtimeDiagnostics =
-    error && showSystemDiagnostics
-      ? classifyRuntimeError("workspace", error)
-      : [];
+  const runtimeDiagnostics = error && showSystemDiagnostics ? classifyRuntimeError("workspace", error) : [];
   const resolvedFiltered: DashboardFilteredData = filtered ?? {
     folderSummaries: [],
     studyReadyBinders: [],
@@ -335,7 +337,6 @@ export function DashboardPage() {
       workspacePresentation={workspacePresentation}
     />
   );
-
 }
 
 function DashboardTransitionShell({
@@ -358,11 +359,7 @@ function DashboardTransitionShell({
     : isAdminMakeoverAppearance
       ? "admin-makeover"
       : "normal";
-  const dashboardLayout = isMinimalAppearance
-    ? "drive"
-    : isAdminMakeoverAppearance
-      ? "makeover"
-      : "visual";
+  const dashboardLayout = isMinimalAppearance ? "drive" : isAdminMakeoverAppearance ? "makeover" : "visual";
   const dashboardIntro = isMinimalAppearance
     ? "Opening your compact workspace."
     : isAdminMakeoverAppearance
@@ -450,9 +447,7 @@ function DashboardTransitionShell({
 
       {error ? (
         <div className="grid gap-4" data-testid="dashboard-error-shell">
-          {runtimeDiagnostics.length ? (
-            <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} />
-          ) : null}
+          {runtimeDiagnostics.length ? <WorkspaceDiagnosticsPanel diagnostics={runtimeDiagnostics} /> : null}
           {(() => {
             if (!showSystemDiagnostics || !isMissingSeedError(error)) {
               return null;
@@ -548,7 +543,7 @@ function MinimalDashboardView({
             lessons: filtered.lessonsByBinderId[binder.id] ?? [],
             notes: notesByBinderId[binder.id] ?? [],
           }),
-    ),
+      ),
     [filtered.lessonsByBinderId, filtered.studyReadyBinders, notesByBinderId],
   );
   const canManageWorkspace = profile.role === "admin";
@@ -564,8 +559,8 @@ function MinimalDashboardView({
   const [dashboardNotice, setDashboardNotice] = useState<string | null>(null);
   const [workspaceView, updateWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
   const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
-  const [folderOrder, setFolderOrder] = useState<string[]>(() =>
-    loadDashboardOrganizationDraft(profile.id, data).folderOrder,
+  const [folderOrder, setFolderOrder] = useState<string[]>(
+    () => loadDashboardOrganizationDraft(profile.id, data).folderOrder,
   );
 
   useEffect(() => {
@@ -604,9 +599,7 @@ function MinimalDashboardView({
       .filter(Boolean) as DashboardFilteredData["folderSummaries"];
     return [
       ...ordered,
-      ...filtered.folderSummaries.filter(
-        (summary) => !folderOrder.includes(summary.folder.id),
-      ),
+      ...filtered.folderSummaries.filter((summary) => !folderOrder.includes(summary.folder.id)),
     ];
   }, [filtered.folderSummaries, folderOrder, folderSummaryById]);
   const sortedFolderSummaries = useMemo(() => {
@@ -702,9 +695,7 @@ function MinimalDashboardView({
         return;
       }
 
-      const currentOrder = [
-        ...orderedFolderSummaries.map((summary) => summary.folder.id),
-      ];
+      const currentOrder = [...orderedFolderSummaries.map((summary) => summary.folder.id)];
       const fromIndex = currentOrder.indexOf(activeFolderId);
       const toIndex = currentOrder.indexOf(overFolderId);
       if (fromIndex < 0 || toIndex < 0) {
@@ -736,9 +727,7 @@ function MinimalDashboardView({
 
   const beginCreate = (kind: WorkspaceCreateKind) => {
     setCreateKind(kind);
-    setDraftTitle(
-      kind === "folder" ? "New folder" : kind === "binder" ? "New binder" : "New document",
-    );
+    setDraftTitle(kind === "folder" ? "New folder" : kind === "binder" ? "New binder" : "New document");
     setDraftFolderId(firstFolder?.folder.id ?? "");
     setDraftBinderId(firstBinder?.id ?? "");
     setDraftSubject(inferSubjectFromName(firstFolder?.folder.name));
@@ -870,11 +859,7 @@ function MinimalDashboardView({
       data-beta-dashboard-polish={betaFeaturesEnabled ? "on" : "off"}
       data-minimal-density={isMinimalAppearance ? workspaceView.density : undefined}
       data-minimal-recent-documents={
-        isMinimalAppearance
-          ? workspaceView.showRecentDocuments
-            ? "visible"
-            : "hidden"
-          : undefined
+        isMinimalAppearance ? (workspaceView.showRecentDocuments ? "visible" : "hidden") : undefined
       }
       data-minimal-scope={isMinimalAppearance ? workspaceView.scope : undefined}
       data-minimal-sort={isMinimalAppearance ? workspaceView.sort : undefined}
@@ -882,7 +867,10 @@ function MinimalDashboardView({
       data-testid="dashboard-page"
       data-workspace-presentation={workspacePresentation}
     >
-      <section className="minimal-dashboard-command-bar" data-testid={`${dashboardPrefix}-dashboard-command-bar`}>
+      <section
+        className="minimal-dashboard-command-bar"
+        data-testid={`${dashboardPrefix}-dashboard-command-bar`}
+      >
         <div className="minimal-dashboard-command-bar__identity">
           <Badge variant="outline">Workspace</Badge>
           <div>
@@ -1000,7 +988,11 @@ function MinimalDashboardView({
                         <LibraryBig className="size-4" />
                         Binders
                       </button>
-                      <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                      <button
+                        onClick={() => changeScope("documents", { focusSearch: true })}
+                        role="menuitem"
+                        type="button"
+                      >
                         <BookCopy className="size-4" />
                         Recent documents
                       </button>
@@ -1008,24 +1000,40 @@ function MinimalDashboardView({
                   ) : null}
                   {menu.id === "open" ? (
                     <>
-                      <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                      <button
+                        onClick={() => changeScope("documents", { focusSearch: true })}
+                        role="menuitem"
+                        type="button"
+                      >
                         <Search className="size-4" />
                         Show recent documents
                       </button>
                       {firstFolder ? (
-                        <Link onClick={() => setOpenDriveMenu(null)} role="menuitem" to={`/folders/${firstFolder.folder.id}`}>
+                        <Link
+                          onClick={() => setOpenDriveMenu(null)}
+                          role="menuitem"
+                          to={`/folders/${firstFolder.folder.id}`}
+                        >
                           <FolderOpen className="size-4" />
                           {getDisplayTitle(firstFolder.folder.name, "First folder")}
                         </Link>
                       ) : null}
                       {firstBinder ? (
-                        <Link onClick={() => setOpenDriveMenu(null)} role="menuitem" to={`/binders/${firstBinder.id}`}>
+                        <Link
+                          onClick={() => setOpenDriveMenu(null)}
+                          role="menuitem"
+                          to={`/binders/${firstBinder.id}`}
+                        >
                           <LibraryBig className="size-4" />
                           {deriveBinderTitle(firstBinder, filtered.lessonsByBinderId[firstBinder.id] ?? [])}
                         </Link>
                       ) : null}
                       {nextDocument ? (
-                        <Link onClick={() => setOpenDriveMenu(null)} role="menuitem" to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+                        <Link
+                          onClick={() => setOpenDriveMenu(null)}
+                          role="menuitem"
+                          to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}
+                        >
                           <FileText className="size-4" />
                           {deriveLessonTitle(nextDocument)}
                         </Link>
@@ -1068,9 +1076,15 @@ function MinimalDashboardView({
                         type="button"
                       >
                         <BookCopy className="size-4" />
-                        {workspaceView.showRecentDocuments ? "Hide recent documents" : "Show recent documents"}
+                        {workspaceView.showRecentDocuments
+                          ? "Hide recent documents"
+                          : "Show recent documents"}
                       </button>
-                      <button onClick={() => changeScope("all", { focusSearch: true })} role="menuitem" type="button">
+                      <button
+                        onClick={() => changeScope("all", { focusSearch: true })}
+                        role="menuitem"
+                        type="button"
+                      >
                         <Search className="size-4" />
                         Search everything
                       </button>
@@ -1091,14 +1105,17 @@ function MinimalDashboardView({
         <div className="minimal-dashboard-filebar__primary">
           {nextDocument ? (
             <Button asChild size="sm" type="button">
-            <Link data-testid={`${dashboardPrefix}-dashboard-open-next`} to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+              <Link
+                data-testid={`${dashboardPrefix}-dashboard-open-next`}
+                to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}
+              >
                 Open next
                 <ChevronRight className="size-4" />
               </Link>
             </Button>
           ) : firstBinder ? (
             <Button asChild size="sm" type="button">
-            <Link data-testid={`${dashboardPrefix}-dashboard-open-next`} to={`/binders/${firstBinder.id}`}>
+              <Link data-testid={`${dashboardPrefix}-dashboard-open-next`} to={`/binders/${firstBinder.id}`}>
                 Open binder
                 <ChevronRight className="size-4" />
               </Link>
@@ -1108,7 +1125,11 @@ function MinimalDashboardView({
       </nav>
 
       {createKind ? (
-        <form className="minimal-dashboard-create-card" data-testid={`${dashboardPrefix}-dashboard-create-card`} onSubmit={submitCreate}>
+        <form
+          className="minimal-dashboard-create-card"
+          data-testid={`${dashboardPrefix}-dashboard-create-card`}
+          onSubmit={submitCreate}
+        >
           <div>
             <span className="page-kicker">
               {createKind === "folder"
@@ -1119,11 +1140,7 @@ function MinimalDashboardView({
             </span>
             <label>
               <span>Name</span>
-              <Input
-                autoFocus
-                onChange={(event) => setDraftTitle(event.target.value)}
-                value={draftTitle}
-              />
+              <Input autoFocus onChange={(event) => setDraftTitle(event.target.value)} value={draftTitle} />
             </label>
           </div>
           {createKind === "binder" ? (
@@ -1167,9 +1184,7 @@ function MinimalDashboardView({
                 onChange={(event) => setDraftBinderId(event.target.value)}
                 value={draftBinderId}
               >
-                {sortedStudyBinders.length === 0 ? (
-                  <option value="">Create a binder first</option>
-                ) : null}
+                {sortedStudyBinders.length === 0 ? <option value="">Create a binder first</option> : null}
                 {sortedStudyBinders.map((binder) => (
                   <option key={binder.id} value={binder.id}>
                     {deriveBinderTitle(binder, filtered.lessonsByBinderId[binder.id] ?? [])}
@@ -1196,7 +1211,11 @@ function MinimalDashboardView({
       ) : null}
 
       {dashboardNotice ? (
-        <div className="minimal-dashboard-notice" data-testid={`${dashboardPrefix}-dashboard-notice`} role="status">
+        <div
+          className="minimal-dashboard-notice"
+          data-testid={`${dashboardPrefix}-dashboard-notice`}
+          role="status"
+        >
           {dashboardNotice}
         </div>
       ) : null}
@@ -1228,190 +1247,189 @@ function MinimalDashboardView({
       ) : null}
 
       {!showRevampSearchEmpty && showFolders ? (
-      <section className="minimal-dashboard-section" id="minimal-folders">
-        <div className="minimal-dashboard-section__heading">
-          <span className="page-kicker">Folders</span>
-          <h2>Open a workspace container</h2>
-        </div>
-        <div className="minimal-folder-grid" data-testid={`${dashboardPrefix}-folder-grid`}>
-          {sortedFolderSummaries.map((summary) => (
-            <Link
-              className={cn(
-                "minimal-folder-card dashboard-folder-card ui-click-tile",
-                !isMinimalAppearance && "dashboard-life-card",
-                isMinimalAppearance && "minimal-folder-card--drive-tile",
-                canManageWorkspace && "minimal-folder-card--draggable",
-                draggingFolderId === summary.folder.id && "minimal-folder-card--dragging",
-              )}
-              data-testid={`${dashboardPrefix}-folder-card`}
-              draggable={canManageWorkspace}
-              key={summary.folder.id}
-              onDragEnd={() => setDraggingFolderId(null)}
-              onDragOver={(event) => {
-                if (canManageWorkspace) {
-                  event.preventDefault();
-                }
-              }}
-              onDragStart={() => handleFolderDragStart(summary.folder.id)}
-              onDrop={(event) => handleFolderDrop(event, summary.folder.id)}
-              to={`/folders/${summary.folder.id}`}
-            >
-              <span
-                aria-hidden="true"
-                className="minimal-folder-card__mark"
-                style={{ backgroundColor: folderColor(summary.folder.color) }}
+        <section className="minimal-dashboard-section" id="minimal-folders">
+          <div className="minimal-dashboard-section__heading">
+            <span className="page-kicker">Folders</span>
+            <h2>Open a workspace container</h2>
+          </div>
+          <div className="minimal-folder-grid" data-testid={`${dashboardPrefix}-folder-grid`}>
+            {sortedFolderSummaries.map((summary) => (
+              <Link
+                className={cn(
+                  "minimal-folder-card dashboard-folder-card ui-click-tile",
+                  !isMinimalAppearance && "dashboard-life-card",
+                  isMinimalAppearance && "minimal-folder-card--drive-tile",
+                  canManageWorkspace && "minimal-folder-card--draggable",
+                  draggingFolderId === summary.folder.id && "minimal-folder-card--dragging",
+                )}
+                data-testid={`${dashboardPrefix}-folder-card`}
+                draggable={canManageWorkspace}
+                key={summary.folder.id}
+                onDragEnd={() => setDraggingFolderId(null)}
+                onDragOver={(event) => {
+                  if (canManageWorkspace) {
+                    event.preventDefault();
+                  }
+                }}
+                onDragStart={() => handleFolderDragStart(summary.folder.id)}
+                onDrop={(event) => handleFolderDrop(event, summary.folder.id)}
+                to={`/folders/${summary.folder.id}`}
               >
-                <FolderOpen className="size-4" />
-              </span>
-              {canManageWorkspace ? (
-                <span className="minimal-folder-card__drag-hint" title="Drag to reorder folders">
-                  <GripVertical className="size-4" />
+                <span
+                  aria-hidden="true"
+                  className="minimal-folder-card__mark"
+                  style={{ backgroundColor: folderColor(summary.folder.color) }}
+                >
+                  <FolderOpen className="size-4" />
                 </span>
-              ) : null}
-              <div className="minimal-folder-card__body">
-                <div className="minimal-folder-card__title-row">
-                  <h3>{getDisplayTitle(summary.folder.name, "Recovered Folder")}</h3>
-                  <ChevronRight className="size-4 text-muted-foreground" />
+                {canManageWorkspace ? (
+                  <span className="minimal-folder-card__drag-hint" title="Drag to reorder folders">
+                    <GripVertical className="size-4" />
+                  </span>
+                ) : null}
+                <div className="minimal-folder-card__body">
+                  <div className="minimal-folder-card__title-row">
+                    <h3>{getDisplayTitle(summary.folder.name, "Recovered Folder")}</h3>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  </div>
+                  <p>
+                    {summary.binders.length} binders / {summary.lessons.length} documents /{" "}
+                    {summary.notes.length} notes
+                  </p>
+                  <div className="minimal-folder-card__chips">
+                    {summary.binders.slice(0, 2).map((binder) => (
+                      <span key={binder.id}>
+                        {deriveBinderTitle(binder, filtered.lessonsByBinderId[binder.id] ?? [])}
+                      </span>
+                    ))}
+                    {summary.binders.length > 2 ? <span>+{summary.binders.length - 2} more</span> : null}
+                    {summary.binders.length === 0 ? <span>No binders yet</span> : null}
+                  </div>
                 </div>
-                <p>
-                  {summary.binders.length} binders / {summary.lessons.length} documents / {summary.notes.length} notes
-                </p>
-                <div className="minimal-folder-card__chips">
-                  {summary.binders.slice(0, 2).map((binder) => (
-                    <span key={binder.id}>
-                      {deriveBinderTitle(
-                        binder,
-                        filtered.lessonsByBinderId[binder.id] ?? [],
-                      )}
-                    </span>
-                  ))}
-                  {summary.binders.length > 2 ? <span>+{summary.binders.length - 2} more</span> : null}
-                  {summary.binders.length === 0 ? <span>No binders yet</span> : null}
-                </div>
-              </div>
-            </Link>
-          ))}
-          {sortedFolderSummaries.length === 0 ? (
-            <EmptyState
-              description="Organized folders will show up here once they contain real binders."
-              title="No folders to open yet"
-            />
-          ) : null}
-        </div>
-      </section>
+              </Link>
+            ))}
+            {sortedFolderSummaries.length === 0 ? (
+              <EmptyState
+                description="Organized folders will show up here once they contain real binders."
+                title="No folders to open yet"
+              />
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {!showRevampSearchEmpty && (showBinders || showDocuments) ? (
-      <section className="minimal-dashboard-main-grid">
-        {showBinders ? (
-        <div className="minimal-dashboard-section" id="minimal-binders">
-          <div className="minimal-dashboard-section__heading">
-            <span className="page-kicker">Binders</span>
-            <h2>Ready to study</h2>
-          </div>
-          <div className="minimal-binder-grid" data-testid={`${dashboardPrefix}-binder-grid`}>
-            {sortedStudyBinders.map((binder) => {
-              const binderLessons = filtered.lessonsByBinderId[binder.id] ?? [];
-              const binderTitle = deriveBinderTitle(binder, binderLessons);
-              const folderName = filtered.folderNamesByBinderId[binder.id];
+        <section className="minimal-dashboard-main-grid">
+          {showBinders ? (
+            <div className="minimal-dashboard-section" id="minimal-binders">
+              <div className="minimal-dashboard-section__heading">
+                <span className="page-kicker">Binders</span>
+                <h2>Ready to study</h2>
+              </div>
+              <div className="minimal-binder-grid" data-testid={`${dashboardPrefix}-binder-grid`}>
+                {sortedStudyBinders.map((binder) => {
+                  const binderLessons = filtered.lessonsByBinderId[binder.id] ?? [];
+                  const binderTitle = deriveBinderTitle(binder, binderLessons);
+                  const folderName = filtered.folderNamesByBinderId[binder.id];
 
-              return (
-                <Link
-                  className={cn(
-                    "minimal-binder-card dashboard-binder-card ui-click-tile",
-                    isMinimalAppearance ? "minimal-binder-card--drive-row" : "dashboard-life-card",
-                  )}
-                  data-testid={`${dashboardPrefix}-binder-card`}
-                  key={binder.id}
-                  to={`/binders/${binder.id}`}
-                >
-                  <div className="minimal-binder-card__cover">
-                    {binder.cover_url ? (
-                      <img alt="" src={binder.cover_url} />
-                    ) : (
-                      <LibraryBig className="size-5" />
+                  return (
+                    <Link
+                      className={cn(
+                        "minimal-binder-card dashboard-binder-card ui-click-tile",
+                        isMinimalAppearance ? "minimal-binder-card--drive-row" : "dashboard-life-card",
+                      )}
+                      data-testid={`${dashboardPrefix}-binder-card`}
+                      key={binder.id}
+                      to={`/binders/${binder.id}`}
+                    >
+                      <div className="minimal-binder-card__cover">
+                        {binder.cover_url ? (
+                          <img alt="" src={binder.cover_url} />
+                        ) : (
+                          <LibraryBig className="size-5" />
+                        )}
+                      </div>
+                      <div className="minimal-binder-card__body">
+                        <div className="minimal-binder-card__meta">
+                          <Badge variant="secondary">{binder.subject}</Badge>
+                          {folderName ? (
+                            <Badge variant="outline">{getDisplayTitle(folderName, "Recovered Folder")}</Badge>
+                          ) : null}
+                        </div>
+                        <h3>{binderTitle}</h3>
+                        <p>{binder.description}</p>
+                        <span>{binderLessons.length} documents</span>
+                      </div>
+                      <ChevronRight className="minimal-binder-card__arrow" />
+                    </Link>
+                  );
+                })}
+                {sortedStudyBinders.length === 0 ? (
+                  <EmptyState
+                    description={
+                      query.trim()
+                        ? "Try a different search term."
+                        : "Your visible binders will show up here as soon as they're ready to study."
+                    }
+                    title={query.trim() ? "No binders match" : "No binders ready yet"}
+                  />
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {showDocuments ? (
+            <aside className="minimal-dashboard-section minimal-document-panel" id="minimal-documents">
+              <div className="minimal-dashboard-section__heading">
+                <span className="page-kicker">Documents</span>
+                <h2>Recent documents</h2>
+              </div>
+              <div className="minimal-document-list" data-testid={`${dashboardPrefix}-document-list`}>
+                {filtered.recentDocuments.map((lesson) => (
+                  <Link
+                    className={cn(
+                      "minimal-document-row dashboard-recent-document ui-click-tile",
+                      !isMinimalAppearance && "dashboard-life-card",
                     )}
-                  </div>
-                  <div className="minimal-binder-card__body">
-                    <div className="minimal-binder-card__meta">
-                      <Badge variant="secondary">{binder.subject}</Badge>
-                      {folderName ? (
-                        <Badge variant="outline">{getDisplayTitle(folderName, "Recovered Folder")}</Badge>
-                      ) : null}
-                    </div>
-                    <h3>{binderTitle}</h3>
-                    <p>{binder.description}</p>
-                    <span>{binderLessons.length} documents</span>
-                  </div>
-                  <ChevronRight className="minimal-binder-card__arrow" />
-                </Link>
-              );
-            })}
-            {sortedStudyBinders.length === 0 ? (
-              <EmptyState
-                description={query.trim() ? "Try a different search term." : "Your visible binders will show up here as soon as they're ready to study."}
-                title={query.trim() ? "No binders match" : "No binders ready yet"}
-              />
-            ) : null}
-          </div>
-        </div>
-        ) : null}
-
-        {showDocuments ? (
-        <aside className="minimal-dashboard-section minimal-document-panel" id="minimal-documents">
-          <div className="minimal-dashboard-section__heading">
-            <span className="page-kicker">Documents</span>
-            <h2>Recent documents</h2>
-          </div>
-          <div className="minimal-document-list" data-testid={`${dashboardPrefix}-document-list`}>
-            {filtered.recentDocuments.map((lesson) => (
-              <Link
-                className={cn(
-                  "minimal-document-row dashboard-recent-document ui-click-tile",
-                  !isMinimalAppearance && "dashboard-life-card",
-                )}
-                data-testid={`${dashboardPrefix}-document-row`}
-                key={lesson.id}
-                to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
-              >
-                <BookCopy className="size-4 text-primary" />
-                <span>
-                  <strong>{deriveLessonTitle(lesson)}</strong>
-                  <small>
-                    Open document
-                    {betaFeaturesEnabled ? (
-                      <DocumentHealthBadge
-                        notes={notesByLessonId[lesson.id] ?? []}
-                        prefix={dashboardPrefix}
-                        lesson={lesson}
-                      />
-                    ) : null}
-                  </small>
-                </span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </Link>
-            ))}
-            {filtered.recentDocuments.length === 0 ? (
-              <EmptyState
-                description={
-                  query.trim()
-                    ? "Try a different search term."
-                    : "Open a binder and add your first document when you're ready."
-                }
-                title={query.trim() ? "No documents match" : "No recent documents yet"}
-              />
-            ) : null}
-          </div>
-        </aside>
-        ) : null}
-      </section>
+                    data-testid={`${dashboardPrefix}-document-row`}
+                    key={lesson.id}
+                    to={`/binders/${lesson.binder_id}/documents/${lesson.id}`}
+                  >
+                    <BookCopy className="size-4 text-primary" />
+                    <span>
+                      <strong>{deriveLessonTitle(lesson)}</strong>
+                      <small>
+                        Open document
+                        {betaFeaturesEnabled ? (
+                          <DocumentHealthBadge
+                            notes={notesByLessonId[lesson.id] ?? []}
+                            prefix={dashboardPrefix}
+                            lesson={lesson}
+                          />
+                        ) : null}
+                      </small>
+                    </span>
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  </Link>
+                ))}
+                {filtered.recentDocuments.length === 0 ? (
+                  <EmptyState
+                    description={
+                      query.trim()
+                        ? "Try a different search term."
+                        : "Open a binder and add your first document when you're ready."
+                    }
+                    title={query.trim() ? "No documents match" : "No recent documents yet"}
+                  />
+                ) : null}
+              </div>
+            </aside>
+          ) : null}
+        </section>
       ) : null}
 
       {!showRevampSearchEmpty && !hasVisibleContent && learnerDiagnosticsMessage ? (
-        <EmptyState
-          description={learnerDiagnosticsMessage}
-          title="Workspace unavailable"
-        />
+        <EmptyState description={learnerDiagnosticsMessage} title="Workspace unavailable" />
       ) : null}
       {!hasVisibleContent &&
       showSystemDiagnostics &&
@@ -1461,11 +1479,7 @@ function DashboardContinueShelf({
                 <strong>{deriveLessonTitle(lesson)}</strong>
                 <small>{index === 0 ? "Resume" : "Open"}</small>
               </span>
-              <DocumentHealthBadge
-                notes={notesByLessonId[lesson.id] ?? []}
-                prefix={prefix}
-                lesson={lesson}
-              />
+              <DocumentHealthBadge notes={notesByLessonId[lesson.id] ?? []} prefix={prefix} lesson={lesson} />
               <ChevronRight className="size-4 text-muted-foreground" />
             </Link>
           ))}
@@ -1510,7 +1524,9 @@ function deriveDocumentHealthStatus(
   notes: DashboardData["notes"],
 ): DocumentHealthStatus | null {
   const hasLessonBody = hasPortableContent(lesson.content) || lesson.math_blocks.length > 0;
-  const noteWithContent = notes.find((note) => hasPortableContent(note.content) || note.math_blocks.length > 0);
+  const noteWithContent = notes.find(
+    (note) => hasPortableContent(note.content) || note.math_blocks.length > 0,
+  );
   const anyNote = notes[0] ?? null;
 
   if (noteWithContent) {

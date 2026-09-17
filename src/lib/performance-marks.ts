@@ -7,7 +7,12 @@ export function markDevPerformance(name: string) {
 }
 
 export function measureDevPerformance<T>(name: string, work: () => T): T {
-  if (!import.meta.env.DEV || typeof performance === "undefined" || !performance.mark || !performance.measure) {
+  if (
+    !import.meta.env.DEV ||
+    typeof performance === "undefined" ||
+    !performance.mark ||
+    !performance.measure
+  ) {
     return work();
   }
 

@@ -30,10 +30,7 @@ import {
   workspaceModuleRegistry,
   type WorkspaceModuleContext,
 } from "@/components/workspace/workspace-modules";
-import {
-  getVisibleWorkspacePresets,
-  workspacePresets,
-} from "@/lib/workspace-preferences";
+import { getVisibleWorkspacePresets, workspacePresets } from "@/lib/workspace-preferences";
 import { learningAcceleratorFeatureFlagKeys } from "@/lib/beta-features";
 import { getFaceliftWorkspacePresetDesign } from "@/lib/workspace-preset-designs";
 import { getPrimaryFolder } from "@/lib/workspace-structure";
@@ -138,8 +135,7 @@ export function StudyPanelsShell({
   const betaFeatures = useBetaFeatures(context.ownerId);
   const performanceMode = usePerformanceMode();
   const betaFeaturesEnabled = betaFeatures.betaFeaturesEnabled;
-  const compactStudyChrome =
-    compactStudyChromeProp || betaFeatures.isFeatureEnabled("compactStudyChrome");
+  const compactStudyChrome = compactStudyChromeProp || betaFeatures.isFeatureEnabled("compactStudyChrome");
   const revampBetaEnabled = betaFeatures.revampBetaEnabled;
   const recallLabEnabled = betaFeatures.isFeatureEnabled("recallLab");
   const studyPanelsV2 = betaFeatures.isFeatureEnabled("studyPanelsV2");
@@ -168,7 +164,8 @@ export function StudyPanelsShell({
       preferences.preset,
     ],
   );
-  const preferredTabId = tabs.find((tab) => tab.moduleId === design.primaryModule)?.id ?? tabs[0]?.id ?? "lesson";
+  const preferredTabId =
+    tabs.find((tab) => tab.moduleId === design.primaryModule)?.id ?? tabs[0]?.id ?? "lesson";
   const [activeTabId, setActiveTabId] = useState(preferredTabId);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeToolId, setActiveToolId] = useState<WorkspaceModuleId>("recent-highlights");
@@ -263,11 +260,10 @@ export function StudyPanelsShell({
         ? chooseStudyPanelsV2SecondaryModule(primaryModuleId, context, preferences)
         : chooseSecondaryModule(primaryModuleId, context, preferences)
       : null;
-  const rawSecondaryModuleId =
-    isCompact
-      ? null
-      : focusModeActive
-        ? focusSecondaryModuleId
+  const rawSecondaryModuleId = isCompact
+    ? null
+    : focusModeActive
+      ? focusSecondaryModuleId
       : studyPanelsV2
         ? chooseStudyPanelsV2SecondaryModule(primaryModuleId, context, preferences)
         : chooseSecondaryModule(primaryModuleId, context, preferences);
@@ -298,8 +294,7 @@ export function StudyPanelsShell({
     setActionRowCollapsed(loadStudyPanelActionRowCollapsed(actionRowStorageKey));
   }, [actionRowStorageKey, studyPanelsV2]);
 
-  const secondaryModuleId =
-    studyPanelsV2 && secondaryPanelHidden ? null : rawSecondaryModuleId;
+  const secondaryModuleId = studyPanelsV2 && secondaryPanelHidden ? null : rawSecondaryModuleId;
   const splitMinimums = useMemo(
     () => getStudyPanelSplitMinimums(primaryModuleId, secondaryModuleId),
     [primaryModuleId, secondaryModuleId],
@@ -358,10 +353,9 @@ export function StudyPanelsShell({
     (tab: StudyPanelTab) => {
       preloadPanelModule(tab.moduleId);
 
-      const secondaryModule =
-        studyPanelsV2
-          ? chooseStudyPanelsV2SecondaryModule(tab.moduleId, context, preferences)
-          : chooseSecondaryModule(tab.moduleId, context, preferences);
+      const secondaryModule = studyPanelsV2
+        ? chooseStudyPanelsV2SecondaryModule(tab.moduleId, context, preferences)
+        : chooseSecondaryModule(tab.moduleId, context, preferences);
       preloadPanelModule(secondaryModule);
     },
     [context, preferences, preloadPanelModule, studyPanelsV2],
@@ -411,7 +405,8 @@ export function StudyPanelsShell({
     setActiveTabId(nextTabId);
     setDrawerOpen(false);
 
-    const nextPresetName = workspacePresets.find((candidate) => candidate.id === presetId)?.name ?? "Study mode";
+    const nextPresetName =
+      workspacePresets.find((candidate) => candidate.id === presetId)?.name ?? "Study mode";
     if (presetId === preferences.preset) {
       setActionStatus(`${nextPresetName} is already active. Refocused ${getTabLabel(tabs, nextTabId)}.`);
       return;
@@ -435,10 +430,11 @@ export function StudyPanelsShell({
     shouldShowGuidedSplitActions(primaryModuleId, secondaryModuleId, preferences) &&
     (!studyPanelsV2 || ["lesson", "notes"].includes(activeTab?.id ?? ""));
   const selectedTextForAction = () =>
-    typeof document === "undefined" ? "" : document.getSelection()?.toString().trim() ?? "";
+    typeof document === "undefined" ? "" : (document.getSelection()?.toString().trim() ?? "");
   const selectionActionDisabled = studyPanelsV2 && !hasSelectedText;
   const tabStripHidden = focusModeActive;
-  const showSecondaryPanelControl = studyPanelsV2 && Boolean(rawSecondaryModuleId) && !isCompact && !focusModeActive;
+  const showSecondaryPanelControl =
+    studyPanelsV2 && Boolean(rawSecondaryModuleId) && !isCompact && !focusModeActive;
   const actionStatusControl = actionStatus ? (
     <div className="study-panels-action-status" role="status">
       {actionStatus}
@@ -641,9 +637,13 @@ export function StudyPanelsShell({
     const lastIndex = tabs.length - 1;
     const nextIndex =
       event.key === "ArrowRight"
-        ? index === lastIndex ? 0 : index + 1
+        ? index === lastIndex
+          ? 0
+          : index + 1
         : event.key === "ArrowLeft"
-          ? index === 0 ? lastIndex : index - 1
+          ? index === 0
+            ? lastIndex
+            : index - 1
           : event.key === "Home"
             ? 0
             : event.key === "End"
@@ -670,9 +670,7 @@ export function StudyPanelsShell({
       data-study-panels-density={preferences.modular.panelDensity}
       data-study-panels-tab-strip={tabStripHidden ? "hidden" : "visible"}
       data-study-panels-v2={studyPanelsV2 ? "true" : "false"}
-      data-secondary-preset-strip={
-        preferences.modular.showSecondaryPresetStrip ? "visible" : "hidden"
-      }
+      data-secondary-preset-strip={preferences.modular.showSecondaryPresetStrip ? "visible" : "hidden"}
       data-testid="study-panels-shell"
       data-workspace-presentation="study-panels"
       data-workspace-view="modular"
@@ -709,170 +707,175 @@ export function StudyPanelsShell({
       ) : (
         <>
           <header className="study-panels-shell__top">
-        <div className="study-panels-shell__identity">
-          <div className="study-panels-shell__eyebrow">
-            <Badge variant="secondary">Study Panels</Badge>
-            <span>{preferences.modular.panelDensity}</span>
-            <span>{preset?.name ?? "General Study"}</span>
-          </div>
-          <h1>{context.selectedLesson.title}</h1>
-          <p>
-            {[folder?.name, context.binder.title, context.selectedLesson.title].filter(Boolean).join(" / ")}
-          </p>
-        </div>
+            <div className="study-panels-shell__identity">
+              <div className="study-panels-shell__eyebrow">
+                <Badge variant="secondary">Study Panels</Badge>
+                <span>{preferences.modular.panelDensity}</span>
+                <span>{preset?.name ?? "General Study"}</span>
+              </div>
+              <h1>{context.selectedLesson.title}</h1>
+              <p>
+                {[folder?.name, context.binder.title, context.selectedLesson.title]
+                  .filter(Boolean)
+                  .join(" / ")}
+              </p>
+            </div>
 
-        <div className="study-panels-shell__mode">
-          <Sparkles className="size-4" />
-          <div>
-            <span>{compactStudyChrome ? "Next" : "Recommended flow"}</span>
-            <strong>{design.studentCommand.primaryAction}</strong>
-          </div>
-        </div>
-
-        <div className="study-panels-shell__actions">
-          <div className="study-panels-save-status" aria-label="Saved status">
-            <CheckCircle2 className="size-4" />
-            <span>{context.noteSaveLabel}</span>
-          </div>
-          <WorkspaceModeSwitcher currentMode={currentViewMode} onChangeMode={onChangeMode} />
-          {onToggleFocus ? (
-            <Button
-              aria-label="Full screen panel"
-              onClick={handleToggleFocusMode}
-              size="sm"
-              title="Full screen panel"
-              type="button"
-              variant="outline"
-            >
-              <Maximize2 className="size-4" />
-              <span className="study-panels-action-label">
-                Full screen
-              </span>
-            </Button>
-          ) : null}
-          <Button
-            aria-label="Tools"
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen((current) => !current)}
-            size="sm"
-            title="Tools"
-            type="button"
-            variant={drawerOpen ? "default" : "outline"}
-          >
-            <Layers3 className="size-4" />
-            <span className="study-panels-action-label">Tools</span>
-          </Button>
-          {onCreateSticky ? (
-            <Button
-              aria-label="Sticky"
-              onClick={onCreateSticky}
-              size="sm"
-              title="Sticky"
-              type="button"
-              variant="outline"
-            >
-              <StickyNote className="size-4" />
-              <span className="study-panels-action-label">Sticky</span>
-            </Button>
-          ) : null}
-          <Button
-            aria-label="Settings"
-            onClick={onOpenSettings}
-            size="sm"
-            title="Settings"
-            type="button"
-            variant="default"
-          >
-            <Settings2 className="size-4" />
-            <span className="study-panels-action-label">Settings</span>
-          </Button>
-        </div>
-      </header>
-
-      {!tabStripHidden ? (
-      <nav className="study-panels-tabs" role="tablist" aria-label="Study panel modules">
-        {tabs.map((tab, index) => {
-          const tabLabel = studyPanelsV2 || (compactStudyChrome && tab.id === "tools") ? getStudyPanelV2TabLabel(tab) : tab.label;
-          const TabIcon = getStudyPanelTabIcon(tab);
-
-          return (
-          <button
-            aria-label={studyPanelsV2 && isHistoryPanels ? getHistoryStudyPanelTabLabel(tab) : undefined}
-            aria-controls={`study-panel-${tab.id}`}
-            aria-selected={activeTabId === tab.id}
-            className="study-panels-tab"
-            id={`study-panel-tab-${tab.id}`}
-            key={tab.id}
-            onClick={() => activateTab(tab)}
-            onFocus={() => preloadTab(tab)}
-            onKeyDown={(event) => moveTabFocus(event, index)}
-            onPointerDown={() => preloadTab(tab)}
-            onPointerEnter={() => preloadTab(tab)}
-            ref={(node) => {
-              tabRefs.current[index] = node;
-            }}
-            role="tab"
-            tabIndex={activeTabId === tab.id ? 0 : -1}
-            type="button"
-          >
-            {studyPanelsV2 ? <TabIcon aria-hidden="true" className="size-3.5" /> : null}
-            <span>{tabLabel}</span>
-            {!studyPanelsV2 ? <small>{tab.helper}</small> : null}
-          </button>
-          );
-        })}
-      </nav>
-      ) : null}
-
-      {preferences.modular.showSecondaryPresetStrip ? (
-        <div className="study-panels-preset-strip" aria-label="Study Panel presets">
-          {visiblePresets.map((candidate) => (
-            <button
-              aria-current={candidate.id === preferences.preset ? "true" : undefined}
-              key={candidate.id}
-              onClick={() => applyStudyPanelPreset(candidate.id)}
-              type="button"
-            >
-              {candidate.name}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {hasCompactActionRow ? (
-        <div
-          className="study-panels-compact-action-row"
-          data-study-actions-state={actionRowCollapsed ? "collapsed" : "expanded"}
-          data-study-panels-action-row="compact"
-        >
-          <div className="study-panels-compact-action-row__header">
-            <button
-              aria-controls={actionRowContentId}
-              aria-expanded={!actionRowCollapsed}
-              className="study-panels-action-row-toggle"
-              onClick={toggleCompactActionRow}
-              type="button"
-            >
+            <div className="study-panels-shell__mode">
               <Sparkles className="size-4" />
-              <span>{actionRowCollapsed ? "Show split actions" : "Hide split actions"}</span>
-            </button>
-            {actionStatusControl}
-            {secondaryPanelControl}
-          </div>
-          <div
-            aria-hidden={actionRowCollapsed ? "true" : undefined}
-            className="study-panels-compact-action-row__content"
-            id={actionRowContentId}
-          >
-            {guidedActionsControl}
-          </div>
-        </div>
-      ) : (
-        <>
-          {actionStatusControl}
-          {secondaryPanelControl}
-          {guidedActionsControl}
-        </>
-      )}
+              <div>
+                <span>{compactStudyChrome ? "Next" : "Recommended flow"}</span>
+                <strong>{design.studentCommand.primaryAction}</strong>
+              </div>
+            </div>
+
+            <div className="study-panels-shell__actions">
+              <div className="study-panels-save-status" aria-label="Saved status">
+                <CheckCircle2 className="size-4" />
+                <span>{context.noteSaveLabel}</span>
+              </div>
+              <WorkspaceModeSwitcher currentMode={currentViewMode} onChangeMode={onChangeMode} />
+              {onToggleFocus ? (
+                <Button
+                  aria-label="Full screen panel"
+                  onClick={handleToggleFocusMode}
+                  size="sm"
+                  title="Full screen panel"
+                  type="button"
+                  variant="outline"
+                >
+                  <Maximize2 className="size-4" />
+                  <span className="study-panels-action-label">Full screen</span>
+                </Button>
+              ) : null}
+              <Button
+                aria-label="Tools"
+                aria-expanded={drawerOpen}
+                onClick={() => setDrawerOpen((current) => !current)}
+                size="sm"
+                title="Tools"
+                type="button"
+                variant={drawerOpen ? "default" : "outline"}
+              >
+                <Layers3 className="size-4" />
+                <span className="study-panels-action-label">Tools</span>
+              </Button>
+              {onCreateSticky ? (
+                <Button
+                  aria-label="Sticky"
+                  onClick={onCreateSticky}
+                  size="sm"
+                  title="Sticky"
+                  type="button"
+                  variant="outline"
+                >
+                  <StickyNote className="size-4" />
+                  <span className="study-panels-action-label">Sticky</span>
+                </Button>
+              ) : null}
+              <Button
+                aria-label="Settings"
+                onClick={onOpenSettings}
+                size="sm"
+                title="Settings"
+                type="button"
+                variant="default"
+              >
+                <Settings2 className="size-4" />
+                <span className="study-panels-action-label">Settings</span>
+              </Button>
+            </div>
+          </header>
+
+          {!tabStripHidden ? (
+            <nav className="study-panels-tabs" role="tablist" aria-label="Study panel modules">
+              {tabs.map((tab, index) => {
+                const tabLabel =
+                  studyPanelsV2 || (compactStudyChrome && tab.id === "tools")
+                    ? getStudyPanelV2TabLabel(tab)
+                    : tab.label;
+                const TabIcon = getStudyPanelTabIcon(tab);
+
+                return (
+                  <button
+                    aria-label={
+                      studyPanelsV2 && isHistoryPanels ? getHistoryStudyPanelTabLabel(tab) : undefined
+                    }
+                    aria-controls={`study-panel-${tab.id}`}
+                    aria-selected={activeTabId === tab.id}
+                    className="study-panels-tab"
+                    id={`study-panel-tab-${tab.id}`}
+                    key={tab.id}
+                    onClick={() => activateTab(tab)}
+                    onFocus={() => preloadTab(tab)}
+                    onKeyDown={(event) => moveTabFocus(event, index)}
+                    onPointerDown={() => preloadTab(tab)}
+                    onPointerEnter={() => preloadTab(tab)}
+                    ref={(node) => {
+                      tabRefs.current[index] = node;
+                    }}
+                    role="tab"
+                    tabIndex={activeTabId === tab.id ? 0 : -1}
+                    type="button"
+                  >
+                    {studyPanelsV2 ? <TabIcon aria-hidden="true" className="size-3.5" /> : null}
+                    <span>{tabLabel}</span>
+                    {!studyPanelsV2 ? <small>{tab.helper}</small> : null}
+                  </button>
+                );
+              })}
+            </nav>
+          ) : null}
+
+          {preferences.modular.showSecondaryPresetStrip ? (
+            <div className="study-panels-preset-strip" aria-label="Study Panel presets">
+              {visiblePresets.map((candidate) => (
+                <button
+                  aria-current={candidate.id === preferences.preset ? "true" : undefined}
+                  key={candidate.id}
+                  onClick={() => applyStudyPanelPreset(candidate.id)}
+                  type="button"
+                >
+                  {candidate.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {hasCompactActionRow ? (
+            <div
+              className="study-panels-compact-action-row"
+              data-study-actions-state={actionRowCollapsed ? "collapsed" : "expanded"}
+              data-study-panels-action-row="compact"
+            >
+              <div className="study-panels-compact-action-row__header">
+                <button
+                  aria-controls={actionRowContentId}
+                  aria-expanded={!actionRowCollapsed}
+                  className="study-panels-action-row-toggle"
+                  onClick={toggleCompactActionRow}
+                  type="button"
+                >
+                  <Sparkles className="size-4" />
+                  <span>{actionRowCollapsed ? "Show split actions" : "Hide split actions"}</span>
+                </button>
+                {actionStatusControl}
+                {secondaryPanelControl}
+              </div>
+              <div
+                aria-hidden={actionRowCollapsed ? "true" : undefined}
+                className="study-panels-compact-action-row__content"
+                id={actionRowContentId}
+              >
+                {guidedActionsControl}
+              </div>
+            </div>
+          ) : (
+            <>
+              {actionStatusControl}
+              {secondaryPanelControl}
+              {guidedActionsControl}
+            </>
+          )}
         </>
       )}
 
@@ -885,16 +888,16 @@ export function StudyPanelsShell({
         data-study-primary={primaryModuleId}
         data-study-secondary={secondaryModuleId ?? undefined}
         data-study-action-row={hasCompactActionRow ? "visible" : "hidden"}
-        data-study-actions-state={hasCompactActionRow ? (actionRowCollapsed ? "collapsed" : "expanded") : undefined}
+        data-study-actions-state={
+          hasCompactActionRow ? (actionRowCollapsed ? "collapsed" : "expanded") : undefined
+        }
         data-secondary-panel-hidden={studyPanelsV2 && secondaryPanelHidden ? "true" : "false"}
         id={`study-panel-${activeTab?.id ?? "lesson"}`}
         role="tabpanel"
         aria-labelledby={`study-panel-tab-${activeTab?.id ?? "lesson"}`}
       >
         {isCompact || !secondaryModuleId ? (
-          <section className="study-panels-single">
-            {renderModule(primaryModuleId, "primary")}
-          </section>
+          <section className="study-panels-single">{renderModule(primaryModuleId, "primary")}</section>
         ) : (
           <Group
             className="study-panels-split"
@@ -904,14 +907,18 @@ export function StudyPanelsShell({
             data-study-split-min-secondary={splitMinimums.secondary}
             data-study-split-storage-key={splitLayoutStorageKey}
             id={`bindernotes-study-panels:${context.binder.id}:${context.selectedLesson.id}`}
-            key={studyPanelsV2 ? activeTab?.id ?? "lesson" : "classic"}
+            key={studyPanelsV2 ? (activeTab?.id ?? "lesson") : "classic"}
             onLayoutChanged={(layout) => saveStudyPanelSplitLayout(splitLayoutStorageKey, layout)}
             orientation="horizontal"
           >
             <Panel defaultSize={savedSplitLayout.primary} id="primary" minSize={splitMinimums.primary}>
               {renderModule(primaryModuleId, "primary")}
             </Panel>
-            <Separator className="study-panels-resize-handle" aria-label="Resize study panels" id="study-panels-resize" />
+            <Separator
+              className="study-panels-resize-handle"
+              aria-label="Resize study panels"
+              id="study-panels-resize"
+            />
             <Panel defaultSize={savedSplitLayout.secondary} id="secondary" minSize={splitMinimums.secondary}>
               {renderModule(secondaryModuleId, "secondary")}
             </Panel>
@@ -923,9 +930,15 @@ export function StudyPanelsShell({
             <div className="study-panels-drawer__intro">
               <span>{getStudySubjectLabel(detectStudySubject(context, preferences))} tools</span>
               <strong>Open one surface at a time.</strong>
-              <p>Cards launch real BinderNotes modules or a compact beta preview when the full tool is still in progress.</p>
+              <p>
+                Cards launch real BinderNotes modules or a compact beta preview when the full tool is still in
+                progress.
+              </p>
             </div>
-            <div className="study-panels-tool-previews" data-beta-features={betaFeaturesEnabled ? "on" : "off"}>
+            <div
+              className="study-panels-tool-previews"
+              data-beta-features={betaFeaturesEnabled ? "on" : "off"}
+            >
               {toolPreviewCards.map((card) => (
                 <article
                   className="study-panels-tool-card"
@@ -978,7 +991,10 @@ function focusTabAfterFrame(tab: HTMLButtonElement | null) {
   window.setTimeout(focus, 0);
 }
 
-function getDefaultSplitLayout(primaryModuleId: WorkspaceModuleId, secondaryModuleId?: WorkspaceModuleId | null): Layout {
+function getDefaultSplitLayout(
+  primaryModuleId: WorkspaceModuleId,
+  secondaryModuleId?: WorkspaceModuleId | null,
+): Layout {
   const primary =
     primaryModuleId === "whiteboard"
       ? 76
@@ -1163,10 +1179,17 @@ function shouldShowGuidedSplitActions(
   );
 }
 
-function detectStudySubject(context: WorkspaceModuleContext, preferences: WorkspacePreferences): StudySubject {
-  const subject = `${context.binder.subject ?? ""} ${context.binder.title ?? ""} ${preferences.preset}`.toLowerCase();
+function detectStudySubject(
+  context: WorkspaceModuleContext,
+  preferences: WorkspacePreferences,
+): StudySubject {
+  const subject =
+    `${context.binder.subject ?? ""} ${context.binder.title ?? ""} ${preferences.preset}`.toLowerCase();
 
-  if (subject.includes("chem") || preferences.enabledModules.some((moduleId) => moduleId.startsWith("chem-"))) {
+  if (
+    subject.includes("chem") ||
+    preferences.enabledModules.some((moduleId) => moduleId.startsWith("chem-"))
+  ) {
     return "chemistry";
   }
 
@@ -1179,9 +1202,14 @@ function detectStudySubject(context: WorkspaceModuleContext, preferences: Worksp
     subject.includes("algebra") ||
     subject.includes("calculus") ||
     preferences.enabledModules.some((moduleId) =>
-      ["desmos-graph", "formula-sheet", "math-blocks", "scientific-calculator", "saved-graphs", "whiteboard"].includes(
-        moduleId,
-      ),
+      [
+        "desmos-graph",
+        "formula-sheet",
+        "math-blocks",
+        "scientific-calculator",
+        "saved-graphs",
+        "whiteboard",
+      ].includes(moduleId),
     )
   ) {
     return "math";
@@ -1504,7 +1532,8 @@ const toolPreviewCopy: Record<
   },
   "learning-accelerators": {
     title: "Learning Accelerators",
-    description: "Run transfer, evidence, mistake-repair, and representation checks without generation costs.",
+    description:
+      "Run transfer, evidence, mistake-repair, and representation checks without generation costs.",
     subject: "general",
     stability: "beta",
     actionLabel: "Open Learning Accelerators",
@@ -1547,7 +1576,16 @@ function getStudyToolPreviewCards({
 }) {
   const subject = detectStudySubject(context, preferences);
   const subjectModules: Record<StudySubject, WorkspaceModuleId[]> = {
-    general: ["private-notes", "recent-highlights", "comments", "flashcards", "lesson", "lesson-outline", "search", "mini-tools"],
+    general: [
+      "private-notes",
+      "recent-highlights",
+      "comments",
+      "flashcards",
+      "lesson",
+      "lesson-outline",
+      "search",
+      "mini-tools",
+    ],
     math: [
       "desmos-graph",
       "formula-sheet",
@@ -1644,7 +1682,9 @@ function buildStudyPanelTabs(
       subject.includes("algebra") ||
       subject.includes("calculus") ||
       preferences.enabledModules.some((moduleId) =>
-        ["desmos-graph", "formula-sheet", "math-blocks", "scientific-calculator", "saved-graphs"].includes(moduleId),
+        ["desmos-graph", "formula-sheet", "math-blocks", "scientific-calculator", "saved-graphs"].includes(
+          moduleId,
+        ),
       ));
   const isHistory = context.history.enabled || subject.includes("history");
   const tabs: StudyPanelTab[] = [
@@ -1673,7 +1713,12 @@ function buildStudyPanelTabs(
   }
 
   if (learningAcceleratorsEnabled) {
-    tabs.push({ id: "accelerators", label: "Accelerators", helper: "Train", moduleId: "learning-accelerators" });
+    tabs.push({
+      id: "accelerators",
+      label: "Accelerators",
+      helper: "Train",
+      moduleId: "learning-accelerators",
+    });
   }
 
   tabs.push(
@@ -1691,7 +1736,10 @@ function buildStudyPanelTabs(
   });
 }
 
-function getChemistryStudyPanelTabs(presetId: WorkspacePresetId, betaFeaturesEnabled: boolean): StudyPanelTab[] {
+function getChemistryStudyPanelTabs(
+  presetId: WorkspacePresetId,
+  betaFeaturesEnabled: boolean,
+): StudyPanelTab[] {
   const tabSets: Partial<Record<WorkspacePresetId, StudyPanelTab[]>> = {
     "chem-guided-study": [
       ...(betaFeaturesEnabled
@@ -1755,14 +1803,16 @@ function getChemistryStudyPanelTabs(presetId: WorkspacePresetId, betaFeaturesEna
     ],
   };
 
-  return tabSets[presetId] ?? [
-    ...(betaFeaturesEnabled
-      ? [{ id: "guide", label: "Guide", helper: "Coach", moduleId: "chem-lab-coach" } as StudyPanelTab]
-      : []),
-    { id: "table", label: "Table", helper: "Elements", moduleId: "chem-periodic-table" },
-    { id: "lab", label: "Lab", helper: "Experiment", moduleId: "chem-titration-lab" },
-    { id: "quick-chem", label: "Quick", helper: "Tools", moduleId: "chem-quick-tools" },
-  ];
+  return (
+    tabSets[presetId] ?? [
+      ...(betaFeaturesEnabled
+        ? [{ id: "guide", label: "Guide", helper: "Coach", moduleId: "chem-lab-coach" } as StudyPanelTab]
+        : []),
+      { id: "table", label: "Table", helper: "Elements", moduleId: "chem-periodic-table" },
+      { id: "lab", label: "Lab", helper: "Experiment", moduleId: "chem-titration-lab" },
+      { id: "quick-chem", label: "Quick", helper: "Tools", moduleId: "chem-quick-tools" },
+    ]
+  );
 }
 
 function chooseStudyPanelsV2SecondaryModule(
@@ -1802,13 +1852,17 @@ function chooseStudyPanelsV2SecondaryModule(
       "history-myth-checks": ["lesson", "private-notes"],
     };
     const candidates = byHistoryPrimary[primaryModuleId] ?? ["lesson", "private-notes"];
-    return candidates.find((moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId]) ?? null;
+    return (
+      candidates.find((moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId]) ?? null
+    );
   }
 
   if (primaryModuleId.startsWith("chem-")) {
-    return getChemistrySecondaryCandidates(primaryModuleId).find(
-      (moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId],
-    ) ?? null;
+    return (
+      getChemistrySecondaryCandidates(primaryModuleId).find(
+        (moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId],
+      ) ?? null
+    );
   }
 
   return chooseSecondaryModule(primaryModuleId, context, preferences);
@@ -1852,7 +1906,9 @@ function chooseSecondaryModule(
     preferences.enabledModules.includes("formula-sheet") ? "formula-sheet" : "recent-highlights",
   ];
 
-  return candidates.find((moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId]) ?? null;
+  return (
+    candidates.find((moduleId) => moduleId !== primaryModuleId && workspaceModuleRegistry[moduleId]) ?? null
+  );
 }
 
 function getChemistrySecondaryCandidates(primaryModuleId: WorkspaceModuleId): WorkspaceModuleId[] {
@@ -1870,8 +1926,16 @@ function getChemistrySecondaryCandidates(primaryModuleId: WorkspaceModuleId): Wo
     "chem-tri-reaction-view": ["chem-reaction-balancer", "lesson", "private-notes"],
     "chem-stoichiometry-coach": ["chem-molar-mass-calculator", "lesson", "private-notes"],
     "chem-molar-mass-calculator": ["chem-stoichiometry-coach", "lesson", "private-notes"],
-    "chem-solution-mixer": ["chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
-    "chem-molarity-calculator": ["chem-solution-mixer", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    "chem-solution-mixer": [
+      "chem-molarity-calculator",
+      "chem-desmos-concentration-graph",
+      "chem-lab-notebook",
+    ],
+    "chem-molarity-calculator": [
+      "chem-solution-mixer",
+      "chem-desmos-concentration-graph",
+      "chem-lab-notebook",
+    ],
     "chem-desmos-concentration-graph": ["chem-solution-mixer", "chem-lab-notebook", "lesson"],
     "chem-ph-calculator": ["chem-titration-lab", "chem-desmos-titration-curve", "chem-lab-notebook"],
     "chem-titration-lab": ["chem-desmos-titration-curve", "chem-ph-calculator", "chem-lab-notebook"],

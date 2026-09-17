@@ -13,9 +13,9 @@ describe("WhiteboardModule workspace layout", () => {
   });
 
   it("does not reuse fixed lab-sized canvas constraints in the normal workspace module", () => {
-    expect(source).not.toContain('whiteboard-workspace-panel min-h-[720px]');
-    expect(source).not.toContain('relative min-h-[680px] overflow-auto');
-    expect(source).not.toContain('relative min-h-[1800px] min-w-[1800px]');
+    expect(source).not.toContain("whiteboard-workspace-panel min-h-[720px]");
+    expect(source).not.toContain("relative min-h-[680px] overflow-auto");
+    expect(source).not.toContain("relative min-h-[1800px] min-w-[1800px]");
   });
 
   it("keeps a visible escape hatch and temporary hint for focused whiteboard surfaces", () => {
@@ -86,7 +86,9 @@ describe("WhiteboardModule workspace layout", () => {
     expect(source).toContain("isScratchWhiteboard(boardRef.current)");
     expect(source).toContain("activeAfterRefresh");
     expect(source).toContain("activateScratchBoard(template)");
-    expect(source).toContain("onCreateScratchBoard={compactWhiteboardTools");
+    expect(source).toMatch(
+      /onCreateScratchBoard=\{\s*compactWhiteboardTools\s*\?\s*\(\)\s*=>\s*activateScratchBoard\(mathWhiteboardTemplates\[0\]\)\s*:\s*undefined\s*\}/,
+    );
     expect(source).toContain("archiveActionsVisible={!compactWhiteboardTools}");
   });
 });

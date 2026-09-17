@@ -103,7 +103,8 @@ const SourceMarkerAnnotation = Mark.create({
       binderId: {
         default: null,
         parseHTML: (element) => element.getAttribute("data-source-binder-id"),
-        renderHTML: (attributes) => (attributes.binderId ? { "data-source-binder-id": attributes.binderId } : {}),
+        renderHTML: (attributes) =>
+          attributes.binderId ? { "data-source-binder-id": attributes.binderId } : {},
       },
       binderTitle: {
         default: "",
@@ -114,7 +115,8 @@ const SourceMarkerAnnotation = Mark.create({
       lessonId: {
         default: null,
         parseHTML: (element) => element.getAttribute("data-source-lesson-id"),
-        renderHTML: (attributes) => (attributes.lessonId ? { "data-source-lesson-id": attributes.lessonId } : {}),
+        renderHTML: (attributes) =>
+          attributes.lessonId ? { "data-source-lesson-id": attributes.lessonId } : {},
       },
       lessonTitle: {
         default: "",
@@ -137,14 +139,12 @@ const SourceMarkerAnnotation = Mark.create({
       excerpt: {
         default: "",
         parseHTML: (element) => element.getAttribute("data-source-excerpt") ?? "",
-        renderHTML: (attributes) =>
-          attributes.excerpt ? { "data-source-excerpt": attributes.excerpt } : {},
+        renderHTML: (attributes) => (attributes.excerpt ? { "data-source-excerpt": attributes.excerpt } : {}),
       },
       sourceUrl: {
         default: "",
         parseHTML: (element) => element.getAttribute("data-source-url") ?? "",
-        renderHTML: (attributes) =>
-          attributes.sourceUrl ? { "data-source-url": attributes.sourceUrl } : {},
+        renderHTML: (attributes) => (attributes.sourceUrl ? { "data-source-url": attributes.sourceUrl } : {}),
       },
     };
   },

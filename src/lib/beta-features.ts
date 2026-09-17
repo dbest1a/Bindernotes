@@ -215,13 +215,7 @@ export const betaFeatureFlagDefinitions = [
     groupId: "betaRevamp",
     key: "betaRevampCalmStudyHomepage",
     label: "Beta Revamp — Calm Study Homepage",
-    searchAliases: [
-      ...betaRevampSearchAliases,
-      "public site",
-      "student-owned",
-      "workspace",
-      "premium",
-    ],
+    searchAliases: [...betaRevampSearchAliases, "public site", "student-owned", "workspace", "premium"],
   },
   {
     dataAttribute: "data-beta-revamp-source-linked-notes",
@@ -413,14 +407,7 @@ export const betaFeatureFlagDefinitions = [
     groupId: "learningAccelerators",
     key: "examGhostMode",
     label: "Exam Ghost Mode",
-    searchAliases: [
-      ...learningAcceleratorSearchAliases,
-      "exam",
-      "ghost",
-      "recall",
-      "test",
-      "cold recall",
-    ],
+    searchAliases: [...learningAcceleratorSearchAliases, "exam", "ghost", "recall", "test", "cold recall"],
   },
   {
     dataAttribute: "data-beta-whiteboard-replay",
@@ -691,10 +678,7 @@ export function sanitizeBetaFeaturesPreference(value: unknown): BetaFeaturesPref
   };
 }
 
-export function isBetaFeatureFlagActive(
-  preference: BetaFeaturesPreference,
-  flag: BetaFeatureFlagKey,
-) {
+export function isBetaFeatureFlagActive(preference: BetaFeaturesPreference, flag: BetaFeatureFlagKey) {
   if (flag === "revampBeta" || revampBetaFeatureAliases.includes(flag as RevampBetaFeatureAliasKey)) {
     return isRevampBetaEnabled(preference);
   }
@@ -732,7 +716,8 @@ export function loadBetaFeaturesPreference(
   }
 
   try {
-    const raw = storage.getItem(betaFeaturesStorageKeyForUser(userId)) ?? storage.getItem(betaFeaturesStorageKey);
+    const raw =
+      storage.getItem(betaFeaturesStorageKeyForUser(userId)) ?? storage.getItem(betaFeaturesStorageKey);
     return raw ? sanitizeBetaFeaturesPreference(JSON.parse(raw)) : defaultBetaFeaturesPreference;
   } catch {
     return defaultBetaFeaturesPreference;

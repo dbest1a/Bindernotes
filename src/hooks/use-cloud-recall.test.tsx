@@ -10,8 +10,17 @@ const transport = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabase: transport }));
 let database: ReturnType<typeof reviewCloudFixture>;
 const scope = { userId: reviewOwnerA, binderId: "binder-1", documentId: "lesson-1", lessonId: "lesson-1" };
-beforeEach(() => { window.localStorage.clear(); database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA); transport.from.mockImplementation(database.from); transport.rpc.mockImplementation(database.rpc); });
-afterEach(() => { cleanup(); saveQueue.setAccount(null); });
+beforeEach(() => {
+  window.localStorage.clear();
+  database = reviewCloudFixture();
+  saveQueue.setAccount(reviewOwnerA);
+  transport.from.mockImplementation(database.from);
+  transport.rpc.mockImplementation(database.rpc);
+});
+afterEach(() => {
+  cleanup();
+  saveQueue.setAccount(null);
+});
 it("reopens saved cards on a fresh device without local data", async () => {
   const record = canonicalFromRecall(recallFixture());
   await saveCanonicalReview({ record, expectedRevision: 0, operationId: crypto.randomUUID() });
@@ -21,40 +30,66 @@ it("reopens saved cards on a fresh device without local data", async () => {
 });
 it("durably restores an unsaved edit after account teardown and confirms it on retry", async () => {
   const card = recallFixture();
-  await saveCanonicalReview({ record: canonicalFromRecall(card), expectedRevision: 0, operationId: crypto.randomUUID() });
+  await saveCanonicalReview({
+    record: canonicalFromRecall(card),
+    expectedRevision: 0,
+    operationId: crypto.randomUUID(),
+  });
   const first = renderHook(() => useCloudRecall(scope, "Calculus", true));
   await waitFor(() => expect(first.result.current.cards).toHaveLength(1));
   database.fail = true;
-  act(() => first.result.current.updateCards([{ ...card, back: "My corrected explanation", updatedAt: "2026-09-17T12:00:00.000Z" }]));
+  act(() =>
+    first.result.current.updateCards([
+      { ...card, back: "My corrected explanation", updatedAt: "2026-09-17T12:00:00.000Z" },
+    ]),
+  );
   await act(() => first.result.current.save());
   expect(first.result.current.states[0].dirty).toBe(true);
-  first.unmount(); saveQueue.setAccount(null); saveQueue.setAccount(reviewOwnerA);
+  first.unmount();
+  saveQueue.setAccount(null);
+  saveQueue.setAccount(reviewOwnerA);
   const reopened = renderHook(() => useCloudRecall(scope, "Calculus", true));
   await waitFor(() => expect(reopened.result.current.cards[0]?.back).toBe("My corrected explanation"));
   database.fail = false;
   await act(() => reopened.result.current.save());
   await waitFor(() => expect(reopened.result.current.states[0].dirty).toBe(false));
-  expect((database.tables.review_items[0].payload as CanonicalReviewRecord).item.answer).toBe("My corrected explanation");
+  expect((database.tables.review_items[0].payload as CanonicalReviewRecord).item.answer).toBe(
+    "My corrected explanation",
+  );
 });
 it("keeps a stale edit in conflict and saves a recovery copy before accepting the newer account card", async () => {
-  const card = recallFixture(); const original = canonicalFromRecall(card);
+  const card = recallFixture();
+  const original = canonicalFromRecall(card);
   await saveCanonicalReview({ record: original, expectedRevision: 0, operationId: crypto.randomUUID() });
   const hook = renderHook(() => useCloudRecall(scope, "Calculus", true));
   await waitFor(() => expect(hook.result.current.cards).toHaveLength(1));
-  await saveCanonicalReview({ record: canonicalFromRecall({ ...card, back: "Other device answer" }), expectedRevision: 1, operationId: crypto.randomUUID() });
+  await saveCanonicalReview({
+    record: canonicalFromRecall({ ...card, back: "Other device answer" }),
+    expectedRevision: 1,
+    operationId: crypto.randomUUID(),
+  });
   act(() => hook.result.current.updateCards([{ ...card, back: "This device answer" }]));
   await act(() => hook.result.current.save());
   expect(hook.result.current.states[0].state).toBe("conflict");
   expect(hook.result.current.cards[0].back).toBe("This device answer");
   await act(() => hook.result.current.preserveCopy(card.id));
-  expect(hook.result.current.cards.map((value) => value.back).sort()).toEqual(["Other device answer", "This device answer"]);
+  expect(hook.result.current.cards.map((value) => value.back).sort()).toEqual([
+    "Other device answer",
+    "This device answer",
+  ]);
   expect(database.tables.review_items).toHaveLength(2);
 });
 it("does not expose account A cards or pending work after switching to B", async () => {
-  const card = recallFixture(); const hook = renderHook(({ userId }) => useCloudRecall({ ...scope, userId }, "Calculus", true), { initialProps: { userId: reviewOwnerA } });
+  const card = recallFixture();
+  const hook = renderHook(({ userId }) => useCloudRecall({ ...scope, userId }, "Calculus", true), {
+    initialProps: { userId: reviewOwnerA },
+  });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   act(() => hook.result.current.updateCards([card]));
-  act(() => { saveQueue.setAccount(reviewOwnerB); database.owner = reviewOwnerB; });
+  act(() => {
+    saveQueue.setAccount(reviewOwnerB);
+    database.owner = reviewOwnerB;
+  });
   hook.rerender({ userId: reviewOwnerB });
   await waitFor(() => expect(hook.result.current.loading).toBe(false));
   expect(hook.result.current.cards).toEqual([]);

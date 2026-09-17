@@ -3,7 +3,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildLessonContentSelector } from "@/components/workspace/lesson-content-renderer";
-import { LessonSelectionToolbar, resolveToolbarPortalHost } from "@/components/workspace/lesson-selection-toolbar";
+import {
+  LessonSelectionToolbar,
+  resolveToolbarPortalHost,
+} from "@/components/workspace/lesson-selection-toolbar";
 import type { LessonTextSelection } from "@/types";
 
 describe("lesson selection toolbar helpers", () => {
@@ -94,7 +97,9 @@ describe("lesson selection toolbar helpers", () => {
       selectText("Second selectable quote");
       document.dispatchEvent(new Event("selectionchange"));
 
-      expect((await screen.findByTestId("whiteboard-annotation-popup")).className).toContain("z-[2147483647]");
+      expect((await screen.findByTestId("whiteboard-annotation-popup")).className).toContain(
+        "z-[2147483647]",
+      );
     } finally {
       restoreRange();
     }

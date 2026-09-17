@@ -14,10 +14,7 @@ type Token =
   | { type: "rightParen" }
   | { type: "comma" };
 
-type OutputToken =
-  | Token
-  | { type: "function"; value: string }
-  | { type: "operator"; value: string };
+type OutputToken = Token | { type: "function"; value: string } | { type: "operator"; value: string };
 
 type EvalSuccess = {
   ok: true;
@@ -60,13 +57,9 @@ const builtInFunctions = new Set([
   "log",
   "abs",
 ]);
-const functionDefinitionPattern =
-  /^\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\(\s*x\s*\)\s*=\s*(.+)\s*$/;
+const functionDefinitionPattern = /^\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\(\s*x\s*\)\s*=\s*(.+)\s*$/;
 
-export function evaluateScientificExpression(
-  expression: string,
-  options: EvalOptions,
-): EvalResult {
+export function evaluateScientificExpression(expression: string, options: EvalOptions): EvalResult {
   try {
     const normalized = expandSavedFunctions(expression, options.functions ?? {});
     const tokens = insertImplicitMultiplication(tokenize(normalized));
@@ -102,10 +95,7 @@ export function parseFunctionDefinition(expression: string): FunctionDefinition 
   };
 }
 
-export function prepareExpressionForGraph(
-  expression: string,
-  functions: Record<string, string> = {},
-) {
+export function prepareExpressionForGraph(expression: string, functions: Record<string, string> = {}) {
   const normalized = expression.trim();
   if (!normalized) {
     return null;
@@ -220,14 +210,10 @@ function shouldInsertMultiply(previous: Token | undefined, current: Token, next:
   }
 
   const previousEndsValue =
-    previous.type === "number" ||
-    previous.type === "rightParen" ||
-    previous.type === "identifier";
+    previous.type === "number" || previous.type === "rightParen" || previous.type === "identifier";
 
   const currentStartsValue =
-    current.type === "number" ||
-    current.type === "leftParen" ||
-    current.type === "identifier";
+    current.type === "number" || current.type === "leftParen" || current.type === "identifier";
 
   if (!previousEndsValue || !currentStartsValue) {
     return false;
@@ -241,11 +227,7 @@ function shouldInsertMultiply(previous: Token | undefined, current: Token, next:
     return false;
   }
 
-  if (
-    current.type === "identifier" &&
-    next?.type === "leftParen" &&
-    builtInFunctions.has(current.value)
-  ) {
+  if (current.type === "identifier" && next?.type === "leftParen" && builtInFunctions.has(current.value)) {
     return true;
   }
 
@@ -309,7 +291,10 @@ function toRpn(tokens: Token[]) {
 
     if (token.type === "operator") {
       const unary =
-        !previous || previous.type === "operator" || previous.type === "leftParen" || previous.type === "comma";
+        !previous ||
+        previous.type === "operator" ||
+        previous.type === "leftParen" ||
+        previous.type === "comma";
       const operator = unary ? `u${token.value}` : token.value;
 
       while (operators.length) {
@@ -509,11 +494,7 @@ function formatResult(value: number) {
   return Number(normalized.toPrecision(12)).toString();
 }
 
-function expandSavedFunctions(
-  expression: string,
-  functions: Record<string, string>,
-  depth = 0,
-): string {
+function expandSavedFunctions(expression: string, functions: Record<string, string>, depth = 0): string {
   if (depth > 8) {
     throw new Error("Function expansion is too deep.");
   }

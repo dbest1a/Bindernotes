@@ -156,16 +156,10 @@ function isDesmosApiReady(api: DesmosApi | undefined): api is DesmosApi {
     return false;
   }
 
-  return (
-    Boolean(getDesmosGraphingConstructor(api)) ||
-    typeof api.ScientificCalculator === "function"
-  );
+  return Boolean(getDesmosGraphingConstructor(api)) || typeof api.ScientificCalculator === "function";
 }
 
-export function isDesmosFeatureEnabled(
-  api: DesmosApi,
-  feature: DesmosFeatureName,
-) {
+export function isDesmosFeatureEnabled(api: DesmosApi, feature: DesmosFeatureName) {
   const hasConstructor =
     feature === "ScientificCalculator"
       ? typeof api.ScientificCalculator === "function"
@@ -173,18 +167,14 @@ export function isDesmosFeatureEnabled(
         ? Boolean(getDesmosGraphingConstructor(api))
         : feature === "Calculator3D"
           ? typeof api.Calculator3D === "function"
-        : false;
+          : false;
 
   const features = api.enabledFeatures;
   if (!features) {
     return hasConstructor;
   }
 
-  if (
-    feature === "GraphingCalculator" ||
-    feature === "ScientificCalculator" ||
-    feature === "Calculator3D"
-  ) {
+  if (feature === "GraphingCalculator" || feature === "ScientificCalculator" || feature === "Calculator3D") {
     return Boolean(features[feature]) && hasConstructor;
   }
 

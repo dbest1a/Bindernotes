@@ -36,7 +36,9 @@ export function WhiteboardModuleLauncher({
   const moduleGroups = [
     {
       label: "Core",
-      modules: modules.filter((module) => module.moduleId === "lesson" || module.moduleId === "related-concepts"),
+      modules: modules.filter(
+        (module) => module.moduleId === "lesson" || module.moduleId === "related-concepts",
+      ),
     },
     {
       label: "Math",
@@ -49,7 +51,9 @@ export function WhiteboardModuleLauncher({
     },
     {
       label: "Graphing",
-      modules: modules.filter((module) => module.moduleId === "desmos-graph" || module.moduleId === "saved-graphs"),
+      modules: modules.filter(
+        (module) => module.moduleId === "desmos-graph" || module.moduleId === "saved-graphs",
+      ),
     },
     {
       label: "History",
@@ -110,7 +114,9 @@ export function WhiteboardModuleLauncher({
                   </span>
                 ) : null}
               </span>
-              <span className="whiteboard-toolbox-panel__muted mt-1 block text-xs leading-5">{module.description}</span>
+              <span className="whiteboard-toolbox-panel__muted mt-1 block text-xs leading-5">
+                {module.description}
+              </span>
             </button>
           ))
         ) : (
@@ -144,7 +150,9 @@ export function WhiteboardModuleLauncher({
                   </span>
                 ) : null}
               </span>
-              <span className="whiteboard-toolbox-panel__muted mt-1 block text-xs leading-5">{module.description}</span>
+              <span className="whiteboard-toolbox-panel__muted mt-1 block text-xs leading-5">
+                {module.description}
+              </span>
             </button>
           ))}
         </section>
@@ -161,9 +169,17 @@ export function WhiteboardModuleLauncher({
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-sm font-semibold">Board toolbox</p>
-            <p className="whiteboard-toolbox-panel__muted text-xs">Add pinned study tools at the center of your view.</p>
+            <p className="whiteboard-toolbox-panel__muted text-xs">
+              Add pinned study tools at the center of your view.
+            </p>
           </div>
-          <Button aria-label="Minimize modules toolbox" onClick={onClose} size="icon" type="button" variant="ghost">
+          <Button
+            aria-label="Minimize modules toolbox"
+            onClick={onClose}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
             <Minus className="size-4" />
           </Button>
         </div>
@@ -175,7 +191,13 @@ export function WhiteboardModuleLauncher({
   return (
     <div className={panelMode ? "pointer-events-auto" : "pointer-events-auto absolute bottom-4 left-4 z-30"}>
       {open ? (
-        <div className={panelMode ? "mb-2 rounded-lg border border-border bg-card p-3 text-card-foreground" : "mb-2 w-[min(380px,calc(100vw-2rem))] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-xl"}>
+        <div
+          className={
+            panelMode
+              ? "mb-2 rounded-lg border border-border bg-card p-3 text-card-foreground"
+              : "mb-2 w-[min(380px,calc(100vw-2rem))] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-xl"
+          }
+        >
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">Add BinderNotes module</p>
             <Button onClick={() => setOpen(false)} size="sm" type="button" variant="ghost">

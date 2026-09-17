@@ -35,9 +35,7 @@ type StoredHighlightMetadata = {
 };
 
 type NormalizedHighlightSelector =
-  | HighlightSelectorTextQuote
-  | HighlightSelectorTextPosition
-  | HighlightSelectorBlock;
+  HighlightSelectorTextQuote | HighlightSelectorTextPosition | HighlightSelectorBlock;
 
 export type HighlightSegment = {
   id: string;
@@ -146,16 +144,10 @@ export function buildHighlightSelector(selection: LessonTextSelection): Highligh
   return { selectors };
 }
 
-export function selectionMatchesHighlight(
-  selection: LessonTextSelection,
-  highlight: Highlight,
-): boolean {
+export function selectionMatchesHighlight(selection: LessonTextSelection, highlight: Highlight): boolean {
   const range = getHighlightRange(highlight);
   if (range) {
-    return rangesOverlap(
-      { start: selection.startOffset, end: selection.endOffset },
-      range,
-    );
+    return rangesOverlap({ start: selection.startOffset, end: selection.endOffset }, range);
   }
 
   return normalizeHighlightText(highlight.anchor_text) === normalizeHighlightText(selection.text);
@@ -167,10 +159,7 @@ export function selectionExactlyMatchesHighlight(
 ): boolean {
   const range = getHighlightRange(highlight);
   if (range) {
-    return (
-      selection.startOffset === range.start &&
-      selection.endOffset === range.end
-    );
+    return selection.startOffset === range.start && selection.endOffset === range.end;
   }
 
   return normalizeHighlightText(highlight.anchor_text) === normalizeHighlightText(selection.text);
@@ -191,10 +180,7 @@ export function getHighlightRange(highlight: Highlight): HighlightRange | null {
   return null;
 }
 
-export function resolveHighlightRange(
-  highlight: Highlight,
-  plainText: string,
-): HighlightResolution {
+export function resolveHighlightRange(highlight: Highlight, plainText: string): HighlightResolution {
   const signature = buildResolutionSignature(highlight);
   const cached = highlightResolutionCache.get(highlight);
   if (cached && cached.plainText === plainText && cached.signature === signature) {
@@ -351,20 +337,17 @@ export function dedupeHighlights(highlights: Highlight[]): Highlight[] {
   highlights
     .filter((highlight) => highlight.status !== "deleted")
     .forEach((highlight) => {
-    const identity = buildHighlightIdentity(highlight);
-    const existing = byIdentity.get(identity);
-    if (!existing || compareHighlightPriority(existing, highlight) < 0) {
-      byIdentity.set(identity, highlight);
-    }
+      const identity = buildHighlightIdentity(highlight);
+      const existing = byIdentity.get(identity);
+      if (!existing || compareHighlightPriority(existing, highlight) < 0) {
+        byIdentity.set(identity, highlight);
+      }
     });
 
   return Array.from(byIdentity.values()).sort(compareHighlightsForDisplay);
 }
 
-export function buildHighlightSegments(
-  highlights: Highlight[],
-  plainText: string,
-): HighlightSegment[] {
+export function buildHighlightSegments(highlights: Highlight[], plainText: string): HighlightSegment[] {
   if (!plainText) {
     return [];
   }
@@ -455,15 +438,15 @@ export function mergeStoredHighlightMetadata(highlights: Highlight[]): Highlight
       const stored = metadata[highlight.id];
       if (!stored) {
         return highlight;
-    }
+      }
 
-    return {
-      ...highlight,
-      start_offset:
-        typeof stored.start_offset === "number" ? stored.start_offset : highlight.start_offset ?? null,
-      end_offset:
-        typeof stored.end_offset === "number" ? stored.end_offset : highlight.end_offset ?? null,
-    };
+      return {
+        ...highlight,
+        start_offset:
+          typeof stored.start_offset === "number" ? stored.start_offset : (highlight.start_offset ?? null),
+        end_offset:
+          typeof stored.end_offset === "number" ? stored.end_offset : (highlight.end_offset ?? null),
+      };
     }),
   );
 }
@@ -481,8 +464,7 @@ export function persistHighlightMetadata(highlight: Highlight) {
     lesson_id: highlight.lesson_id,
     anchor_text: highlight.anchor_text,
     color: highlight.color,
-    start_offset:
-      typeof highlight.start_offset === "number" ? highlight.start_offset : null,
+    start_offset: typeof highlight.start_offset === "number" ? highlight.start_offset : null,
     end_offset: typeof highlight.end_offset === "number" ? highlight.end_offset : null,
     created_at: highlight.created_at,
   };
@@ -506,8 +488,8 @@ export function removeStoredHighlightMetadataByScope(scope: HighlightStorageScop
   }
 
   const next = Object.fromEntries(
-    Object.entries(loadStoredHighlightMetadata()).filter(([, highlight]) =>
-      !matchesHighlightStorageScope(highlight, scope),
+    Object.entries(loadStoredHighlightMetadata()).filter(
+      ([, highlight]) => !matchesHighlightStorageScope(highlight, scope),
     ),
   );
 
@@ -540,10 +522,7 @@ function compactHighlightText(value: string) {
   return value.replace(/\s+/g, "").toLowerCase();
 }
 
-function matchesHighlightStorageScope(
-  highlight: StoredHighlightMetadata,
-  scope: HighlightStorageScope,
-) {
+function matchesHighlightStorageScope(highlight: StoredHighlightMetadata, scope: HighlightStorageScope) {
   if (scope.binderId && highlight.binder_id !== scope.binderId) {
     return false;
   }
@@ -585,8 +564,7 @@ function buildHighlightIdentity(highlight: Highlight) {
 }
 
 function compareHighlightPriority(left: Highlight, right: Highlight) {
-  const createdDelta =
-    new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+  const createdDelta = new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
   if (createdDelta !== 0) {
     return createdDelta;
   }
@@ -625,10 +603,7 @@ function compareSegmentsForOverlay(left: OverlaySegment, right: OverlaySegment) 
   );
 }
 
-function overlaySegment(
-  existing: OverlaySegment[],
-  candidate: OverlaySegment,
-): OverlaySegment[] {
+function overlaySegment(existing: OverlaySegment[], candidate: OverlaySegment): OverlaySegment[] {
   const next: OverlaySegment[] = [];
 
   existing.forEach((segment) => {
@@ -656,9 +631,7 @@ function overlaySegment(
   return next;
 }
 
-function maybeResetStoredHighlightMetadata(
-  metadata: Record<string, StoredHighlightMetadata>,
-) {
+function maybeResetStoredHighlightMetadata(metadata: Record<string, StoredHighlightMetadata>) {
   if (typeof window === "undefined") {
     return metadata;
   }
@@ -676,10 +649,7 @@ function maybeResetStoredHighlightMetadata(
     Object.entries(metadata).filter(([, highlight]) => !RESET_LESSON_IDS.has(highlight.lesson_id)),
   );
   window.localStorage.setItem(HIGHLIGHT_RESET_MARKER_KEY, "true");
-  window.localStorage.setItem(
-    HIGHLIGHT_METADATA_STORAGE_KEY,
-    JSON.stringify(filtered),
-  );
+  window.localStorage.setItem(HIGHLIGHT_METADATA_STORAGE_KEY, JSON.stringify(filtered));
   return filtered;
 }
 
@@ -695,11 +665,7 @@ function normalizeSelectors(selectorJson?: HighlightSelectorJson | null): Normal
   return "type" in selectorJson ? [selectorJson] : [];
 }
 
-function rangeMatchesText(
-  range: HighlightRange,
-  plainText: string,
-  exactText: string,
-) {
+function rangeMatchesText(range: HighlightRange, plainText: string, exactText: string) {
   if (range.end <= range.start || range.end > plainText.length) {
     return false;
   }
@@ -716,10 +682,7 @@ function rangeMatchesText(
   return compactHighlightText(renderedText) === compactHighlightText(exactText);
 }
 
-function findQuoteRange(
-  plainText: string,
-  selector: HighlightSelectorTextQuote,
-) {
+function findQuoteRange(plainText: string, selector: HighlightSelectorTextQuote) {
   const exact = selector.exact?.trim();
   if (!exact) {
     return null;
@@ -733,12 +696,7 @@ function findQuoteRange(
   return findCompactQuoteRange(plainText, exact, selector.prefix, selector.suffix);
 }
 
-function findDirectQuoteRange(
-  plainText: string,
-  exact: string,
-  prefix?: string,
-  suffix?: string,
-) {
+function findDirectQuoteRange(plainText: string, exact: string, prefix?: string, suffix?: string) {
   let searchStart = 0;
   while (searchStart < plainText.length) {
     const start = plainText.indexOf(exact, searchStart);
@@ -748,10 +706,16 @@ function findDirectQuoteRange(
 
     const end = start + exact.length;
     const prefixMatches = prefix
-      ? plainText.slice(Math.max(0, start - prefix.length), start).trim().endsWith(prefix.trim())
+      ? plainText
+          .slice(Math.max(0, start - prefix.length), start)
+          .trim()
+          .endsWith(prefix.trim())
       : true;
     const suffixMatches = suffix
-      ? plainText.slice(end, Math.min(plainText.length, end + suffix.length)).trim().startsWith(suffix.trim())
+      ? plainText
+          .slice(end, Math.min(plainText.length, end + suffix.length))
+          .trim()
+          .startsWith(suffix.trim())
       : true;
 
     if (prefixMatches && suffixMatches) {
@@ -764,12 +728,7 @@ function findDirectQuoteRange(
   return null;
 }
 
-function findCompactQuoteRange(
-  plainText: string,
-  exact: string,
-  prefix?: string,
-  suffix?: string,
-) {
+function findCompactQuoteRange(plainText: string, exact: string, prefix?: string, suffix?: string) {
   const query = compactHighlightText(exact);
   if (!query || (query.length < 4 && !prefix && !suffix)) {
     return null;

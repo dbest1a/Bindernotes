@@ -14,12 +14,7 @@ export type RecallCreatedVia = RecallSourceType;
 
 export type RecallDraftStatus = "draft" | "accepted" | "rejected" | "needs_review";
 
-export type RecallQualityStatus =
-  | "good"
-  | "too_vague"
-  | "duplicate"
-  | "wrong"
-  | "source_gap";
+export type RecallQualityStatus = "good" | "too_vague" | "duplicate" | "wrong" | "source_gap";
 
 export type RecallCardStatus =
   | "Draft"
@@ -154,11 +149,7 @@ export type RecallDraftInput = {
 };
 
 export type RecallDraftCapability =
-  | "supportsDrafts"
-  | "supportsSourceLinks"
-  | "supportsCloze"
-  | "supportsBatchCreate"
-  | "requiresUserReview";
+  "supportsDrafts" | "supportsSourceLinks" | "supportsCloze" | "supportsBatchCreate" | "requiresUserReview";
 
 export type RecallDraftProvider = {
   id:
@@ -185,12 +176,7 @@ export type RecallPracticeMode =
   | "Guided Recall";
 
 export type RecallSessionGoal =
-  | "Quick warmup"
-  | "Checkpoint prep"
-  | "Weak spots"
-  | "Current lesson"
-  | "Binder review"
-  | "Subject review";
+  "Quick warmup" | "Checkpoint prep" | "Weak spots" | "Current lesson" | "Binder review" | "Subject review";
 
 export type RecallSessionSummary = {
   id: string;

@@ -11,5 +11,9 @@ export function usePersonalEntryContent(entry: PersonalNotesEntry | null, ownerI
     enabled: Boolean(needsContent && ownerId),
     staleTime: 60_000,
   });
-  return { ...query, data: needsContent ? query.data ?? null : entry, loadingContent: needsContent && !query.data && !query.isError };
+  return {
+    ...query,
+    data: needsContent ? (query.data ?? null) : entry,
+    loadingContent: needsContent && !query.data && !query.isError,
+  };
 }

@@ -47,7 +47,10 @@ function lesson(overrides: Partial<BinderLesson> = {}): BinderLesson {
     binder_id: "binder-math",
     title: "Like Terms",
     order_index: 1,
-    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Source lesson" }] }] },
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Source lesson" }] }],
+    },
     math_blocks: [],
     is_preview: false,
     created_at: timestamp,
@@ -76,7 +79,10 @@ function learnerNote(overrides: Partial<LearnerNote> = {}): LearnerNote {
     lesson_id: "lesson-like-terms",
     folder_id: null,
     title: "Private work on combining terms",
-    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "2x plus 3x becomes 5x" }] }] },
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "2x plus 3x becomes 5x" }] }],
+    },
     math_blocks: [],
     pinned: false,
     created_at: timestamp,
@@ -90,7 +96,10 @@ function personalNote(overrides: Partial<PersonalNote> = {}): PersonalNote {
     id: "personal-note-1",
     owner_id: "user-1",
     title: "Loose reading note",
-    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "argument plan" }] }] },
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "argument plan" }] }],
+    },
     math_blocks: [],
     folder_id: null,
     binder_id: null,
@@ -126,7 +135,10 @@ function notebookDocument(overrides: Partial<PersonalNotebookDocument> = {}): Pe
     owner_id: "user-1",
     binder_id: "personal-binder-1",
     title: "Evidence notes",
-    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "primary source quote" }] }] },
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "primary source quote" }] }],
+    },
     math_blocks: [],
     tags: ["sources"],
     pinned: true,
@@ -191,25 +203,49 @@ describe("Personal Notes unified model", () => {
       folders: [],
     });
 
-    expect(filterPersonalNotesEntries(entries, { query: "", sourceFilter: "all", showBinderNotes: false }))
-      .toHaveLength(2);
-    expect(filterPersonalNotesEntries(entries, { query: "", sourceFilter: "binder-linked", showBinderNotes: true }))
-      .toHaveLength(1);
-    expect(filterPersonalNotesEntries(entries, { query: "5x", sourceFilter: "all", showBinderNotes: true })[0].id)
-      .toBe("learner-note-1");
+    expect(
+      filterPersonalNotesEntries(entries, { query: "", sourceFilter: "all", showBinderNotes: false }),
+    ).toHaveLength(2);
+    expect(
+      filterPersonalNotesEntries(entries, {
+        query: "",
+        sourceFilter: "binder-linked",
+        showBinderNotes: true,
+      }),
+    ).toHaveLength(1);
+    expect(
+      filterPersonalNotesEntries(entries, { query: "5x", sourceFilter: "all", showBinderNotes: true })[0].id,
+    ).toBe("learner-note-1");
   });
 
   it("merges remote body matches while preserving source and tag filters", () => {
-    const entries = buildPersonalNotesEntries({ learnerNotes: [learnerNote()], personalNotes: [personalNote()], personalDocuments: [], personalBinders: [], binders: [binder()], lessons: [lesson()], folders: [] });
-    const options = { query: "server-only phrase", sourceFilter: "all" as const, showBinderNotes: true, bodyMatches: new Set(["binder-note:learner-note-1", "personal-note:personal-note-1"]) };
+    const entries = buildPersonalNotesEntries({
+      learnerNotes: [learnerNote()],
+      personalNotes: [personalNote()],
+      personalDocuments: [],
+      personalBinders: [],
+      binders: [binder()],
+      lessons: [lesson()],
+      folders: [],
+    });
+    const options = {
+      query: "server-only phrase",
+      sourceFilter: "all" as const,
+      showBinderNotes: true,
+      bodyMatches: new Set(["binder-note:learner-note-1", "personal-note:personal-note-1"]),
+    };
     expect(filterPersonalNotesEntries(entries, options)).toHaveLength(2);
-    expect(filterPersonalNotesEntries(entries, { ...options, showBinderNotes: false }).map((entry) => entry.id)).toEqual(["personal-note-1"]);
+    expect(
+      filterPersonalNotesEntries(entries, { ...options, showBinderNotes: false }).map((entry) => entry.id),
+    ).toEqual(["personal-note-1"]);
     expect(filterPersonalNotesEntries(entries, { ...options, tag: "absent" })).toHaveLength(0);
   });
 
   it("creates quiet health signals and a review queue from note metadata", () => {
     const entries = buildPersonalNotesEntries({
-      learnerNotes: [learnerNote({ math_blocks: [{ id: "m1", type: "latex", latex: "x^2", label: "Quadratic" }] })],
+      learnerNotes: [
+        learnerNote({ math_blocks: [{ id: "m1", type: "latex", latex: "x^2", label: "Quadratic" }] }),
+      ],
       personalNotes: [personalNote({ pinned: true, tags: ["review-later"] })],
       personalDocuments: [notebookDocument()],
       personalBinders: [notebookBinder()],
@@ -219,8 +255,11 @@ describe("Personal Notes unified model", () => {
     });
 
     expect(getPersonalNoteHealth(entries[0]).map((signal) => signal.label)).toContain("Pinned");
-    expect(getPersonalNoteHealth(entries.find((entry) => entry.kind === "binder-note")!).map((signal) => signal.label))
-      .toEqual(expect.arrayContaining(["Has math blocks", "Linked binder"]));
+    expect(
+      getPersonalNoteHealth(entries.find((entry) => entry.kind === "binder-note")!).map(
+        (signal) => signal.label,
+      ),
+    ).toEqual(expect.arrayContaining(["Has math blocks", "Linked binder"]));
     expect(getPersonalNoteReviewQueue(entries).map((entry) => entry.id)).toEqual([
       "personal-doc-1",
       "personal-note-1",
@@ -229,10 +268,22 @@ describe("Personal Notes unified model", () => {
   });
 
   it("does not label notebook work as orphaned or unloaded metadata as empty", () => {
-    const entries = buildPersonalNotesEntries({ learnerNotes: [], personalNotes: [personalNote({ binder_id: "personal-binder-1" })], personalDocuments: [notebookDocument()], personalBinders: [notebookBinder()], binders: [], lessons: [], folders: [] });
+    const entries = buildPersonalNotesEntries({
+      learnerNotes: [],
+      personalNotes: [personalNote({ binder_id: "personal-binder-1" })],
+      personalDocuments: [notebookDocument()],
+      personalBinders: [notebookBinder()],
+      binders: [],
+      lessons: [],
+      folders: [],
+    });
     for (const entry of entries) {
       expect(getPersonalNoteHealth(entry).some((signal) => signal.id === "unfiled")).toBe(false);
-      expect(getPersonalNoteHealth({ ...entry, contentLoaded: false, content: { type: "doc", content: [] } }).some((signal) => signal.id === "empty-note")).toBe(false);
+      expect(
+        getPersonalNoteHealth({ ...entry, contentLoaded: false, content: { type: "doc", content: [] } }).some(
+          (signal) => signal.id === "empty-note",
+        ),
+      ).toBe(false);
     }
   });
 
@@ -278,7 +329,9 @@ describe("Personal Notes unified model", () => {
       personalDocuments: [],
       personalBinders: [],
       binders: [binder({ id: "binder-calculus", title: "Jacob Math Notes" })],
-      lessons: [lesson({ id: "lesson-limits", binder_id: "binder-calculus", title: "Limits and Continuity" })],
+      lessons: [
+        lesson({ id: "lesson-limits", binder_id: "binder-calculus", title: "Limits and Continuity" }),
+      ],
       folders: [],
     });
 
@@ -297,20 +350,28 @@ describe("Personal Notes unified model", () => {
   });
 
   it("maps Personal Notes autosave states to plain-language beta labels", () => {
-    expect(getPersonalNoteAutosaveStatus({ dirty: false, saveState: "saved", autosaveEnabled: true })).toMatchObject({
+    expect(
+      getPersonalNoteAutosaveStatus({ dirty: false, saveState: "saved", autosaveEnabled: true }),
+    ).toMatchObject({
       label: "No changes to save",
       savedLabel: "Saved",
       state: "idle",
     });
-    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saved", autosaveEnabled: true })).toMatchObject({
+    expect(
+      getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saved", autosaveEnabled: true }),
+    ).toMatchObject({
       label: "Sync pending",
       state: "pending",
     });
-    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saving", autosaveEnabled: true })).toMatchObject({
+    expect(
+      getPersonalNoteAutosaveStatus({ dirty: true, saveState: "saving", autosaveEnabled: true }),
+    ).toMatchObject({
       label: "Saving...",
       state: "saving",
     });
-    expect(getPersonalNoteAutosaveStatus({ dirty: true, saveState: "error", autosaveEnabled: true })).toMatchObject({
+    expect(
+      getPersonalNoteAutosaveStatus({ dirty: true, saveState: "error", autosaveEnabled: true }),
+    ).toMatchObject({
       label: "Error saving",
       state: "error",
     });
@@ -345,12 +406,23 @@ describe("Personal Notes unified model", () => {
       editorWidth: "wide",
     });
 
-    expect(normalizePersonalNotesPreferences({ defaultView: "normal" as never }).defaultView).toBe("organize");
+    expect(normalizePersonalNotesPreferences({ defaultView: "normal" as never }).defaultView).toBe(
+      "organize",
+    );
     expect(normalizePersonalNotesPreferences({ defaultView: "minimal" as never }).defaultView).toBe("notes");
-    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "structured" as never }).sidebarNavigationMode).toBe("project-tree");
-    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "expanded" as never }).sidebarNavigationMode).toBe("project-tree");
-    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "loose" as never }).sidebarNavigationMode).toBe("scope-drill-in");
-    expect(normalizePersonalNotesPreferences({ sidebarNavigationMode: "drill-in" as never }).sidebarNavigationMode).toBe("scope-drill-in");
+    expect(
+      normalizePersonalNotesPreferences({ sidebarNavigationMode: "structured" as never })
+        .sidebarNavigationMode,
+    ).toBe("project-tree");
+    expect(
+      normalizePersonalNotesPreferences({ sidebarNavigationMode: "expanded" as never }).sidebarNavigationMode,
+    ).toBe("project-tree");
+    expect(
+      normalizePersonalNotesPreferences({ sidebarNavigationMode: "loose" as never }).sidebarNavigationMode,
+    ).toBe("scope-drill-in");
+    expect(
+      normalizePersonalNotesPreferences({ sidebarNavigationMode: "drill-in" as never }).sidebarNavigationMode,
+    ).toBe("scope-drill-in");
     expect(normalizePersonalNotesPreferences({}).showSideMonitorTags).toBe(false);
     expect(normalizePersonalNotesPreferences({ annotatorTools: "hotkeys" }).annotatorTools).toBe("hotkeys");
   });

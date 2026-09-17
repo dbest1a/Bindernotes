@@ -111,7 +111,9 @@ describe("compact whiteboard toolbox beta surfaces", () => {
       />,
     );
 
-    expect(screen.getByTestId("whiteboard-scratch-limit-state").textContent).toMatch(/3\/3 whiteboards saved/i);
+    expect(screen.getByTestId("whiteboard-scratch-limit-state").textContent).toMatch(
+      /3\/3 whiteboards saved/i,
+    );
     expect(screen.getByText(/without archiving or deleting real boards/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /archive/i })).toBeNull();
 

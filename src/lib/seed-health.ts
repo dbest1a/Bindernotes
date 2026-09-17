@@ -9,8 +9,7 @@ import type { SeedHealth, SuiteTemplate } from "@/types";
 
 const strictSeedFlag = import.meta.env.VITE_STRICT_SEEDED_CONTENT;
 
-export const strictSeedHealthMode =
-  Boolean(isSupabaseConfigured) && strictSeedFlag !== "false";
+export const strictSeedHealthMode = Boolean(isSupabaseConfigured) && strictSeedFlag !== "false";
 
 export class MissingSeedError extends Error {
   readonly suiteTemplateId: string;
@@ -66,7 +65,7 @@ export function findSystemSuiteByBinderId(binderId: string) {
           ? SYSTEM_SUITE_IDS.historyDemo
           : null;
 
-  return suiteId ? systemSuiteTemplates.find((suite) => suite.id === suiteId) ?? null : null;
+  return suiteId ? (systemSuiteTemplates.find((suite) => suite.id === suiteId) ?? null) : null;
 }
 
 export function createHealthySeedHealth(suite: SuiteTemplate): SeedHealth {

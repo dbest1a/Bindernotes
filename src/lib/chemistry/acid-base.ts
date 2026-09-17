@@ -4,12 +4,10 @@ import { finite, nonnegative, positive } from "@/lib/chemistry/calculation-valid
 // Kw reference: https://openstax.org/books/chemistry-2e/pages/14-1-bronsted-lowry-acids-and-bases
 const waterIonProduct = 1e-14;
 
-export function calculateStrongAcidBase(input: {
-  kind: "acid" | "base";
-  concentrationM: number;
-}) {
+export function calculateStrongAcidBase(input: { kind: "acid" | "base"; concentrationM: number }) {
   const concentration = nonnegative(input.concentrationM, "Concentration");
-  if (input.kind !== "acid" && input.kind !== "base") throw new RangeError("Choose a strong acid or strong base.");
+  if (input.kind !== "acid" && input.kind !== "base")
+    throw new RangeError("Choose a strong acid or strong base.");
   // Solve H - OH = C and H * OH = Kw (swap H/OH for base).
   // hypot and separate halves avoid overflowing C*C or C+sqrt(...).
   const majority = concentration / 2 + Math.hypot(concentration / 2, Math.sqrt(waterIonProduct));

@@ -20,12 +20,9 @@ describe("safe JSON array storage", () => {
     expect(readJsonArray(createStorage({ items: "{not-json" }), "items")).toEqual([]);
   });
 
-  it.each(["null", "{}", '"value"', "42", "true"])(
-    "fails closed for non-array JSON: %s",
-    (value) => {
-      expect(readJsonArray(createStorage({ items: value }), "items")).toEqual([]);
-    },
-  );
+  it.each(["null", "{}", '"value"', "42", "true"])("fails closed for non-array JSON: %s", (value) => {
+    expect(readJsonArray(createStorage({ items: value }), "items")).toEqual([]);
+  });
 
   it("fails closed when storage reads throw", () => {
     const storage: JsonArrayStorage = {

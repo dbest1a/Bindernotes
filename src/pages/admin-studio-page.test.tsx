@@ -226,11 +226,7 @@ vi.mock("@/components/editor/rich-text-editor", () => ({
   }) => {
     mocks.richTextEditorRender();
     return (
-      <textarea
-        aria-label="Rich editor"
-        onChange={() => onChange?.(value)}
-        value={JSON.stringify(value)}
-      />
+      <textarea aria-label="Rich editor" onChange={() => onChange?.(value)} value={JSON.stringify(value)} />
     );
   },
 }));
@@ -453,9 +449,7 @@ describe("AdminStudioPage", () => {
   });
 
   it("uses an admin-themed loading panel for diagnostics chunks", () => {
-    const { container } = render(
-      <AdminDiagnosticsFallback />,
-    );
+    const { container } = render(<AdminDiagnosticsFallback />);
 
     expect(screen.getByTestId("admin-diagnostics-loading")).toBeTruthy();
     expect(container.querySelector(".animate-pulse")).toBeNull();
@@ -547,7 +541,7 @@ describe("AdminStudioPage", () => {
 
   it("shows a visible error when binder creation fails", async () => {
     mocks.mutations.binder.mutateAsync.mockRejectedValue(
-      new Error("duplicate key value violates unique constraint \"binders_slug_key\""),
+      new Error('duplicate key value violates unique constraint "binders_slug_key"'),
     );
 
     render(

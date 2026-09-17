@@ -53,8 +53,7 @@ export function AppShell() {
   const performanceMode = usePerformanceMode();
   const betaFeatures = useBetaFeatures(profile?.id);
   const isStudyDocumentRoute = /^\/binders\/[^/]+\/documents\/[^/]+/.test(location.pathname);
-  const compactStudyChrome =
-    isStudyDocumentRoute && betaFeatures.isFeatureEnabled("compactStudyChrome");
+  const compactStudyChrome = isStudyDocumentRoute && betaFeatures.isFeatureEnabled("compactStudyChrome");
   const studentPreviewAdminChromeGuard =
     isStudyDocumentRoute && betaFeatures.isFeatureEnabled("studentPreviewAdminChromeGuard");
   const [personalNotesPreferences, setPersonalNotesPreferences] = useState(() =>
@@ -90,17 +89,20 @@ export function AppShell() {
     }
 
     const onPersonalNotesPreferencesUpdated = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        preferences?: PersonalNotesPreferences;
-        userId?: string;
-      }>).detail;
+      const detail = (
+        event as CustomEvent<{
+          preferences?: PersonalNotesPreferences;
+          userId?: string;
+        }>
+      ).detail;
       if (detail?.userId === profile.id && detail.preferences) {
         setPersonalNotesPreferences(detail.preferences);
       }
     };
 
     window.addEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
-    return () => window.removeEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
+    return () =>
+      window.removeEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
   }, [profile?.id]);
 
   const setQuickAccessVisible = (showQuickAccess: boolean) => {
@@ -139,7 +141,9 @@ export function AppShell() {
     const candidates = Object.entries(settingsSectionRefs.current)
       .map(([id, element]) => ({
         id,
-        distance: element ? Math.abs(element.offsetTop - scrollContainer.scrollTop) : Number.POSITIVE_INFINITY,
+        distance: element
+          ? Math.abs(element.offsetTop - scrollContainer.scrollTop)
+          : Number.POSITIVE_INFINITY,
       }))
       .sort((a, b) => a.distance - b.distance);
 
@@ -316,9 +320,13 @@ export function AppShell() {
       data-enhanced-visuals={enhancedModeRequested ? "true" : "false"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
-      data-page-transition={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.pageTransition : "off"}
+      data-page-transition={
+        isAdmin && settings.enabled && !effectivePerformanceMode ? settings.pageTransition : "off"
+      }
       data-performance-mode={effectivePerformanceMode ? "true" : "false"}
-      data-premium-color-mode={isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"}
+      data-premium-color-mode={
+        isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"
+      }
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
       data-revamp-beta={betaFeatures.revampBetaEnabled ? "true" : "false"}
       data-study-route={isStudyDocumentRoute ? "true" : "false"}
@@ -358,7 +366,11 @@ export function AppShell() {
                 Admin studio
               </NavItem>
             ) : null}
-            {creator.access?.allowed && !studentPreviewAdminChromeGuard ? <NavItem to="/creator" icon={<PenTool data-icon="inline-start" />}>Creator workspace</NavItem> : null}
+            {creator.access?.allowed && !studentPreviewAdminChromeGuard ? (
+              <NavItem to="/creator" icon={<PenTool data-icon="inline-start" />}>
+                Creator workspace
+              </NavItem>
+            ) : null}
             <NavItem to="/pricing" icon={<GraduationCap data-icon="inline-start" />}>
               Pricing
             </NavItem>
@@ -438,7 +450,10 @@ export function AppShell() {
                     Open settings
                   </Button>
                   {compactStudyChrome ? (
-                    <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="compact-study-account-controls">
+                    <section
+                      className="mt-3 rounded-lg border border-border/80 p-3"
+                      data-testid="compact-study-account-controls"
+                    >
                       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
                         Theme
                         <select
@@ -454,7 +469,12 @@ export function AppShell() {
                           ))}
                         </select>
                       </label>
-                      <Button className="mt-3 w-full justify-center" onClick={logout} type="button" variant="ghost">
+                      <Button
+                        className="mt-3 w-full justify-center"
+                        onClick={logout}
+                        type="button"
+                        variant="ghost"
+                      >
                         <LogOut data-icon="inline-start" />
                         Log out
                       </Button>
@@ -500,7 +520,10 @@ export function AppShell() {
                       </p>
                     </section>
                   ) : null}
-                  <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="personal-notes-quick-access-section">
+                  <section
+                    className="mt-3 rounded-lg border border-border/80 p-3"
+                    data-testid="personal-notes-quick-access-section"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="flex items-center gap-2 text-sm font-semibold">
@@ -535,7 +558,10 @@ export function AppShell() {
                         : "Quick Access is hidden. Navigation and command palette access stay available."}
                     </p>
                   </section>
-                  <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="performance-mode-section">
+                  <section
+                    className="mt-3 rounded-lg border border-border/80 p-3"
+                    data-testid="performance-mode-section"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="flex items-center gap-2 text-sm font-semibold">
@@ -543,7 +569,8 @@ export function AppShell() {
                           Enhanced Visuals
                         </p>
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          Adds richer motion, shadows, and visual effects. Turn off for the fastest study and whiteboard experience.
+                          Adds richer motion, shadows, and visual effects. Turn off for the fastest study and
+                          whiteboard experience.
                         </p>
                       </div>
                       <button
@@ -551,7 +578,9 @@ export function AppShell() {
                         aria-pressed={enhancedModeRequested}
                         className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                         data-testid="performance-mode-toggle"
-                        onClick={() => performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)}
+                        onClick={() =>
+                          performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                        }
                         type="button"
                       >
                         <span
@@ -573,14 +602,23 @@ export function AppShell() {
                 </div>
               ) : null}
             </div>
-            <Button aria-label="Log out" data-compact-study-direct-control="logout" onClick={logout} type="button" variant="ghost">
+            <Button
+              aria-label="Log out"
+              data-compact-study-direct-control="logout"
+              onClick={logout}
+              type="button"
+              variant="ghost"
+            >
               <LogOut data-icon="inline-start" />
               <span className="hidden sm:inline">Log out</span>
             </Button>
           </div>
         </div>
       </header>
-      <div className="app-route-transition-shell" data-route-transition-active={routeLanding ? "true" : "false"}>
+      <div
+        className="app-route-transition-shell"
+        data-route-transition-active={routeLanding ? "true" : "false"}
+      >
         <Outlet />
       </div>
       {settingsWindowOpen ? (
@@ -641,7 +679,11 @@ export function AppShell() {
                 ))}
               </aside>
 
-              <div className="app-settings-window__scroll" onScroll={syncActiveSettingsSection} ref={settingsScrollRef}>
+              <div
+                className="app-settings-window__scroll"
+                onScroll={syncActiveSettingsSection}
+                ref={settingsScrollRef}
+              >
                 {showAccountSettings ? (
                   <SettingsPanel
                     description="Manage the signed-in account and session controls."
@@ -657,20 +699,42 @@ export function AppShell() {
                         {initials(profile?.full_name ?? "BN")}
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{profile?.full_name ?? "Binder user"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{profile?.email ?? "Signed in account"}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {profile?.full_name ?? "Binder user"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {profile?.email ?? "Signed in account"}
+                        </p>
                       </div>
                       <span className="rounded-md border border-border/70 bg-background px-2 py-1 text-xs capitalize text-muted-foreground">
                         {profile?.role ?? "learner"}
                       </span>
                     </div>
-                    <Link className="text-sm underline" to="/account" onClick={closeSettingsWindow}>Password, sessions and account deletion</Link>
-                    {creator.access?.allowed ? <Link className="block text-sm underline" to="/creator" onClick={closeSettingsWindow}>Open creator workspace</Link> : null}
-                    <Button className="justify-self-start" onClick={logout} size="sm" type="button" variant="outline">
+                    <Link className="text-sm underline" to="/account" onClick={closeSettingsWindow}>
+                      Password, sessions and account deletion
+                    </Link>
+                    {creator.access?.allowed ? (
+                      <Link className="block text-sm underline" to="/creator" onClick={closeSettingsWindow}>
+                        Open creator workspace
+                      </Link>
+                    ) : null}
+                    <Button
+                      className="justify-self-start"
+                      onClick={logout}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
                       <LogOut data-icon="inline-start" />
                       Log out
                     </Button>
-                    <Link className="text-sm underline underline-offset-4" onClick={closeSettingsWindow} to="/account/data">Data &amp; backups</Link>
+                    <Link
+                      className="text-sm underline underline-offset-4"
+                      onClick={closeSettingsWindow}
+                      to="/account/data"
+                    >
+                      Data &amp; backups
+                    </Link>
                   </SettingsPanel>
                 ) : null}
 
@@ -701,7 +765,10 @@ export function AppShell() {
                       </select>
                     </label>
                     {isAdmin ? (
-                      <section className="rounded-lg border border-border/80 p-3" data-testid="admin-dashboard-appearance">
+                      <section
+                        className="rounded-lg border border-border/80 p-3"
+                        data-testid="admin-dashboard-appearance"
+                      >
                         <p className="flex items-center gap-2 text-sm font-semibold">
                           <LayoutDashboard className="size-4 text-cyan-300" />
                           Dashboard appearance
@@ -750,7 +817,10 @@ export function AppShell() {
                     testId="app-settings-section-learning"
                     title="Learning"
                   >
-                    <section className="rounded-lg border border-border/80 p-3" data-testid="tutorial-prompts-section">
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="tutorial-prompts-section"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -804,7 +874,10 @@ export function AppShell() {
                     testId="app-settings-section-personal-notes"
                     title="Personal Notes"
                   >
-                    <section className="rounded-lg border border-border/80 p-3" data-testid="personal-notes-quick-access-section">
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="personal-notes-quick-access-section"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -852,7 +925,10 @@ export function AppShell() {
                     testId="app-settings-section-performance"
                     title="Performance"
                   >
-                    <section className="rounded-lg border border-border/80 p-3" data-testid="performance-mode-section">
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="performance-mode-section"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -860,7 +936,8 @@ export function AppShell() {
                             Enhanced Visuals
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            Adds richer motion, shadows, and visual effects. Turn off for the fastest study and whiteboard experience.
+                            Adds richer motion, shadows, and visual effects. Turn off for the fastest study
+                            and whiteboard experience.
                           </p>
                         </div>
                         <button
@@ -868,7 +945,9 @@ export function AppShell() {
                           aria-pressed={enhancedModeRequested}
                           className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                           data-testid="performance-mode-toggle"
-                          onClick={() => performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)}
+                          onClick={() =>
+                            performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                          }
                           type="button"
                         >
                           <span
@@ -900,7 +979,10 @@ export function AppShell() {
                     testId="app-settings-section-beta-features"
                     title="Beta Features"
                   >
-                    <section className="rounded-lg border border-border/80 p-3" data-testid="beta-features-section">
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="beta-features-section"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -908,8 +990,9 @@ export function AppShell() {
                             Revamp Beta
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            Turns on the BinderNotes QA revamp: cleaner study layouts, faster tools, safer whiteboard
-                            flow, improved notes/save states, better search, and calmer student study surfaces.
+                            Turns on the BinderNotes QA revamp: cleaner study layouts, faster tools, safer
+                            whiteboard flow, improved notes/save states, better search, and calmer student
+                            study surfaces.
                           </p>
                         </div>
                         <button
@@ -917,7 +1000,9 @@ export function AppShell() {
                           aria-pressed={betaFeatures.revampBetaEnabled}
                           className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
                           data-testid="revamp-beta-toggle"
-                          onClick={() => betaFeatures.setBetaFeatureFlag("revampBeta", !betaFeatures.revampBetaEnabled)}
+                          onClick={() =>
+                            betaFeatures.setBetaFeatureFlag("revampBeta", !betaFeatures.revampBetaEnabled)
+                          }
                           type="button"
                         >
                           <span
@@ -955,7 +1040,9 @@ export function AppShell() {
                             </p>
                           </div>
                           {group.flagKeys.map((flagKey) => {
-                            const flag = betaFeatureFlagDefinitions.find((candidate) => candidate.key === flagKey);
+                            const flag = betaFeatureFlagDefinitions.find(
+                              (candidate) => candidate.key === flagKey,
+                            );
                             if (!flag) {
                               return null;
                             }
@@ -993,7 +1080,9 @@ export function AppShell() {
                                   </button>
                                 </div>
                                 <div className="mt-2 flex items-center gap-2 text-xs leading-5 text-muted-foreground">
-                                  <Badge variant={active ? "default" : "outline"}>{active ? "On" : "Off"}</Badge>
+                                  <Badge variant={active ? "default" : "outline"}>
+                                    {active ? "On" : "Off"}
+                                  </Badge>
                                   <span>
                                     {active
                                       ? flag.key === "revampBeta"
@@ -1013,9 +1102,8 @@ export function AppShell() {
                         QA issue map
                       </p>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        BN-QA-001 and BN-QA-002 are role-verification only because the QA run used an admin account:
-                        {" "}
-                        {roleVerificationQaIssues.join(", ")}.
+                        BN-QA-001 and BN-QA-002 are role-verification only because the QA run used an admin
+                        account: {roleVerificationQaIssues.join(", ")}.
                       </p>
                       <ul>
                         {Object.entries(revampBetaQaIssueMap).map(([id, issue]) => (
@@ -1032,28 +1120,30 @@ export function AppShell() {
                       <ul>
                         <li>Cleaner study layouts and Split Study cleanup</li>
                         <li>Faster math, Desmos, whiteboard, and panel switching experiments</li>
-                        <li>Improved notes/save clarity, settings search, dashboard states, and formula feedback</li>
-                        <li>Calmer student-facing study surfaces without removing admin controls for admin accounts</li>
+                        <li>
+                          Improved notes/save clarity, settings search, dashboard states, and formula feedback
+                        </li>
+                        <li>
+                          Calmer student-facing study surfaces without removing admin controls for admin
+                          accounts
+                        </li>
                       </ul>
                     </section>
                     {betaFeatures.betaFeaturesEnabled ? (
-                      <section
-                        className="app-beta-active-preview"
-                        data-testid="beta-features-active-preview"
-                      >
+                      <section className="app-beta-active-preview" data-testid="beta-features-active-preview">
                         <span>Beta</span>
                         <div>
                           <strong>Revamp Beta is active for this account.</strong>
                           <p>
-                            Future QA cleanup work should use the single Revamp Beta gate instead of adding more
-                            settings.
+                            Future QA cleanup work should use the single Revamp Beta gate instead of adding
+                            more settings.
                           </p>
                         </div>
                       </section>
                     ) : null}
                     <p className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100">
-                      Revamp Beta may change. Safe bug fixes, auth safety, and demo-account guards should never be
-                      hidden behind beta.
+                      Revamp Beta may change. Safe bug fixes, auth safety, and demo-account guards should
+                      never be hidden behind beta.
                     </p>
                   </SettingsPanel>
                 ) : null}
@@ -1068,7 +1158,10 @@ export function AppShell() {
                     testId="app-settings-section-admin-motion"
                     title="Admin Motion Lab"
                   >
-                    <section className="rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="admin-motion-lab"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -1113,7 +1206,9 @@ export function AppShell() {
                       <div className="mt-3 grid gap-2">
                         <AdminMotionSelect
                           label="Motion intensity"
-                          onChange={(value) => updateSettings({ intensity: value as typeof settings.intensity })}
+                          onChange={(value) =>
+                            updateSettings({ intensity: value as typeof settings.intensity })
+                          }
                           testId="admin-motion-intensity"
                           value={settings.intensity}
                           values={["subtle", "full", "party"]}
@@ -1127,14 +1222,18 @@ export function AppShell() {
                         />
                         <AdminMotionSelect
                           label="Premium color effects"
-                          onChange={(value) => updateSettings({ colorMode: value as typeof settings.colorMode })}
+                          onChange={(value) =>
+                            updateSettings({ colorMode: value as typeof settings.colorMode })
+                          }
                           testId="admin-premium-color-mode"
                           value={settings.colorMode}
                           values={["off", "soft-glow", "gradient", "neon-lab"]}
                         />
                         <AdminMotionSelect
                           label="Page transition"
-                          onChange={(value) => updateSettings({ pageTransition: value as typeof settings.pageTransition })}
+                          onChange={(value) =>
+                            updateSettings({ pageTransition: value as typeof settings.pageTransition })
+                          }
                           testId="admin-page-transition"
                           value={settings.pageTransition}
                           values={["off", "soft-land", "slide-pop", "drop-in"]}
@@ -1232,15 +1331,7 @@ function AdminMotionSelect({
   );
 }
 
-function NavItem({
-  children,
-  icon,
-  to,
-}: {
-  children: ReactNode;
-  icon: ReactNode;
-  to: string;
-}) {
+function NavItem({ children, icon, to }: { children: ReactNode; icon: ReactNode; to: string }) {
   return (
     <NavLink
       className={({ isActive }) =>

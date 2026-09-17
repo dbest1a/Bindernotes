@@ -1,8 +1,4 @@
-import type {
-  RecallCard,
-  RecallDeckScope,
-  RecallSessionSummary,
-} from "@/lib/recall/recall-types";
+import type { RecallCard, RecallDeckScope, RecallSessionSummary } from "@/lib/recall/recall-types";
 import { readJsonArray, writeJsonArray } from "@/lib/safe-json-storage";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -39,7 +35,11 @@ export function loadRecallCards(scope: RecallDeckScope, storage: StorageLike | u
   });
 }
 
-export function saveRecallCards(scope: RecallDeckScope, cards: RecallCard[], storage: StorageLike | undefined) {
+export function saveRecallCards(
+  scope: RecallDeckScope,
+  cards: RecallCard[],
+  storage: StorageLike | undefined,
+) {
   writeJsonArray(storage, recallStorageKey(scope), cards);
 }
 
@@ -47,9 +47,7 @@ export function upsertRecallCard(scope: RecallDeckScope, card: RecallCard, stora
   const cards = loadRecallCards(scope, storage);
   const index = cards.findIndex((candidate) => candidate.id === card.id);
   const nextCards =
-    index >= 0
-      ? cards.map((candidate) => (candidate.id === card.id ? card : candidate))
-      : [card, ...cards];
+    index >= 0 ? cards.map((candidate) => (candidate.id === card.id ? card : candidate)) : [card, ...cards];
   saveRecallCards(scope, nextCards, storage);
   return nextCards;
 }

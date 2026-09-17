@@ -28,9 +28,7 @@ export function buildBinderNotebookStructure({
 }) {
   const lessonsInOrder = [...lessons].sort((left, right) => left.order_index - right.order_index);
   const notesByLessonId = new Map(
-    notes
-      .filter((note) => note.owner_id === ownerId)
-      .map((note) => [note.lesson_id, note] as const),
+    notes.filter((note) => note.owner_id === ownerId).map((note) => [note.lesson_id, note] as const),
   );
 
   const sectionSeeds = resolveNotebookSectionSeeds(binder, lessonsInOrder);
@@ -38,8 +36,7 @@ export function buildBinderNotebookStructure({
     const note = notesByLessonId.get(lesson.id) ?? null;
     const matchingSection =
       sectionSeeds.find(
-        (section) =>
-          lesson.order_index >= section.startOrder && lesson.order_index <= section.endOrder,
+        (section) => lesson.order_index >= section.startOrder && lesson.order_index <= section.endOrder,
       ) ?? sectionSeeds[sectionSeeds.length - 1];
     const plainText = note ? normalizePlainText(note.content) : "";
 
@@ -99,7 +96,8 @@ function resolveNotebookSectionSeeds(binder: Binder, lessons: BinderLesson[]): N
       {
         id: "algebra-precalculus",
         title: "Algebra 2 and Precalculus",
-        description: "Polynomials, logarithms, rational functions, matrices, vectors, and series foundations.",
+        description:
+          "Polynomials, logarithms, rational functions, matrices, vectors, and series foundations.",
         startOrder: 6,
         endOrder: 10,
       },
@@ -120,14 +118,16 @@ function resolveNotebookSectionSeeds(binder: Binder, lessons: BinderLesson[]): N
       {
         id: "linear-differential",
         title: "Linear Algebra and Differential Equations",
-        description: "Systems, eigen-ideas, orthogonality, Fourier tools, and differential-equation structure.",
+        description:
+          "Systems, eigen-ideas, orthogonality, Fourier tools, and differential-equation structure.",
         startOrder: 20,
         endOrder: 23,
       },
       {
         id: "analysis",
         title: "Real Analysis",
-        description: "Sequences, continuity, convergence, differentiation, and integration from a proof-first angle.",
+        description:
+          "Sequences, continuity, convergence, differentiation, and integration from a proof-first angle.",
         startOrder: 24,
         endOrder: 27,
       },

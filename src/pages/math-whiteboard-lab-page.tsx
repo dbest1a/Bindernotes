@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Navigate, useNavigate } from "react-router-dom";
-import type {
-  GraphExpressionRequest,
-  GraphLoadRequest,
-} from "@/components/math/math-workspace-modules";
+import type { GraphExpressionRequest, GraphLoadRequest } from "@/components/math/math-workspace-modules";
 import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import {
   type WorkspaceModuleContext,
@@ -99,14 +96,8 @@ function getSelectionSourceScope(selection: ScopedLessonTextSelection) {
 export function MathWhiteboardLabPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const {
-    state,
-    setGraphExpanded,
-    setGraphMode,
-    setGraphVisible,
-    savedFunctionMap,
-    ...mathWorkspace
-  } = useMathWorkspace(profile?.id, "math-lab");
+  const { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace } =
+    useMathWorkspace(profile?.id, "math-lab");
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -143,7 +134,14 @@ export function MathWhiteboardLabPage() {
   };
 
   const bindings = {
-    controller: { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace },
+    controller: {
+      state,
+      setGraphExpanded,
+      setGraphMode,
+      setGraphVisible,
+      savedFunctionMap,
+      ...mathWorkspace,
+    },
     lessonGraphs: [] as Extract<MathBlock, { type: "graph" }>[],
     pendingGraphLoad,
     pendingExpression,
@@ -374,7 +372,8 @@ export function MathWhiteboardLabPage() {
     onRemoveHighlight: handleRemoveHighlight,
     onSaveSelectionAsEvidence: () => {},
     onStickyMove: () => {},
-    onSendStickyToNotes: (comment) => appendSelectionToNotes(comment.anchor_text ?? comment.body, "Sticky note"),
+    onSendStickyToNotes: (comment) =>
+      appendSelectionToNotes(comment.anchor_text ?? comment.body, "Sticky note"),
     onAcceptMathSuggestion: () => {},
     onGraphMathSuggestion: () => {},
     onDismissMathSuggestion: () => {},

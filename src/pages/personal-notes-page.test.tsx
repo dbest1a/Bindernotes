@@ -72,7 +72,10 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/services/personal-note-search-service", () => ({ searchPersonalNoteBodies: mocks.searchBodies }));
-vi.mock("@/services/personal-notes-service", async (original) => ({ ...await original<typeof import("@/services/personal-notes-service")>(), getPersonalNoteEntryContent: mocks.readContent }));
+vi.mock("@/services/personal-notes-service", async (original) => ({
+  ...(await original<typeof import("@/services/personal-notes-service")>()),
+  getPersonalNoteEntryContent: mocks.readContent,
+}));
 vi.mock("@/services/canonical-review-service", () => ({ createCloudStudyItem: mocks.createCloudStudyItem }));
 
 const timestamp = "2026-04-29T12:00:00.000Z";
@@ -310,7 +313,11 @@ function missingTableIssue(table: string) {
   };
 }
 
-vi.mock("@/services/personal-content-repository", () => ({ savePersonalContent: mocks.saveContent, readPersonalContent: vi.fn(), preservePersonalContentCopy: vi.fn() }));
+vi.mock("@/services/personal-content-repository", () => ({
+  savePersonalContent: mocks.saveContent,
+  readPersonalContent: vi.fn(),
+  preservePersonalContentCopy: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ profile }),
@@ -318,7 +325,10 @@ vi.mock("@/hooks/use-auth", () => ({
 
 vi.mock("@/hooks/use-personal-notes", () => ({
   usePersonalNotes: () => mocks.personalNotesState,
-  usePersonalNotesPreferences: () => [mocks.preferences ?? defaultPersonalNotesPreferences, mocks.updatePreferences],
+  usePersonalNotesPreferences: () => [
+    mocks.preferences ?? defaultPersonalNotesPreferences,
+    mocks.updatePreferences,
+  ],
   usePersonalNotesMutations: () => ({
     createBinder: { mutateAsync: mocks.createBinder, isPending: false, error: null },
     createFolder: { mutateAsync: mocks.createFolder, isPending: false, error: null },
@@ -341,7 +351,14 @@ vi.mock("@/components/editor/rich-text-editor", () => ({
     value: unknown;
   }) => {
     onEditorReady?.(mocks.editor);
-    return <textarea aria-label="Note body" data-show-toolbar={String(showToolbar)} readOnly value={JSON.stringify(value)} />;
+    return (
+      <textarea
+        aria-label="Note body"
+        data-show-toolbar={String(showToolbar)}
+        readOnly
+        value={JSON.stringify(value)}
+      />
+    );
   },
 }));
 
@@ -349,13 +366,13 @@ import { PersonalNotesPage } from "@/pages/personal-notes-page";
 
 function renderPage(path = "/notes") {
   return render(
-    <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<PersonalNotesPage />} path="/notes" />
-        <Route element={<PersonalNotesPage />} path="/notes/n/:noteId" />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<PersonalNotesPage />} path="/notes" />
+          <Route element={<PersonalNotesPage />} path="/notes/n/:noteId" />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -363,11 +380,17 @@ function renderPage(path = "/notes") {
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
     mocks.searchBodies.mockReset().mockResolvedValue(new Set());
-    mocks.readContent.mockReset().mockImplementation(async (entry: PersonalNotesEntry) => ({ ...entry, contentLoaded: true, content: doc("Opened saved body") }));
+    mocks.readContent.mockReset().mockImplementation(async (entry: PersonalNotesEntry) => ({
+      ...entry,
+      contentLoaded: true,
+      content: doc("Opened saved body"),
+    }));
     mocks.createCloudStudyItem.mockReset().mockResolvedValue({ id: "cloud-review-1" });
     saveQueue.setAccount(null);
     saveQueue.setAccount(profile.id);
-    mocks.saveContent.mockReset().mockImplementation(async (operation: {expectedRevision: number}) => ({revision: operation.expectedRevision + 1}));
+    mocks.saveContent.mockReset().mockImplementation(async (operation: { expectedRevision: number }) => ({
+      revision: operation.expectedRevision + 1,
+    }));
     window.localStorage.clear();
     mocks.editor.chain.mockReset();
     for (const command of Object.values(mocks.editorChain)) {
@@ -400,13 +423,31 @@ describe("PersonalNotesPage", () => {
   });
 
   it("finds a body-only match in unloaded metadata and opens only the selected result", async () => {
-    mocks.personalNotesState.data = { ...workspaceWithEntries, entries: workspaceWithEntries.entries.map((entry) => ({ ...entry, contentLoaded: false, content: doc(""), searchText: entry.title.toLowerCase() })) };
+    mocks.personalNotesState.data = {
+      ...workspaceWithEntries,
+      entries: workspaceWithEntries.entries.map((entry) => ({
+        ...entry,
+        contentLoaded: false,
+        content: doc(""),
+        searchText: entry.title.toLowerCase(),
+      })),
+    };
     mocks.searchBodies.mockResolvedValue(new Set(["personal-note:personal-note-1"]));
     renderPage();
-    fireEvent.change(screen.getByLabelText("Search Personal Notes"), { target: { value: "rare body words" } });
-    await waitFor(() => expect(mocks.searchBodies).toHaveBeenCalledWith(profile.id, "rare body words", expect.any(AbortSignal)));
-    await waitFor(() => expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Loose reading note"));
-    expect(mocks.readContent).toHaveBeenCalledWith(expect.objectContaining({ id: "personal-note-1" }), profile.id, expect.any(AbortSignal));
+    fireEvent.change(screen.getByLabelText("Search Personal Notes"), {
+      target: { value: "rare body words" },
+    });
+    await waitFor(() =>
+      expect(mocks.searchBodies).toHaveBeenCalledWith(profile.id, "rare body words", expect.any(AbortSignal)),
+    );
+    await waitFor(() =>
+      expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Loose reading note"),
+    );
+    expect(mocks.readContent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "personal-note-1" }),
+      profile.id,
+      expect.any(AbortSignal),
+    );
   });
 
   it("shows an empty notebook state instead of unavailable when the workspace loads empty", () => {
@@ -419,9 +460,12 @@ describe("PersonalNotesPage", () => {
   });
 
   it("shows a diagnostics-style load failure with the technical reason", () => {
-    mocks.personalNotesState.error = Object.assign(new Error("relation personal_note_binders does not exist"), {
-      code: "42P01",
-    });
+    mocks.personalNotesState.error = Object.assign(
+      new Error("relation personal_note_binders does not exist"),
+      {
+        code: "42P01",
+      },
+    );
 
     renderPage();
 
@@ -544,7 +588,9 @@ describe("PersonalNotesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "New note" }));
 
-    expect(screen.getByTestId("personal-notes-create-dialog-overlay").className).toContain("bg-background/72");
+    expect(screen.getByTestId("personal-notes-create-dialog-overlay").className).toContain(
+      "bg-background/72",
+    );
     const dialog = within(screen.getByRole("dialog", { name: "New note" }));
     expect(screen.getByRole("dialog", { name: "New note" }).className).toContain("max-w-lg");
     expect(dialog.getByLabelText("Note title").className).toContain("min-w-0");
@@ -806,7 +852,11 @@ describe("PersonalNotesPage", () => {
 
     expect(screen.getByTestId("notes-list-pane")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /History 1/i }));
-    expect(within(screen.getByLabelText("Personal Notes side monitor")).getByRole("button", { name: /The Russian Revolution 1/i })).toBeTruthy();
+    expect(
+      within(screen.getByLabelText("Personal Notes side monitor")).getByRole("button", {
+        name: /The Russian Revolution 1/i,
+      }),
+    ).toBeTruthy();
     expect(screen.getAllByText("Russian Revolution private note").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Hide notes list pane" }));
@@ -815,7 +865,11 @@ describe("PersonalNotesPage", () => {
 
   it("renders the larger notes pane when the notes list preference is enabled", () => {
     mocks.personalNotesState.data = workspaceWithEntries;
-    mocks.preferences = { ...defaultPersonalNotesPreferences, sidebarNavigationMode: "scope-drill-in", showNotesListPane: true };
+    mocks.preferences = {
+      ...defaultPersonalNotesPreferences,
+      sidebarNavigationMode: "scope-drill-in",
+      showNotesListPane: true,
+    };
 
     renderPage("/notes/n/learner-note-1");
 
@@ -840,7 +894,9 @@ describe("PersonalNotesPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open Personal Notes settings" }));
     const drawer = within(screen.getByRole("dialog", { name: "Personal Notes settings" }));
-    expect((drawer.getByLabelText("Personal Notes sidebar mode") as HTMLSelectElement).value).toBe("project-tree");
+    expect((drawer.getByLabelText("Personal Notes sidebar mode") as HTMLSelectElement).value).toBe(
+      "project-tree",
+    );
   });
 
   it("expands Project Tree folders and binders without changing the current note", () => {
@@ -848,15 +904,21 @@ describe("PersonalNotesPage", () => {
 
     renderPage("/notes/n/learner-note-1");
 
-    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(
+      "Russian Revolution private note",
+    );
     const sidebar = within(screen.getByLabelText("Personal Notes side monitor"));
 
     fireEvent.click(sidebar.getByRole("button", { name: /Math folder 1/i }));
-    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(
+      "Russian Revolution private note",
+    );
 
     fireEvent.click(sidebar.getByRole("button", { name: /Algebra 1 Foundations binder 1/i }));
     expect(sidebar.getByRole("button", { name: /Quadratics private note/i })).toBeTruthy();
-    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Russian Revolution private note");
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(
+      "Russian Revolution private note",
+    );
   });
 
   it("can show tags quietly in the side monitor when enabled", () => {
@@ -967,7 +1029,9 @@ describe("PersonalNotesPage", () => {
     expect(screen.getByTestId("organize-card-folder:History")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Open Personal Notes settings" }));
-    fireEvent.change(screen.getByLabelText("Search Personal Notes settings"), { target: { value: "quick access" } });
+    fireEvent.change(screen.getByLabelText("Search Personal Notes settings"), {
+      target: { value: "quick access" },
+    });
     fireEvent.click(screen.getByLabelText("Show Quick Access"));
 
     expect(mocks.updatePreferences).toHaveBeenCalledWith({ showQuickAccess: true });
@@ -1048,8 +1112,21 @@ describe("PersonalNotesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open note filters" }));
     expect(screen.getByTestId("personal-notes-filter-dock")).toBeTruthy();
     expect(screen.getByLabelText("Source filter")).toBeTruthy();
-    expect(screen.getByRole("menu", { name: "Saved note filters" }).getAttribute("data-overlap-safe")).toBe("true");
-    for (const chip of ["Recent", "Pinned", "Binder-linked", "Loose notes", "Math", "History", "Review later", "Has formulas", "Untitled", "Unfiled"]) {
+    expect(screen.getByRole("menu", { name: "Saved note filters" }).getAttribute("data-overlap-safe")).toBe(
+      "true",
+    );
+    for (const chip of [
+      "Recent",
+      "Pinned",
+      "Binder-linked",
+      "Loose notes",
+      "Math",
+      "History",
+      "Review later",
+      "Has formulas",
+      "Untitled",
+      "Unfiled",
+    ]) {
       expect(screen.getByRole("menuitem", { name: chip })).toBeTruthy();
     }
   });
@@ -1096,14 +1173,18 @@ describe("PersonalNotesPage", () => {
 
     expect(drawer.getByText("Editor")).toBeTruthy();
     const annotatorTools = within(drawer.getByRole("radiogroup", { name: "Annotator tools" }));
-    expect(annotatorTools.getByRole("radio", { name: "Selection popup" }).getAttribute("aria-checked")).toBe("true");
+    expect(annotatorTools.getByRole("radio", { name: "Selection popup" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
     expect(annotatorTools.getByRole("radio", { name: "Hotkeys" }).getAttribute("aria-checked")).toBe("false");
     fireEvent.click(annotatorTools.getByRole("radio", { name: "Hotkeys" }));
     expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "hotkeys" });
     fireEvent.click(annotatorTools.getByRole("radio", { name: "Off" }));
     expect(mocks.updatePreferences).toHaveBeenCalledWith({ annotatorTools: "off" });
 
-    fireEvent.change(drawer.getByLabelText("Search Personal Notes settings"), { target: { value: "highlighter" } });
+    fireEvent.change(drawer.getByLabelText("Search Personal Notes settings"), {
+      target: { value: "highlighter" },
+    });
     expect(drawer.getByText("Editor")).toBeTruthy();
     expect(drawer.getByRole("radiogroup", { name: "Annotator tools" })).toBeTruthy();
   });
@@ -1153,7 +1234,9 @@ describe("PersonalNotesPage", () => {
 
     fireEvent.click(toolbar.getByRole("button", { name: "Link selection" }));
     const linkDialog = within(screen.getByRole("dialog", { name: "Annotation link popover" }));
-    fireEvent.change(linkDialog.getByPlaceholderText("Paste a link"), { target: { value: "example.com/study" } });
+    fireEvent.change(linkDialog.getByPlaceholderText("Paste a link"), {
+      target: { value: "example.com/study" },
+    });
     fireEvent.click(linkDialog.getByRole("button", { name: "Save annotation" }));
     expect(mocks.editorChain.setTextSelection).toHaveBeenCalledWith({ from: 3, to: 16 });
     expect(mocks.editorChain.setLink).toHaveBeenCalledWith({ href: "https://example.com/study" });
@@ -1180,7 +1263,9 @@ describe("PersonalNotesPage", () => {
     expect(screen.getByTestId("binder-source-action-row")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open binder workspace" })).toBeTruthy();
     expect(screen.queryByTestId("beta-source-reference-card")).toBeNull();
-    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("false");
+    expect(
+      screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes"),
+    ).toBe("false");
   });
 
   it("adds the selected note to Review Queue only when the Review Queue beta is enabled", async () => {
@@ -1210,7 +1295,11 @@ describe("PersonalNotesPage", () => {
     });
     expect(input.prompt).toContain("Russian Revolution private note");
     expect(input.answer).toContain("Timeline notes");
-    await waitFor(() => expect(screen.getByRole("status", { name: "Review Queue status" }).textContent).toContain("Added to Review Queue"));
+    await waitFor(() =>
+      expect(screen.getByRole("status", { name: "Review Queue status" }).textContent).toContain(
+        "Added to Review Queue",
+      ),
+    );
   });
 
   it("shows beta source metadata and jump-to-source only when a real source exists", () => {
@@ -1220,7 +1309,9 @@ describe("PersonalNotesPage", () => {
     const firstRender = renderPage("/notes/n/learner-note-1");
 
     const sourceCard = within(screen.getByTestId("beta-source-reference-card"));
-    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("true");
+    expect(
+      screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes"),
+    ).toBe("true");
     expect(sourceCard.getByText("Binder-linked note")).toBeTruthy();
     expect(sourceCard.getByText("The Russian Revolution")).toBeTruthy();
     expect(sourceCard.getByText("Overview")).toBeTruthy();
@@ -1252,10 +1343,10 @@ describe("PersonalNotesPage", () => {
   it("renders beta autosave statuses in plain language", async () => {
     enableSourceLinkedNotesBeta();
     mocks.personalNotesState.data = withSourceMarkedEntry();
-    const pendingSave: { resolve?: (value: {revision: number}) => void } = {};
+    const pendingSave: { resolve?: (value: { revision: number }) => void } = {};
     mocks.saveContent.mockImplementationOnce(
       () =>
-        new Promise<{revision: number}>((resolve) => {
+        new Promise<{ revision: number }>((resolve) => {
           pendingSave.resolve = resolve;
         }),
     );
@@ -1297,7 +1388,9 @@ describe("PersonalNotesPage", () => {
 
     renderPage();
 
-    expect(screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes")).toBe("true");
+    expect(
+      screen.getByTestId("personal-notes-shell").getAttribute("data-beta-revamp-source-linked-notes"),
+    ).toBe("true");
     expect(screen.getAllByText("Start a note from this source").length).toBeGreaterThan(0);
     expect(screen.queryByText("Capture this highlight")).toBeNull();
     expect(screen.queryByText("Add this to review")).toBeNull();
@@ -1312,7 +1405,9 @@ describe("PersonalNotesPage", () => {
 
     renderPage("/notes/n/learner-note-1");
 
-    expect(document.body.textContent).not.toMatch(/try demo|enter demo|demo sign-in|learner demo|admin demo/i);
+    expect(document.body.textContent).not.toMatch(
+      /try demo|enter demo|demo sign-in|learner demo|admin demo/i,
+    );
     expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
   });
 
@@ -1352,12 +1447,15 @@ describe("PersonalNotesPage", () => {
     const removeAllRanges = vi.fn(() => {
       selectedText = "";
     });
-    vi.spyOn(window, "getSelection").mockImplementation(() => ({
-      isCollapsed: false,
-      rangeCount: 0,
-      removeAllRanges,
-      toString: () => selectedText,
-    } as unknown as Selection));
+    vi.spyOn(window, "getSelection").mockImplementation(
+      () =>
+        ({
+          isCollapsed: false,
+          rangeCount: 0,
+          removeAllRanges,
+          toString: () => selectedText,
+        }) as unknown as Selection,
+    );
 
     renderPage("/notes/n/learner-note-1");
     const noteBody = screen.getByLabelText("Note body");
@@ -1439,7 +1537,9 @@ describe("PersonalNotesPage", () => {
 
     fireEvent.click(toolbar.getByRole("button", { name: "Important highlight" }));
     fireEvent.mouseUp(screen.getByLabelText("Note body"));
-    const definitionToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
+    const definitionToolbar = within(
+      screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }),
+    );
     fireEvent.click(definitionToolbar.getByRole("button", { name: "Definition highlight" }));
     fireEvent.mouseUp(screen.getByLabelText("Note body"));
     const drawerToolbar = within(screen.getByRole("toolbar", { name: "Personal Notes selection toolbar" }));
@@ -1449,7 +1549,9 @@ describe("PersonalNotesPage", () => {
     const drawer = within(screen.getByRole("dialog", { name: "Annotations drawer" }));
     expect(drawer.getByText("Blue highlight")).toBeTruthy();
     expect(drawer.queryByText("Yellow highlight")).toBeNull();
-    expect(screen.getByTestId("personal-note-writing-surface").getAttribute("data-highlight-filter")).toBe("blue");
+    expect(screen.getByTestId("personal-note-writing-surface").getAttribute("data-highlight-filter")).toBe(
+      "blue",
+    );
     expect((screen.getByLabelText("Note body") as HTMLTextAreaElement).value).toBe(originalBody);
   });
 
@@ -1484,7 +1586,15 @@ describe("PersonalNotesPage", () => {
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     const palette = within(screen.getByRole("dialog", { name: "Personal Notes command palette" }));
 
-    for (const group of ["Create", "Recent Notes", "Find And Open", "Side Monitor", "Editor And Layout", "Highlights And Annotations", "Current Note"]) {
+    for (const group of [
+      "Create",
+      "Recent Notes",
+      "Find And Open",
+      "Side Monitor",
+      "Editor And Layout",
+      "Highlights And Annotations",
+      "Current Note",
+    ]) {
       expect(palette.getByText(group)).toBeTruthy();
     }
     expect(palette.getByRole("button", { name: /Open note: Loose reading note/i })).toBeTruthy();
@@ -1544,9 +1654,7 @@ describe("PersonalNotesPage", () => {
   it("gives schema repair guidance when Supabase is missing personal tables", () => {
     mocks.personalNotesState.data = {
       ...workspaceWithEntries,
-      loadIssues: [
-        missingTableIssue("personal_notes"),
-      ],
+      loadIssues: [missingTableIssue("personal_notes")],
     };
 
     renderPage();
@@ -1612,9 +1720,13 @@ describe("PersonalNotesPage", () => {
     const palette = within(screen.getByRole("dialog", { name: "Personal Notes command palette" }));
 
     for (const command of ["New note", "New binder", "New document", "New folder", "New canvas notebook"]) {
-      expect((palette.getByRole("button", { name: new RegExp(command) }) as HTMLButtonElement).disabled).toBe(true);
+      expect((palette.getByRole("button", { name: new RegExp(command) }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
     }
-    expect((palette.getByRole("button", { name: /Open source binder workspace/ }) as HTMLButtonElement).disabled).toBe(false);
+    expect(
+      (palette.getByRole("button", { name: /Open source binder workspace/ }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
   it("preserves an immutable note snapshot when switching before the debounce fires", async () => {
     vi.useFakeTimers();
@@ -1627,35 +1739,69 @@ describe("PersonalNotesPage", () => {
       fireEvent.keyDown(window, { key: "k", ctrlKey: true });
       fireEvent.click(screen.getByRole("button", { name: /Open note: Loose reading note/i }));
       expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Loose reading note");
-      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
-      expect(mocks.saveContent).toHaveBeenCalledWith(expect.objectContaining({snapshot: expect.objectContaining({id: learnerNote.id, title: "Unsaved title A"})}));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(mocks.saveContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapshot: expect.objectContaining({ id: learnerNote.id, title: "Unsaved title A" }),
+        }),
+      );
       fireEvent.keyDown(window, { key: "k", ctrlKey: true });
       fireEvent.click(screen.getByRole("button", { name: /Open note: Russian Revolution private note/i }));
       expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Unsaved title A");
-    } finally { vi.useRealTimers(); }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("saves newer edits after a delayed earlier acknowledgement without clearing dirty state", async () => {
     vi.useFakeTimers();
     try {
-      let finishFirst!: (value: {revision: number}) => void;
-      let finishSecond!: (value: {revision: number}) => void;
-      mocks.saveContent.mockImplementationOnce(() => new Promise<{revision: number}>((resolve) => { finishFirst = resolve; }));
-      mocks.saveContent.mockImplementationOnce(() => new Promise<{revision: number}>((resolve) => { finishSecond = resolve; }));
+      let finishFirst!: (value: { revision: number }) => void;
+      let finishSecond!: (value: { revision: number }) => void;
+      mocks.saveContent.mockImplementationOnce(
+        () =>
+          new Promise<{ revision: number }>((resolve) => {
+            finishFirst = resolve;
+          }),
+      );
+      mocks.saveContent.mockImplementationOnce(
+        () =>
+          new Promise<{ revision: number }>((resolve) => {
+            finishSecond = resolve;
+          }),
+      );
       enableSourceLinkedNotesBeta();
       mocks.personalNotesState.data = workspaceWithEntries;
       mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: true };
       renderPage("/notes/n/learner-note-1");
-      fireEvent.change(screen.getByLabelText("Note title"), { target: {value: "First edit"} });
-      await act(async () => { await vi.advanceTimersByTimeAsync(850); });
-      fireEvent.change(screen.getByLabelText("Note title"), { target: {value: "Second edit"} });
-      await act(async () => { finishFirst({revision: 1}); });
+      fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "First edit" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(850);
+      });
+      fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Second edit" } });
+      await act(async () => {
+        finishFirst({ revision: 1 });
+      });
       expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Second edit");
-      expect(screen.getByRole("status", {name: "Note sync status"}).textContent).not.toContain("No changes to save");
-      expect(mocks.saveContent).toHaveBeenLastCalledWith(expect.objectContaining({expectedRevision: 1, snapshot: expect.objectContaining({title: "Second edit"})}));
-      await act(async () => { finishSecond({revision: 2}); });
-      expect(screen.getByRole("status", {name: "Note sync status"}).textContent).toContain("No changes to save");
-    } finally { vi.useRealTimers(); }
+      expect(screen.getByRole("status", { name: "Note sync status" }).textContent).not.toContain(
+        "No changes to save",
+      );
+      expect(mocks.saveContent).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          expectedRevision: 1,
+          snapshot: expect.objectContaining({ title: "Second edit" }),
+        }),
+      );
+      await act(async () => {
+        finishSecond({ revision: 2 });
+      });
+      expect(screen.getByRole("status", { name: "Note sync status" }).textContent).toContain(
+        "No changes to save",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
-
 });

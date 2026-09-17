@@ -65,9 +65,7 @@ function getKnownBinderIds(data: DashboardData) {
 function getDefaultFolderBinderOrder(data: DashboardData, folderId: string, binderIds: string[]) {
   const binderOrderRank = new Map(binderIds.map((binderId, index) => [binderId, index]));
   const linksByBinderId = new Map(
-    data.folderBinders
-      .filter((link) => link.folder_id === folderId)
-      .map((link) => [link.binder_id, link]),
+    data.folderBinders.filter((link) => link.folder_id === folderId).map((link) => [link.binder_id, link]),
   );
 
   return [...binderIds].sort((leftId, rightId) => {
@@ -89,10 +87,7 @@ function normalizeOrder(order: string[] | undefined, knownIds: string[]) {
   return [...existing, ...knownIds.filter((id) => !existing.includes(id))];
 }
 
-function removeBinderFromFolders(
-  folderBinderOrderByFolderId: Record<string, string[]>,
-  binderId: string,
-) {
+function removeBinderFromFolders(folderBinderOrderByFolderId: Record<string, string[]>, binderId: string) {
   return Object.fromEntries(
     Object.entries(folderBinderOrderByFolderId).map(([folderId, binderIds]) => [
       folderId,
@@ -132,7 +127,9 @@ export function createDashboardOrganizationDraft(
         folderId,
         binderOrder.filter((binderId) => binderFolderIdByBinderId[binderId] === folderId),
       );
-      const merged = normalizeOrder(savedOrder, defaultOrder).filter((binderId) => knownBinders.has(binderId));
+      const merged = normalizeOrder(savedOrder, defaultOrder).filter((binderId) =>
+        knownBinders.has(binderId),
+      );
       return [folderId, merged];
     }),
   ) as Record<string, string[]>;
@@ -220,10 +217,7 @@ export function moveBinderToFolder(
   };
 }
 
-export function resetDashboardOrganizationDraft(
-  data: DashboardData,
-  _draft?: DashboardOrganizationDraft,
-) {
+export function resetDashboardOrganizationDraft(data: DashboardData, _draft?: DashboardOrganizationDraft) {
   return createDashboardOrganizationDraft(data);
 }
 

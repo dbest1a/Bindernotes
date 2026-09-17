@@ -82,7 +82,11 @@ export function useAdminMotionSettings(isAdmin: boolean, performanceModeActive =
         return;
       }
       try {
-        setSettings(event.newValue ? sanitizeAdminMotionSettings(JSON.parse(event.newValue)) : defaultAdminMotionSettings);
+        setSettings(
+          event.newValue
+            ? sanitizeAdminMotionSettings(JSON.parse(event.newValue))
+            : defaultAdminMotionSettings,
+        );
       } catch {
         setSettings(defaultAdminMotionSettings);
       }

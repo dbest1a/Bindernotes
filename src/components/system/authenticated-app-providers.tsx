@@ -32,10 +32,13 @@ export function AuthenticatedAppProviders({ children }: AuthenticatedAppProvider
       }),
   );
 
-  useEffect(() => () => {
-    void queryClient.cancelQueries();
-    queryClient.clear();
-  }, [queryClient]);
+  useEffect(
+    () => () => {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+    },
+    [queryClient],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

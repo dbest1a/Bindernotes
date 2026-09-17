@@ -26,10 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
-import {
-  cleanAccidentalNotePrefix,
-  detectAccidentalNotePrefix,
-} from "@/lib/note-hygiene";
+import { cleanAccidentalNotePrefix, detectAccidentalNotePrefix } from "@/lib/note-hygiene";
 import type { MathSuggestion } from "@/lib/math-detection";
 import { extractPlainText } from "@/lib/math-detection";
 import type { NoteInsertRequest } from "@/lib/note-blocks";
@@ -183,13 +180,19 @@ export const SourceLessonModule = memo(function SourceLessonModule({
                   Source lesson
                 </p>
                 {whiteboardDisplayMode !== "header-hidden" ? (
-                  <h4 className={cn("mt-1 font-semibold tracking-tight", whiteboard ? "text-base" : "mt-2 text-xl")}>
+                  <h4
+                    className={cn(
+                      "mt-1 font-semibold tracking-tight",
+                      whiteboard ? "text-base" : "mt-2 text-xl",
+                    )}
+                  >
                     {lesson.title}
                   </h4>
                 ) : null}
                 {whiteboardDisplayMode === "summary" || !whiteboard ? (
                   <p className="mt-2 max-w-xl text-xs leading-5 text-muted-foreground sm:text-sm">
-                    Read here, highlight what matters, and send it into notes or stickies without losing the lesson thread.
+                    Read here, highlight what matters, and send it into notes or stickies without losing the
+                    lesson thread.
                   </p>
                 ) : null}
               </div>
@@ -209,7 +212,11 @@ export const SourceLessonModule = memo(function SourceLessonModule({
                       <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                     </button>
                     {isSourceDocumentMenuOpen ? (
-                      <div aria-label="Source documents" className="source-lesson-document-switcher__menu" role="listbox">
+                      <div
+                        aria-label="Source documents"
+                        className="source-lesson-document-switcher__menu"
+                        role="listbox"
+                      >
                         {sourceLessonOptions.map((candidate, index) => {
                           const isActiveLesson = candidate.id === lesson.id;
                           return (
@@ -251,7 +258,10 @@ export const SourceLessonModule = memo(function SourceLessonModule({
             ) : null}
 
             {showStats ? (
-              <div className="source-lesson-stats mt-3 grid gap-2 sm:grid-cols-3" data-compact-module-detail="source-stats">
+              <div
+                className="source-lesson-stats mt-3 grid gap-2 sm:grid-cols-3"
+                data-compact-module-detail="source-stats"
+              >
                 <StatTile label="Reading time" value={`${readingStats.minutes} min`} />
                 <StatTile label="Words" value={String(readingStats.words)} />
                 <StatTile label="Highlights" value={String(highlights.length)} />
@@ -269,34 +279,36 @@ export const SourceLessonModule = memo(function SourceLessonModule({
         <div
           className={cn(
             "source-lesson-body-card relative rounded-[18px] border border-border bg-card text-card-foreground shadow-sm",
-            whiteboard ? "min-h-0 flex-1 overflow-visible px-3 py-3" : "rounded-[26px] px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7",
+            whiteboard
+              ? "min-h-0 flex-1 overflow-visible px-3 py-3"
+              : "rounded-[26px] px-5 py-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:px-7",
           )}
           data-maximize-module-space-target="source-body"
         >
           <div className="absolute inset-y-0 left-0 hidden w-1 rounded-l-[26px] bg-primary/70 lg:block" />
-            <LessonContentRenderer
-              content={lesson.content}
-              highlights={highlights}
-              lessonId={lesson.id}
-              whiteboardAnnotationKind={whiteboard ? "source-lesson" : undefined}
-              whiteboardModuleId={whiteboardModuleId}
-              whiteboardModuleType={whiteboard ? "lesson" : undefined}
-            />
-            <LessonSelectionToolbar
-              containerSelector={buildLessonContentSelector(lesson.id, whiteboardModuleId)}
-              defaultHighlightColor={defaultHighlightColor}
-              highlights={highlights}
-              onAddSelectionToReview={onAddSelectionToReview}
-              onHighlight={onHighlight}
-              onCommentSelection={onCommentSelection}
-              onRemoveHighlight={onRemoveHighlight}
-              onSaveAsEvidence={onSaveSelectionAsEvidence}
-              onQuoteToNotes={onQuoteToNotes}
-              reviewQueueBeta={reviewQueueBeta}
-              sourceLinkedNotesBeta={sourceLinkedNotesBeta}
-              onSendToNotes={onSendToNotes}
-              onStickyNote={onStickyNote}
-            />
+          <LessonContentRenderer
+            content={lesson.content}
+            highlights={highlights}
+            lessonId={lesson.id}
+            whiteboardAnnotationKind={whiteboard ? "source-lesson" : undefined}
+            whiteboardModuleId={whiteboardModuleId}
+            whiteboardModuleType={whiteboard ? "lesson" : undefined}
+          />
+          <LessonSelectionToolbar
+            containerSelector={buildLessonContentSelector(lesson.id, whiteboardModuleId)}
+            defaultHighlightColor={defaultHighlightColor}
+            highlights={highlights}
+            onAddSelectionToReview={onAddSelectionToReview}
+            onHighlight={onHighlight}
+            onCommentSelection={onCommentSelection}
+            onRemoveHighlight={onRemoveHighlight}
+            onSaveAsEvidence={onSaveSelectionAsEvidence}
+            onQuoteToNotes={onQuoteToNotes}
+            reviewQueueBeta={reviewQueueBeta}
+            sourceLinkedNotesBeta={sourceLinkedNotesBeta}
+            onSendToNotes={onSendToNotes}
+            onStickyNote={onStickyNote}
+          />
         </div>
 
         {lessonMathBlocks.length > 0 && whiteboard && !whiteboardShowMathInline ? (
@@ -432,9 +444,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
     () => (studentCalmMode ? detectAccidentalNotePrefix(noteContent) : null),
     [noteContent, studentCalmMode],
   );
-  const hygienePromptKey = accidentalPrefix
-    ? `${selectedLessonTitle}:${accidentalPrefix.prefix}`
-    : null;
+  const hygienePromptKey = accidentalPrefix ? `${selectedLessonTitle}:${accidentalPrefix.prefix}` : null;
   const showHygienePrompt = Boolean(accidentalPrefix && hygienePromptKey !== ignoredHygienePromptKey);
   const revampNotesUi = studentCalmMode;
   const saveButtonTitle =
@@ -548,9 +558,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
     }
 
     const match = slashCommands.find(
-      (item) =>
-        item.command.slice(1) === normalized ||
-        item.label.toLowerCase() === normalized,
+      (item) => item.command.slice(1) === normalized || item.label.toLowerCase() === normalized,
     );
 
     if (!match) {
@@ -590,9 +598,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Current lesson note
               </p>
-              <h4 className="mt-1.5 text-lg font-semibold tracking-tight">
-                {selectedLessonTitle}
-              </h4>
+              <h4 className="mt-1.5 text-lg font-semibold tracking-tight">{selectedLessonTitle}</h4>
               <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:text-sm">
                 This stays beside the source, but it writes into the larger notebook structure behind it.
               </p>
@@ -668,12 +674,12 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               {revampNotesUi ? (
                 <>
                   <span className="font-medium text-foreground">{saveStatusLabel}</span>
-                  {noteSaveError ?? noteSaveDetail ? (
+                  {(noteSaveError ?? noteSaveDetail) ? (
                     <span className="ml-1">{noteSaveError ?? noteSaveDetail}</span>
                   ) : null}
                 </>
               ) : (
-                noteSaveError ?? noteSaveDetail
+                (noteSaveError ?? noteSaveDetail)
               )}
             </p>
             {canRetryNoteSave ? (
@@ -726,20 +732,25 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
           onClick={() => editorInstance?.chain().focus().run()}
           role="presentation"
         >
-          <div className="private-notes-editor-intro flex flex-wrap items-start justify-between gap-3" data-compact-module-detail="private-notes-intro">
+          <div
+            className="private-notes-editor-intro flex flex-wrap items-start justify-between gap-3"
+            data-compact-module-detail="private-notes-intro"
+          >
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Notebook slice
               </p>
               <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:text-sm">
-                Write beside the lesson here, then open notebook focus when you want the broader section trail.
+                Write beside the lesson here, then open notebook focus when you want the broader section
+                trail.
               </p>
             </div>
             {currentNotebookSection ? (
               <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-2 text-xs leading-5 text-muted-foreground">
                 <p className="font-semibold text-foreground">{currentNotebookSection.title}</p>
                 <p>
-                  {currentNotebookSection.noteCount}/{currentNotebookSection.lessons.length} lesson notes saved in this section
+                  {currentNotebookSection.noteCount}/{currentNotebookSection.lessons.length} lesson notes
+                  saved in this section
                 </p>
               </div>
             ) : null}
@@ -770,10 +781,12 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <BookOpenText className="mt-0.5 size-4 text-primary" />
               <div className="grid gap-2 sm:grid-cols-2">
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Keep this panel short and focused while you read. Definitions, proofs, formulas, and worked examples can all live here without opening the bigger notebook yet.
+                  Keep this panel short and focused while you read. Definitions, proofs, formulas, and worked
+                  examples can all live here without opening the bigger notebook yet.
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  When you want the full picture, notebook focus keeps this lesson connected to its section notebook instead of throwing you into a separate notes app.
+                  When you want the full picture, notebook focus keeps this lesson connected to its section
+                  notebook instead of throwing you into a separate notes app.
                 </p>
               </div>
             </div>
@@ -792,17 +805,61 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <Badge variant="outline">Templates + math</Badge>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              <QuickInsertButton icon={<Quote className="size-4" />} label="Callout" onClick={onInsertCallout} />
-              <QuickInsertButton icon={<Sparkles className="size-4" />} label="Checklist" onClick={onInsertChecklist} />
-              <QuickInsertButton icon={<FileText className="size-4" />} label="Worked example" onClick={onInsertWorkedExample} />
-              <QuickInsertButton icon={<BookOpenText className="size-4" />} label="Definition" onClick={onInsertDefinition} />
-              <QuickInsertButton icon={<Sigma className="size-4" />} label="Theorem" onClick={onInsertTheorem} />
-              <QuickInsertButton icon={<Layers2 className="size-4" />} label="Proof" onClick={onInsertProof} />
-              <QuickInsertButton icon={<Highlighter className="size-4" />} label="Formula ref" onClick={onInsertFormulaReference} />
-              <QuickInsertButton icon={<BookOpenText className="size-4" />} label="Graph note" onClick={onInsertGraphNote} />
-              <QuickInsertButton icon={<Highlighter className="size-4" />} label="LaTeX block" onClick={onInsertMathBlock} />
-              <QuickInsertButton icon={<BookOpenText className="size-4" />} label="Graph block" onClick={onInsertGraphBlock} />
-              <QuickInsertButton icon={<StickyNote className="size-4" />} label="Sticky note" onClick={onCreateSticky} />
+              <QuickInsertButton
+                icon={<Quote className="size-4" />}
+                label="Callout"
+                onClick={onInsertCallout}
+              />
+              <QuickInsertButton
+                icon={<Sparkles className="size-4" />}
+                label="Checklist"
+                onClick={onInsertChecklist}
+              />
+              <QuickInsertButton
+                icon={<FileText className="size-4" />}
+                label="Worked example"
+                onClick={onInsertWorkedExample}
+              />
+              <QuickInsertButton
+                icon={<BookOpenText className="size-4" />}
+                label="Definition"
+                onClick={onInsertDefinition}
+              />
+              <QuickInsertButton
+                icon={<Sigma className="size-4" />}
+                label="Theorem"
+                onClick={onInsertTheorem}
+              />
+              <QuickInsertButton
+                icon={<Layers2 className="size-4" />}
+                label="Proof"
+                onClick={onInsertProof}
+              />
+              <QuickInsertButton
+                icon={<Highlighter className="size-4" />}
+                label="Formula ref"
+                onClick={onInsertFormulaReference}
+              />
+              <QuickInsertButton
+                icon={<BookOpenText className="size-4" />}
+                label="Graph note"
+                onClick={onInsertGraphNote}
+              />
+              <QuickInsertButton
+                icon={<Highlighter className="size-4" />}
+                label="LaTeX block"
+                onClick={onInsertMathBlock}
+              />
+              <QuickInsertButton
+                icon={<BookOpenText className="size-4" />}
+                label="Graph block"
+                onClick={onInsertGraphBlock}
+              />
+              <QuickInsertButton
+                icon={<StickyNote className="size-4" />}
+                label="Sticky note"
+                onClick={onCreateSticky}
+              />
             </div>
           </div>
         ) : null}
@@ -860,13 +917,17 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <div>
                 <p className="text-sm font-semibold">Math detected in your notes</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Turn these lines into reusable math blocks or send them straight into Desmos without leaving the notebook.
+                  Turn these lines into reusable math blocks or send them straight into Desmos without leaving
+                  the notebook.
                 </p>
               </div>
             </div>
             <div className="mt-4 grid gap-3">
               {mathSuggestions.map((suggestion) => (
-                <div className="rounded-xl border border-border/70 bg-card/85 p-3 shadow-sm" key={suggestion.key}>
+                <div
+                  className="rounded-xl border border-border/70 bg-card/85 p-3 shadow-sm"
+                  key={suggestion.key}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">{suggestion.source}</p>
@@ -882,7 +943,12 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
                           {suggestion.label}
                         </Button>
                       )}
-                      <Button onClick={() => onDismissMathSuggestion(suggestion.key)} size="sm" type="button" variant="outline">
+                      <Button
+                        onClick={() => onDismissMathSuggestion(suggestion.key)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
                         Dismiss
                       </Button>
                     </div>
@@ -968,7 +1034,10 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
   }, [currentNotebookSection, sections, selectedLessonId]);
 
   const activeSection =
-    sections.find((section) => section.id === activeSectionId) ?? currentNotebookSection ?? sections[0] ?? null;
+    sections.find((section) => section.id === activeSectionId) ??
+    currentNotebookSection ??
+    sections[0] ??
+    null;
   const activeEntry =
     entries.find((entry) => entry.lesson.id === activeLessonId) ??
     activeSection?.lessons.find((entry) => entry.lesson.id === selectedLessonId) ??
@@ -988,9 +1057,7 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
 
   const toggleSection = (sectionId: string) => {
     setExpandedSectionIds((current) =>
-      current.includes(sectionId)
-        ? current.filter((id) => id !== sectionId)
-        : [...current, sectionId],
+      current.includes(sectionId) ? current.filter((id) => id !== sectionId) : [...current, sectionId],
     );
   };
 
@@ -1004,7 +1071,9 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
     setActiveSectionId(entry.sectionId);
     setActiveLessonId(entry.lesson.id);
     setViewMode("lesson");
-    setExpandedSectionIds((current) => (current.includes(entry.sectionId) ? current : [...current, entry.sectionId]));
+    setExpandedSectionIds((current) =>
+      current.includes(entry.sectionId) ? current : [...current, entry.sectionId],
+    );
   };
 
   return (
@@ -1027,7 +1096,8 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
             </p>
             <h4 className="mt-1.5 text-lg font-semibold tracking-tight">Binder to section to lesson notes</h4>
             <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-              Keep the side note panel light, then use this outline when you want the broader notebook trail and section-level structure.
+              Keep the side note panel light, then use this outline when you want the broader notebook trail
+              and section-level structure.
             </p>
           </div>
 
@@ -1070,9 +1140,7 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                         type="button"
                       >
                         <p className="text-sm font-semibold leading-6">{section.title}</p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {section.description}
-                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">{section.description}</p>
                       </button>
                     </div>
                     <Badge variant={section.noteCount > 0 ? "secondary" : "outline"}>
@@ -1083,13 +1151,16 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                     <span>{section.totalWords} words</span>
                     <span>{section.totalMathBlocks} math blocks</span>
-                    {section.updatedAt ? <span>Updated {formatNotebookTimestamp(section.updatedAt)}</span> : null}
+                    {section.updatedAt ? (
+                      <span>Updated {formatNotebookTimestamp(section.updatedAt)}</span>
+                    ) : null}
                   </div>
 
                   {expanded ? (
                     <div className="mt-3 flex flex-col gap-1.5 border-t border-border/60 pt-3">
                       {section.lessons.map((entry, index) => {
-                        const isActiveLesson = entry.lesson.id === activeEntry?.lesson.id && viewMode === "lesson";
+                        const isActiveLesson =
+                          entry.lesson.id === activeEntry?.lesson.id && viewMode === "lesson";
                         return (
                           <button
                             className={cn(
@@ -1137,22 +1208,35 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                   </p>
                   <h4 className="mt-2 text-2xl font-semibold tracking-tight">{activeSection.title}</h4>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                    {activeSection.description} This is the broader notebook lane behind the lesson-local note panel, so you can read the full study trail without losing the section structure.
+                    {activeSection.description} This is the broader notebook lane behind the lesson-local note
+                    panel, so you can read the full study trail without losing the section structure.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{activeSection.noteCount}/{activeSection.lessons.length} notes saved</Badge>
+                  <Badge variant="secondary">
+                    {activeSection.noteCount}/{activeSection.lessons.length} notes saved
+                  </Badge>
                   <Badge variant="outline">{activeSection.totalWords} words</Badge>
                   {activeSection.updatedAt ? (
-                    <Badge variant="outline">Updated {formatNotebookTimestamp(activeSection.updatedAt)}</Badge>
+                    <Badge variant="outline">
+                      Updated {formatNotebookTimestamp(activeSection.updatedAt)}
+                    </Badge>
                   ) : null}
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <StatTile label="Saved notes" value={`${activeSection.noteCount}/${activeSection.lessons.length}`} />
+                <StatTile
+                  label="Saved notes"
+                  value={`${activeSection.noteCount}/${activeSection.lessons.length}`}
+                />
                 <StatTile label="Math blocks" value={String(activeSection.totalMathBlocks)} />
-                <StatTile label="Latest activity" value={activeSection.updatedAt ? formatNotebookTimestamp(activeSection.updatedAt) : "Waiting"} />
+                <StatTile
+                  label="Latest activity"
+                  value={
+                    activeSection.updatedAt ? formatNotebookTimestamp(activeSection.updatedAt) : "Waiting"
+                  }
+                />
               </div>
 
               <div className="binder-notebook-stream flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
@@ -1178,7 +1262,8 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                       </div>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      {entry.excerpt || "Use the lesson-local panel to start this note, then come back here for the full section view."}
+                      {entry.excerpt ||
+                        "Use the lesson-local panel to start this note, then come back here for the full section view."}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                       <span>{entry.wordCount} words</span>
@@ -1189,7 +1274,12 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                         <FileText data-icon="inline-start" />
                         View full note
                       </Button>
-                      <Button onClick={() => onSelectLesson(entry.lesson)} size="sm" type="button" variant="outline">
+                      <Button
+                        onClick={() => onSelectLesson(entry.lesson)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
                         <BookOpenText data-icon="inline-start" />
                         Open lesson panel
                       </Button>
@@ -1207,21 +1297,30 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                   </p>
                   <h4 className="mt-2 text-2xl font-semibold tracking-tight">{activeEntry.lesson.title}</h4>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                    This is the deeper notebook view for the current lesson. Use it when you want the full note, then jump back to the split-study panel when you are reading beside the source again.
+                    This is the deeper notebook view for the current lesson. Use it when you want the full
+                    note, then jump back to the split-study panel when you are reading beside the source
+                    again.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {activeSection ? <Badge variant="outline">{activeSection.title}</Badge> : null}
                   {activeEntry.note ? <Badge variant="secondary">{activeEntry.wordCount} words</Badge> : null}
                   {activeEntry.note?.updated_at ? (
-                    <Badge variant="outline">Saved {formatNotebookTimestamp(activeEntry.note.updated_at)}</Badge>
+                    <Badge variant="outline">
+                      Saved {formatNotebookTimestamp(activeEntry.note.updated_at)}
+                    </Badge>
                   ) : null}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 {activeSection ? (
-                  <Button onClick={() => selectSection(activeSection.id)} size="sm" type="button" variant="outline">
+                  <Button
+                    onClick={() => selectSection(activeSection.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <Layers2 data-icon="inline-start" />
                     Back to section notebook
                   </Button>
@@ -1264,7 +1363,8 @@ export const BinderNotebookModule = memo(function BinderNotebookModule({
                 </>
               ) : (
                 <div className="rounded-[22px] border border-dashed border-border/70 bg-background/65 p-6 text-sm leading-6 text-muted-foreground">
-                  This lesson is in the notebook outline, but the private note is still empty. Open the lesson-local panel to start writing and it will appear here automatically.
+                  This lesson is in the notebook outline, but the private note is still empty. Open the
+                  lesson-local panel to start writing and it will appear here automatically.
                 </div>
               )}
             </>
@@ -1299,18 +1399,14 @@ function QuickInsertButton({
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/85 px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-lg font-semibold tracking-tight">{value}</p>
     </div>
   );
 }
 
 function createReadingStats(content: JSONContent) {
-  const words = extractPlainText(content)
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const words = extractPlainText(content).split(/\s+/).filter(Boolean).length;
 
   return {
     words,
@@ -1339,4 +1435,3 @@ function toggleChipClass(active: boolean) {
       : "border-border/70 bg-card/88 text-muted-foreground hover:border-primary/25 hover:text-foreground",
   );
 }
-

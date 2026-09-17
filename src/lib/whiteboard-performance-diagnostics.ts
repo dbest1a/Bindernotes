@@ -25,9 +25,7 @@ export function setWorkspaceMovementActive(active: boolean) {
 
   document.documentElement.dataset.workspaceDragging = active ? "true" : "false";
   if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent(active ? workspaceMovementStartEvent : workspaceMovementEndEvent),
-    );
+    window.dispatchEvent(new CustomEvent(active ? workspaceMovementStartEvent : workspaceMovementEndEvent));
   }
 }
 

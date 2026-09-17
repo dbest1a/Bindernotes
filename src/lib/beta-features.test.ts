@@ -65,35 +65,27 @@ describe("beta feature preference gates", () => {
       expect(flag?.label).toMatch(/^Beta Revamp — /);
       expect(flag?.description).toEqual(expect.any(String));
       expect(flag?.description.length).toBeGreaterThan(40);
-      expect(flag?.searchAliases).toEqual(
-        expect.arrayContaining(["beta", "revamp", "study loop"]),
-      );
+      expect(flag?.searchAliases).toEqual(expect.arrayContaining(["beta", "revamp", "study loop"]));
       expect(defaultBetaFeaturesPreference[key]).toBe(false);
     }
 
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampCalmStudyHomepage")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampCalmStudyHomepage")?.searchAliases,
     ).toEqual(expect.arrayContaining(["calm", "homepage", "landing"]));
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampSourceLinkedNotes")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampSourceLinkedNotes")?.searchAliases,
     ).toEqual(expect.arrayContaining(["notes", "source"]));
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampReviewQueue")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampReviewQueue")?.searchAliases,
     ).toEqual(expect.arrayContaining(["review"]));
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampMathStudyLoop")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampMathStudyLoop")?.searchAliases,
     ).toEqual(expect.arrayContaining(["math", "graph", "formula", "mistake"]));
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampMobileStudyMode")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampMobileStudyMode")?.searchAliases,
     ).toEqual(expect.arrayContaining(["mobile"]));
     expect(
-      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampNarrowAiStudyTools")
-        ?.searchAliases,
+      betaFeatureFlagDefinitions.find((flag) => flag.key === "betaRevampNarrowAiStudyTools")?.searchAliases,
     ).toEqual(expect.arrayContaining(["AI"]));
   });
 
@@ -174,11 +166,11 @@ describe("beta feature preference gates", () => {
     for (const key of learningAcceleratorFlagKeys) {
       const flag = betaFeatureFlagDefinitions.find((candidate) => candidate.key === key);
       expect(flag?.groupId).toBe("learningAccelerators");
-      expect(flag?.dataAttribute).toBe(`data-beta-${key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)}`);
-      expect(flag?.description).not.toMatch(/\bAI\b|artificial intelligence|OpenAI|API/i);
-      expect(flag?.searchAliases).toEqual(
-        expect.arrayContaining(["learning", "study", "no ai", "beta"]),
+      expect(flag?.dataAttribute).toBe(
+        `data-beta-${key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)}`,
       );
+      expect(flag?.description).not.toMatch(/\bAI\b|artificial intelligence|OpenAI|API/i);
+      expect(flag?.searchAliases).toEqual(expect.arrayContaining(["learning", "study", "no ai", "beta"]));
       expect(defaultBetaFeaturesPreference[key]).toBe(false);
     }
 

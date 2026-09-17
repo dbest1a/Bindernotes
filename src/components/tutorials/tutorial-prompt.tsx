@@ -146,7 +146,9 @@ export function TutorialPromptHost({ delayMs = 900 }: TutorialPromptHostProps) {
               Don't show again
             </Button>
             <Button asChild size="sm" type="button" variant="ghost">
-              <Link onClick={dismiss} to="/tutorial">View all tutorials</Link>
+              <Link onClick={dismiss} to="/tutorial">
+                View all tutorials
+              </Link>
             </Button>
           </div>
         </aside>

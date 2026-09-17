@@ -19,10 +19,7 @@ export type WorkspacePresetValidationResult = {
 
 const GLOBAL_PRESET_SCOPE = "__global__";
 
-function buildPresetRegistryKey(
-  presetId: WorkspacePresetId,
-  suiteTemplateId?: string | null,
-) {
+function buildPresetRegistryKey(presetId: WorkspacePresetId, suiteTemplateId?: string | null) {
   return `${suiteTemplateId ?? GLOBAL_PRESET_SCOPE}:${presetId}`;
 }
 
@@ -43,10 +40,7 @@ export const presetRegistry = seedPresetRegistry();
 
 export function registerPresetDefinitions(definitions: WorkspacePresetDefinition[]) {
   definitions.forEach((definition) => {
-    presetRegistry.set(
-      buildPresetRegistryKey(definition.id, definition.suiteTemplateId),
-      definition,
-    );
+    presetRegistry.set(buildPresetRegistryKey(definition.id, definition.suiteTemplateId), definition);
     if (!presetRegistry.has(buildPresetRegistryKey(definition.id))) {
       presetRegistry.set(buildPresetRegistryKey(definition.id), definition);
     }
@@ -60,14 +54,10 @@ export function resetPresetRegistryForTests() {
   });
 }
 
-export function getPresetDefinition(
-  presetId: WorkspacePresetId,
-  suiteTemplateId?: string | null,
-) {
+export function getPresetDefinition(presetId: WorkspacePresetId, suiteTemplateId?: string | null) {
   return (
-    (suiteTemplateId
-      ? presetRegistry.get(buildPresetRegistryKey(presetId, suiteTemplateId))
-      : null) ?? presetRegistry.get(buildPresetRegistryKey(presetId))
+    (suiteTemplateId ? presetRegistry.get(buildPresetRegistryKey(presetId, suiteTemplateId)) : null) ??
+    presetRegistry.get(buildPresetRegistryKey(presetId))
   );
 }
 
@@ -84,18 +74,18 @@ export function validatePresetDefinition(
     }
   });
 
-  (Object.entries(definition.breakpoints) as Array<[WorkspaceBreakpoint, WorkspaceGridLayout | undefined]>).forEach(
-    ([breakpoint, layout]) => {
-      if (!layout) {
-        return;
-      }
+  (
+    Object.entries(definition.breakpoints) as Array<[WorkspaceBreakpoint, WorkspaceGridLayout | undefined]>
+  ).forEach(([breakpoint, layout]) => {
+    if (!layout) {
+      return;
+    }
 
-      const result = validateGridLayout(layout, definition.requiredPanels, allowed);
-      if (!result.valid) {
-        result.errors.forEach((error) => errors.push(`${definition.id}/${breakpoint}: ${error}`));
-      }
-    },
-  );
+    const result = validateGridLayout(layout, definition.requiredPanels, allowed);
+    if (!result.valid) {
+      result.errors.forEach((error) => errors.push(`${definition.id}/${breakpoint}: ${error}`));
+    }
+  });
 
   return {
     valid: errors.length === 0,

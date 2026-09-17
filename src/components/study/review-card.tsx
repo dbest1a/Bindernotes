@@ -63,7 +63,9 @@ export function ReviewCard({
         {revealed ? (
           <p className="text-sm leading-6 text-muted-foreground">{item.answer}</p>
         ) : (
-          <p className="text-sm leading-6 text-muted-foreground">Try recall first. The answer stays hidden until you reveal it.</p>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Try recall first. The answer stays hidden until you reveal it.
+          </p>
         )}
       </div>
       <div className="grid gap-2">

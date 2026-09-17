@@ -35,7 +35,11 @@ export type RevisionedSaveState<T> = {
 };
 
 export class ContentConflictError extends Error {
-  constructor() { super("This item changed on another tab or device. Preserve your draft as a copy or load the saved version."); }
+  constructor() {
+    super(
+      "This item changed on another tab or device. Preserve your draft as a copy or load the saved version.",
+    );
+  }
 }
 
 /** Owns an entity, not a mounted editor. Switching routes cannot cancel its draft. */
@@ -48,22 +52,29 @@ export class RevisionedSave<T> {
   private running: Promise<void> | null = null;
   private retryCount = 0;
 
-  constructor(private readonly options: {
-    ownerId: string;
-    entityKey: string;
-    snapshot: T;
-    serverRevision: number;
-    storage: DraftStorage<T>;
-    write: (operation: SaveOperation<T>) => Promise<{ revision: number }>;
-    online?: () => boolean;
-    createOperationId?: () => string;
-    delay?: number;
-    metricOperation?: OperationMetric["operation"];
-  }) {
+  constructor(
+    private readonly options: {
+      ownerId: string;
+      entityKey: string;
+      snapshot: T;
+      serverRevision: number;
+      storage: DraftStorage<T>;
+      write: (operation: SaveOperation<T>) => Promise<{ revision: number }>;
+      online?: () => boolean;
+      createOperationId?: () => string;
+      delay?: number;
+      metricOperation?: OperationMetric["operation"];
+    },
+  ) {
     this.draft = {
-      version: 1, ownerId: options.ownerId, entityKey: options.entityKey,
-      snapshot: structuredClone(options.snapshot), serverRevision: options.serverRevision,
-      localRevision: 0, savedRevision: 0, pending: null,
+      version: 1,
+      ownerId: options.ownerId,
+      entityKey: options.entityKey,
+      snapshot: structuredClone(options.snapshot),
+      serverRevision: options.serverRevision,
+      localRevision: 0,
+      savedRevision: 0,
+      pending: null,
     };
     let readError: string | null = null;
     try {
@@ -80,14 +91,22 @@ export class RevisionedSave<T> {
     this.view = {
       snapshot: this.draft.snapshot,
       dirty: this.draft.localRevision !== this.draft.savedRevision,
-      state: readError ? "error" : this.draft.localRevision !== this.draft.savedRevision ? "pending" : "saved",
-      error: readError, durable: !readError, revision: this.draft.localRevision,
+      state: readError
+        ? "error"
+        : this.draft.localRevision !== this.draft.savedRevision
+          ? "pending"
+          : "saved",
+      error: readError,
+      durable: !readError,
+      revision: this.draft.localRevision,
     };
   }
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
+    return () => {
+      this.listeners.delete(listener);
+    };
   };
 
   getSnapshot = () => this.view;
@@ -99,29 +118,48 @@ export class RevisionedSave<T> {
     this.draft.localRevision += 1;
     const conflicted = this.view.state === "conflict";
     const durable = this.persist();
-    this.publish({ state: conflicted ? "conflict" : durable ? "pending" : "error", error: conflicted ? this.view.error : durable ? null : this.storageError(), durable });
+    this.publish({
+      state: conflicted ? "conflict" : durable ? "pending" : "error",
+      error: conflicted ? this.view.error : durable ? null : this.storageError(),
+      durable,
+    });
     if (autosave) this.schedule();
   }
 
   schedule() {
     if (!this.active || !this.view.dirty || this.view.state === "conflict") return;
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => { this.timer = null; void this.flush(); }, this.options.delay ?? 850);
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.flush();
+    }, this.options.delay ?? 850);
   }
 
   flush = (): Promise<void> => {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
     if (!this.active || !this.view.dirty || this.view.state === "conflict") return Promise.resolve();
     if (this.running) return this.running;
-    this.running = this.drain().finally(() => { this.running = null; });
+    this.running = this.drain().finally(() => {
+      this.running = null;
+    });
     return this.running;
   };
 
   private async drain() {
     while (this.active && this.draft.localRevision !== this.draft.savedRevision) {
       if (!(this.options.online?.() ?? (typeof navigator === "undefined" || navigator.onLine))) {
-        this.publish({ state: "offline", error: this.view.durable ? "Offline. Your draft is backed up on this device." : this.storageError() });
-        timedSaveMetric(this.options.metricOperation ?? "content_save", this.retryCount, this.draft.snapshot)("offline");
+        this.publish({
+          state: "offline",
+          error: this.view.durable ? "Offline. Your draft is backed up on this device." : this.storageError(),
+        });
+        timedSaveMetric(
+          this.options.metricOperation ?? "content_save",
+          this.retryCount,
+          this.draft.snapshot,
+        )("offline");
         return;
       }
       const operation = this.draft.pending ?? {
@@ -133,7 +171,11 @@ export class RevisionedSave<T> {
       this.draft.pending = operation;
       const durable = this.persist();
       this.publish({ state: "saving", durable, error: durable ? null : this.storageError() });
-      const measure = timedSaveMetric(this.options.metricOperation ?? "content_save", this.retryCount, operation.snapshot);
+      const measure = timedSaveMetric(
+        this.options.metricOperation ?? "content_save",
+        this.retryCount,
+        operation.snapshot,
+      );
       try {
         const result = await this.options.write(structuredClone(operation));
         if (!this.active) return;
@@ -145,11 +187,21 @@ export class RevisionedSave<T> {
         this.draft.pending = null;
         this.retryCount = 0;
         const persisted = this.persist();
-        this.publish({ state: this.draft.localRevision === operation.localRevision ? "saved" : "pending", durable: persisted, error: persisted ? null : this.storageError() });
+        this.publish({
+          state: this.draft.localRevision === operation.localRevision ? "saved" : "pending",
+          durable: persisted,
+          error: persisted ? null : this.storageError(),
+        });
         measure(persisted ? "saved" : "device_storage_failed");
       } catch (error) {
         if (!this.active) return;
-        this.publish({ state: error instanceof ContentConflictError ? "conflict" : "error", error: error instanceof Error ? error.message : "The save failed. Your draft is still available; retry or copy it." });
+        this.publish({
+          state: error instanceof ContentConflictError ? "conflict" : "error",
+          error:
+            error instanceof Error
+              ? error.message
+              : "The save failed. Your draft is still available; retry or copy it.",
+        });
         this.retryCount++;
         measure(error instanceof ContentConflictError ? "conflict" : "failed");
         return;
@@ -161,7 +213,14 @@ export class RevisionedSave<T> {
   useRemote(snapshot: T, revision: number) {
     if (!this.active || this.running) throw new Error("Wait for the current save before choosing a version.");
     this.options.storage.remove();
-    this.draft = { ...this.draft, snapshot: structuredClone(snapshot), serverRevision: revision, localRevision: 0, savedRevision: 0, pending: null };
+    this.draft = {
+      ...this.draft,
+      snapshot: structuredClone(snapshot),
+      serverRevision: revision,
+      localRevision: 0,
+      savedRevision: 0,
+      pending: null,
+    };
     this.publish({ state: "saved", error: null, durable: true });
   }
 
@@ -174,16 +233,27 @@ export class RevisionedSave<T> {
 
   private persist() {
     try {
-      if (this.draft.localRevision === this.draft.savedRevision && !this.draft.pending) this.options.storage.remove();
+      if (this.draft.localRevision === this.draft.savedRevision && !this.draft.pending)
+        this.options.storage.remove();
       else this.options.storage.write(structuredClone(this.draft));
       return true;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
-  private storageError() { return "Device backup failed or is full. Copy your work and keep this page open until the server confirms saving."; }
+  private storageError() {
+    return "Device backup failed or is full. Copy your work and keep this page open until the server confirms saving.";
+  }
 
   private publish(change: Partial<RevisionedSaveState<T>>) {
-    this.view = { ...this.view, ...change, snapshot: this.draft.snapshot, dirty: this.draft.localRevision !== this.draft.savedRevision, revision: this.draft.localRevision };
+    this.view = {
+      ...this.view,
+      ...change,
+      snapshot: this.draft.snapshot,
+      dirty: this.draft.localRevision !== this.draft.savedRevision,
+      revision: this.draft.localRevision,
+    };
     this.listeners.forEach((listener) => listener());
   }
 }

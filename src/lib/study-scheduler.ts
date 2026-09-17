@@ -62,12 +62,8 @@ export function bucketStudyItems<T extends StudySchedulableItem>(items: T[], now
   const upcoming = items
     .filter((item) => item.status !== "mastered" && Date.parse(item.due_at) > endOfToday.getTime())
     .sort(sortByDue);
-  const difficult = items
-    .filter((item) => item.status === "difficult")
-    .sort(sortByDue);
-  const mastered = items
-    .filter((item) => item.status === "mastered")
-    .sort(sortByDue);
+  const difficult = items.filter((item) => item.status === "difficult").sort(sortByDue);
+  const mastered = items.filter((item) => item.status === "mastered").sort(sortByDue);
   const byBinder = Array.from(
     items.reduce((groups, item) => {
       const key = item.binder_id ?? item.course_id ?? "unfiled";
@@ -103,10 +99,11 @@ export function buildStudySessionSummary<T extends Pick<StudySchedulableItem, "i
     .filter((event) => event.rating === "forgot" || event.rating === "hard")
     .map((event) => itemById.get(event.item_id)?.prompt)
     .filter((prompt): prompt is string => Boolean(prompt));
-  const nextDue = events
-    .map((event) => event.due_at_after)
-    .filter(Boolean)
-    .sort()[0] ?? null;
+  const nextDue =
+    events
+      .map((event) => event.due_at_after)
+      .filter(Boolean)
+      .sort()[0] ?? null;
 
   return {
     hardItems,

@@ -37,11 +37,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useLearnerNoteEditor } from "@/hooks/use-learner-note-editor";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
-import {
-  useAnnotationMutations,
-  useBinderBundle,
-  useLearnerNoteMutation,
-} from "@/hooks/use-binders";
+import { useAnnotationMutations, useBinderBundle, useLearnerNoteMutation } from "@/hooks/use-binders";
 import { useHistoryMutations, useHistorySuite } from "@/hooks/use-history-suite";
 import { useMathWorkspace, type GraphMode } from "@/hooks/use-math-workspace";
 import { useResponsiveDevice } from "@/hooks/use-responsive-device";
@@ -102,14 +98,8 @@ import {
   getWorkspaceStarterChoices,
   getWorkspaceMobileModuleTabs,
 } from "@/lib/workspace-preset-designs";
-import {
-  getWorkspaceModuleMinimumSize,
-  WORKSPACE_MAX_CANVAS_HEIGHT,
-} from "@/lib/workspace-layout-engine";
-import {
-  scheduleUserRecentItem,
-  scheduleWorkspaceActivityEvent,
-} from "@/services/activity-service";
+import { getWorkspaceModuleMinimumSize, WORKSPACE_MAX_CANVAS_HEIGHT } from "@/lib/workspace-layout-engine";
+import { scheduleUserRecentItem, scheduleWorkspaceActivityEvent } from "@/services/activity-service";
 import { createCloudStudyItem } from "@/services/canonical-review-service";
 import { ensureWorkspacePresetDefinitionsLoaded } from "@/services/workspace-preset-service";
 import type {
@@ -179,11 +169,7 @@ export function BinderReaderPage() {
     binderId,
     binderQuery.data?.binder?.suite_template_id ?? null,
   );
-  const historyQuery = useHistorySuite(
-    binderQuery.data?.binder,
-    binderQuery.data?.lessons ?? [],
-    profile,
-  );
+  const historyQuery = useHistorySuite(binderQuery.data?.binder, binderQuery.data?.lessons ?? [], profile);
   const historyMutations = useHistoryMutations(binderQuery.data?.binder, profile);
 
   const [query, setQuery] = useState("");
@@ -242,16 +228,10 @@ export function BinderReaderPage() {
   const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const studentCalmMode = betaFeatures.isFeatureEnabled("studentCalmMode");
-  const studentPreviewAdminChromeGuard = betaFeatures.isFeatureEnabled(
-    "studentPreviewAdminChromeGuard",
-  );
+  const studentPreviewAdminChromeGuard = betaFeatures.isFeatureEnabled("studentPreviewAdminChromeGuard");
   const workspaceViewMode = active ? getWorkspaceViewMode(active) : "simple";
   const effectivePresentationMode: WorkspacePresentationMode =
-    workspaceViewMode === "facelift"
-      ? "facelift"
-      : workspaceViewMode === "canvas"
-        ? "canvas"
-        : "simple";
+    workspaceViewMode === "facelift" ? "facelift" : workspaceViewMode === "canvas" ? "canvas" : "simple";
   const isFaceliftMode = effectivePresentationMode === "facelift";
   const isFaceliftSimple = Boolean(
     active?.workspacePresentationMode === "facelift" && active.facelift.surfaceMode === "simple",
@@ -284,9 +264,7 @@ export function BinderReaderPage() {
   const historyArgumentStatus = useSaveStatus(
     `history-argument:${binderId ?? "none"}:${profile?.id ?? "anon"}`,
   );
-  const historyMythStatus = useSaveStatus(
-    `history-myth:${binderId ?? "none"}:${profile?.id ?? "anon"}`,
-  );
+  const historyMythStatus = useSaveStatus(`history-myth:${binderId ?? "none"}:${profile?.id ?? "anon"}`);
   const highlightScopeKey =
     binderId && selectedLesson && profile
       ? `highlight:${binderId}:${selectedLesson.id}:${profile.id}`
@@ -323,14 +301,7 @@ export function BinderReaderPage() {
         workspaceViewMode,
       },
     });
-  }, [
-    activeBinder,
-    activityUserId,
-    binderId,
-    recentFolderId,
-    selectedLesson,
-    workspaceViewMode,
-  ]);
+  }, [activeBinder, activityUserId, binderId, recentFolderId, selectedLesson, workspaceViewMode]);
 
   useEffect(() => {
     isLayoutEditingRef.current = isLayoutEditing;
@@ -402,11 +373,9 @@ export function BinderReaderPage() {
   }, [active?.activeMode, active?.binderId, active?.locked, active?.updatedAt]);
 
   const historyEnabled =
-    binderQuery.data?.binder.subject === "History" ||
-    Boolean(historyData?.suite?.history_mode);
+    binderQuery.data?.binder.subject === "History" || Boolean(historyData?.suite?.history_mode);
   const showSystemDiagnostics =
-    (profile?.role === "admin" || import.meta.env.DEV) &&
-    searchParams.get("debug") === "system";
+    (profile?.role === "admin" || import.meta.env.DEV) && searchParams.get("debug") === "system";
   const historySeedHealthMessage = (() => {
     if (!historyQuery.error && historyData?.seedHealth?.status !== "missing") {
       return null;
@@ -446,7 +415,16 @@ export function BinderReaderPage() {
     );
   }, [binderQuery.data, profile, selectedLesson]);
 
-  const noteEditor = useLearnerNoteEditor({ ownerId, binderId, lessonId: selectedLesson?.id, lessonTitle: selectedLesson?.title ?? "Lesson", folderId: activeFolderId, note: currentNote, ready: Boolean(binderQuery.data && selectedLesson), write: noteMutation.mutateAsync });
+  const noteEditor = useLearnerNoteEditor({
+    ownerId,
+    binderId,
+    lessonId: selectedLesson?.id,
+    lessonTitle: selectedLesson?.title ?? "Lesson",
+    folderId: activeFolderId,
+    note: currentNote,
+    ready: Boolean(binderQuery.data && selectedLesson),
+    write: noteMutation.mutateAsync,
+  });
   const noteTitle = noteEditor.title;
   const noteContent = noteEditor.content;
   const noteMath = noteEditor.mathBlocks;
@@ -458,7 +436,9 @@ export function BinderReaderPage() {
   const noteId = noteEditor.persisted ? noteEditor.snapshot.id : undefined;
   const isNoteSaveActive = noteEditor.state === "saving";
   const deferredNoteContent = useDeferredValue(noteContent);
-  const saveNoteNow = useCallback(() => { void noteEditor.save(); }, [noteEditor.save]);
+  const saveNoteNow = useCallback(() => {
+    void noteEditor.save();
+  }, [noteEditor.save]);
   const retryFailedNoteSave = saveNoteNow;
 
   const defaultHighlightColor: HighlightColor = active?.theme.defaultHighlightColor ?? "yellow";
@@ -490,8 +470,14 @@ export function BinderReaderPage() {
     profile?.id,
     binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "binder-workspace",
   );
-  const { state: mathState, setGraphExpanded, setGraphVisible, setGraphMode, savedFunctionMap, ...mathController } =
-    mathWorkspace;
+  const {
+    state: mathState,
+    setGraphExpanded,
+    setGraphVisible,
+    setGraphMode,
+    savedFunctionMap,
+    ...mathController
+  } = mathWorkspace;
 
   const updateWorkspace = useCallback(
     (updater: (current: WorkspacePreferences) => WorkspacePreferences) => {
@@ -537,7 +523,11 @@ export function BinderReaderPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      if (previous && !nextDraft.appearance.saveLocalAppearance && appearanceColorsChanged(previous, nextDraft)) {
+      if (
+        previous &&
+        !nextDraft.appearance.saveLocalAppearance &&
+        appearanceColorsChanged(previous, nextDraft)
+      ) {
         setGlobalTheme(nextDraft.theme);
         nextDraft = applyGlobalAppearanceToWorkspace(nextDraft, nextDraft.theme);
       }
@@ -663,10 +653,14 @@ export function BinderReaderPage() {
     updateWorkspace((current) =>
       canvasReworkEnabled && current.activeMode === "canvas"
         ? resetCanvasReworkLayoutToStarter(current, viewport)
-        : preserveClassicCanvasForFacelift(current, applyPresetToViewport(current, current.preset, viewport), {
-            usePresetRecipe: true,
-            viewport,
-          }),
+        : preserveClassicCanvasForFacelift(
+            current,
+            applyPresetToViewport(current, current.preset, viewport),
+            {
+              usePresetRecipe: true,
+              viewport,
+            },
+          ),
     );
     setLayoutMode("setup");
   }, [canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
@@ -709,9 +703,7 @@ export function BinderReaderPage() {
     const viewport = getWorkspaceViewport();
     updateWorkspace((current) => {
       const canvasWorkspace =
-        current.activeMode === "canvas"
-          ? current
-          : applyWorkspaceModeToViewport(current, "canvas", viewport);
+        current.activeMode === "canvas" ? current : applyWorkspaceModeToViewport(current, "canvas", viewport);
 
       return applyPresetToViewport(canvasWorkspace, "math-practice-mode", viewport);
     });
@@ -775,7 +767,10 @@ export function BinderReaderPage() {
     updateWorkspace((current) =>
       canvasReworkEnabled && current.activeMode === "canvas"
         ? fitCanvasReworkLayoutToViewport(current, viewport)
-        : preserveClassicCanvasForFacelift(current, fitWorkspaceToViewport(current, viewport, { force: true })),
+        : preserveClassicCanvasForFacelift(
+            current,
+            fitWorkspaceToViewport(current, viewport, { force: true }),
+          ),
     );
   }, [active, canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
@@ -801,9 +796,7 @@ export function BinderReaderPage() {
     updateWorkspace((current) => {
       const frameBottom = Math.max(
         viewport.height,
-        ...Object.values(current.windowLayout).map((frame) =>
-          frame ? frame.y + frame.h : 0,
-        ),
+        ...Object.values(current.windowLayout).map((frame) => (frame ? frame.y + frame.h : 0)),
       );
       if (isFaceliftCanvasPreferences(current)) {
         const next: WorkspacePreferences = {
@@ -820,9 +813,7 @@ export function BinderReaderPage() {
             verticalSpace: "infinite" as const,
           },
         };
-        return canvasReworkEnabled
-          ? recordCanvasReworkLayoutChange(next, "add-space-below")
-          : next;
+        return canvasReworkEnabled ? recordCanvasReworkLayoutChange(next, "add-space-below") : next;
       }
       const next: WorkspacePreferences = {
         ...current,
@@ -835,9 +826,7 @@ export function BinderReaderPage() {
           verticalSpace: "infinite" as const,
         },
       };
-      return canvasReworkEnabled
-        ? recordCanvasReworkLayoutChange(next, "add-space-below")
-        : next;
+      return canvasReworkEnabled ? recordCanvasReworkLayoutChange(next, "add-space-below") : next;
     });
   }, [active, canvasReworkEnabled, getWorkspaceViewport, updateWorkspace]);
 
@@ -958,9 +947,7 @@ export function BinderReaderPage() {
           view,
         );
 
-        const reworkNext = canvasReworkEnabled
-          ? recordCanvasReworkLayoutChange(next, "add-module")
-          : next;
+        const reworkNext = canvasReworkEnabled ? recordCanvasReworkLayoutChange(next, "add-module") : next;
 
         return preserveClassicCanvasForFacelift(current, reworkNext);
       });
@@ -985,9 +972,7 @@ export function BinderReaderPage() {
           },
         };
 
-        const restored = collapsed
-          ? next
-          : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
+        const restored = collapsed ? next : ensureWorkspaceModuleVisibleOnCanvas(next, moduleId, view);
         const reworkNext = canvasReworkEnabled
           ? recordCanvasReworkLayoutChange(restored, collapsed ? "remove-module" : "add-module")
           : restored;
@@ -1023,9 +1008,7 @@ export function BinderReaderPage() {
           },
         };
 
-        return canvasReworkEnabled
-          ? recordCanvasReworkLayoutChange(next, "remove-module")
-          : next;
+        return canvasReworkEnabled ? recordCanvasReworkLayoutChange(next, "remove-module") : next;
       });
     },
     [active, canvasReworkEnabled, updateWorkspace],
@@ -1133,7 +1116,13 @@ export function BinderReaderPage() {
       const viewport = getWorkspaceViewport();
       updateWorkspace((current) => applyPresetToViewport(current, "history-timeline-focus", viewport));
     }
-  }, [active?.preset, getWorkspaceViewport, historyData?.events, historyData?.templateEvents, updateWorkspace]);
+  }, [
+    active?.preset,
+    getWorkspaceViewport,
+    historyData?.events,
+    historyData?.templateEvents,
+    updateWorkspace,
+  ]);
 
   const createHistoryStarterEvent = useCallback(async () => {
     if (!profile || !binderId || !selectedLesson) {
@@ -1141,7 +1130,7 @@ export function BinderReaderPage() {
     }
 
     await saveQueue.run({
-          ownerId: profile?.id ?? "",
+      ownerId: profile?.id ?? "",
       entityType: "history_event",
       scopeKey: `history-timeline:${binderId}:${profile.id}`,
       runner: () =>
@@ -1179,7 +1168,7 @@ export function BinderReaderPage() {
       const templateSourceId = isUserSource ? source.template_source_id : source.id;
 
       await saveQueue.run({
-          ownerId: profile?.id ?? "",
+        ownerId: profile?.id ?? "",
         entityType: "history_evidence",
         scopeKey: `history-evidence:${binderId}:${profile.id}`,
         runner: () =>
@@ -1226,7 +1215,7 @@ export function BinderReaderPage() {
       });
 
       await saveQueue.run({
-          ownerId: profile?.id ?? "",
+        ownerId: profile?.id ?? "",
         entityType: "history_evidence",
         scopeKey: `history-evidence:${binderId}:${profile.id}`,
         runner: () =>
@@ -1276,7 +1265,7 @@ export function BinderReaderPage() {
     }
 
     await saveQueue.run({
-          ownerId: profile?.id ?? "",
+      ownerId: profile?.id ?? "",
       entityType: "history_argument",
       scopeKey: `history-argument:${binderId}:${profile.id}`,
       runner: async () => {
@@ -1306,17 +1295,17 @@ export function BinderReaderPage() {
                 conclusion:
                   "The strongest answer shows why February destroyed the monarchy but October and civil war created a very different one-party state.",
               }
-          : {
-              prompt: "What were the most important causes of the French Revolution?",
-              thesis:
-                "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
-              context:
-                "Use chronology to show why structural problems became a political revolution in 1789.",
-              counterargument:
-                "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
-              conclusion:
-                "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
-            };
+            : {
+                prompt: "What were the most important causes of the French Revolution?",
+                thesis:
+                  "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
+                context:
+                  "Use chronology to show why structural problems became a political revolution in 1789.",
+                counterargument:
+                  "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
+                conclusion:
+                  "The strongest answer shows how economic stress, representation disputes, and political ideas intensified one another.",
+              };
         const chain = await historyMutations.createArgumentChain.mutateAsync({
           binder_id: binderId,
           lesson_id: selectedLesson.id,
@@ -1345,14 +1334,14 @@ export function BinderReaderPage() {
                 "Bolshevik strategy",
                 "Civil war consolidation",
               ]
-          : [
-              "Financial crisis",
-              "Estates-General called",
-              "Political conflict grows",
-              "Tennis Court Oath",
-              "Revolutionary momentum",
-              "Storming of the Bastille",
-            ];
+            : [
+                "Financial crisis",
+                "Estates-General called",
+                "Political conflict grows",
+                "Tennis Court Oath",
+                "Revolutionary momentum",
+                "Storming of the Bastille",
+              ];
 
         const createdNodes: HistoryArgumentNode[] = [];
         for (const [index, title] of starterTitles.entries()) {
@@ -1364,7 +1353,7 @@ export function BinderReaderPage() {
               ? `Explain how ${title.toLowerCase()} pushes Rome toward imperial rule.`
               : isRussianBinder
                 ? `Explain how ${title.toLowerCase()} pushes Russia from imperial crisis toward Bolshevik power.`
-              : `Explain how ${title.toLowerCase()} pushes the revolution forward.`,
+                : `Explain how ${title.toLowerCase()} pushes the revolution forward.`,
             sort_order: index,
             event_id: null,
             source_id: null,
@@ -1416,7 +1405,7 @@ export function BinderReaderPage() {
       }
 
       await saveQueue.run({
-          ownerId: profile?.id ?? "",
+        ownerId: profile?.id ?? "",
         entityType: "history_argument",
         scopeKey: `history-argument:${binderId}:${profile.id}`,
         runner: () => historyMutations.updateArgumentChain.mutateAsync({ chainId, patch }),
@@ -1436,7 +1425,7 @@ export function BinderReaderPage() {
 
     const starter = historyData?.templateMythChecks[0];
     await saveQueue.run({
-          ownerId: profile?.id ?? "",
+      ownerId: profile?.id ?? "",
       entityType: "myth_check",
       scopeKey: `history-myth:${binderId}:${profile.id}`,
       runner: () =>
@@ -1467,11 +1456,7 @@ export function BinderReaderPage() {
       const viewport = getWorkspaceViewport();
       saveWorkspaceViewPreference(viewMode);
       updateWorkspace((current) => {
-        if (
-          canvasReworkEnabled &&
-          viewMode === "canvas" &&
-          current.canvas.layoutSource === "custom"
-        ) {
+        if (canvasReworkEnabled && viewMode === "canvas" && current.canvas.layoutSource === "custom") {
           return applyWorkspaceMode(current, "canvas");
         }
 
@@ -1622,10 +1607,7 @@ export function BinderReaderPage() {
 
   const pushExpressionToGraph = useCallback(
     (expression?: string) => {
-      const latex = prepareExpressionForGraph(
-        expression ?? mathState.calculatorExpression,
-        savedFunctionMap,
-      );
+      const latex = prepareExpressionForGraph(expression ?? mathState.calculatorExpression, savedFunctionMap);
       if (!latex) {
         return;
       }
@@ -1657,16 +1639,14 @@ export function BinderReaderPage() {
       active.preset,
       active.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
     ).map((tab) => tab.moduleId);
-    setMobileModule((current) => (mobileTabIds.includes(current) ? current : mobileTabIds[0] ?? "lesson"));
+    setMobileModule((current) => (mobileTabIds.includes(current) ? current : (mobileTabIds[0] ?? "lesson")));
   }, [active]);
 
   const searchableLessons = useMemo(
     () =>
       lessons.map((lesson) => ({
         lesson,
-        searchText: `${lesson.title} ${extractPlainText(lesson.content)}`
-          .replace(/\s+/g, " ")
-          .toLowerCase(),
+        searchText: `${lesson.title} ${extractPlainText(lesson.content)}`.replace(/\s+/g, " ").toLowerCase(),
       })),
     [lessons],
   );
@@ -1683,8 +1663,11 @@ export function BinderReaderPage() {
   }, [deferredQuery, lessons, searchableLessons]);
 
   useEffect(() => {
-    setDismissedMath([]); setCommentAnchor(null); setHiddenStickyIds([]);
-    setPendingExpression(null); setPendingGraphLoad(null);
+    setDismissedMath([]);
+    setCommentAnchor(null);
+    setHiddenStickyIds([]);
+    setPendingExpression(null);
+    setPendingGraphLoad(null);
   }, [currentNoteScopeKey]);
 
   const mathSuggestions = useMemo(
@@ -1698,8 +1681,7 @@ export function BinderReaderPage() {
   const lessonComments = useMemo(
     () =>
       (binderQuery.data?.comments ?? []).filter(
-        (comment) =>
-          comment.lesson_id === selectedLesson?.id && !hiddenStickyIds.includes(comment.id),
+        (comment) => comment.lesson_id === selectedLesson?.id && !hiddenStickyIds.includes(comment.id),
       ),
     [binderQuery.data?.comments, hiddenStickyIds, selectedLesson?.id],
   );
@@ -1708,7 +1690,7 @@ export function BinderReaderPage() {
     () =>
       dedupeHighlights(
         (binderQuery.data?.highlights ?? []).filter(
-        (highlight) => highlight.lesson_id === selectedLesson?.id,
+          (highlight) => highlight.lesson_id === selectedLesson?.id,
         ),
       ),
     [binderQuery.data?.highlights, selectedLesson?.id],
@@ -1718,12 +1700,7 @@ export function BinderReaderPage() {
     [selectedLesson],
   );
   const buildHighlightInputFromSelection = useCallback(
-    (
-      selection: LessonTextSelection,
-      color: HighlightColor,
-      activeBinderId: string,
-      lessonId: string,
-    ) => ({
+    (selection: LessonTextSelection, color: HighlightColor, activeBinderId: string, lessonId: string) => ({
       binderId: activeBinderId,
       lessonId,
       anchorText: selection.text.trim(),
@@ -1755,7 +1732,8 @@ export function BinderReaderPage() {
         suffixText: highlight.suffix_text ?? quoteContext.suffixText,
         blockId:
           highlight.selector_json && "selectors" in highlight.selector_json
-            ? (highlight.selector_json.selectors.find((selector) => selector.type === "BlockSelector")?.blockId ?? null)
+            ? (highlight.selector_json.selectors.find((selector) => selector.type === "BlockSelector")
+                ?.blockId ?? null)
             : highlight.selector_json && highlight.selector_json.type === "BlockSelector"
               ? highlight.selector_json.blockId
               : null,
@@ -1840,13 +1818,15 @@ export function BinderReaderPage() {
     autosaveStatus === "saving"
       ? "Saving..."
       : autosaveStatus === "offline"
-        ? noteEditor.durable ? "Offline draft backed up" : "Offline - keep this tab open"
+        ? noteEditor.durable
+          ? "Offline draft backed up"
+          : "Offline - keep this tab open"
         : autosaveStatus === "error"
           ? "Save failed"
           : autosaveStatus === "unsaved"
             ? "Unsaved changes"
-          : noteLastSavedAt
-            ? `Saved ${formatNoteSavedAt(noteLastSavedAt)}`
+            : noteLastSavedAt
+              ? `Saved ${formatNoteSavedAt(noteLastSavedAt)}`
               : hasPersistedCurrentNote
                 ? "Saved"
                 : "Ready";
@@ -1854,9 +1834,11 @@ export function BinderReaderPage() {
     autosaveStatus === "saving"
       ? "Saving this lesson note to your account now."
       : autosaveStatus === "offline"
-        ? noteEditor.durable ? "Your draft is backed up on this device and will sync when the connection returns." : "Device backup failed. Copy this note and keep the tab open."
+        ? noteEditor.durable
+          ? "Your draft is backed up on this device and will sync when the connection returns."
+          : "Device backup failed. Copy this note and keep the tab open."
         : autosaveStatus === "error"
-          ? noteSaveError ?? "Save failed. Retry to keep this lesson note."
+          ? (noteSaveError ?? "Save failed. Retry to keep this lesson note.")
           : autosaveStatus === "unsaved"
             ? "You have unsaved changes in this lesson note."
             : noteLastSavedAt
@@ -1889,9 +1871,7 @@ export function BinderReaderPage() {
           ...current.stickyNotes,
           [saved.id]:
             current.stickyNotes[saved.id] ??
-            createStickyNoteLayout(
-              lessonComments.length + Object.keys(current.stickyNotes).length,
-            ),
+            createStickyNoteLayout(lessonComments.length + Object.keys(current.stickyNotes).length),
         },
       }));
       setCommentAnchor(null);
@@ -1951,21 +1931,24 @@ export function BinderReaderPage() {
         return;
       }
 
-      try { await createCloudStudyItem({
-        answer: selection.text.trim(),
-        betaEnabled: reviewQueueBeta,
-        binderId: binderQuery.data.binder.id,
-        binderTitle: binderQuery.data.binder.title,
-        ownerId: profile.id,
-        prompt: "Explain this source passage in your own words.",
-        sourceExcerpt: selection.text.trim(),
-        sourceId: selectedLesson.id,
-        sourceKind: "highlight",
-        sourceTitle: selectedLesson.title,
-        type: "highlight_recall",
-      });
-      setReviewSaveMessage("Source passage saved to your account's Review Queue.");
-      } catch (error) { setReviewSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
+      try {
+        await createCloudStudyItem({
+          answer: selection.text.trim(),
+          betaEnabled: reviewQueueBeta,
+          binderId: binderQuery.data.binder.id,
+          binderTitle: binderQuery.data.binder.title,
+          ownerId: profile.id,
+          prompt: "Explain this source passage in your own words.",
+          sourceExcerpt: selection.text.trim(),
+          sourceId: selectedLesson.id,
+          sourceKind: "highlight",
+          sourceTitle: selectedLesson.title,
+          type: "highlight_recall",
+        });
+        setReviewSaveMessage("Source passage saved to your account's Review Queue.");
+      } catch (error) {
+        setReviewSaveMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+      }
     },
     [binderQuery.data, profile?.id, reviewQueueBeta, selectedLesson],
   );
@@ -1975,9 +1958,7 @@ export function BinderReaderPage() {
       return;
     }
 
-    const target = document.querySelector(
-      `[data-lesson-anchor="${anchorId}"]`,
-    );
+    const target = document.querySelector(`[data-lesson-anchor="${anchorId}"]`);
     if (!(target instanceof HTMLElement)) {
       return;
     }
@@ -1993,11 +1974,7 @@ export function BinderReaderPage() {
 
   const jumpToMathSource = useCallback(
     (block: MathBlock) => {
-      const anchorId = findLessonSectionAnchorId(
-        lessonAnchors,
-        block.sourceHeading,
-        block.sourceAnchorId,
-      );
+      const anchorId = findLessonSectionAnchorId(lessonAnchors, block.sourceHeading, block.sourceAnchorId);
       if (anchorId) {
         jumpToLessonAnchor(anchorId);
       }
@@ -2073,9 +2050,7 @@ export function BinderReaderPage() {
       return;
     }
 
-    const target = document.querySelector(
-      `[data-highlight-id="${highlightId}"]`,
-    );
+    const target = document.querySelector(`[data-highlight-id="${highlightId}"]`);
     if (!(target instanceof HTMLElement)) {
       return;
     }
@@ -2313,9 +2288,7 @@ export function BinderReaderPage() {
     onToggleStickyManager: toggleStickyManager,
     onDeleteComment: (commentId) => {
       const previousLayout = active.stickyNotes[commentId];
-      setHiddenStickyIds((current) =>
-        current.includes(commentId) ? current : [...current, commentId],
-      );
+      setHiddenStickyIds((current) => (current.includes(commentId) ? current : [...current, commentId]));
       updateWorkspace((current) => {
         const nextStickyNotes = { ...current.stickyNotes };
         delete nextStickyNotes[commentId];
@@ -2363,8 +2336,7 @@ export function BinderReaderPage() {
         const selectionRange = getSelectionRange(selection);
         const allMatchingHighlights = readCurrentHighlights(activeBinderId).filter(
           (highlight) =>
-            highlight.lesson_id === activeLessonId &&
-            selectionMatchesHighlight(selection, highlight),
+            highlight.lesson_id === activeLessonId && selectionMatchesHighlight(selection, highlight),
         );
         const exactMatches = allMatchingHighlights.filter((highlight) =>
           selectionExactlyMatchesHighlight(selection, highlight),
@@ -2372,9 +2344,7 @@ export function BinderReaderPage() {
         const exactPrimary = exactMatches.at(0) ?? null;
 
         if (exactPrimary) {
-          const duplicateExactMatches = exactMatches.filter(
-            (highlight) => highlight.id !== exactPrimary.id,
-          );
+          const duplicateExactMatches = exactMatches.filter((highlight) => highlight.id !== exactPrimary.id);
           await Promise.all(
             duplicateExactMatches.map((highlight) =>
               annotations.deleteHighlight.mutateAsync({ highlightId: highlight.id }),
@@ -2387,12 +2357,7 @@ export function BinderReaderPage() {
 
           await annotations.updateHighlight.mutateAsync({
             highlightId: exactPrimary.id,
-            ...buildHighlightInputFromSelection(
-              selection,
-              color,
-              activeBinderId,
-              activeLessonId,
-            ),
+            ...buildHighlightInputFromSelection(selection, color, activeBinderId, activeLessonId),
           });
           return;
         }
@@ -2640,7 +2605,9 @@ export function BinderReaderPage() {
       data-beta-canvas-rework={canvasReworkEnabled ? "true" : "false"}
       data-beta-compact-excalidraw-tools={compactExcalidrawToolsEnabled ? "true" : "false"}
       data-beta-desmos-v2={desmosV2Enabled ? "true" : "false"}
-      data-beta-whiteboard-performance-diagnostics={whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"}
+      data-beta-whiteboard-performance-diagnostics={
+        whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"
+      }
       data-beta-whiteboard-smooth-move={whiteboardSmoothMoveEnabled ? "true" : "false"}
       data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
       data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}
@@ -2660,27 +2627,62 @@ export function BinderReaderPage() {
       data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
-      {reviewSaveMessage && <p className="rounded-lg border bg-background p-3 text-sm" role="status">{reviewSaveMessage}</p>}
+      {reviewSaveMessage && (
+        <p className="rounded-lg border bg-background p-3 text-sm" role="status">
+          {reviewSaveMessage}
+        </p>
+      )}
       {noteEditor.state === "conflict" ? (
-        <section className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-background p-4" role="alert">
+        <section
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-background p-4"
+          role="alert"
+        >
           <p>This lesson note changed in another tab. Your draft is preserved.</p>
-          <Button onClick={() => void noteEditor.preserveCopy()} size="sm">Save draft as a copy</Button>
-          <Button onClick={() => void noteEditor.useRemote()} size="sm" variant="outline">Load saved version</Button>
+          <Button onClick={() => void noteEditor.preserveCopy()} size="sm">
+            Save draft as a copy
+          </Button>
+          <Button onClick={() => void noteEditor.useRemote()} size="sm" variant="outline">
+            Load saved version
+          </Button>
         </section>
       ) : null}
       {noteEditor.backups.length > 0 ? (
         <details className="rounded-xl border bg-background p-3">
           <summary>Device note backups ({noteEditor.backups.length})</summary>
-          {noteEditor.backups.map((backup) => <Button key={backup.key} size="sm" variant="outline" onClick={() => void noteEditor.preserveBackup(backup.key)}>Save backup from {new Date(backup.recordedAt).toLocaleString()} as a copy</Button>)}
+          {noteEditor.backups.map((backup) => (
+            <Button
+              key={backup.key}
+              size="sm"
+              variant="outline"
+              onClick={() => void noteEditor.preserveBackup(backup.key)}
+            >
+              Save backup from {new Date(backup.recordedAt).toLocaleString()} as a copy
+            </Button>
+          ))}
         </details>
       ) : null}
       {!noteEditor.durable ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive p-3" role="alert">
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive p-3"
+          role="alert"
+        >
           <p>{noteEditor.error}</p>
-          <Button size="sm" variant="outline" onClick={() => {
-            const url = URL.createObjectURL(new Blob([JSON.stringify(noteEditor.snapshot, null, 2)], { type: "application/json" }));
-            const link = document.createElement("a"); link.href = url; link.download = "lesson-note-backup.json"; link.click(); URL.revokeObjectURL(url);
-          }}>Download note backup</Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const url = URL.createObjectURL(
+                new Blob([JSON.stringify(noteEditor.snapshot, null, 2)], { type: "application/json" }),
+              );
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = "lesson-note-backup.json";
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Download note backup
+          </Button>
         </div>
       ) : null}
       {!compactStudyChrome && !isFaceliftSimple && !isStudyPanelsMode ? (
@@ -2699,17 +2701,13 @@ export function BinderReaderPage() {
         data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
         data-layout-editing={isLayoutEditing ? "true" : "false"}
         data-utility-ui={showTopbarUtilityUi ? "true" : "false"}
-      hidden={isFaceliftSimple || isStudyPanelsMode}
+        hidden={isFaceliftSimple || isStudyPanelsMode}
       >
         <div className="workspace-topbar__summary">
           {compactStudyChrome ? (
-            <p className="workspace-topbar__crumb">
-              Workspace / {binderQuery.data.binder.title}
-            </p>
+            <p className="workspace-topbar__crumb">Workspace / {binderQuery.data.binder.title}</p>
           ) : null}
-          <p className="workspace-topbar__eyebrow">
-            {binderQuery.data.binder.title}
-          </p>
+          <p className="workspace-topbar__eyebrow">{binderQuery.data.binder.title}</p>
           <h1 className="workspace-topbar__title">{selectedLesson.title}</h1>
           <p className="workspace-topbar__copy">
             {workspaceModeLabel}
@@ -2721,44 +2719,39 @@ export function BinderReaderPage() {
               : isFaceliftSimple
                 ? "Facelift Simple"
                 : isSimpleMode
-                ? "Simple study"
-                : isFaceliftCanvas
-                  ? "Facelift Canvas"
-                : isStudyPanelsMode
-                  ? "Study panels"
-                : active.locked
-                  ? "Locked study mode"
-                  : "Studio mode"}
+                  ? "Simple study"
+                  : isFaceliftCanvas
+                    ? "Facelift Canvas"
+                    : isStudyPanelsMode
+                      ? "Study panels"
+                      : active.locked
+                        ? "Locked study mode"
+                        : "Studio mode"}
           </p>
           {showTopbarUtilityUi ? (
-              <div className="workspace-topbar__meta">
-                <Badge variant="outline">Study workspace</Badge>
-                {canvasReworkEnabled && isCanvasMode ? (
-                  <>
-                    <Badge variant="secondary">Canvas Rework</Badge>
-                    <Badge variant={active.canvas.layoutSource === "custom" ? "default" : "outline"}>
-                      {isLayoutEditing
-                        ? "Unsaved edits"
-                        : active.canvas.layoutSource === "custom"
-                          ? "Custom layout"
-                          : "Starter layout"}
-                    </Badge>
-                  </>
-                ) : null}
-                <Badge variant="secondary">
-                  {isLayoutEditing ? "Edit mode" : active.locked ? "Locked" : "Studio"}
-                </Badge>
-                <Badge variant="outline">
-                  {noteSaveLabel}
-                </Badge>
-              </div>
-            ) : null}
+            <div className="workspace-topbar__meta">
+              <Badge variant="outline">Study workspace</Badge>
+              {canvasReworkEnabled && isCanvasMode ? (
+                <>
+                  <Badge variant="secondary">Canvas Rework</Badge>
+                  <Badge variant={active.canvas.layoutSource === "custom" ? "default" : "outline"}>
+                    {isLayoutEditing
+                      ? "Unsaved edits"
+                      : active.canvas.layoutSource === "custom"
+                        ? "Custom layout"
+                        : "Starter layout"}
+                  </Badge>
+                </>
+              ) : null}
+              <Badge variant="secondary">
+                {isLayoutEditing ? "Edit mode" : active.locked ? "Locked" : "Studio"}
+              </Badge>
+              <Badge variant="outline">{noteSaveLabel}</Badge>
+            </div>
+          ) : null}
         </div>
         {showTopbarUtilityUi ? (
-          <div
-            className="workspace-topbar__presets"
-            data-visible="true"
-          >
+          <div className="workspace-topbar__presets" data-visible="true">
             {visibleTopbarPresets.map((preset) => (
               <button
                 className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
@@ -2997,12 +2990,10 @@ export function BinderReaderPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Start studying
             </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight">
-              Pick what you want to do first.
-            </h2>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Pick what you want to do first.</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              BinderNotes will choose the workspace, preset, and module balance for that job.
-              You can still switch Simple, Study Panels, Canvas, or Facelift later in settings.
+              BinderNotes will choose the workspace, preset, and module balance for that job. You can still
+              switch Simple, Study Panels, Canvas, or Facelift later in settings.
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -3028,21 +3019,21 @@ export function BinderReaderPage() {
               Or choose the workspace style yourself
             </p>
             <div className="grid gap-2 md:grid-cols-4">
-            {workspaceViewModeOptions.map((option) => (
-              <button
-                className={`rounded-xl border px-3 py-3 text-left transition ${
-                  workspaceViewMode === option.id
-                    ? "border-primary bg-accent/75"
-                    : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
-                }`}
-                key={option.id}
-                onClick={() => applyModeChoice(option.id)}
-                type="button"
-              >
-                <p className="text-sm font-semibold">{option.name}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
-              </button>
-            ))}
+              {workspaceViewModeOptions.map((option) => (
+                <button
+                  className={`rounded-xl border px-3 py-3 text-left transition ${
+                    workspaceViewMode === option.id
+                      ? "border-primary bg-accent/75"
+                      : "border-border/70 bg-background/65 hover:border-primary/35 hover:bg-secondary/70"
+                  }`}
+                  key={option.id}
+                  onClick={() => applyModeChoice(option.id)}
+                  type="button"
+                >
+                  <p className="text-sm font-semibold">{option.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                </button>
+              ))}
             </div>
           </div>
         </section>
@@ -3059,52 +3050,52 @@ export function BinderReaderPage() {
           surface="page"
         >
           <section className="facelift-presentation-stage">
-          {preferencesOpen ? (
-            <>
-              <button
-                aria-label="Close facelift settings"
-                className="workspace-preferences-backdrop"
-                onClick={() => setPreferencesOpen(false)}
-                type="button"
-              />
-              <section className="workspace-preferences-popover">
-                <WorkspaceSettingsPanel
-                  binderTitle={binderQuery.data.binder.title}
-                  binderSubject={binderQuery.data.binder.subject}
-                  historyEnabled={historyEnabled}
-                  isResettingHighlights={annotations.resetHighlights.isPending}
-                  lessonTitle={selectedLesson.title}
-                  mode="preferences"
-                  onChange={commitWorkspacePreferences}
-                  onClose={() => setPreferencesOpen(false)}
-                  onResetBinderHighlights={resetBinderHighlights}
-                  onResetLessonHighlights={resetCurrentLessonHighlights}
-                  preferences={active}
-                  revampBetaEnabled={revampBetaEnabled}
+            {preferencesOpen ? (
+              <>
+                <button
+                  aria-label="Close facelift settings"
+                  className="workspace-preferences-backdrop"
+                  onClick={() => setPreferencesOpen(false)}
+                  type="button"
                 />
-              </section>
-            </>
-          ) : null}
-          <WorkspaceRenderBoundary
-            resetKey={`${selectedLesson.id}:${active.workspacePresentationMode}:${active.facelift.surfaceMode}:${active.preset}`}
-            title="This facelift study view could not render"
-          >
-            <FaceliftSimpleShell
-              compactStudyChrome={compactStudyChrome}
-              context={context}
-              focusModeActive={activeFocusMode}
-              isCompact={isCompact}
-              onChange={commitWorkspacePreferences}
-              onChangeWorkspaceViewMode={applyModeChoice}
-              onChangeView={enterLayoutEditMode}
-              onCreateSticky={() => void createSticky(null, "")}
-              onOpenSettings={openWorkspacePreferences}
-              onToggleFocus={toggleFocusMode}
-              preferences={active}
-              studentCalmMode={studentCalmMode}
-              workspaceViewMode={workspaceViewMode}
-            />
-          </WorkspaceRenderBoundary>
+                <section className="workspace-preferences-popover">
+                  <WorkspaceSettingsPanel
+                    binderTitle={binderQuery.data.binder.title}
+                    binderSubject={binderQuery.data.binder.subject}
+                    historyEnabled={historyEnabled}
+                    isResettingHighlights={annotations.resetHighlights.isPending}
+                    lessonTitle={selectedLesson.title}
+                    mode="preferences"
+                    onChange={commitWorkspacePreferences}
+                    onClose={() => setPreferencesOpen(false)}
+                    onResetBinderHighlights={resetBinderHighlights}
+                    onResetLessonHighlights={resetCurrentLessonHighlights}
+                    preferences={active}
+                    revampBetaEnabled={revampBetaEnabled}
+                  />
+                </section>
+              </>
+            ) : null}
+            <WorkspaceRenderBoundary
+              resetKey={`${selectedLesson.id}:${active.workspacePresentationMode}:${active.facelift.surfaceMode}:${active.preset}`}
+              title="This facelift study view could not render"
+            >
+              <FaceliftSimpleShell
+                compactStudyChrome={compactStudyChrome}
+                context={context}
+                focusModeActive={activeFocusMode}
+                isCompact={isCompact}
+                onChange={commitWorkspacePreferences}
+                onChangeWorkspaceViewMode={applyModeChoice}
+                onChangeView={enterLayoutEditMode}
+                onCreateSticky={() => void createSticky(null, "")}
+                onOpenSettings={openWorkspacePreferences}
+                onToggleFocus={toggleFocusMode}
+                preferences={active}
+                studentCalmMode={studentCalmMode}
+                workspaceViewMode={workspaceViewMode}
+              />
+            </WorkspaceRenderBoundary>
           </section>
         </WorkspaceStickyLayer>
       ) : isStudyPanelsMode ? (
@@ -3174,35 +3165,35 @@ export function BinderReaderPage() {
           surface="page"
         >
           <section className="simple-presentation-stage">
-          {preferencesOpen ? (
-            <>
-              <button
-                aria-label="Close simple settings"
-                className="workspace-preferences-backdrop"
-                onClick={() => setPreferencesOpen(false)}
-                type="button"
-              />
-              <section className="workspace-preferences-popover">
-                <SimpleSettingsPanel
-                  onChange={commitWorkspacePreferences}
-                  onClose={() => setPreferencesOpen(false)}
-                  preferences={active}
+            {preferencesOpen ? (
+              <>
+                <button
+                  aria-label="Close simple settings"
+                  className="workspace-preferences-backdrop"
+                  onClick={() => setPreferencesOpen(false)}
+                  type="button"
                 />
-              </section>
-            </>
-          ) : null}
-          <WorkspaceRenderBoundary
-            resetKey={`${selectedLesson.id}:${active.activeMode}:simple`}
-            title="This simple study view could not render"
-          >
-            <SimplePresentationShell
-              context={context}
-              onChange={commitWorkspacePreferences}
-              onOpenSettings={openWorkspacePreferences}
-              preferences={active}
-              studentCalmMode={studentCalmMode}
-            />
-          </WorkspaceRenderBoundary>
+                <section className="workspace-preferences-popover">
+                  <SimpleSettingsPanel
+                    onChange={commitWorkspacePreferences}
+                    onClose={() => setPreferencesOpen(false)}
+                    preferences={active}
+                  />
+                </section>
+              </>
+            ) : null}
+            <WorkspaceRenderBoundary
+              resetKey={`${selectedLesson.id}:${active.activeMode}:simple`}
+              title="This simple study view could not render"
+            >
+              <SimplePresentationShell
+                context={context}
+                onChange={commitWorkspacePreferences}
+                onOpenSettings={openWorkspacePreferences}
+                preferences={active}
+                studentCalmMode={studentCalmMode}
+              />
+            </WorkspaceRenderBoundary>
           </section>
         </WorkspaceStickyLayer>
       ) : isCompact ? (
@@ -3216,71 +3207,69 @@ export function BinderReaderPage() {
           surface="mobile"
         >
           <section className="responsive-mobile-workspace grid gap-4">
-          {isLayoutEditing ? (
-            <WorkspaceSettingsPanel
-              binderTitle={binderQuery.data.binder.title}
-              binderSubject={binderQuery.data.binder.subject}
-              historyEnabled={historyEnabled}
-              isResettingHighlights={annotations.resetHighlights.isPending}
-              lessonTitle={selectedLesson.title}
-              mode="layout"
-              onResetBinderHighlights={resetBinderHighlights}
-              onResetLessonHighlights={resetCurrentLessonHighlights}
-              preferences={active}
-              revampBetaEnabled={revampBetaEnabled}
-              onChange={updateLayoutDraftFromSettings}
-            />
-          ) : null}
+            {isLayoutEditing ? (
+              <WorkspaceSettingsPanel
+                binderTitle={binderQuery.data.binder.title}
+                binderSubject={binderQuery.data.binder.subject}
+                historyEnabled={historyEnabled}
+                isResettingHighlights={annotations.resetHighlights.isPending}
+                lessonTitle={selectedLesson.title}
+                mode="layout"
+                onResetBinderHighlights={resetBinderHighlights}
+                onResetLessonHighlights={resetCurrentLessonHighlights}
+                preferences={active}
+                revampBetaEnabled={revampBetaEnabled}
+                onChange={updateLayoutDraftFromSettings}
+              />
+            ) : null}
 
-          {!isLayoutEditing && preferencesOpen ? (
-            <WorkspaceSettingsPanel
-              binderTitle={binderQuery.data.binder.title}
-              binderSubject={binderQuery.data.binder.subject}
-              historyEnabled={historyEnabled}
-              isResettingHighlights={annotations.resetHighlights.isPending}
-              lessonTitle={selectedLesson.title}
-              mode="preferences"
-              onChange={commitWorkspacePreferences}
-              onClose={() => setPreferencesOpen(false)}
-              onResetBinderHighlights={resetBinderHighlights}
-              onResetLessonHighlights={resetCurrentLessonHighlights}
-              preferences={active}
-              revampBetaEnabled={revampBetaEnabled}
-            />
-          ) : null}
+            {!isLayoutEditing && preferencesOpen ? (
+              <WorkspaceSettingsPanel
+                binderTitle={binderQuery.data.binder.title}
+                binderSubject={binderQuery.data.binder.subject}
+                historyEnabled={historyEnabled}
+                isResettingHighlights={annotations.resetHighlights.isPending}
+                lessonTitle={selectedLesson.title}
+                mode="preferences"
+                onChange={commitWorkspacePreferences}
+                onClose={() => setPreferencesOpen(false)}
+                onResetBinderHighlights={resetBinderHighlights}
+                onResetLessonHighlights={resetCurrentLessonHighlights}
+                preferences={active}
+                revampBetaEnabled={revampBetaEnabled}
+              />
+            ) : null}
 
-          <div className="responsive-mobile-tabs flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/86 p-3 shadow-sm">
-            {mobileTabs.map((tab) => (
-              <Button
-                key={tab.moduleId}
-                onClick={() => {
-                  setMobileModule(tab.moduleId);
-                  trackWorkspaceModuleOpen(tab.moduleId, "mobile_module_opened");
-                }}
-                size="sm"
-                type="button"
-                variant={mobileModule === tab.moduleId ? "default" : "outline"}
+            <div className="responsive-mobile-tabs flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/86 p-3 shadow-sm">
+              {mobileTabs.map((tab) => (
+                <Button
+                  key={tab.moduleId}
+                  onClick={() => {
+                    setMobileModule(tab.moduleId);
+                    trackWorkspaceModuleOpen(tab.moduleId, "mobile_module_opened");
+                  }}
+                  size="sm"
+                  type="button"
+                  variant={mobileModule === tab.moduleId ? "default" : "outline"}
+                >
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+
+            {mobileActiveModule ? (
+              <WorkspaceRenderBoundary
+                resetKey={selectedLesson.id}
+                title="This study module could not render"
               >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
-
-          {mobileActiveModule ? (
-            <WorkspaceRenderBoundary
-              resetKey={selectedLesson.id}
-              title="This study module could not render"
-            >
-              <div className="responsive-mobile-module min-h-0">
-                {mobileActiveModule.render(context)}
-              </div>
-            </WorkspaceRenderBoundary>
-          ) : (
-            <EmptyState
-              description="Enable a module or pick a preset to continue."
-              title="No mobile module available"
-            />
-          )}
+                <div className="responsive-mobile-module min-h-0">{mobileActiveModule.render(context)}</div>
+              </WorkspaceRenderBoundary>
+            ) : (
+              <EmptyState
+                description="Enable a module or pick a preset to continue."
+                title="No mobile module available"
+              />
+            )}
           </section>
         </WorkspaceStickyLayer>
       ) : (
@@ -3388,10 +3377,7 @@ function ensureWorkspaceModuleVisibleOnCanvas(
 ): WorkspacePreferences {
   const minimum = getWorkspaceModuleMinimumSize(moduleId);
   const currentFrame = preferences.windowLayout[moduleId] ?? preferences.canvas.panelPositions[moduleId];
-  const topZ = Math.max(
-    1,
-    ...Object.values(preferences.windowLayout).map((frame) => frame?.z ?? 1),
-  );
+  const topZ = Math.max(1, ...Object.values(preferences.windowLayout).map((frame) => frame?.z ?? 1));
   const usableFrame = currentFrame
     ? {
         ...currentFrame,
@@ -3400,9 +3386,10 @@ function ensureWorkspaceModuleVisibleOnCanvas(
         z: Math.max(currentFrame.z, topZ + 1),
       }
     : null;
-  const frame = usableFrame && isWorkspaceFrameUsablyVisible(usableFrame, view, minimum)
-    ? usableFrame
-    : createRestoredWorkspaceFrame(moduleId, view, minimum, topZ + 1);
+  const frame =
+    usableFrame && isWorkspaceFrameUsablyVisible(usableFrame, view, minimum)
+      ? usableFrame
+      : createRestoredWorkspaceFrame(moduleId, view, minimum, topZ + 1);
 
   return writeWorkspaceFrame(preferences, moduleId, frame);
 }
@@ -3456,10 +3443,7 @@ function isWorkspaceFrameUsablyVisible(
   const visibleWidth = Math.min(frame.x + frame.w, visibleRight) - Math.max(frame.x, visibleLeft);
   const visibleHeight = Math.min(frame.y + frame.h, visibleBottom) - Math.max(frame.y, visibleTop);
 
-  return (
-    visibleWidth >= Math.min(180, frame.w * 0.35) &&
-    visibleHeight >= Math.min(140, frame.h * 0.25)
-  );
+  return visibleWidth >= Math.min(180, frame.w * 0.35) && visibleHeight >= Math.min(140, frame.h * 0.25);
 }
 
 function writeWorkspaceFrame(
@@ -3470,7 +3454,10 @@ function writeWorkspaceFrame(
   const currentCanvasHeight = isFaceliftCanvasPreferences(preferences)
     ? preferences.facelift.canvas.canvasHeight
     : preferences.canvas.canvasHeight;
-  const canvasHeight = Math.min(WORKSPACE_MAX_CANVAS_HEIGHT, Math.max(currentCanvasHeight, frame.y + frame.h + 320));
+  const canvasHeight = Math.min(
+    WORKSPACE_MAX_CANVAS_HEIGHT,
+    Math.max(currentCanvasHeight, frame.y + frame.h + 320),
+  );
 
   if (isFaceliftCanvasPreferences(preferences)) {
     return {
@@ -3511,7 +3498,9 @@ function writeWorkspaceFrame(
 }
 
 function isFaceliftCanvasPreferences(preferences: WorkspacePreferences) {
-  return preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas";
+  return (
+    preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas"
+  );
 }
 
 function getWindowedWorkspaceRenderPreferences(preferences: WorkspacePreferences): WorkspacePreferences {
@@ -3587,10 +3576,7 @@ function preserveClassicCanvasForFacelift(
   };
 }
 
-function appearanceColorsChanged(
-  previous: WorkspacePreferences,
-  next: WorkspacePreferences,
-) {
+function appearanceColorsChanged(previous: WorkspacePreferences, next: WorkspacePreferences) {
   return (
     previous.appearance.appTheme !== next.appearance.appTheme ||
     previous.appearance.accent !== next.appearance.accent ||

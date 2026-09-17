@@ -30,12 +30,8 @@ export function BinderPage() {
   const [draftTitle, setDraftTitle] = useState("New document");
   const [notice, setNotice] = useState<string | null>(null);
   const debugModeEnabled = searchParams.get("debug") === "system";
-  const showSystemDiagnostics =
-    debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
-  const runtimeDiagnostics =
-    error && showSystemDiagnostics
-      ? classifyRuntimeError("binders", error)
-      : [];
+  const showSystemDiagnostics = debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
+  const runtimeDiagnostics = error && showSystemDiagnostics ? classifyRuntimeError("binders", error) : [];
   const primaryFolder = data?.folders[0] ?? null;
   const profileId = profile?.id ?? null;
   const canManageWorkspace = profile?.role === "admin";
@@ -164,9 +160,21 @@ export function BinderPage() {
 
         <aside className="hero-aside">
           <div className="grid gap-3">
-            <Stat label="Documents" value={String(data.lessons.length)} icon={<BookCopy className="size-4" />} />
-            <Stat label="Private notes" value={String(data.notes.length)} icon={<NotebookPen className="size-4" />} />
-            <Stat label="Location" value={primaryFolder?.name ?? "Workspace"} icon={<FolderTree className="size-4" />} />
+            <Stat
+              label="Documents"
+              value={String(data.lessons.length)}
+              icon={<BookCopy className="size-4" />}
+            />
+            <Stat
+              label="Private notes"
+              value={String(data.notes.length)}
+              icon={<NotebookPen className="size-4" />}
+            />
+            <Stat
+              label="Location"
+              value={primaryFolder?.name ?? "Workspace"}
+              icon={<FolderTree className="size-4" />}
+            />
           </div>
           {showSystemDiagnostics && data.seedHealth ? (
             <div className="mt-4">
@@ -183,7 +191,10 @@ export function BinderPage() {
       </section>
 
       {createDocumentOpen ? (
-        <form className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={submitCreateDocument}>
+        <form
+          className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+          onSubmit={submitCreateDocument}
+        >
           <label>
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Document title
@@ -208,7 +219,10 @@ export function BinderPage() {
       ) : null}
 
       {notice ? (
-        <div className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground" role="status">
+        <div
+          className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground"
+          role="status"
+        >
           {notice}
         </div>
       ) : null}
@@ -241,7 +255,11 @@ export function BinderPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {document.lesson.is_preview ? <Badge variant="secondary">Preview</Badge> : null}
-                  {document.hasPrivateNote ? <Badge>Has notes</Badge> : <Badge variant="outline">New note</Badge>}
+                  {document.hasPrivateNote ? (
+                    <Badge>Has notes</Badge>
+                  ) : (
+                    <Badge variant="outline">New note</Badge>
+                  )}
                   <ChevronRight className="text-muted-foreground" />
                 </div>
               </div>
@@ -277,7 +295,9 @@ export function BinderPage() {
               </div>
               <h3 className="text-lg font-semibold tracking-tight">{document.lesson.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {document.hasPrivateNote ? "Continue your note and annotations." : "Open and create your first note."}
+                {document.hasPrivateNote
+                  ? "Continue your note and annotations."
+                  : "Open and create your first note."}
               </p>
             </Link>
           ))}
@@ -297,15 +317,7 @@ function formatPrivateNoteCardPreview(value: string | null | undefined) {
   return `Notes started: ${excerpt}`;
 }
 
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
+function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/75 bg-background/72 p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">

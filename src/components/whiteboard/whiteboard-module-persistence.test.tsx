@@ -5,7 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveQueue } from "@/lib/save-queue";
 import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
-import type { BinderWhiteboard, WhiteboardListResult, WhiteboardSaveResult, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
+import type {
+  BinderWhiteboard,
+  WhiteboardListResult,
+  WhiteboardSaveResult,
+  WhiteboardSceneData,
+} from "@/lib/whiteboards/whiteboard-types";
 import { getWhiteboardDraft } from "@/lib/whiteboards/whiteboard-drafts";
 import type { WorkspaceModuleId } from "@/types";
 
@@ -13,7 +18,11 @@ beforeEach(() => saveQueue.setAccount("user-1"));
 afterEach(() => saveQueue.setAccount(null));
 
 const storageMocks = vi.hoisted(() => ({
-  canvas: null as { board: BinderWhiteboard; onSceneChange: (scene: WhiteboardSceneData) => void; onRetireScene: (scene: WhiteboardSceneData) => void } | null,
+  canvas: null as {
+    board: BinderWhiteboard;
+    onSceneChange: (scene: WhiteboardSceneData) => void;
+    onRetireScene: (scene: WhiteboardSceneData) => void;
+  } | null,
   deferLoads: false,
   metadata: null as BinderWhiteboard[] | null,
   pendingLoads: [] as Array<{ boardId: string; resolve: (result: WhiteboardListResult) => void }>,
@@ -41,12 +50,30 @@ vi.mock("@/lib/whiteboards/whiteboard-storage", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/whiteboards/whiteboard-storage")>();
   return {
     ...actual,
-    listWhiteboards: vi.fn((scope, options) => storageMocks.metadata ? Promise.resolve({ boards: storageMocks.metadata, backend: "supabase", status: "loaded", message: "Loaded" }) : actual.listWhiteboards(scope, options)),
-    loadWhiteboard: vi.fn((scope, boardId: string) => storageMocks.deferLoads ? new Promise<WhiteboardListResult>((resolve) => storageMocks.pendingLoads.push({ boardId, resolve })) : actual.loadWhiteboard(scope, boardId)),
-    saveWhiteboard: vi.fn((board: BinderWhiteboard, options?: { expectedRevision?: number }) =>
-      new Promise<WhiteboardSaveResult>((resolve) => {
-        storageMocks.pendingSaves.push({ board, expectedRevision: options?.expectedRevision ?? 0, resolve });
-      }),
+    listWhiteboards: vi.fn((scope, options) =>
+      storageMocks.metadata
+        ? Promise.resolve({
+            boards: storageMocks.metadata,
+            backend: "supabase",
+            status: "loaded",
+            message: "Loaded",
+          })
+        : actual.listWhiteboards(scope, options),
+    ),
+    loadWhiteboard: vi.fn((scope, boardId: string) =>
+      storageMocks.deferLoads
+        ? new Promise<WhiteboardListResult>((resolve) => storageMocks.pendingLoads.push({ boardId, resolve }))
+        : actual.loadWhiteboard(scope, boardId),
+    ),
+    saveWhiteboard: vi.fn(
+      (board: BinderWhiteboard, options?: { expectedRevision?: number }) =>
+        new Promise<WhiteboardSaveResult>((resolve) => {
+          storageMocks.pendingSaves.push({
+            board,
+            expectedRevision: options?.expectedRevision ?? 0,
+            resolve,
+          });
+        }),
     ),
   };
 });
@@ -98,10 +125,7 @@ function seedBoard() {
   window.localStorage.setItem(
     "bindernotes:whiteboards:user-1:binder-1:lesson-1",
     JSON.stringify([
-      board([
-        moduleElement("lower", "desmos-graph", 1),
-        moduleElement("upper", "formula-sheet", 12),
-      ]),
+      board([moduleElement("lower", "desmos-graph", 1), moduleElement("upper", "formula-sheet", 12)]),
     ]),
   );
 }
@@ -133,10 +157,7 @@ function renderWhiteboard() {
   } as unknown as WorkspaceModuleContext;
 
   return render(
-    <WhiteboardModule
-      context={context}
-      renderModule={(moduleId) => <section>{moduleId} module</section>}
-    />,
+    <WhiteboardModule context={context} renderModule={(moduleId) => <section>{moduleId} module</section>} />,
   );
 }
 
@@ -209,7 +230,8 @@ describe("WhiteboardModule persistence ordering", () => {
   });
 
   it("keeps a pending A scene when selecting B and unmounting before autosave", async () => {
-    const a = board([]); const b = { ...board([]), id: "board-b", title: "Board B" };
+    const a = board([]);
+    const b = { ...board([]), id: "board-b", title: "Board B" };
     localStorage.setItem("bindernotes:whiteboards:user-1:binder-1:lesson-1", JSON.stringify([a, b]));
     const view = renderWhiteboard();
     await act(async () => {});
@@ -224,28 +246,44 @@ describe("WhiteboardModule persistence ordering", () => {
     act(() => callbackA({ elements: [{ id: "late-a", version: 1 }] }));
     expect(storageMocks.canvas!.board.scene.elements).toEqual([]);
     view.unmount();
-    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1600);
+    });
     expect(storageMocks.pendingSaves).toHaveLength(1);
-    expect(storageMocks.pendingSaves[0].board).toMatchObject({ id: a.id, scene: { elements: [{ id: "stroke-a" }] } });
-    expect(Object.keys(localStorage).some((key) => key.startsWith("bindernotes:whiteboard-draft:v1:"))).toBe(true);
+    expect(storageMocks.pendingSaves[0].board).toMatchObject({
+      id: a.id,
+      scene: { elements: [{ id: "stroke-a" }] },
+    });
+    expect(Object.keys(localStorage).some((key) => key.startsWith("bindernotes:whiteboard-draft:v1:"))).toBe(
+      true,
+    );
   });
 
   it("persists a retiring canvas scene to A while B remains selected", async () => {
-    const a = board([]); const b = { ...board([]), id: "board-b" };
+    const a = board([]);
+    const b = { ...board([]), id: "board-b" };
     localStorage.setItem("bindernotes:whiteboards:user-1:binder-1:lesson-1", JSON.stringify([a, b]));
-    renderWhiteboard(); await act(async () => {});
+    renderWhiteboard();
+    await act(async () => {});
     const retireA = storageMocks.canvas!.onRetireScene;
-    fireEvent.click(screen.getByTestId("whiteboard-open-board-b")); await act(async () => {});
+    fireEvent.click(screen.getByTestId("whiteboard-open-board-b"));
+    await act(async () => {});
     act(() => retireA({ elements: [{ id: "last-stroke-a", version: 1 }] }));
     expect(storageMocks.canvas!.board.id).toBe("board-b");
     expect(storageMocks.canvas!.board.scene.elements).toEqual([]);
-    expect(getWhiteboardDraft(a).getSnapshot().snapshot.scene.elements).toEqual([{ id: "last-stroke-a", version: 1 }]);
+    expect(getWhiteboardDraft(a).getSnapshot().snapshot.scene.elements).toEqual([
+      { id: "last-stroke-a", version: 1 },
+    ]);
   });
 
   it("retains the canvas instance when resizing or toggling the sidebar", async () => {
-    seedBoard(); renderWhiteboard(); await act(async () => {});
+    seedBoard();
+    renderWhiteboard();
+    await act(async () => {});
     const canvas = screen.getByTestId("whiteboard-excalidraw-host");
-    fireEvent.keyDown(screen.getByRole("separator", { name: "Resize whiteboard sidebar" }), { key: "ArrowRight" });
+    fireEvent.keyDown(screen.getByRole("separator", { name: "Resize whiteboard sidebar" }), {
+      key: "ArrowRight",
+    });
     expect(screen.getByTestId("whiteboard-excalidraw-host")).toBe(canvas);
     fireEvent.click(screen.getByRole("button", { name: "Shrink whiteboard sidebar" }));
     expect(screen.getByTestId("whiteboard-excalidraw-host")).toBe(canvas);
@@ -254,22 +292,40 @@ describe("WhiteboardModule persistence ordering", () => {
   });
 
   it("rejects late board loads after a newer selection", async () => {
-    const a = board([]); const b = { ...board([]), id: "board-b" };
+    const a = board([]);
+    const b = { ...board([]), id: "board-b" };
     localStorage.setItem("bindernotes:whiteboards:user-1:binder-1:lesson-1", JSON.stringify([a, b]));
-    renderWhiteboard(); await act(async () => {});
+    renderWhiteboard();
+    await act(async () => {});
     storageMocks.deferLoads = true;
     fireEvent.click(screen.getByTestId(`whiteboard-open-${a.id}`));
     fireEvent.click(screen.getByTestId("whiteboard-open-board-b"));
     await act(async () => {
-      storageMocks.pendingLoads[1].resolve({ boards: [b], backend: "supabase", status: "loaded", message: "Loaded" });
-      storageMocks.pendingLoads[0].resolve({ boards: [a], backend: "supabase", status: "loaded", message: "Loaded" });
+      storageMocks.pendingLoads[1].resolve({
+        boards: [b],
+        backend: "supabase",
+        status: "loaded",
+        message: "Loaded",
+      });
+      storageMocks.pendingLoads[0].resolve({
+        boards: [a],
+        backend: "supabase",
+        status: "loaded",
+        message: "Loaded",
+      });
     });
     expect(storageMocks.canvas!.board.id).toBe("board-b");
   });
 
   it("hydrates only the selected metadata row and rejects a late first-board scene", async () => {
-    const a = board([]); const b = { ...board([]), id: "board-b", title: "Board B", scene: { elements: [{ id: "saved-b" }] } };
-    storageMocks.metadata = [a, b].map((item) => ({ ...item, metadataOnly: true, scene: { elements: [] }, modules: [] }));
+    const a = board([]);
+    const b = { ...board([]), id: "board-b", title: "Board B", scene: { elements: [{ id: "saved-b" }] } };
+    storageMocks.metadata = [a, b].map((item) => ({
+      ...item,
+      metadataOnly: true,
+      scene: { elements: [] },
+      modules: [],
+    }));
     storageMocks.deferLoads = true;
     renderWhiteboard();
     await waitFor(() => expect(storageMocks.pendingLoads).toHaveLength(1));
@@ -277,25 +333,55 @@ describe("WhiteboardModule persistence ordering", () => {
     expect(storageMocks.pendingSaves).toHaveLength(0);
     fireEvent.click(screen.getByTestId("whiteboard-open-board-b"));
     await act(async () => {
-      storageMocks.pendingLoads[1].resolve({ boards: [b], backend: "supabase", status: "loaded", message: "Loaded" });
-      storageMocks.pendingLoads[0].resolve({ boards: [a], backend: "supabase", status: "loaded", message: "Loaded" });
+      storageMocks.pendingLoads[1].resolve({
+        boards: [b],
+        backend: "supabase",
+        status: "loaded",
+        message: "Loaded",
+      });
+      storageMocks.pendingLoads[0].resolve({
+        boards: [a],
+        backend: "supabase",
+        status: "loaded",
+        message: "Loaded",
+      });
     });
-    expect(storageMocks.canvas!.board).toMatchObject({ id: "board-b", scene: { elements: [{ id: "saved-b" }] } });
+    expect(storageMocks.canvas!.board).toMatchObject({
+      id: "board-b",
+      scene: { elements: [{ id: "saved-b" }] },
+    });
     expect(storageMocks.canvas!.board.metadataOnly).not.toBe(true);
     expect(storageMocks.pendingSaves).toHaveLength(0);
   });
 
   it("offers an explicit remote choice after conflict and remounts the canvas", async () => {
-    const a = board([]); localStorage.setItem("bindernotes:whiteboards:user-1:binder-1:lesson-1", JSON.stringify([a]));
-    renderWhiteboard(); await act(async () => {});
+    const a = board([]);
+    localStorage.setItem("bindernotes:whiteboards:user-1:binder-1:lesson-1", JSON.stringify([a]));
+    renderWhiteboard();
+    await act(async () => {});
     act(() => storageMocks.canvas!.onSceneChange({ elements: [{ id: "my-draft", version: 1 }] }));
     fireEvent.click(screen.getByRole("button", { name: "Save whiteboard now" }));
-    await act(async () => storageMocks.pendingSaves[0].resolve({ board: a, backend: "supabase", status: "conflict", message: "Conflict", savedAt: "now" }));
+    await act(async () =>
+      storageMocks.pendingSaves[0].resolve({
+        board: a,
+        backend: "supabase",
+        status: "conflict",
+        message: "Conflict",
+        savedAt: "now",
+      }),
+    );
     expect(screen.getByRole("button", { name: "Save draft as a copy" })).toBeTruthy();
     storageMocks.deferLoads = true;
     const oldCanvas = screen.getByTestId("whiteboard-excalidraw-host");
     fireEvent.click(screen.getByRole("button", { name: "Load saved version" }));
-    await act(async () => storageMocks.pendingLoads[0].resolve({ boards: [{ ...a, revision: 5, scene: { elements: [{ id: "remote", version: 1 }] } }], backend: "supabase", status: "loaded", message: "Loaded" }));
+    await act(async () =>
+      storageMocks.pendingLoads[0].resolve({
+        boards: [{ ...a, revision: 5, scene: { elements: [{ id: "remote", version: 1 }] } }],
+        backend: "supabase",
+        status: "loaded",
+        message: "Loaded",
+      }),
+    );
     expect(storageMocks.canvas!.board.scene.elements).toEqual([{ id: "remote", version: 1 }]);
     expect(oldCanvas.isConnected).toBe(false);
     expect(screen.queryByRole("button", { name: "Load saved version" })).toBeNull();

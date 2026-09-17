@@ -48,8 +48,7 @@ function videoSrc(_id: string) {
   return "";
 }
 
-export const tutorialSeenStorageKey = (tutorialId: string) =>
-  `bindernotes:tutorial-seen:v1:${tutorialId}`;
+export const tutorialSeenStorageKey = (tutorialId: string) => `bindernotes:tutorial-seen:v1:${tutorialId}`;
 
 export const tutorials: TutorialEntry[] = [
   {
@@ -63,7 +62,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("welcome-overview"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Start at the dashboard.", "Open a binder or recent lesson.", "Use tutorials whenever a page feels new."],
+    steps: [
+      "Start at the dashboard.",
+      "Open a binder or recent lesson.",
+      "Use tutorials whenever a page feels new.",
+    ],
     transcript:
       "BinderNotes keeps your source lesson, private thinking, and study tools in one calm workspace. Start at the dashboard, open a binder, choose the view that fits the task, and use tutorials any time you want a quick reset.",
   },
@@ -80,7 +83,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("learner-dashboard"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Use folders to group binders.", "Open recent work to continue.", "Use Tutorial when a page is unfamiliar."],
+    steps: [
+      "Use folders to group binders.",
+      "Open recent work to continue.",
+      "Use Tutorial when a page is unfamiliar.",
+    ],
     transcript:
       "The dashboard is home base. Open folders, jump into binders, continue recent work, and return to tutorials when you need help. The first click is usually the binder or lesson you were already studying.",
   },
@@ -92,12 +99,17 @@ export const tutorials: TutorialEntry[] = [
     routePatterns: ["/dashboard"],
     promptRoutePatterns: ["/dashboard"],
     tags: ["admin dashboard", "admin ui", "dashboard makeover", "folders", "binder management"],
-    summary: "Understand the admin version of the dashboard, including admin-only controls and management views.",
+    summary:
+      "Understand the admin version of the dashboard, including admin-only controls and management views.",
     duration: "",
     videoSrc: videoSrc("admin-dashboard"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Open Dashboard as an admin.", "Use the admin-specific dashboard controls.", "Jump into Admin Studio when content needs editing."],
+    steps: [
+      "Open Dashboard as an admin.",
+      "Use the admin-specific dashboard controls.",
+      "Jump into Admin Studio when content needs editing.",
+    ],
     transcript:
       "Admins see a different dashboard experience from learners. Use the admin dashboard to review binder organization, management signals, and admin-only shortcuts before moving into Admin Studio for content work.",
   },
@@ -113,7 +125,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("binder-folders"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Open a folder from Dashboard.", "Pick the binder you need.", "Return to Dashboard when switching subjects."],
+    steps: [
+      "Open a folder from Dashboard.",
+      "Pick the binder you need.",
+      "Return to Dashboard when switching subjects.",
+    ],
     transcript:
       "Folders collect related binders so subjects stay clean. Open a folder, choose a binder, and move into the lesson workspace when you are ready to study.",
   },
@@ -129,7 +145,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("binder-reader-workspace"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Read the source lesson first.", "Choose Simple, Split Study, or Canvas.", "Open tools only when they help."],
+    steps: [
+      "Read the source lesson first.",
+      "Choose Simple, Split Study, or Canvas.",
+      "Open tools only when they help.",
+    ],
     transcript:
       "The binder reader puts the source lesson at the center. Choose a calmer reading mode, Split Study for notes beside the source, or Canvas when you need movable tools.",
   },
@@ -144,7 +164,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("split-study"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Choose Split Study.", "Read the source on the left.", "Write your explanation on the notes side."],
+    steps: [
+      "Choose Split Study.",
+      "Read the source on the left.",
+      "Write your explanation on the notes side.",
+    ],
     transcript:
       "Split Study is the clean two-panel view. Keep the lesson on one side, type your private explanation on the other, and let notes autosave while you work.",
   },
@@ -159,7 +183,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("canvas-workspace-presets"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Open workspace settings.", "Choose a preset.", "Use Fit or Tidy only when you want the layout rebuilt."],
+    steps: [
+      "Open workspace settings.",
+      "Choose a preset.",
+      "Use Fit or Tidy only when you want the layout rebuilt.",
+    ],
     transcript:
       "Presets are starting points. Canvas gives movable modules, Fit brings the current layout into view, and Tidy rebuilds a clean preset only when you ask for it.",
   },
@@ -174,7 +202,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("edit-layout"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Click Edit Layout.", "Drag or resize one module.", "Save, Cancel, or Reset to preset intentionally."],
+    steps: [
+      "Click Edit Layout.",
+      "Drag or resize one module.",
+      "Save, Cancel, or Reset to preset intentionally.",
+    ],
     transcript:
       "Edit Layout unlocks the workspace. Move one module at a time, resize it until it fits, then save. Cancel restores the old layout. Reset to preset only runs when you click it.",
   },
@@ -189,7 +221,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("private-notes"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Click into Private Notes.", "Write the idea in your own words.", "Use Save now if you want an immediate save."],
+    steps: [
+      "Click into Private Notes.",
+      "Write the idea in your own words.",
+      "Use Save now if you want an immediate save.",
+    ],
     transcript:
       "Private Notes are yours. Type your explanation, let autosave work in the background, and come back later to the same note for the same lesson.",
   },
@@ -204,7 +240,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("notebook-focus"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Open the binder notebook module.", "Scan lesson notes together.", "Jump back to the lesson that needs work."],
+    steps: [
+      "Open the binder notebook module.",
+      "Scan lesson notes together.",
+      "Jump back to the lesson that needs work.",
+    ],
     transcript:
       "Notebook focus collects your thinking across the binder. Use it to review what you wrote, find gaps, and return to a lesson when a note needs more work.",
   },
@@ -219,7 +259,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("settings-search"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Open Settings.", "Search words like snap, graph, header, mobile, or color.", "Expand only the folder you need."],
+    steps: [
+      "Open Settings.",
+      "Search words like snap, graph, header, mobile, or color.",
+      "Expand only the folder you need.",
+    ],
     transcript:
       "Settings search is the fastest path. Search for snap, graph, header, mobile, color, or fit, then adjust the exact control without scanning the whole menu.",
   },
@@ -258,14 +302,23 @@ export const tutorials: TutorialEntry[] = [
     id: "desmos-graph",
     title: "Desmos Graph Module",
     category: "Math",
-    routePatterns: ["/math/lab", "/math/modules/:moduleSlug", "/binders/:binderId/documents/:lessonId", "/math/lab/whiteboard"],
+    routePatterns: [
+      "/math/lab",
+      "/math/modules/:moduleSlug",
+      "/binders/:binderId/documents/:lessonId",
+      "/math/lab/whiteboard",
+    ],
     tags: ["desmos", "graph", "2d", "3d", "math graph lab"],
     summary: "Use the live graph module for expressions, graph states, and math exploration.",
     duration: "",
     videoSrc: videoSrc("desmos-graph"),
     posterSrc,
     relatedFeatureLink: "/math/lab",
-    steps: ["Mount the graph.", "Switch 2D or 3D when available.", "Save graph states when you need them later."],
+    steps: [
+      "Mount the graph.",
+      "Switch 2D or 3D when available.",
+      "Save graph states when you need them later.",
+    ],
     transcript:
       "The Desmos graph module is live when opened. Mount it, switch graph mode if needed, send expressions from math tools, and save graph states for later review.",
   },
@@ -295,7 +348,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("formula-sheet"),
     posterSrc,
     relatedFeatureLink: "/math/lab",
-    steps: ["Open a math preset.", "Keep formulas near the graph or lesson.", "Collapse the sheet when it is not needed."],
+    steps: [
+      "Open a math preset.",
+      "Keep formulas near the graph or lesson.",
+      "Collapse the sheet when it is not needed.",
+    ],
     transcript:
       "Formula Sheet is a reference surface. Keep important equations close to the lesson or graph, then collapse it when you want more writing room.",
   },
@@ -326,7 +383,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("math-labs-overview"),
     posterSrc,
     relatedFeatureLink: "/math/lab",
-    steps: ["Open Math lab.", "Choose graphing, modules, questions, or whiteboard.", "Use the tool that matches the work."],
+    steps: [
+      "Open Math lab.",
+      "Choose graphing, modules, questions, or whiteboard.",
+      "Use the tool that matches the work.",
+    ],
     transcript:
       "Math Labs collects graphing, calculator work, guided modules, question banks, quizzes, and the whiteboard lab. Start with the tool that matches the problem in front of you.",
   },
@@ -344,14 +405,24 @@ export const tutorials: TutorialEntry[] = [
       "/math/quizzes/:quizId/attempt",
       "/math/quizzes/:quizId/results/:attemptId",
     ],
-    promptRoutePatterns: ["/math/courses/:courseSlug", "/math/modules", "/math/modules/:moduleSlug", "/math/questions", "/math/quizzes/:quizId"],
+    promptRoutePatterns: [
+      "/math/courses/:courseSlug",
+      "/math/modules",
+      "/math/modules/:moduleSlug",
+      "/math/questions",
+      "/math/quizzes/:quizId",
+    ],
     tags: ["courses", "modules", "questions", "quizzes", "practice"],
     summary: "Navigate the structured math learning flow from modules to practice.",
     duration: "",
     videoSrc: videoSrc("math-courses-modules-quizzes"),
     posterSrc,
     relatedFeatureLink: "/math/modules",
-    steps: ["Open a math course or module.", "Use questions for practice.", "Review quiz results to choose what to study next."],
+    steps: [
+      "Open a math course or module.",
+      "Use questions for practice.",
+      "Review quiz results to choose what to study next.",
+    ],
     transcript:
       "The structured math area moves from courses to modules, questions, quizzes, and results. Use modules to learn, questions to practice, and results to decide what needs another pass.",
   },
@@ -366,7 +437,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("math-graph-lab"),
     posterSrc,
     relatedFeatureLink: "/math/lab",
-    steps: ["Choose Math Graph Lab.", "Keep the graph dominant.", "Use formulas and notes as support panels."],
+    steps: [
+      "Choose Math Graph Lab.",
+      "Keep the graph dominant.",
+      "Use formulas and notes as support panels.",
+    ],
     transcript:
       "Math Graph Lab makes the graph the main surface. Keep formulas and notes close, then use the graph to test behavior while the lesson stays nearby.",
   },
@@ -381,7 +456,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("math-guided-study"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Choose Math Guided Study.", "Read the lesson and worked blocks.", "Use graph support only when it clarifies the concept."],
+    steps: [
+      "Choose Math Guided Study.",
+      "Read the lesson and worked blocks.",
+      "Use graph support only when it clarifies the concept.",
+    ],
     transcript:
       "Math Guided Study keeps the lesson, notes, worked math blocks, and graph support in a calmer learning order so you can understand before you explore.",
   },
@@ -396,7 +475,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("math-practice-mode"),
     posterSrc,
     relatedFeatureLink: "/math/lab/whiteboard",
-    steps: ["Choose Math Practice Mode.", "Use the whiteboard for scratch work.", "Keep formulas and notes nearby."],
+    steps: [
+      "Choose Math Practice Mode.",
+      "Use the whiteboard for scratch work.",
+      "Keep formulas and notes nearby.",
+    ],
     transcript:
       "Math Practice Mode gives scratch work real space. Use the whiteboard to solve, keep formulas nearby, and bring graph or calculator tools in only when the problem calls for them.",
   },
@@ -411,7 +494,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("history-guided"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Choose History Guided.", "Read the source.", "Connect timeline events and evidence to your notes."],
+    steps: [
+      "Choose History Guided.",
+      "Read the source.",
+      "Connect timeline events and evidence to your notes.",
+    ],
     transcript:
       "History Guided keeps source, timeline, evidence, and notes in a calm loop. Read the source, anchor the moment in time, and collect evidence before writing an argument.",
   },
@@ -456,7 +543,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("history-argument-builder"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Choose Argument Builder.", "Draft the thesis.", "Attach evidence before polishing the conclusion."],
+    steps: [
+      "Choose Argument Builder.",
+      "Draft the thesis.",
+      "Attach evidence before polishing the conclusion.",
+    ],
     transcript:
       "Argument Builder turns historical evidence into writing. Start with a thesis, add context and counterargument, cite evidence, and finish with a conclusion that answers the prompt.",
   },
@@ -471,7 +562,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("history-full-studio"),
     posterSrc,
     relatedFeatureLink: "/dashboard",
-    steps: ["Choose History Full Studio.", "Keep source and timeline visible.", "Use evidence and argument panels together."],
+    steps: [
+      "Choose History Full Studio.",
+      "Keep source and timeline visible.",
+      "Use evidence and argument panels together.",
+    ],
     transcript:
       "History Full Studio is the advanced layout. Source, timeline, evidence, and argument stay visible so you can move from reading to proof to writing without losing context.",
   },
@@ -517,7 +612,11 @@ export const tutorials: TutorialEntry[] = [
     videoSrc: videoSrc("admin-preview-publish-diagnostics"),
     posterSrc,
     relatedFeatureLink: "/admin",
-    steps: ["Use Preview before publishing.", "Check Publish status.", "Open Diagnostics when a binder needs cleanup."],
+    steps: [
+      "Use Preview before publishing.",
+      "Check Publish status.",
+      "Open Diagnostics when a binder needs cleanup.",
+    ],
     transcript:
       "Preview shows how content will feel to learners. Publish controls release state. Diagnostics surfaces content or workspace problems before students hit them.",
   },
@@ -586,10 +685,7 @@ export function searchTutorials(
   });
 }
 
-export function mergeTutorialLibraries(
-  baseTutorials: TutorialEntry[],
-  uploadedTutorials: TutorialEntry[],
-) {
+export function mergeTutorialLibraries(baseTutorials: TutorialEntry[], uploadedTutorials: TutorialEntry[]) {
   const byId = new Map<string, TutorialEntry>();
   baseTutorials.forEach((tutorial) => byId.set(tutorial.id, tutorial));
   uploadedTutorials.forEach((tutorial) => byId.set(tutorial.id, tutorial));
@@ -627,7 +723,9 @@ export function routePatternMatchesPathname(pattern: string, pathname: string) {
     return false;
   }
 
-  return patternSegments.every((segment, index) => segment.startsWith(":") || segment === pathSegments[index]);
+  return patternSegments.every(
+    (segment, index) => segment.startsWith(":") || segment === pathSegments[index],
+  );
 }
 
 function stripTrailingSlash(value: string) {

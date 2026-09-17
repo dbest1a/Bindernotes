@@ -9,7 +9,11 @@ import {
   mathSeedTopics,
 } from "@/lib/math-learning-seeds";
 import { scoreQuestion, type SubmittedQuestionAnswer } from "@/lib/question-scoring";
-import { savedQuestionAttemptSchema, savedQuizAttemptSchema, snapshotQuestion } from "@/services/quiz-attempt-results-service";
+import {
+  savedQuestionAttemptSchema,
+  savedQuizAttemptSchema,
+  snapshotQuestion,
+} from "@/services/quiz-attempt-results-service";
 import type {
   CalculatorMode,
   MathCourse,
@@ -128,15 +132,10 @@ export async function getMathCourseBundle(courseSlug: string): Promise<MathCours
 
 export async function listMathTopics(courseId?: string): Promise<MathTopic[]> {
   if (!supabase) {
-    return mathSeedTopics
-      .filter((topic) => !courseId || topic.course_id === courseId)
-      .sort(byOrder);
+    return mathSeedTopics.filter((topic) => !courseId || topic.course_id === courseId).sort(byOrder);
   }
 
-  let query = supabase
-    .from("math_topics")
-    .select("*")
-    .order("order_index", { ascending: true });
+  let query = supabase.from("math_topics").select("*").order("order_index", { ascending: true });
 
   if (courseId) {
     query = query.eq("course_id", courseId);
@@ -145,9 +144,7 @@ export async function listMathTopics(courseId?: string): Promise<MathTopic[]> {
   const { data, error } = await query;
   if (error) {
     console.warn("Falling back to bundled math topics.", error.message);
-    return mathSeedTopics
-      .filter((topic) => !courseId || topic.course_id === courseId)
-      .sort(byOrder);
+    return mathSeedTopics.filter((topic) => !courseId || topic.course_id === courseId).sort(byOrder);
   }
 
   return (data ?? []) as MathTopic[];
@@ -284,7 +281,8 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
     calculator_mode: input.calculatorMode,
     title: input.title,
     desmos_state: input.desmosState,
-    expressions: input.expressions?.map(({ id, latex }) => ({ ...(id === undefined ? {} : { id }), latex })) ?? null,
+    expressions:
+      input.expressions?.map(({ id, latex }) => ({ ...(id === undefined ? {} : { id }), latex })) ?? null,
     thumbnail_url: null,
     created_at: now,
     updated_at: now,
@@ -301,7 +299,10 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
 
   const { data, error } = await supabase
     .from("math_graph_states")
-    .upsert({ ...row, desmos_state: databaseJson(row.desmos_state), expressions: databaseJson(row.expressions) }, { onConflict: "id" })
+    .upsert(
+      { ...row, desmos_state: databaseJson(row.desmos_state), expressions: databaseJson(row.expressions) },
+      { onConflict: "id" },
+    )
     .select("*")
     .single();
 
@@ -314,10 +315,10 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
 
 export async function listQuestions(filters: QuestionFilters = {}): Promise<QuestionBankItem[]> {
   if (!supabase) {
-    return attachChoices([...mathSeedQuestions, ...loadLocalState().questions], [
-      ...mathSeedChoices,
-      ...loadLocalState().choices,
-    ]).filter((question) => questionMatchesFilters(question, filters));
+    return attachChoices(
+      [...mathSeedQuestions, ...loadLocalState().questions],
+      [...mathSeedChoices, ...loadLocalState().choices],
+    ).filter((question) => questionMatchesFilters(question, filters));
   }
 
   let query = supabase.from("question_bank").select("*, question_choices(*)");
@@ -389,10 +390,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     saveLocalState({
       ...local,
       questions: [questionRow, ...local.questions.filter((question) => question.id !== id)],
-      choices: [
-        ...choices,
-        ...local.choices.filter((choice) => choice.question_id !== id),
-      ],
+      choices: [...choices, ...local.choices.filter((choice) => choice.question_id !== id)],
     });
     return { ...questionRow, choices };
   }
@@ -407,10 +405,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     throw new Error(`Could not save question: ${error.message}`);
   }
 
-  const { error: deleteError } = await supabase
-    .from("question_choices")
-    .delete()
-    .eq("question_id", id);
+  const { error: deleteError } = await supabase.from("question_choices").delete().eq("question_id", id);
   if (deleteError) {
     throw new Error(`Could not replace question choices: ${deleteError.message}`);
   }
@@ -501,18 +496,14 @@ export async function getQuizSet(quizId: string): Promise<QuizSet | null> {
       .filter((link) => link.quiz_set_id === quizId)
       .sort((left, right) => left.order_index - right.order_index)
       .map((link) => link.question_id);
-    const questions = attachChoices([...mathSeedQuestions, ...local.questions], [
-      ...mathSeedChoices,
-      ...local.choices,
-    ]).filter((question) => questionIds.includes(question.id));
+    const questions = attachChoices(
+      [...mathSeedQuestions, ...local.questions],
+      [...mathSeedChoices, ...local.choices],
+    ).filter((question) => questionIds.includes(question.id));
     return { ...quiz, questions };
   }
 
-  const { data, error } = await supabase
-    .from("quiz_sets")
-    .select("*")
-    .eq("id", quizId)
-    .maybeSingle();
+  const { data, error } = await supabase.from("quiz_sets").select("*").eq("id", quizId).maybeSingle();
 
   if (error) {
     throw new Error(`Could not load quiz: ${error.message}`);
@@ -583,10 +574,18 @@ export async function submitQuestionAttempt(input: {
     quiz_attempt_id: input.attemptId,
     question_id: input.question.id,
     user_id: input.userId,
-    submitted_answer_json: databaseJson(Object.fromEntries(Object.entries(input.answer).filter(([, value]) => value !== undefined))),
+    submitted_answer_json: databaseJson(
+      Object.fromEntries(Object.entries(input.answer).filter(([, value]) => value !== undefined)),
+    ),
     is_correct: score.isCorrect,
     points_awarded: score.pointsAwarded,
-    feedback_json: databaseJson({ message: score.feedback.message, ...(score.feedback.expected === undefined ? {} : { expected: score.feedback.expected }), totalPoints: score.totalPoints, autoGraded: score.autoGraded, questionSnapshot: snapshotQuestion(input.question) }),
+    feedback_json: databaseJson({
+      message: score.feedback.message,
+      ...(score.feedback.expected === undefined ? {} : { expected: score.feedback.expected }),
+      totalPoints: score.totalPoints,
+      autoGraded: score.autoGraded,
+      questionSnapshot: snapshotQuestion(input.question),
+    }),
     created_at: new Date().toISOString(),
   };
 
@@ -610,13 +609,23 @@ export async function completeQuizAttempt(input: {
   scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
 }): Promise<QuizAttempt> {
   if (!supabase) throw new Error("Account storage is unavailable. Your quiz result was not saved.");
-  if (input.scores.some((item) => !Number.isFinite(item.totalPoints) || item.totalPoints < 0
-    || (item.pointsAwarded !== null && (!Number.isFinite(item.pointsAwarded) || item.pointsAwarded < 0 || item.pointsAwarded > item.totalPoints)))) {
+  if (
+    input.scores.some(
+      (item) =>
+        !Number.isFinite(item.totalPoints) ||
+        item.totalPoints < 0 ||
+        (item.pointsAwarded !== null &&
+          (!Number.isFinite(item.pointsAwarded) ||
+            item.pointsAwarded < 0 ||
+            item.pointsAwarded > item.totalPoints)),
+    )
+  ) {
     throw new Error("The quiz contains invalid scoring data and could not be completed.");
   }
   const score = input.scores.reduce((sum, item) => sum + (item.pointsAwarded ?? 0), 0);
   const totalPoints = input.scores.reduce((sum, item) => sum + item.totalPoints, 0);
-  if (!Number.isFinite(score) || !Number.isFinite(totalPoints)) throw new Error("The quiz score is outside the supported numeric range.");
+  if (!Number.isFinite(score) || !Number.isFinite(totalPoints))
+    throw new Error("The quiz score is outside the supported numeric range.");
   const completedAt = new Date().toISOString();
 
   const { data, error } = await supabase

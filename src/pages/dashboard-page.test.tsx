@@ -4,7 +4,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, Profile, WorkspaceDiagnostic } from "@/types";
+import type {
+  Binder,
+  BinderLesson,
+  DashboardData,
+  Folder,
+  FolderBinderLink,
+  Profile,
+  WorkspaceDiagnostic,
+} from "@/types";
 
 const mocks = vi.hoisted(() => {
   const profile: Profile = {
@@ -162,7 +170,9 @@ vi.mock("@dnd-kit/core", () => ({
     dndMocks.lastDndContextProps = props;
     return <div data-testid="admin-dnd-context">{props.children}</div>;
   },
-  DragOverlay: ({ children }: { children: ReactNode }) => <div data-testid="admin-drag-overlay">{children}</div>,
+  DragOverlay: ({ children }: { children: ReactNode }) => (
+    <div data-testid="admin-drag-overlay">{children}</div>
+  ),
   KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
   useDroppable: dndMocks.useDroppable,
@@ -171,7 +181,9 @@ vi.mock("@dnd-kit/core", () => ({
 }));
 
 vi.mock("@dnd-kit/sortable", () => ({
-  SortableContext: ({ children }: { children: ReactNode }) => <div data-testid="admin-sortable-context">{children}</div>,
+  SortableContext: ({ children }: { children: ReactNode }) => (
+    <div data-testid="admin-sortable-context">{children}</div>
+  ),
   rectSortingStrategy: vi.fn(),
   sortableKeyboardCoordinates: vi.fn(),
   useSortable: dndMocks.useSortable,
@@ -457,10 +469,7 @@ describe("DashboardPage", () => {
   });
 
   it("renders Minimal as a compact workspace view with core student actions still visible", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -468,9 +477,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "minimal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("minimal");
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("drive");
     expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
     expect(screen.getByTestId("minimal-dashboard-command-bar")).toBeTruthy();
@@ -495,10 +502,7 @@ describe("DashboardPage", () => {
   });
 
   it("keeps the saved Minimal dashboard shell while workspace data is loading", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
     mocks.dashboardState.isLoading = true;
 
     render(
@@ -507,9 +511,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "minimal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("minimal");
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("drive");
     expect(screen.getByTestId("minimal-dashboard-command-bar")).toBeTruthy();
     expect(screen.getByTestId("minimal-dashboard-filebar")).toBeTruthy();
@@ -526,9 +528,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "normal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("normal");
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("visual");
     expect(screen.getByTestId("normal-dashboard-command-bar")).toBeTruthy();
     expect(screen.getByTestId("normal-dashboard-filebar")).toBeTruthy();
@@ -551,19 +551,14 @@ describe("DashboardPage", () => {
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
       "admin-makeover",
     );
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe(
-      "makeover",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("makeover");
     expect(screen.getByTestId("admin-makeover-dashboard-command-bar")).toBeTruthy();
     expect(screen.getByTestId("admin-makeover-dashboard-filebar")).toBeTruthy();
     expect(screen.queryByText("A real study hierarchy: folders, binders, then documents.")).toBeNull();
   });
 
   it("keeps Minimal folder, binder, and document links usable", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -579,10 +574,7 @@ describe("DashboardPage", () => {
   });
 
   it("lets the Minimal Browse menu change the visible workspace scope", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -601,10 +593,7 @@ describe("DashboardPage", () => {
   });
 
   it("makes the Minimal View menu change density and sort order", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -626,10 +615,7 @@ describe("DashboardPage", () => {
   });
 
   it("lets the Minimal View menu use the full browser width", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -651,10 +637,7 @@ describe("DashboardPage", () => {
   });
 
   it("auto-dismisses Minimal dashboard notices after ten seconds", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -677,10 +660,7 @@ describe("DashboardPage", () => {
   });
 
   it("keeps the Minimal full-width View setting after the dashboard remounts", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     const { unmount } = render(
       <MemoryRouter>
@@ -705,10 +685,7 @@ describe("DashboardPage", () => {
   });
 
   it("lets the Minimal View menu hide and restore Recent Documents", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -727,15 +704,14 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "View" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /show recent documents/i }));
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-minimal-recent-documents")).toBe("visible");
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-minimal-recent-documents")).toBe(
+      "visible",
+    );
     expect(screen.getByTestId("minimal-document-list")).toBeTruthy();
   });
 
   it("uses the Minimal Open menu as a quick-open launcher", () => {
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -768,9 +744,7 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Minimal" }));
 
     expect(await screen.findByTestId("dashboard-page")).toBeTruthy();
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "minimal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("minimal");
   });
 
   it("keeps learners on the normal dashboard even if makeover preference exists", () => {
@@ -793,10 +767,7 @@ describe("DashboardPage", () => {
 
   it("keeps learners on the normal dashboard even if Minimal preference exists", () => {
     mocks.profile.role = "learner";
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -805,9 +776,7 @@ describe("DashboardPage", () => {
     );
 
     expect(screen.queryByTestId("admin-dashboard-makeover")).toBeNull();
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "normal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("normal");
   });
 
   it("renders Normal as a workspace dashboard with Browse, Open, and View controls", () => {
@@ -817,9 +786,7 @@ describe("DashboardPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe(
-      "normal",
-    );
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-appearance")).toBe("normal");
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-layout")).toBe("visual");
     expect(screen.getByTestId("normal-folder-card").className).toContain("dashboard-life-card");
     expect(screen.getByTestId("normal-dashboard-command-bar")).toBeTruthy();
@@ -852,7 +819,10 @@ describe("DashboardPage", () => {
         lesson_id: "lesson-real",
         folder_id: "folder-real",
         title: "Founding Myth notes",
-        content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Review Alba Longa." }] }] },
+        content: {
+          type: "doc",
+          content: [{ type: "paragraph", content: [{ type: "text", text: "Review Alba Longa." }] }],
+        },
         math_blocks: [],
         pinned: false,
         created_at: new Date(0).toISOString(),
@@ -880,10 +850,7 @@ describe("DashboardPage", () => {
 
   it("keeps the beta Continue Studying shelf compact in Minimal Drive mode", () => {
     window.localStorage.setItem("bindernotes:beta-features:user-1", JSON.stringify({ enabled: true }));
-    window.localStorage.setItem(
-      "binder-notes:admin-dashboard-view",
-      JSON.stringify({ viewMode: "minimal" }),
-    );
+    window.localStorage.setItem("binder-notes:admin-dashboard-view", JSON.stringify({ viewMode: "minimal" }));
 
     render(
       <MemoryRouter>
@@ -892,9 +859,9 @@ describe("DashboardPage", () => {
     );
 
     expect(screen.getByTestId("minimal-dashboard-continue-shelf")).toBeTruthy();
-    expect(screen.getByTestId("minimal-dashboard-continue-shelf").getAttribute("data-dashboard-continue-density")).toBe(
-      "compact",
-    );
+    expect(
+      screen.getByTestId("minimal-dashboard-continue-shelf").getAttribute("data-dashboard-continue-density"),
+    ).toBe("compact");
     expect(screen.getAllByTestId("minimal-document-health-badge").length).toBeGreaterThan(0);
   });
 
@@ -985,7 +952,9 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "View" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /hide recent documents/i }));
 
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-recent-documents")).toBe("hidden");
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-recent-documents")).toBe(
+      "hidden",
+    );
     expect(screen.queryByTestId("normal-document-list")).toBeNull();
 
     unmount();
@@ -997,7 +966,9 @@ describe("DashboardPage", () => {
     );
 
     expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-width")).toBe("full");
-    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-recent-documents")).toBe("hidden");
+    expect(screen.getByTestId("dashboard-page").getAttribute("data-dashboard-recent-documents")).toBe(
+      "hidden",
+    );
   });
 
   it("keeps folders visible when searching by lesson title inside the folder", async () => {

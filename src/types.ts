@@ -695,15 +695,7 @@ export type AppTheme = WorkspaceThemeId;
 export type StudySurface = SimplePresentationTheme;
 export type AppearanceMotion = "full" | "reduced" | "minimal";
 export type AccentColor =
-  | "teal"
-  | "blue"
-  | "indigo"
-  | "violet"
-  | "rose"
-  | "amber"
-  | "emerald"
-  | "graphite"
-  | "custom";
+  "teal" | "blue" | "indigo" | "violet" | "rose" | "amber" | "emerald" | "graphite" | "custom";
 
 export type AppearanceCustomPalette = {
   primary: string;
@@ -895,14 +887,7 @@ export type SaveEntityType =
   | "history_argument"
   | "myth_check";
 
-export type SaveStatusState =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "offline"
-  | "retrying"
-  | "failed"
-  | "conflict";
+export type SaveStatusState = "idle" | "saving" | "saved" | "offline" | "retrying" | "failed" | "conflict";
 
 export type SaveStatusSnapshot = {
   state: SaveStatusState;
@@ -915,11 +900,7 @@ export type HistoryDateEra = "bce" | "ce";
 export type HistoryDatePrecision = "year" | "month" | "day" | "season" | "approximate";
 export type HistoryEvidenceStrength = "emerging" | "supported" | "strong";
 export type HistorySourceType = "primary" | "secondary";
-export type MythHistoryStatus =
-  | "myth"
-  | "oversimplification"
-  | "contested"
-  | "evidence_supported";
+export type MythHistoryStatus = "myth" | "oversimplification" | "contested" | "evidence_supported";
 export type HistoryArgumentRelationType =
   | "caused"
   | "triggered"
@@ -1036,7 +1017,8 @@ export type HistoryArgumentNode = {
   id: string;
   chain_id: string;
   owner_id: string;
-  node_type: "prompt" | "thesis" | "context" | "cause" | "effect" | "counterargument" | "conclusion" | "evidence";
+  node_type:
+    "prompt" | "thesis" | "context" | "cause" | "effect" | "counterargument" | "conclusion" | "evidence";
   title: string;
   body: string;
   sort_order: number;

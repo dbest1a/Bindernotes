@@ -73,7 +73,8 @@ export function scoreQuestion(
 
     case "step_ordering": {
       const expected = question.answer_json.correctOrder;
-      if (!isNonemptyStringArray(expected) || new Set(expected).size !== expected.length) return invalidAnswerKey(totalPoints);
+      if (!isNonemptyStringArray(expected) || new Set(expected).size !== expected.length)
+        return invalidAnswerKey(totalPoints);
       return scoreBooleanResult(
         arraysEqual(submitted.orderedStepIds ?? [], expected),
         totalPoints,
@@ -96,7 +97,8 @@ export function scoreQuestion(
             : null,
         totalPoints,
         feedback: {
-          message: "Free responses are saved for review. Completion credit is for a non-empty response, not mathematical correctness. No AI grading is used.",
+          message:
+            "Free responses are saved for review. Completion credit is for a non-empty response, not mathematical correctness. No AI grading is used.",
           expected: question.answer_json.rubric,
         },
       };
@@ -123,7 +125,8 @@ function scoreNumeric(
   totalPoints: number,
 ): QuestionScoreResult {
   const expected = parseFiniteDecimal(question.answer_json.expected);
-  const tolerance = question.answer_json.tolerance === undefined ? 0 : parseFiniteDecimal(question.answer_json.tolerance);
+  const tolerance =
+    question.answer_json.tolerance === undefined ? 0 : parseFiniteDecimal(question.answer_json.tolerance);
   if (expected === null || tolerance === null || tolerance < 0) return invalidAnswerKey(totalPoints);
   const submittedValue = parseFiniteDecimal(submitted.numeric);
 
@@ -237,7 +240,11 @@ function sameStringSet(left: string[], right: string[]) {
 }
 
 function isNonemptyStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length > 0 && value.every((item: unknown) => typeof item === "string" && item.trim().length > 0);
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item: unknown) => typeof item === "string" && item.trim().length > 0)
+  );
 }
 
 function invalidAnswerKey(totalPoints: number): QuestionScoreResult {

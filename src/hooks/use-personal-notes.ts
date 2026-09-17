@@ -17,11 +17,7 @@ import {
   savePersonalNotesPreferences,
 } from "@/lib/personal-notes";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  MathBlock,
-  PersonalNotesPreferences,
-  Profile,
-} from "@/types";
+import type { MathBlock, PersonalNotesPreferences, Profile } from "@/types";
 import type { JSONContent } from "@tiptap/react";
 
 export function usePersonalNotes(profile: Profile | null) {
@@ -216,10 +212,12 @@ export function usePersonalNotesPreferences(profile: Profile | null) {
     }
 
     const onPreferencesUpdated = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        preferences?: PersonalNotesPreferences;
-        userId?: string;
-      }>).detail;
+      const detail = (
+        event as CustomEvent<{
+          preferences?: PersonalNotesPreferences;
+          userId?: string;
+        }>
+      ).detail;
       if (detail?.userId === profile.id && detail.preferences) {
         setPreferences(detail.preferences);
       }
@@ -232,8 +230,7 @@ export function usePersonalNotesPreferences(profile: Profile | null) {
   const updatePreferences = useCallback(
     (
       updater:
-        | Partial<PersonalNotesPreferences>
-        | ((current: PersonalNotesPreferences) => PersonalNotesPreferences),
+        Partial<PersonalNotesPreferences> | ((current: PersonalNotesPreferences) => PersonalNotesPreferences),
     ) => {
       setPreferences((current) => {
         const next =

@@ -23,11 +23,7 @@ export async function getProfile(userId: string, email: string): Promise<Profile
     );
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
   if (error) {
     throw error;

@@ -41,7 +41,9 @@ describe("PricingPage", () => {
     );
 
     expect(screen.getByText("Public pricing, no login wall")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Pricing for the study workspace you actually use." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Pricing for the study workspace you actually use." }),
+    ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Free" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Plus" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Studio" })).toBeTruthy();
@@ -72,15 +74,25 @@ describe("PricingPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Is Desmos included?" }));
 
-    expect(screen.getByText("Yes. BinderNotes includes Desmos-powered graphing inside the math study flow.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Is Desmos included?" }).getAttribute("aria-expanded")).toBe("true");
+    expect(
+      screen.getByText("Yes. BinderNotes includes Desmos-powered graphing inside the math study flow."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Is Desmos included?" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
   });
 
   it("reports disabled billing honestly and reuses the checkout request on retry", async () => {
     checkout.mockRejectedValue(new Error("Paid plans are not available yet."));
-    render(<MemoryRouter><PricingPage /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <PricingPage />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Start Studio" }));
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Paid plans are not available yet."));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Paid plans are not available yet."),
+    );
     const first = checkout.mock.calls[0];
     expect(first[0]).toBe("studio");
     fireEvent.click(screen.getByRole("button", { name: "Start Studio" }));
@@ -98,7 +110,9 @@ describe("PricingPage", () => {
     );
 
     expect(screen.queryByTestId("beta-pricing-page")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Four clear paths. No maze of hidden packages." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Four clear paths. No maze of hidden packages." }),
+    ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Everything" })).toBeTruthy();
   });
 
@@ -130,7 +144,9 @@ describe("PricingPage", () => {
     );
 
     expect(screen.queryByTestId("beta-pricing-page")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Four clear paths. No maze of hidden packages." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Four clear paths. No maze of hidden packages." }),
+    ).toBeTruthy();
   });
 
   it("keeps beta pricing trust copy account-owned without demo workspace language", () => {

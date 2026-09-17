@@ -48,10 +48,14 @@ import type {
 } from "@/types";
 
 const LazyDesmosGraphModule = lazy(() =>
-  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.DesmosGraphModule })),
+  import("@/components/math/math-workspace-modules").then((module) => ({
+    default: module.DesmosGraphModule,
+  })),
 );
 const LazySavedGraphsModule = lazy(() =>
-  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.SavedGraphsModule })),
+  import("@/components/math/math-workspace-modules").then((module) => ({
+    default: module.SavedGraphsModule,
+  })),
 );
 const LazyScientificCalculatorModule = lazy(() =>
   import("@/components/math/math-workspace-modules").then((module) => ({
@@ -74,13 +78,17 @@ const LazyArgumentBuilderModule = lazy(() =>
   })),
 );
 const LazyMythHistoryModule = lazy(() =>
-  import("@/components/history/history-suite-modules").then((module) => ({ default: module.MythHistoryModule })),
+  import("@/components/history/history-suite-modules").then((module) => ({
+    default: module.MythHistoryModule,
+  })),
 );
 const LazyMathBlocks = lazy(() =>
   import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
 );
 const LazyWhiteboardModule = lazy(() =>
-  import("@/components/whiteboard/whiteboard-module").then((module) => ({ default: module.WhiteboardModule })),
+  import("@/components/whiteboard/whiteboard-module").then((module) => ({
+    default: module.WhiteboardModule,
+  })),
 );
 const LazyChemistryStoichiometryCoachModule = lazy(() =>
   import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
@@ -538,20 +546,22 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="History timeline">
           <LazyHistoryTimelineModule
-          activeEventId={context.history.activeEventId}
-          evidenceCards={context.history.evidenceCards}
-          events={context.history.events}
-          onCreateStarterEvent={context.onCreateHistoryStarterEvent}
-          onReplayTimeline={context.onReplayHistoryTimeline}
-          onSelectEvent={context.onSelectHistoryEvent}
-          status={context.history.status.timeline}
-          templateEvents={context.history.templateEvents}
+            activeEventId={context.history.activeEventId}
+            evidenceCards={context.history.evidenceCards}
+            events={context.history.events}
+            onCreateStarterEvent={context.onCreateHistoryStarterEvent}
+            onReplayTimeline={context.onReplayHistoryTimeline}
+            onSelectEvent={context.onSelectHistoryEvent}
+            status={context.history.status.timeline}
+            templateEvents={context.history.templateEvents}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="History timeline">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to use timeline study tools."}
+            description={
+              context.history.seedHealthMessage ?? "Open a history-enabled suite to use timeline study tools."
+            }
             title="Timeline unavailable"
           />
         </WorkspacePanel>
@@ -565,20 +575,22 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Source evidence">
           <LazySourceEvidenceModule
-          activeSourceId={context.history.activeSourceId}
-          evidenceCards={context.history.evidenceCards}
-          onCreateEvidenceFromActiveSource={context.onCreateHistoryEvidenceFromSource}
-          onSelectSource={context.onSelectHistorySource}
-          onUseSourceInArgument={context.onUseHistorySourceInArgument}
-          sources={context.history.sources}
-          status={context.history.status.evidence}
-          templateSources={context.history.templateSources}
+            activeSourceId={context.history.activeSourceId}
+            evidenceCards={context.history.evidenceCards}
+            onCreateEvidenceFromActiveSource={context.onCreateHistoryEvidenceFromSource}
+            onSelectSource={context.onSelectHistorySource}
+            onUseSourceInArgument={context.onUseHistorySourceInArgument}
+            sources={context.history.sources}
+            status={context.history.status.evidence}
+            templateSources={context.history.templateSources}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Source evidence">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to use evidence cards."}
+            description={
+              context.history.seedHealthMessage ?? "Open a history-enabled suite to use evidence cards."
+            }
             title="Evidence unavailable"
           />
         </WorkspacePanel>
@@ -592,26 +604,29 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Argument builder">
           <LazyArgumentBuilderModule
-          activeChain={context.history.argumentChains[0] ?? null}
-          edges={context.history.argumentEdges}
-          nodes={context.history.argumentNodes}
-          onCreateStarterChain={context.onCreateHistoryStarterChain}
-          onUpdateChain={context.onUpdateHistoryArgumentChain}
-          onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
-          starterTopic={
-            context.binder.id === "binder-rise-of-rome"
-              ? "rome"
-              : context.binder.id === "binder-russian-revolution"
-                ? "russian"
-                : "french"
-          }
-          status={context.history.status.argument}
+            activeChain={context.history.argumentChains[0] ?? null}
+            edges={context.history.argumentEdges}
+            nodes={context.history.argumentNodes}
+            onCreateStarterChain={context.onCreateHistoryStarterChain}
+            onUpdateChain={context.onUpdateHistoryArgumentChain}
+            onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
+            starterTopic={
+              context.binder.id === "binder-rise-of-rome"
+                ? "rome"
+                : context.binder.id === "binder-russian-revolution"
+                  ? "russian"
+                  : "french"
+            }
+            status={context.history.status.argument}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Argument builder">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to build historical arguments."}
+            description={
+              context.history.seedHealthMessage ??
+              "Open a history-enabled suite to build historical arguments."
+            }
             title="Argument builder unavailable"
           />
         </WorkspacePanel>
@@ -625,16 +640,19 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Myth vs history">
           <LazyMythHistoryModule
-          mythChecks={context.history.mythChecks}
-          onCreateStarterMythCheck={context.onCreateHistoryMythCheck}
-          status={context.history.status.myth}
-          templateMythChecks={context.history.templateMythChecks}
+            mythChecks={context.history.mythChecks}
+            onCreateStarterMythCheck={context.onCreateHistoryMythCheck}
+            status={context.history.status.myth}
+            templateMythChecks={context.history.templateMythChecks}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Myth vs history">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to compare myth and evidence."}
+            description={
+              context.history.seedHealthMessage ??
+              "Open a history-enabled suite to compare myth and evidence."
+            }
             title="Myth checks unavailable"
           />
         </WorkspacePanel>
@@ -674,7 +692,10 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
 
           <div className="grid gap-2">
             {context.comments.map((comment) => (
-              <article className="rounded-2xl border border-border/70 bg-card/88 p-3 shadow-sm" key={comment.id}>
+              <article
+                className="rounded-2xl border border-border/70 bg-card/88 p-3 shadow-sm"
+                key={comment.id}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-medium">
@@ -686,7 +707,9 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
                         <span className="break-words">Anchored to "{comment.anchor_text}"</span>
                       </p>
                     ) : (
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Free-floating workspace note</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Free-floating workspace note
+                      </p>
                     )}
                   </div>
                   <Badge variant={comment.anchor_text ? "default" : "secondary"}>
@@ -694,11 +717,21 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
                   </Badge>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button onClick={() => context.onSendStickyToNotes(comment)} size="sm" type="button" variant="outline">
+                  <Button
+                    onClick={() => context.onSendStickyToNotes(comment)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <Send data-icon="inline-start" />
                     Send to notes
                   </Button>
-                  <Button onClick={() => context.onDeleteComment(comment.id)} size="sm" type="button" variant="ghost">
+                  <Button
+                    onClick={() => context.onDeleteComment(comment.id)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
                     <X data-icon="inline-start" />
                     Dismiss
                   </Button>
@@ -748,7 +781,10 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) => (
       <WorkspacePanel description="Within this binder" title="Search">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" data-icon="inline-start" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            data-icon="inline-start"
+          />
           <Input
             className="pl-10"
             onChange={(event) => context.onQueryChange(event.target.value)}
@@ -1228,12 +1264,17 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: () => (
       <WorkspacePanel description="Local checklist placeholder" title="Tasks">
         <div className="flex flex-col gap-2">
-          {["Review lesson", "Write one explanation", "Graph one example", "Create two recall prompts"].map((task) => (
-            <label className="flex items-center gap-2 rounded-xl bg-secondary/80 px-3 py-2 text-sm" key={task}>
-              <input type="checkbox" />
-              {task}
-            </label>
-          ))}
+          {["Review lesson", "Write one explanation", "Graph one example", "Create two recall prompts"].map(
+            (task) => (
+              <label
+                className="flex items-center gap-2 rounded-xl bg-secondary/80 px-3 py-2 text-sm"
+                key={task}
+              >
+                <input type="checkbox" />
+                {task}
+              </label>
+            ),
+          )}
         </div>
       </WorkspacePanel>
     ),
@@ -1272,8 +1313,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           return linked > 0 || hasDescription;
         })
         .sort((left, right) => {
-          const degreeDelta =
-            (degreeByNodeId.get(right.id) ?? 0) - (degreeByNodeId.get(left.id) ?? 0);
+          const degreeDelta = (degreeByNodeId.get(right.id) ?? 0) - (degreeByNodeId.get(left.id) ?? 0);
           if (degreeDelta !== 0) {
             return degreeDelta;
           }
@@ -1380,11 +1420,26 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
 };
 
 const highlightGroupMeta: Record<HighlightColor, { label: string; tone: string }> = {
-  yellow: { label: "Important", tone: "border-amber-300/50 bg-amber-100/70 text-amber-950 dark:border-amber-300/20 dark:bg-amber-300/15 dark:text-amber-50" },
-  blue: { label: "Definitions", tone: "border-sky-300/50 bg-sky-100/70 text-sky-950 dark:border-sky-300/20 dark:bg-sky-300/15 dark:text-sky-50" },
-  green: { label: "Methods", tone: "border-emerald-300/50 bg-emerald-100/70 text-emerald-950 dark:border-emerald-300/20 dark:bg-emerald-300/15 dark:text-emerald-50" },
-  pink: { label: "Review later", tone: "border-rose-300/50 bg-rose-100/70 text-rose-950 dark:border-rose-300/20 dark:bg-rose-300/15 dark:text-rose-50" },
-  orange: { label: "Questions", tone: "border-orange-300/50 bg-orange-100/70 text-orange-950 dark:border-orange-300/20 dark:bg-orange-300/15 dark:text-orange-50" },
+  yellow: {
+    label: "Important",
+    tone: "border-amber-300/50 bg-amber-100/70 text-amber-950 dark:border-amber-300/20 dark:bg-amber-300/15 dark:text-amber-50",
+  },
+  blue: {
+    label: "Definitions",
+    tone: "border-sky-300/50 bg-sky-100/70 text-sky-950 dark:border-sky-300/20 dark:bg-sky-300/15 dark:text-sky-50",
+  },
+  green: {
+    label: "Methods",
+    tone: "border-emerald-300/50 bg-emerald-100/70 text-emerald-950 dark:border-emerald-300/20 dark:bg-emerald-300/15 dark:text-emerald-50",
+  },
+  pink: {
+    label: "Review later",
+    tone: "border-rose-300/50 bg-rose-100/70 text-rose-950 dark:border-rose-300/20 dark:bg-rose-300/15 dark:text-rose-50",
+  },
+  orange: {
+    label: "Questions",
+    tone: "border-orange-300/50 bg-orange-100/70 text-orange-950 dark:border-orange-300/20 dark:bg-orange-300/15 dark:text-orange-50",
+  },
 };
 
 function HighlightsCollectionModule({

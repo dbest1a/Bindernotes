@@ -134,7 +134,9 @@ describe("chemistry workspace modules", () => {
   it("makes Element Explorer useful with complete data, search, trends, inspector, builder, and compare", () => {
     render(<InteractivePeriodicTableModule />);
 
-    expect(screen.getByTestId("chem-element-explorer-v3").getAttribute("data-chem-layout")).toBe("flagship-periodic-table");
+    expect(screen.getByTestId("chem-element-explorer-v3").getAttribute("data-chem-layout")).toBe(
+      "flagship-periodic-table",
+    );
     expect(screen.getAllByRole("gridcell").length).toBe(118);
     expect(screen.getAllByText(/118 elements/i).length).toBeGreaterThan(0);
 

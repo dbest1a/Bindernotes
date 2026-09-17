@@ -229,7 +229,9 @@ describe("WhiteboardModuleCard", () => {
     const content = card.querySelector(".whiteboard-module-card__content");
     expect(dock.contains(menu)).toBe(true);
     expect(menu.className).not.toContain("absolute");
-    expect(Array.from(card.children).indexOf(dock)).toBeLessThan(Array.from(card.children).indexOf(content as Element));
+    expect(Array.from(card.children).indexOf(dock)).toBeLessThan(
+      Array.from(card.children).indexOf(content as Element),
+    );
   });
 
   it("keeps the green resize handle pinned to the card bottom-right corner", () => {
@@ -578,7 +580,11 @@ describe("WhiteboardModuleCard", () => {
 
     const card = screen.getByTestId("whiteboard-module-card-module-1");
     const beforeStyle = card.getAttribute("style");
-    fireEvent.pointerDown(screen.getByTestId("desmos-card-content"), { clientX: 300, clientY: 300, pointerId: 1 });
+    fireEvent.pointerDown(screen.getByTestId("desmos-card-content"), {
+      clientX: 300,
+      clientY: 300,
+      pointerId: 1,
+    });
 
     expect(onBringToFront).not.toHaveBeenCalled();
     expect(card.getAttribute("style")).toBe(beforeStyle);
@@ -813,7 +819,14 @@ describe("WhiteboardModuleCard", () => {
     const { rerender } = render(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 360, height: 240 })}
+        moduleElement={moduleElement({
+          anchorMode: "viewport",
+          pinned: false,
+          x: 120,
+          y: 140,
+          width: 360,
+          height: 240,
+        })}
         onBringToFront={vi.fn()}
         onChange={vi.fn()}
         onRemove={vi.fn()}
@@ -827,7 +840,14 @@ describe("WhiteboardModuleCard", () => {
     rerender(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 360, height: 240 })}
+        moduleElement={moduleElement({
+          anchorMode: "viewport",
+          pinned: false,
+          x: 120,
+          y: 140,
+          width: 360,
+          height: 240,
+        })}
         onBringToFront={vi.fn()}
         onChange={vi.fn()}
         onRemove={vi.fn()}
@@ -850,7 +870,13 @@ describe("WhiteboardModuleCard", () => {
     const { rerender } = render(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })}
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          x: 100,
+          y: 120,
+          width: 420,
+          height: 320,
+        })}
         onBringToFront={vi.fn()}
         onChange={vi.fn()}
         onRemove={vi.fn()}
@@ -864,7 +890,13 @@ describe("WhiteboardModuleCard", () => {
     rerender(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })}
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          x: 100,
+          y: 120,
+          width: 420,
+          height: 320,
+        })}
         onBringToFront={vi.fn()}
         onChange={vi.fn()}
         onRemove={vi.fn()}
@@ -888,7 +920,14 @@ describe("WhiteboardModuleCard", () => {
   it("selecting Pin to board stores the board anchor and renders with board-object scale", () => {
     const onChange = vi.fn();
     const transform = { ...viewportTransform, scrollX: 100, scrollY: -80, zoom: 2 };
-    const initial = moduleElement({ anchorMode: "viewport", pinned: false, x: 240, y: 120, width: 720, height: 560 });
+    const initial = moduleElement({
+      anchorMode: "viewport",
+      pinned: false,
+      x: 240,
+      y: 120,
+      width: 720,
+      height: 560,
+    });
     const { rerender } = render(
       <WhiteboardModuleCard
         live
@@ -988,12 +1027,22 @@ describe("WhiteboardModuleCard", () => {
 
     const menu = screen.getByTestId("whiteboard-card-anchor-menu");
     expect(menu.textContent).toContain("Pin to board, keep size");
-    expect(screen.getByTestId("whiteboard-card-anchor-board-fixed").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("whiteboard-card-anchor-board-fixed").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 
   it("selecting pin menu options changes anchor modes without resetting zIndex or mode", () => {
     const onChange = vi.fn();
-    const initial = moduleElement({ anchorMode: "viewport", pinned: false, x: 240, y: 120, width: 720, height: 560, zIndex: 9 });
+    const initial = moduleElement({
+      anchorMode: "viewport",
+      pinned: false,
+      x: 240,
+      y: 120,
+      width: 720,
+      height: 560,
+      zIndex: 9,
+    });
     const transform = { ...viewportTransform, scrollX: 100, scrollY: -80, zoom: 2 };
     const { rerender } = render(
       <WhiteboardModuleCard
@@ -1088,7 +1137,14 @@ describe("WhiteboardModuleCard", () => {
     render(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 360, height: 240 })}
+        moduleElement={moduleElement({
+          anchorMode: "viewport",
+          pinned: false,
+          x: 120,
+          y: 140,
+          width: 360,
+          height: 240,
+        })}
         onBringToFront={vi.fn()}
         onChange={onChange}
         onRemove={vi.fn()}
@@ -1119,7 +1175,14 @@ describe("WhiteboardModuleCard", () => {
     render(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 360, height: 240 })}
+        moduleElement={moduleElement({
+          anchorMode: "viewport",
+          pinned: false,
+          x: 120,
+          y: 140,
+          width: 360,
+          height: 240,
+        })}
         onBringToFront={vi.fn()}
         onChange={onChange}
         onRemove={vi.fn()}
@@ -1148,7 +1211,13 @@ describe("WhiteboardModuleCard", () => {
     render(
       <WhiteboardModuleCard
         live
-        moduleElement={moduleElement({ anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })}
+        moduleElement={moduleElement({
+          anchorMode: "board-fixed-size",
+          x: 100,
+          y: 120,
+          width: 420,
+          height: 320,
+        })}
         onBringToFront={vi.fn()}
         onChange={onChange}
         onRemove={vi.fn()}

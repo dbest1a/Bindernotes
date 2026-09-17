@@ -5,19 +5,27 @@ import { useState, type ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 import { App } from "@/App";
 
-const mocks = vi.hoisted(() => ({ auth: { user: { id: "A" } as { id: string } | null, profile: { id: "A" }, isLoading: false } }));
+const mocks = vi.hoisted(() => ({
+  auth: { user: { id: "A" } as { id: string } | null, profile: { id: "A" }, isLoading: false },
+}));
 vi.mock("@/hooks/use-auth", () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => children,
   useAuth: () => mocks.auth,
 }));
-vi.mock("@/components/system/authenticated-app-providers", () => ({ AuthenticatedAppProviders: ({ children }: { children: ReactNode }) => children }));
+vi.mock("@/components/system/authenticated-app-providers", () => ({
+  AuthenticatedAppProviders: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("@/components/layout/app-shell", () => ({ AppShell: () => <Outlet /> }));
 vi.mock("@/components/tutorials/tutorial-prompt", () => ({ TutorialPromptHost: () => null }));
 vi.mock("@/pages/auth-page", () => ({ AuthPage: () => <p>Sign in required</p> }));
-vi.mock("@/pages/dashboard-page", () => ({ DashboardPage: () => {
-  const [draft, setDraft] = useState("");
-  return <input aria-label="Private draft" value={draft} onChange={(event) => setDraft(event.target.value)} />;
-} }));
+vi.mock("@/pages/dashboard-page", () => ({
+  DashboardPage: () => {
+    const [draft, setDraft] = useState("");
+    return (
+      <input aria-label="Private draft" value={draft} onChange={(event) => setDraft(event.target.value)} />
+    );
+  },
+}));
 
 describe("protected account subtree", () => {
   beforeEach(() => {

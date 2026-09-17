@@ -248,13 +248,11 @@ describe("FaceliftSimpleShell", () => {
     );
 
     const mobileNav = screen.getByRole("navigation", { name: /mobile study modules/i });
-    expect(within(mobileNav).getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "Lesson",
-      "Timeline",
-      "Evidence",
-      "Argument",
-      "Notes",
-    ]);
+    expect(
+      within(mobileNav)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Lesson", "Timeline", "Evidence", "Argument", "Notes"]);
     expect(screen.getByText("Lesson body")).toBeTruthy();
     expect(screen.queryByText("Timeline body")).toBeNull();
     expect(screen.queryByText("Evidence body")).toBeNull();
@@ -270,7 +268,14 @@ describe("FaceliftSimpleShell", () => {
   it("turns Study Panels tools into real tool-surface launchers", () => {
     const { context } = renderFaceliftSimpleShell({
       preset: "math-guided-study",
-      enabledModules: ["lesson", "private-notes", "desmos-graph", "math-blocks", "formula-sheet", "whiteboard"],
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "math-blocks",
+        "formula-sheet",
+        "whiteboard",
+      ],
     });
 
     fireEvent.click(screen.getByRole("button", { name: /tools/i }));
@@ -316,7 +321,9 @@ describe("FaceliftSimpleShell", () => {
   it("marks Student Calm Mode and offers a Back to Simple escape hatch", () => {
     const { callbacks, container } = renderFaceliftSimpleShell({}, { studentCalmMode: true });
 
-    expect(container.querySelector(".facelift-simple-shell")?.getAttribute("data-student-calm-mode")).toBe("true");
+    expect(container.querySelector(".facelift-simple-shell")?.getAttribute("data-student-calm-mode")).toBe(
+      "true",
+    );
     expect(screen.getByRole("button", { name: /Back to Simple/i })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Back to Simple/i }));

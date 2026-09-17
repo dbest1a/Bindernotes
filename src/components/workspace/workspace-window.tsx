@@ -95,8 +95,7 @@ export function WorkspaceWindow({
   const snapPreviewRef = useRef<SnapPreview | null>(null);
   const lastSnapUiUpdateAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
   const interactionActiveRef = useRef(false);
-  const useStableEmbeddedMovement =
-    smoothMovementEnabled && stableEmbeddedMovementModules.has(moduleId);
+  const useStableEmbeddedMovement = smoothMovementEnabled && stableEmbeddedMovementModules.has(moduleId);
 
   useEffect(() => {
     if (interactionActiveRef.current) {
@@ -115,7 +114,10 @@ export function WorkspaceWindow({
     [],
   );
 
-  const scheduleFrameRender = (mode: ResizeMode | null = null, startFrame: WorkspaceWindowFrame | null = null) => {
+  const scheduleFrameRender = (
+    mode: ResizeMode | null = null,
+    startFrame: WorkspaceWindowFrame | null = null,
+  ) => {
     if (rafRef.current !== null) {
       return;
     }
@@ -255,17 +257,16 @@ export function WorkspaceWindow({
           : clampResizedFrame(rawFrame, viewportBounds, { minWidth, minHeight });
 
       const snapAllowed = snapEnabled && !useStableEmbeddedMovement;
-      const nextPreview =
-        snapAllowed
-          ? resolveSnapPreview({
-              interaction: mode === "move" ? "move" : "resize",
-              movedFrame,
-              peerFrames,
-              safeEdgePadding,
-              snapBehavior,
-              viewportBounds,
-            })
-          : null;
+      const nextPreview = snapAllowed
+        ? resolveSnapPreview({
+            interaction: mode === "move" ? "move" : "resize",
+            movedFrame,
+            peerFrames,
+            safeEdgePadding,
+            snapBehavior,
+            viewportBounds,
+          })
+        : null;
       const next = nextPreview?.frame ?? movedFrame;
       frameRef.current = next;
       const previousPreview = snapPreviewRef.current;
@@ -274,8 +275,7 @@ export function WorkspaceWindow({
       const previewChanged = !areSnapPreviewsEqual(previousPreview, nextPreview);
       const shouldFlushSnapUi =
         previewChanged &&
-        (nextPreview === null ||
-          nowMs - lastSnapUiUpdateAtRef.current >= SNAP_UI_UPDATE_INTERVAL_MS);
+        (nextPreview === null || nowMs - lastSnapUiUpdateAtRef.current >= SNAP_UI_UPDATE_INTERVAL_MS);
       if (shouldFlushSnapUi) {
         lastSnapUiUpdateAtRef.current = nowMs;
         onSnapGuidesChange?.(moduleId, nextPreview?.guides ?? []);
@@ -415,7 +415,7 @@ export function WorkspaceWindow({
           <div className="workspace-window__edit-hint inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/92 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground shadow-sm backdrop-blur">
             <Grip className="size-3" />
             {activeMode === "move"
-              ? snapPreview?.label ?? "Move window"
+              ? (snapPreview?.label ?? "Move window")
               : workspaceStyle === "full-studio"
                 ? "Drag header"
                 : "Move header"}
@@ -447,11 +447,7 @@ export function WorkspaceWindow({
             data-window-snap-preview="true"
           />
         ) : null}
-        <div
-          className={cn("h-full", !locked && "cursor-move")}
-        >
-          {children}
-        </div>
+        <div className={cn("h-full", !locked && "cursor-move")}>{children}</div>
       </div>
 
       {!locked ? (
@@ -627,11 +623,7 @@ function resolveCommittedFrame(input: {
     minWidth: minimums.width,
     minHeight: minimums.height,
   };
-  const bounded = clampResizedFrame(
-    input.frame,
-    input.viewportBounds,
-    effectiveMinimums,
-  );
+  const bounded = clampResizedFrame(input.frame, input.viewportBounds, effectiveMinimums);
 
   if (!input.snapEnabled) {
     return bounded;
@@ -651,9 +643,5 @@ function resolveCommittedFrame(input: {
     viewportBounds: input.viewportBounds,
   }).frame;
 
-  return clampResizedFrame(
-    snapped,
-    input.viewportBounds,
-    effectiveMinimums,
-  );
+  return clampResizedFrame(snapped, input.viewportBounds, effectiveMinimums);
 }

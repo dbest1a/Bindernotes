@@ -243,10 +243,7 @@ function matchesResponsiveQuery(query: string) {
   return false;
 }
 
-function createSingleLessonBundle(
-  binderTitle = "Algebra",
-  lessonTitle = "Like Terms",
-): BinderBundle {
+function createSingleLessonBundle(binderTitle = "Algebra", lessonTitle = "Like Terms"): BinderBundle {
   return {
     binder: {
       id: "binder-1",
@@ -603,7 +600,9 @@ describe("BinderReaderPage", () => {
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-workspace-active-focus")).toBe("false");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-workspace-active-focus")).toBe(
+      "false",
+    );
     expect(requestFullscreen).not.toHaveBeenCalled();
 
     await waitFor(() => {
@@ -681,7 +680,9 @@ describe("BinderReaderPage", () => {
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-maximize-module-space")).toBe("true");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-maximize-module-space")).toBe(
+      "true",
+    );
   });
 
   it("marks the topbar when canvas layout editing is active", async () => {
@@ -848,10 +849,7 @@ describe("BinderReaderPage", () => {
       "bindernotes:beta-features:user-1",
       JSON.stringify({ enabled: true, compactStudyChrome: true }),
     );
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     mocks.workspacePreferences.active = {
       ...preferences,
       activeMode: "canvas",
@@ -863,18 +861,19 @@ describe("BinderReaderPage", () => {
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe("true");
-    expect(container.querySelector(".workspace-topbar")?.getAttribute("data-compact-study-chrome")).toBe("true");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe(
+      "true",
+    );
+    expect(container.querySelector(".workspace-topbar")?.getAttribute("data-compact-study-chrome")).toBe(
+      "true",
+    );
     expect(screen.getByRole("button", { name: /workspace mode canvas/i })).toBeTruthy();
     expect(screen.queryByText("Change view")).toBeNull();
   });
 
   it("keeps non-beta workspace chrome unchanged when Compact Study Chrome is off", () => {
     setTestViewportWidth(1181);
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "simple",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "simple");
     mocks.workspacePreferences.active = {
       ...preferences,
       styleChoiceCompleted: true,
@@ -885,7 +884,9 @@ describe("BinderReaderPage", () => {
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe("false");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-compact-study-chrome")).toBe(
+      "false",
+    );
     expect(screen.getByText("Change view")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /workspace mode simple/i })).toBeNull();
   });
@@ -973,7 +974,9 @@ describe("BinderReaderPage", () => {
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("tablet");
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe("portrait");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe(
+      "portrait",
+    );
     expect(container.querySelector(".workspace-page")?.getAttribute("data-mobile-workspace")).toBe("true");
     expect(container.querySelector(".responsive-mobile-tabs")).not.toBeNull();
     expect(container.querySelector(".responsive-mobile-module")).not.toBeNull();
@@ -997,7 +1000,9 @@ describe("BinderReaderPage", () => {
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("tablet");
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe("landscape");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-orientation")).toBe(
+      "landscape",
+    );
     expect(container.querySelector(".workspace-page")?.getAttribute("data-mobile-workspace")).toBe("false");
     expect(container.querySelector(".responsive-mobile-tabs")).toBeNull();
     expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
@@ -1019,7 +1024,9 @@ describe("BinderReaderPage", () => {
 
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
-    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe("desktop");
+    expect(container.querySelector(".workspace-page")?.getAttribute("data-viewport-category")).toBe(
+      "desktop",
+    );
     expect(container.querySelector(".responsive-mobile-tabs")).toBeNull();
     expect(container.querySelector(".workspace-canvas-shell")).not.toBeNull();
   });
@@ -1083,8 +1090,8 @@ describe("BinderReaderPage", () => {
 
     let oceanThemeButton: HTMLButtonElement | undefined;
     await waitFor(() => {
-      oceanThemeButton = Array.from(container.querySelectorAll("button")).find(
-        (button) => button.textContent?.includes("Ocean"),
+      oceanThemeButton = Array.from(container.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Ocean"),
       );
       expect(oceanThemeButton).toBeDefined();
     });

@@ -28,9 +28,7 @@ export function MathBlocks({
   onSendToGraph?: (expression: string) => void;
 }) {
   const updateBlock = (id: string, patch: Partial<MathBlock>) => {
-    onChange?.(
-      blocks.map((block) => (block.id === id ? ({ ...block, ...patch } as MathBlock) : block)),
-    );
+    onChange?.(blocks.map((block) => (block.id === id ? ({ ...block, ...patch } as MathBlock) : block)));
   };
 
   const removeBlock = (id: string) => {
@@ -149,10 +147,7 @@ function BlockHeader({
         />
         <Input
           onChange={(event) =>
-            onUpdate(
-              block.id,
-              { sourceHeading: event.target.value || null } as Partial<MathBlock>,
-            )
+            onUpdate(block.id, { sourceHeading: event.target.value || null } as Partial<MathBlock>)
           }
           placeholder="Linked lesson heading"
           value={block.sourceHeading ?? ""}
@@ -240,7 +235,11 @@ function LatexBlock({
           type="button"
           variant="outline"
         >
-          {copyState === "copied" ? <Check data-icon="inline-start" /> : <Clipboard data-icon="inline-start" />}
+          {copyState === "copied" ? (
+            <Check data-icon="inline-start" />
+          ) : (
+            <Clipboard data-icon="inline-start" />
+          )}
           {copyState === "copied" ? "Copied" : "Copy formula"}
         </Button>
         {onSendFormulaToNotes ? (
@@ -257,11 +256,7 @@ function LatexBlock({
         ) : null}
       </div>
       <p className="sr-only" aria-live="polite">
-        {copyState === "copied"
-          ? "Copied formula"
-          : copyState === "failed"
-            ? "Formula copy failed"
-            : ""}
+        {copyState === "copied" ? "Copied formula" : copyState === "failed" ? "Formula copy failed" : ""}
       </p>
     </div>
   );

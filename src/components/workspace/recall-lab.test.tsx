@@ -63,8 +63,10 @@ function renderRecallLab(betaEnabled = true) {
 
 beforeEach(() => {
   window.localStorage.clear();
-  database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA);
-  cloud.from.mockImplementation(database.from); cloud.rpc.mockImplementation(database.rpc);
+  database = reviewCloudFixture();
+  saveQueue.setAccount(reviewOwnerA);
+  cloud.from.mockImplementation(database.from);
+  cloud.rpc.mockImplementation(database.rpc);
 });
 
 afterEach(() => {
@@ -162,7 +164,9 @@ describe("RecallLab", () => {
     renderRecallLab(true);
 
     fireEvent.change(screen.getByLabelText(/^Front$/i), { target: { value: "Define segment." } });
-    fireEvent.change(screen.getByLabelText(/^Back$/i), { target: { value: "Two endpoints and all points between." } });
+    fireEvent.change(screen.getByLabelText(/^Back$/i), {
+      target: { value: "Two endpoints and all points between." },
+    });
     fireEvent.click(screen.getByRole("button", { name: /create manual draft/i }));
     fireEvent.click(screen.getByRole("button", { name: /save final card/i }));
 

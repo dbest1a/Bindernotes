@@ -166,13 +166,15 @@ describe("workspace preset design catalog", () => {
       "annotation-mode": "lesson",
     };
 
-    ([
-      "history-guided",
-      "history-timeline-focus",
-      "history-source-evidence",
-      "history-argument-builder",
-      "history-full-studio",
-    ] as WorkspacePresetId[]).forEach((presetId) => {
+    (
+      [
+        "history-guided",
+        "history-timeline-focus",
+        "history-source-evidence",
+        "history-argument-builder",
+        "history-full-studio",
+      ] as WorkspacePresetId[]
+    ).forEach((presetId) => {
       const design = getFaceliftWorkspacePresetDesign(presetId);
       const frames = buildFaceliftPresetFrames(presetId, { width: 1440, height: 840 });
       const leadFrame = frames[expectedLeads[presetId]];
@@ -192,7 +194,12 @@ describe("workspace preset design catalog", () => {
     const fullStudio = getFaceliftWorkspacePresetDesign("history-full-studio");
     const fullFrames = buildFaceliftPresetFrames("history-full-studio", { width: 1440, height: 840 });
 
-    expect(guided.visibleModules).toEqual(["lesson", "history-timeline", "history-evidence", "private-notes"]);
+    expect(guided.visibleModules).toEqual([
+      "lesson",
+      "history-timeline",
+      "history-evidence",
+      "private-notes",
+    ]);
     expect(guided.collapsedModules).toEqual(
       expect.arrayContaining(["history-argument", "history-myth-checks"]),
     );
@@ -321,14 +328,12 @@ describe("workspace preset design catalog", () => {
   });
 
   it("collapses Desmos graph and calculator tools when the API key is unavailable", () => {
-    const graphLab = applyWorkspacePresetDesignAvailability(
-      getWorkspacePresetDesign("math-graph-lab"),
-      { desmosApiKeyAvailable: false },
-    );
-    const fullCanvas = applyWorkspacePresetDesignAvailability(
-      getWorkspacePresetDesign("full-math-canvas"),
-      { desmosApiKeyAvailable: false },
-    );
+    const graphLab = applyWorkspacePresetDesignAvailability(getWorkspacePresetDesign("math-graph-lab"), {
+      desmosApiKeyAvailable: false,
+    });
+    const fullCanvas = applyWorkspacePresetDesignAvailability(getWorkspacePresetDesign("full-math-canvas"), {
+      desmosApiKeyAvailable: false,
+    });
 
     expect(graphLab.defaultVisible).not.toContain("desmos-graph");
     expect(graphLab.collapsedByDefault).toEqual(
@@ -401,12 +406,11 @@ describe("workspace preset design catalog", () => {
       "math",
       "canvas",
     ]);
-    expect(getWorkspaceStarterChoices({ binderSubject: "World History", historyEnabled: true }).map((choice) => choice.id)).toEqual([
-      "read",
-      "notes",
-      "history",
-      "canvas",
-    ]);
+    expect(
+      getWorkspaceStarterChoices({ binderSubject: "World History", historyEnabled: true }).map(
+        (choice) => choice.id,
+      ),
+    ).toEqual(["read", "notes", "history", "canvas"]);
     expect(getWorkspaceStarterChoices().map((choice) => choice.presetId)).toEqual([
       "focused-reading",
       "notes-focus",
@@ -448,10 +452,7 @@ describe("workspace preset design catalog", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("too small"),
-        expect.stringContaining("bottom strip"),
-      ]),
+      expect.arrayContaining([expect.stringContaining("too small"), expect.stringContaining("bottom strip")]),
     );
   });
 });

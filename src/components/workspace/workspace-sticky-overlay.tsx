@@ -24,19 +24,19 @@ type WorkspaceStickyOverlayProps = {
   surface?: "canvas" | "page" | "mobile";
 };
 
-type WorkspaceStickyLayerProps = Omit<WorkspaceStickyOverlayProps, "canvasHeight" | "canvasWidth" | "className"> & {
+type WorkspaceStickyLayerProps = Omit<
+  WorkspaceStickyOverlayProps,
+  "canvasHeight" | "canvasWidth" | "className"
+> & {
   children: ReactNode;
 };
 
 const stickyColorClasses: Record<StickyNoteLayout["color"], string> = {
   amber:
     "border-amber-300/70 bg-[linear-gradient(180deg,rgba(255,248,195,0.96),rgba(253,230,138,0.9))] text-amber-950 dark:border-amber-200/25 dark:bg-[linear-gradient(180deg,rgba(120,84,18,0.95),rgba(82,56,12,0.9))] dark:text-amber-50",
-  mint:
-    "border-emerald-300/70 bg-[linear-gradient(180deg,rgba(220,252,231,0.96),rgba(167,243,208,0.9))] text-emerald-950 dark:border-emerald-200/25 dark:bg-[linear-gradient(180deg,rgba(17,94,89,0.95),rgba(19,78,74,0.9))] dark:text-emerald-50",
-  sky:
-    "border-sky-300/70 bg-[linear-gradient(180deg,rgba(224,242,254,0.96),rgba(186,230,253,0.9))] text-sky-950 dark:border-sky-200/25 dark:bg-[linear-gradient(180deg,rgba(12,74,110,0.95),rgba(14,116,144,0.9))] dark:text-sky-50",
-  rose:
-    "border-rose-300/70 bg-[linear-gradient(180deg,rgba(255,228,230,0.96),rgba(254,205,211,0.9))] text-rose-950 dark:border-rose-200/25 dark:bg-[linear-gradient(180deg,rgba(136,19,55,0.95),rgba(159,18,57,0.9))] dark:text-rose-50",
+  mint: "border-emerald-300/70 bg-[linear-gradient(180deg,rgba(220,252,231,0.96),rgba(167,243,208,0.9))] text-emerald-950 dark:border-emerald-200/25 dark:bg-[linear-gradient(180deg,rgba(17,94,89,0.95),rgba(19,78,74,0.9))] dark:text-emerald-50",
+  sky: "border-sky-300/70 bg-[linear-gradient(180deg,rgba(224,242,254,0.96),rgba(186,230,253,0.9))] text-sky-950 dark:border-sky-200/25 dark:bg-[linear-gradient(180deg,rgba(12,74,110,0.95),rgba(14,116,144,0.9))] dark:text-sky-50",
+  rose: "border-rose-300/70 bg-[linear-gradient(180deg,rgba(255,228,230,0.96),rgba(254,205,211,0.9))] text-rose-950 dark:border-rose-200/25 dark:bg-[linear-gradient(180deg,rgba(136,19,55,0.95),rgba(159,18,57,0.9))] dark:text-rose-50",
   violet:
     "border-violet-300/70 bg-[linear-gradient(180deg,rgba(245,243,255,0.96),rgba(221,214,254,0.9))] text-violet-950 dark:border-violet-200/25 dark:bg-[linear-gradient(180deg,rgba(76,29,149,0.95),rgba(91,33,182,0.9))] dark:text-violet-50",
 };
@@ -81,11 +81,7 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
       comments.forEach((comment) => {
         const persisted = stickyLayouts[comment.id];
         const currentLayout = next[comment.id];
-        if (
-          persisted &&
-          currentLayout &&
-          layoutsEqual(persisted, currentLayout)
-        ) {
+        if (persisted && currentLayout && layoutsEqual(persisted, currentLayout)) {
           pendingPersistRef.current.delete(comment.id);
         }
       });
@@ -101,9 +97,7 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
         }),
       );
       draftsRef.current = next;
-      bodySnapshotsRef.current = Object.fromEntries(
-        comments.map((comment) => [comment.id, comment.body]),
-      );
+      bodySnapshotsRef.current = Object.fromEntries(comments.map((comment) => [comment.id, comment.body]));
       return next;
     });
   }, [comments, stickyLayouts]);
@@ -186,18 +180,11 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
   };
 
   const bringToFront = (commentId: string, persist = false) => {
-    const nextTopZ = Math.max(
-      50,
-      ...Object.values(layoutsRef.current).map((layout) => layout?.z ?? 50),
-    );
+    const nextTopZ = Math.max(50, ...Object.values(layoutsRef.current).map((layout) => layout?.z ?? 50));
     mutateLayout(commentId, (layout) => ({ ...layout, z: nextTopZ + 1 }), persist);
   };
 
-  const beginDrag = (
-    commentId: string,
-    event: ReactPointerEvent<HTMLElement>,
-    mode: "move" | "resize",
-  ) => {
+  const beginDrag = (commentId: string, event: ReactPointerEvent<HTMLElement>, mode: "move" | "resize") => {
     event.preventDefault();
     activeDragRef.current = commentId;
     bringToFront(commentId, false);
@@ -211,23 +198,30 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
     const onMove = (moveEvent: PointerEvent) => {
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
-      mutateLayout(commentId, (layout) =>
-        mode === "move"
-          ? {
-              ...layout,
-              x: clamp(startLayout.x + dx, 0, canvasWidth - layout.w - 12),
-              y: clamp(startLayout.y + dy, 0, canvasHeight - (layout.minimized ? 58 : layout.h) - 12),
-            }
-          : {
-              ...layout,
-              w: clamp(startLayout.w + dx, 220, Math.max(220, Math.min(460, canvasWidth - startLayout.x - 12))),
-              h: clamp(
-                startLayout.h + dy,
-                150,
-                Math.max(150, Math.min(420, canvasHeight - startLayout.y - 12)),
-              ),
-            },
-      false);
+      mutateLayout(
+        commentId,
+        (layout) =>
+          mode === "move"
+            ? {
+                ...layout,
+                x: clamp(startLayout.x + dx, 0, canvasWidth - layout.w - 12),
+                y: clamp(startLayout.y + dy, 0, canvasHeight - (layout.minimized ? 58 : layout.h) - 12),
+              }
+            : {
+                ...layout,
+                w: clamp(
+                  startLayout.w + dx,
+                  220,
+                  Math.max(220, Math.min(460, canvasWidth - startLayout.x - 12)),
+                ),
+                h: clamp(
+                  startLayout.h + dy,
+                  150,
+                  Math.max(150, Math.min(420, canvasHeight - startLayout.y - 12)),
+                ),
+              },
+        false,
+      );
     };
 
     const onUp = () => {
@@ -367,24 +361,22 @@ export const WorkspaceStickyOverlay = memo(function WorkspaceStickyOverlay({
                 <div className="flex items-center justify-between gap-2 text-xs opacity-80">
                   <span>{comment.anchor_text ? "Linked to lesson text" : "Free-floating note"}</span>
                   <button
-                  className="inline-flex items-center gap-1 rounded-full border border-black/10 px-2 py-1 font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
-                  data-sticky-control="true"
-                  onPointerDown={stopStickyControlEvent}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSendToNotes(commitDraft(comment));
-                  }}
-                  type="button"
-                >
+                    className="inline-flex items-center gap-1 rounded-full border border-black/10 px-2 py-1 font-medium transition hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10"
+                    data-sticky-control="true"
+                    onPointerDown={stopStickyControlEvent}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSendToNotes(commitDraft(comment));
+                    }}
+                    type="button"
+                  >
                     <Send className="size-3" />
                     Send to notes
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="px-3 py-2 text-xs opacity-80">
-                {comment.body || "Minimized sticky note"}
-              </div>
+              <div className="px-3 py-2 text-xs opacity-80">{comment.body || "Minimized sticky note"}</div>
             )}
 
             {!isMinimized ? (
@@ -474,7 +466,9 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function stopStickyControlEvent(event: Pick<ReactPointerEvent<HTMLElement>, "preventDefault" | "stopPropagation">) {
+function stopStickyControlEvent(
+  event: Pick<ReactPointerEvent<HTMLElement>, "preventDefault" | "stopPropagation">,
+) {
   event.preventDefault();
   event.stopPropagation();
 }

@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   join(process.cwd(), "supabase/migrations/0024_chemistry_learning_foundation.sql"),
   "utf8",
-).replace(/\s+/g, " ")
+)
+  .replace(/\s+/g, " ")
   .toLowerCase();
 
 describe("chemistry learning migration", () => {

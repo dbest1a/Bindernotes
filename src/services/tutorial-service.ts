@@ -12,11 +12,7 @@ const tutorialPosterBucket = "tutorial-posters";
 const defaultPosterSrc = "/tutorials/posters/bindernotes-tutorial-poster.svg";
 const maxTutorialVideoBytes = 500 * 1024 * 1024;
 const maxTutorialPosterBytes = 10 * 1024 * 1024;
-const allowedTutorialVideoMimeTypes = new Set([
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-]);
+const allowedTutorialVideoMimeTypes = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 const allowedTutorialVideoExtensions = new Set([".mp4", ".m4v", ".mov", ".webm"]);
 const tutorialVideoContentTypesByExtension = new Map([
   [".m4v", "video/mp4"],
@@ -24,11 +20,7 @@ const tutorialVideoContentTypesByExtension = new Map([
   [".mp4", "video/mp4"],
   [".webm", "video/webm"],
 ]);
-const allowedTutorialPosterMimeTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const allowedTutorialPosterMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const allowedTutorialPosterExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const tutorialPosterContentTypesByExtension = new Map([
   [".jpeg", "image/jpeg"],
@@ -149,26 +141,44 @@ export async function listUploadedTutorials(includeAdminDrafts: boolean): Promis
   return (data ?? []).map(recordToTutorialEntry);
 }
 
-const uploadCleanupSchema = z.object({ owner: z.string(), assets: z.array(z.object({ bucket: z.enum(["tutorial-videos", "tutorial-posters"]), path: z.string().regex(/^[a-z0-9-]+\/(video|poster)-[a-z0-9-]+\.[a-z0-9]+$/) })) });
-const cleanupKey = (owner: string, operation: string) => `bindernotes:tutorial-upload-cleanup:${encodeURIComponent(owner)}:${operation}`;
+const uploadCleanupSchema = z.object({
+  owner: z.string(),
+  assets: z.array(
+    z.object({
+      bucket: z.enum(["tutorial-videos", "tutorial-posters"]),
+      path: z.string().regex(/^[a-z0-9-]+\/(video|poster)-[a-z0-9-]+\.[a-z0-9]+$/),
+    }),
+  ),
+});
+const cleanupKey = (owner: string, operation: string) =>
+  `bindernotes:tutorial-upload-cleanup:${encodeURIComponent(owner)}:${operation}`;
 async function reconcileTutorialUpload(key: string, owner: string) {
   if (!supabase) return;
-  const raw = localStorage.getItem(key); if (!raw) return;
-  const entry = uploadCleanupSchema.parse(JSON.parse(raw)); if (entry.owner !== owner) throw new Error("Tutorial cleanup belongs to another account.");
+  const raw = localStorage.getItem(key);
+  if (!raw) return;
+  const entry = uploadCleanupSchema.parse(JSON.parse(raw));
+  if (entry.owner !== owner) throw new Error("Tutorial cleanup belongs to another account.");
   for (const asset of entry.assets) {
     // A failed acknowledgement may hide a committed metadata write. Prove no
     // tutorial references each exact path before deleting any uploaded bytes.
     const column = asset.bucket === tutorialVideoBucket ? "storage_path" : "poster_storage_path";
-    const { data, error } = await supabase.from("tutorial_entries").select("id").eq(column, asset.path).limit(1);
+    const { data, error } = await supabase
+      .from("tutorial_entries")
+      .select("id")
+      .eq(column, asset.path)
+      .limit(1);
     if (error) throw error;
     if (data?.length) continue;
-    const removed = await supabase.storage.from(asset.bucket).remove([asset.path]); if (removed.error) throw removed.error;
+    const removed = await supabase.storage.from(asset.bucket).remove([asset.path]);
+    if (removed.error) throw removed.error;
   }
   localStorage.removeItem(key);
 }
 export async function reconcilePendingTutorialUploads(owner: string) {
   const prefix = cleanupKey(owner, "");
-  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith(prefix)));
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(
+    (key): key is string => Boolean(key?.startsWith(prefix)),
+  );
   for (const key of keys) await reconcileTutorialUpload(key, owner);
 }
 
@@ -211,61 +221,69 @@ export async function createUploadedTutorial(
   const videoPath = videoFile ? buildAssetPath(id, videoFile.name, "video") : null;
   const posterPath = posterFile ? buildAssetPath(id, posterFile.name, "poster") : null;
   const journal = cleanupKey(userId, crypto.randomUUID());
-  const assets = [...(videoPath ? [{ bucket: tutorialVideoBucket, path: videoPath }] : []), ...(posterPath ? [{ bucket: tutorialPosterBucket, path: posterPath }] : [])];
+  const assets = [
+    ...(videoPath ? [{ bucket: tutorialVideoBucket, path: videoPath }] : []),
+    ...(posterPath ? [{ bucket: tutorialPosterBucket, path: posterPath }] : []),
+  ];
   if (assets.length) localStorage.setItem(journal, JSON.stringify({ owner: userId, assets }));
   try {
-  const videoSrc = videoFile
-    ? await uploadTutorialAsset(tutorialVideoBucket, videoPath!, videoFile, tutorialVideoContentTypesByExtension)
-    : existingTutorial?.videoSrc ?? "";
-  const posterSrc = posterFile
-    ? await uploadTutorialAsset(tutorialPosterBucket, posterPath!, posterFile, tutorialPosterContentTypesByExtension)
-    : existingTutorial?.posterSrc || defaultPosterSrc;
-  const now = new Date().toISOString();
-  const wasPublished = existingTutorial?.status === "published";
-  const publishedAt =
-    input.status === "published"
-      ? wasPublished
-        ? undefined
-        : now
-      : null;
+    const videoSrc = videoFile
+      ? await uploadTutorialAsset(
+          tutorialVideoBucket,
+          videoPath!,
+          videoFile,
+          tutorialVideoContentTypesByExtension,
+        )
+      : (existingTutorial?.videoSrc ?? "");
+    const posterSrc = posterFile
+      ? await uploadTutorialAsset(
+          tutorialPosterBucket,
+          posterPath!,
+          posterFile,
+          tutorialPosterContentTypesByExtension,
+        )
+      : existingTutorial?.posterSrc || defaultPosterSrc;
+    const now = new Date().toISOString();
+    const wasPublished = existingTutorial?.status === "published";
+    const publishedAt = input.status === "published" ? (wasPublished ? undefined : now) : null;
 
-  const payload = {
-    id,
-    slug: id,
-    title: input.title.trim(),
-    audience: input.audience,
-    category: input.category,
-    route_patterns: input.routePatterns,
-    prompt_route_patterns: input.promptRoutePatterns,
-    tags: input.tags,
-    summary: input.summary.trim(),
-    duration_seconds: Math.max(0, Math.round(input.durationSeconds || 0)),
-    video_url: videoSrc,
-    poster_url: posterSrc,
-    steps: input.steps,
-    transcript: input.transcript.trim(),
-    related_feature_link: normalizeInternalTutorialLink(input.relatedFeatureLink),
-    ...(videoPath ? { storage_path: videoPath } : {}),
-    ...(posterPath ? { poster_storage_path: posterPath } : {}),
-    status: input.status,
-    updated_by: userId,
-    created_by: userId,
-    updated_at: now,
-    ...(publishedAt === undefined ? {} : { published_at: publishedAt }),
-  };
+    const payload = {
+      id,
+      slug: id,
+      title: input.title.trim(),
+      audience: input.audience,
+      category: input.category,
+      route_patterns: input.routePatterns,
+      prompt_route_patterns: input.promptRoutePatterns,
+      tags: input.tags,
+      summary: input.summary.trim(),
+      duration_seconds: Math.max(0, Math.round(input.durationSeconds || 0)),
+      video_url: videoSrc,
+      poster_url: posterSrc,
+      steps: input.steps,
+      transcript: input.transcript.trim(),
+      related_feature_link: normalizeInternalTutorialLink(input.relatedFeatureLink),
+      ...(videoPath ? { storage_path: videoPath } : {}),
+      ...(posterPath ? { poster_storage_path: posterPath } : {}),
+      status: input.status,
+      updated_by: userId,
+      created_by: userId,
+      updated_at: now,
+      ...(publishedAt === undefined ? {} : { published_at: publishedAt }),
+    };
 
-  const { data, error } = await supabase
-    .from("tutorial_entries")
-    .upsert(payload, { onConflict: "id" })
-    .select(tutorialSelect())
-    .single<TutorialEntryRecord>();
+    const { data, error } = await supabase
+      .from("tutorial_entries")
+      .upsert(payload, { onConflict: "id" })
+      .select(tutorialSelect())
+      .single<TutorialEntryRecord>();
 
-  if (error) {
-    throw error;
-  }
+    if (error) {
+      throw error;
+    }
 
-  localStorage.removeItem(journal);
-  return recordToTutorialEntry(data);
+    localStorage.removeItem(journal);
+    return recordToTutorialEntry(data);
   } catch (error) {
     await reconcileTutorialUpload(journal, userId).catch(() => {});
     throw error;

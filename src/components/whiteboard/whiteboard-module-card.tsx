@@ -1,4 +1,15 @@
-import { BookOpenText, Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, RotateCcw, Sigma, Trash2 } from "lucide-react";
+import {
+  BookOpenText,
+  Grip,
+  Minus,
+  MoreHorizontal,
+  PanelTopOpen,
+  Pin,
+  PinOff,
+  RotateCcw,
+  Sigma,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +33,7 @@ import {
   type WhiteboardScreenRect,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
-import type {
-  WhiteboardModuleAnchorMode,
-  WhiteboardModuleElement,
-} from "@/lib/whiteboards/whiteboard-types";
+import type { WhiteboardModuleAnchorMode, WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 import {
   recordWhiteboardPerformanceDiagnostic,
   setWorkspaceMovementActive,
@@ -75,14 +83,24 @@ function getModuleScreenFrame(
   return getWhiteboardModuleScreenRect(moduleElement, viewportTransform);
 }
 
-function getBoardObjectTransform(screenFrame: WhiteboardScreenRect, viewportTransform: WhiteboardViewportTransform) {
+function getBoardObjectTransform(
+  screenFrame: WhiteboardScreenRect,
+  viewportTransform: WhiteboardViewportTransform,
+) {
   return `translate3d(${screenFrame.x}px, ${screenFrame.y}px, 0) scale(${viewportTransform.zoom})`;
 }
 
-function getBoardRenderPoint(moduleElement: WhiteboardModuleElement, viewportTransform: WhiteboardViewportTransform) {
+function getBoardRenderPoint(
+  moduleElement: WhiteboardModuleElement,
+  viewportTransform: WhiteboardViewportTransform,
+) {
   return {
-    x: (moduleElement.x + viewportTransform.scrollX) * viewportTransform.zoom + (viewportTransform.offsetLeft ?? 0),
-    y: (moduleElement.y + viewportTransform.scrollY) * viewportTransform.zoom + (viewportTransform.offsetTop ?? 0),
+    x:
+      (moduleElement.x + viewportTransform.scrollX) * viewportTransform.zoom +
+      (viewportTransform.offsetLeft ?? 0),
+    y:
+      (moduleElement.y + viewportTransform.scrollY) * viewportTransform.zoom +
+      (viewportTransform.offsetTop ?? 0),
   };
 }
 
@@ -360,7 +378,8 @@ export function WhiteboardModuleCard({
   const stabilizedHeavyCard = moduleElement.moduleId === "desmos-graph";
   const alwaysLive = isAlwaysLiveWhiteboardModule(moduleElement.moduleId);
   const anchorMode = getWhiteboardModuleAnchorMode(moduleElement);
-  const floatingTool = anchorMode === "viewport" && isViewportFloatingWhiteboardModule(moduleElement.moduleId);
+  const floatingTool =
+    anchorMode === "viewport" && isViewportFloatingWhiteboardModule(moduleElement.moduleId);
   const pinned = anchorMode !== "viewport";
   const boardPositioned = isWhiteboardModuleBoardPositioned(moduleElement);
   const zoomScaled = isWhiteboardModuleZoomScaled(moduleElement);
@@ -630,7 +649,10 @@ export function WhiteboardModuleCard({
     const captureTarget = activePointerTargetRef.current;
     activePointerTargetRef.current = null;
     try {
-      if (captureTarget?.releasePointerCapture && (!captureTarget.hasPointerCapture || captureTarget.hasPointerCapture(pointerId))) {
+      if (
+        captureTarget?.releasePointerCapture &&
+        (!captureTarget.hasPointerCapture || captureTarget.hasPointerCapture(pointerId))
+      ) {
         captureTarget.releasePointerCapture(pointerId);
       }
     } catch {
@@ -721,16 +743,32 @@ export function WhiteboardModuleCard({
           <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Source display
           </p>
-          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "compact" })} type="button">
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => updateModuleSettings({ sourceDisplayMode: "compact" })}
+            type="button"
+          >
             Compact reading
           </button>
-          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "summary" })} type="button">
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => updateModuleSettings({ sourceDisplayMode: "summary" })}
+            type="button"
+          >
             Summary first
           </button>
-          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "full" })} type="button">
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => updateModuleSettings({ sourceDisplayMode: "full" })}
+            type="button"
+          >
             Full lesson
           </button>
-          <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ sourceDisplayMode: "header-hidden" })} type="button">
+          <button
+            className="whiteboard-card-menu-item"
+            onClick={() => updateModuleSettings({ sourceDisplayMode: "header-hidden" })}
+            type="button"
+          >
             Hide lesson header
           </button>
           <button
@@ -750,29 +788,59 @@ export function WhiteboardModuleCard({
       <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         Card density
       </p>
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ cardDensity: "compact" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() => updateModuleSettings({ cardDensity: "compact" })}
+        type="button"
+      >
         Compact density
       </button>
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ cardDensity: "comfortable" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() => updateModuleSettings({ cardDensity: "comfortable" })}
+        type="button"
+      >
         Comfortable density
       </button>
       <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         Text size
       </p>
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "small" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() => updateModuleSettings({ textSize: "small" })}
+        type="button"
+      >
         Small text
       </button>
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "normal" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() => updateModuleSettings({ textSize: "normal" })}
+        type="button"
+      >
         Normal text
       </button>
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ textSize: "large" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() => updateModuleSettings({ textSize: "large" })}
+        type="button"
+      >
         Large text
       </button>
       <div className="my-1 h-px bg-border" />
-      <button className="whiteboard-card-menu-item" onClick={() => updateModuleSettings({ mode: moduleElement.mode === "collapsed" ? "preview" : "collapsed" })} type="button">
+      <button
+        className="whiteboard-card-menu-item"
+        onClick={() =>
+          updateModuleSettings({ mode: moduleElement.mode === "collapsed" ? "preview" : "collapsed" })
+        }
+        type="button"
+      >
         Collapse card
       </button>
-      <button className="whiteboard-card-menu-item text-destructive" onClick={() => onRemove(moduleElement.id)} type="button">
+      <button
+        className="whiteboard-card-menu-item text-destructive"
+        onClick={() => onRemove(moduleElement.id)}
+        type="button"
+      >
         Remove card
       </button>
     </div>
@@ -785,7 +853,8 @@ export function WhiteboardModuleCard({
       className={cn(
         "whiteboard-module-card pointer-events-auto absolute flex flex-col overflow-visible rounded-lg border border-border bg-card text-card-foreground shadow-[0_16px_38px_rgba(15,23,42,0.18)] ring-0 transition-[box-shadow,border-color]",
         "hover:border-primary hover:shadow-[0_18px_46px_rgba(15,23,42,0.24)]",
-        zoomScaled && "shadow-[0_8px_18px_rgba(15,23,42,0.14)] hover:shadow-[0_10px_24px_rgba(15,23,42,0.18)]",
+        zoomScaled &&
+          "shadow-[0_8px_18px_rgba(15,23,42,0.14)] hover:shadow-[0_10px_24px_rgba(15,23,42,0.18)]",
         selected && "border-primary/70 shadow-[0_22px_56px_rgba(15,23,42,0.28)] ring-2 ring-primary/45",
         moduleElement.mode === "collapsed" && "h-auto",
       )}
@@ -830,7 +899,9 @@ export function WhiteboardModuleCard({
           stabilizedHeavyCard &&
           !cardControlTarget &&
           event.target instanceof Element &&
-          event.target.closest(".whiteboard-module-card__chrome,.whiteboard-module-card__resize-handle,.whiteboard-module-card__content")
+          event.target.closest(
+            ".whiteboard-module-card__chrome,.whiteboard-module-card__resize-handle,.whiteboard-module-card__content",
+          )
         ) {
           return;
         }
@@ -853,7 +924,9 @@ export function WhiteboardModuleCard({
       >
         <div className="flex min-w-0 items-center gap-2">
           <Grip className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-semibold">{moduleElement.title ?? definition?.label ?? moduleElement.moduleId}</span>
+          <span className="truncate font-semibold">
+            {moduleElement.title ?? definition?.label ?? moduleElement.moduleId}
+          </span>
           {presentation === "chip" ? (
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               chip

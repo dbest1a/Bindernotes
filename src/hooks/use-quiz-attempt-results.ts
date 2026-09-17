@@ -6,7 +6,8 @@ export function useQuizAttemptResults(quizId?: string, attemptId?: string, owner
     queryKey: ["math", "quiz-attempt", ownerId, quizId, attemptId],
     enabled: Boolean(quizId && attemptId && ownerId),
     queryFn: ({ signal }) => {
-      if (!quizId || !attemptId || !ownerId) throw new Error("A saved attempt and signed-in account are required.");
+      if (!quizId || !attemptId || !ownerId)
+        throw new Error("A saved attempt and signed-in account are required.");
       return getQuizAttemptResults({ quizId, attemptId, ownerId, signal });
     },
   });

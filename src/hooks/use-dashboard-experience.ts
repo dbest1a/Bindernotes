@@ -86,9 +86,7 @@ export function useDashboardExperience(isAdmin: boolean | undefined) {
   const publish = useCallback((nextPreference: AdminDashboardPreference) => {
     saveAdminDashboardPreference(nextPreference, getStorage());
     if (hasWindow()) {
-      window.dispatchEvent(
-        new CustomEvent(adminDashboardPreferenceChangeEvent, { detail: nextPreference }),
-      );
+      window.dispatchEvent(new CustomEvent(adminDashboardPreferenceChangeEvent, { detail: nextPreference }));
     }
   }, []);
 

@@ -113,11 +113,7 @@ describe("system content repair", () => {
 
     const plan = planSystemContentRepair(
       makeDataset({
-        binders: [
-          makeBinder({ id: SYSTEM_BINDER_IDS.algebra }),
-          systemDuplicate,
-          privateBinder,
-        ],
+        binders: [makeBinder({ id: SYSTEM_BINDER_IDS.algebra }), systemDuplicate, privateBinder],
         lessons: [makeLesson()],
         folderBinders: [
           {

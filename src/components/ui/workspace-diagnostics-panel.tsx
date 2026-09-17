@@ -2,11 +2,7 @@ import { AlertTriangle, DatabaseZap, LockKeyhole } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { WorkspaceDiagnostic } from "@/types";
 
-export function WorkspaceDiagnosticsPanel({
-  diagnostics,
-}: {
-  diagnostics: WorkspaceDiagnostic[];
-}) {
+export function WorkspaceDiagnosticsPanel({ diagnostics }: { diagnostics: WorkspaceDiagnostic[] }) {
   if (diagnostics.length === 0) {
     return null;
   }
@@ -23,7 +19,9 @@ export function WorkspaceDiagnosticsPanel({
             These checks help confirm system content and permissions in the current environment.
           </p>
         </div>
-        <Badge variant="outline">{diagnostics.length} issue{diagnostics.length === 1 ? "" : "s"}</Badge>
+        <Badge variant="outline">
+          {diagnostics.length} issue{diagnostics.length === 1 ? "" : "s"}
+        </Badge>
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -46,7 +44,10 @@ export function WorkspaceDiagnosticsPanel({
                   <h3 className="mt-1 text-base font-semibold">{diagnostic.title}</h3>
                 </div>
               </div>
-              <Badge className="capitalize" variant={diagnostic.severity === "warning" ? "outline" : "secondary"}>
+              <Badge
+                className="capitalize"
+                variant={diagnostic.severity === "warning" ? "outline" : "secondary"}
+              >
                 {diagnostic.severity}
               </Badge>
             </div>

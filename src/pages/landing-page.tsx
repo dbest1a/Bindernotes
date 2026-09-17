@@ -210,7 +210,11 @@ function ClassicLandingPage() {
         <div className="marketing-hero__glow" aria-hidden="true" />
         <div className="marketing-hero__notes" aria-hidden="true">
           {heroNotes.map((note, index) => (
-            <span className="marketing-flying-note" key={note} style={{ "--note-index": index } as CSSProperties}>
+            <span
+              className="marketing-flying-note"
+              key={note}
+              style={{ "--note-index": index } as CSSProperties}
+            >
               {note}
             </span>
           ))}
@@ -222,13 +226,10 @@ function ClassicLandingPage() {
               <Sparkles data-icon="inline-start" />
               Built for serious students
             </div>
-            <h1>
-              Study notes that feel like a living, premium workspace.
-            </h1>
+            <h1>Study notes that feel like a living, premium workspace.</h1>
             <p>
-              BinderNotes brings lessons, private notes, highlights, formulas, graphing, and
-              whiteboards into one cinematic study system that stays organized while your thinking
-              gets bigger and stronger.
+              BinderNotes brings lessons, private notes, highlights, formulas, graphing, and whiteboards into
+              one cinematic study system that stays organized while your thinking gets bigger and stronger.
             </p>
             <div className="marketing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
@@ -237,7 +238,12 @@ function ClassicLandingPage() {
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
-              <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+              <Button
+                asChild
+                className="marketing-button marketing-button--ghost"
+                size="lg"
+                variant="outline"
+              >
                 <a href="#showcase">
                   Watch it unfold
                   <Play data-icon="inline-end" />
@@ -245,11 +251,21 @@ function ClassicLandingPage() {
               </Button>
             </div>
             <div className="marketing-hero__proof" aria-label="Product strengths">
-              <span><Check data-icon="inline-start" /> Real Supabase accounts</span>
-              <span><Check data-icon="inline-start" /> Math-ready workspaces</span>
-              <span><Check data-icon="inline-start" /> Built-in Desmos graphing</span>
-              <span><Check data-icon="inline-start" /> Full whiteboard lab</span>
-              <span><Check data-icon="inline-start" /> Open-source foundations</span>
+              <span>
+                <Check data-icon="inline-start" /> Real Supabase accounts
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Math-ready workspaces
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Built-in Desmos graphing
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Full whiteboard lab
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Open-source foundations
+              </span>
             </div>
           </div>
 
@@ -262,13 +278,17 @@ function ClassicLandingPage() {
           <span className="marketing-kicker">What it is</span>
           <h2>A binder, notebook, graph lab, and whiteboard that behave like one product.</h2>
           <p>
-            BinderNotes is not just another note page. It is a structured study workspace that
-            keeps sources, thinking, and tools connected.
+            BinderNotes is not just another note page. It is a structured study workspace that keeps sources,
+            thinking, and tools connected.
           </p>
         </div>
         <div className="marketing-proof__grid">
           {proofItems.map((item, index) => (
-            <article className="marketing-proof-card marketing-reveal" key={item.title} style={{ "--reveal-index": index } as CSSProperties}>
+            <article
+              className="marketing-proof-card marketing-reveal"
+              key={item.title}
+              style={{ "--reveal-index": index } as CSSProperties}
+            >
               <div className="marketing-proof-card__icon">{item.icon}</div>
               <h3>{item.title}</h3>
               <p>{item.body}</p>
@@ -277,7 +297,10 @@ function ClassicLandingPage() {
         </div>
       </section>
 
-      <section className="marketing-foundations marketing-section" aria-labelledby="marketing-foundations-title">
+      <section
+        className="marketing-foundations marketing-section"
+        aria-labelledby="marketing-foundations-title"
+      >
         <div className="marketing-foundations__header">
           <span className="marketing-kicker">APIs + open source</span>
           <h2 id="marketing-foundations-title">Built on serious infrastructure, not fake demo magic.</h2>
@@ -345,13 +368,19 @@ function ClassicLandingPage() {
           <span className="marketing-kicker">Whiteboard Lab</span>
           <h2>Sketch the messy part, then keep the useful part attached to the lesson.</h2>
           <p>
-            The whiteboard is not a separate island. It can hold BinderNotes modules, graph work,
-            source context, and notes so visual thinking becomes a study artifact.
+            The whiteboard is not a separate island. It can hold BinderNotes modules, graph work, source
+            context, and notes so visual thinking becomes a study artifact.
           </p>
           <div className="marketing-feature-list">
-            <span><MousePointer2 data-icon="inline-start" /> Place modules on the board</span>
-            <span><Calculator data-icon="inline-start" /> Open graph and calculator tools</span>
-            <span><Layers3 data-icon="inline-start" /> Keep context with binder lessons</span>
+            <span>
+              <MousePointer2 data-icon="inline-start" /> Place modules on the board
+            </span>
+            <span>
+              <Calculator data-icon="inline-start" /> Open graph and calculator tools
+            </span>
+            <span>
+              <Layers3 data-icon="inline-start" /> Keep context with binder lessons
+            </span>
           </div>
         </div>
       </section>
@@ -361,8 +390,8 @@ function ClassicLandingPage() {
           <span className="marketing-kicker">Notes that move with meaning</span>
           <h2>From scattered thoughts to a clean study trail.</h2>
           <p>
-            Highlights, quotes, private explanations, and math blocks stop drifting around. They
-            land where they belong.
+            Highlights, quotes, private explanations, and math blocks stop drifting around. They land where
+            they belong.
           </p>
         </div>
         <div className="marketing-note-river" aria-label="Animated note workflow">
@@ -374,7 +403,11 @@ function ClassicLandingPage() {
             "Save the note",
             "Review with context",
           ].map((item, index) => (
-            <article className="marketing-note-card" key={item} style={{ "--river-index": index } as CSSProperties}>
+            <article
+              className="marketing-note-card"
+              key={item}
+              style={{ "--river-index": index } as CSSProperties}
+            >
               <span>{String(index + 1).padStart(2, "0")}</span>
               <strong>{item}</strong>
             </article>
@@ -389,7 +422,11 @@ function ClassicLandingPage() {
         </div>
         <div className="marketing-workflow__track">
           {workflowSteps.map((step, index) => (
-            <article className="marketing-workflow__step marketing-reveal" key={step.title} style={{ "--reveal-index": index } as CSSProperties}>
+            <article
+              className="marketing-workflow__step marketing-reveal"
+              key={step.title}
+              style={{ "--reveal-index": index } as CSSProperties}
+            >
               <div className="marketing-workflow__number">{String(index + 1).padStart(2, "0")}</div>
               <div className="marketing-workflow__icon">{step.icon}</div>
               <h3>{step.title}</h3>
@@ -404,13 +441,17 @@ function ClassicLandingPage() {
           <span className="marketing-kicker">Why it feels different</span>
           <h2>BinderNotes turns academic chaos into a workspace you want to come back to.</h2>
           <p>
-            The difference is context. Your lesson, private note, highlight, graph, formula, and
-            whiteboard are not separate chores. They are parts of the same thinking surface.
+            The difference is context. Your lesson, private note, highlight, graph, formula, and whiteboard
+            are not separate chores. They are parts of the same thinking surface.
           </p>
         </div>
         <div className="marketing-difference__stack">
           {differentiators.map((item, index) => (
-            <div className="marketing-difference__card marketing-reveal" key={item} style={{ "--reveal-index": index } as CSSProperties}>
+            <div
+              className="marketing-difference__card marketing-reveal"
+              key={item}
+              style={{ "--reveal-index": index } as CSSProperties}
+            >
               <span>{index < 3 ? "Without" : "With BinderNotes"}</span>
               <p>{item}</p>
             </div>
@@ -455,7 +496,11 @@ function ClassicLandingPage() {
           <Link to="/pricing">Pricing</Link>
           <Link to="/tutorial">Tutorial</Link>
         </nav>
-        <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
+        <Link
+          className="marketing-footer__easter-egg"
+          to="/hidden-hollow"
+          aria-label="Loose stone under the footer"
+        >
           loose stone
         </Link>
       </footer>
@@ -524,12 +569,7 @@ const calmHelpItems = [
   },
 ];
 
-const mathHeavyAudiences = [
-  "AP Calculus",
-  "College calculus",
-  "STEM gateway courses",
-  "Tutoring workflows",
-];
+const mathHeavyAudiences = ["AP Calculus", "College calculus", "STEM gateway courses", "Tutoring workflows"];
 
 function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
   const heroRef = useRef<HTMLElement | null>(null);
@@ -616,9 +656,9 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
             </div>
             <h1>Study notes that remember the source.</h1>
             <p>
-              A calmer workspace for calculus notes, graphs, and review. BinderNotes helps students
-              move from source to note to math context to practice without turning studying into a
-              pile of disconnected tabs.
+              A calmer workspace for calculus notes, graphs, and review. BinderNotes helps students move from
+              source to note to math context to practice without turning studying into a pile of disconnected
+              tabs.
             </p>
             <div className="marketing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
@@ -627,7 +667,12 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
-              <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+              <Button
+                asChild
+                className="marketing-button marketing-button--ghost"
+                size="lg"
+                variant="outline"
+              >
                 <a href="#showcase">
                   See the workflow
                   <Play data-icon="inline-end" />
@@ -635,10 +680,18 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
               </Button>
             </div>
             <div className="marketing-hero__proof" aria-label="Beta homepage strengths">
-              <span><Check data-icon="inline-start" /> Source-linked notes</span>
-              <span><Check data-icon="inline-start" /> Graphs beside formulas</span>
-              <span><Check data-icon="inline-start" /> Review and mistakes</span>
-              <span><Check data-icon="inline-start" /> Real accounts</span>
+              <span>
+                <Check data-icon="inline-start" /> Source-linked notes
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Graphs beside formulas
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Review and mistakes
+              </span>
+              <span>
+                <Check data-icon="inline-start" /> Real accounts
+              </span>
             </div>
             <p className="beta-homepage-ai-note">
               AI study helpers, when enabled, work from your notes and sources.
@@ -658,8 +711,8 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
           <span className="marketing-kicker">One concrete study loop</span>
           <h2>From source excerpt to exam-ready mistakes.</h2>
           <p>
-            The beta message focuses on the habit BinderNotes should own first: source-linked
-            studying for math-heavy classes.
+            The beta message focuses on the habit BinderNotes should own first: source-linked studying for
+            math-heavy classes.
           </p>
         </div>
         <div className="beta-homepage-workflow__track">
@@ -700,8 +753,8 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
           <span className="marketing-kicker">Built for math-heavy students first</span>
           <h2>Calculus and STEM courses need more than a blank note.</h2>
           <p>
-            BinderNotes should win where source excerpts, problem work, formulas, graphs, tutoring
-            notes, and mistake review all need to stay connected.
+            BinderNotes should win where source excerpts, problem work, formulas, graphs, tutoring notes, and
+            mistake review all need to stay connected.
           </p>
         </div>
         <div className="beta-homepage-math__list" aria-label="Math-heavy student use cases">
@@ -719,17 +772,16 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
           <ShieldCheck data-icon="inline-start" />
           <h2>Real accounts, no demo workspace in account areas.</h2>
           <p>
-            The product promise stays grounded in real Supabase auth, user-owned notes, and account
-            data paths. Public copy should earn trust without implying a fake workspace or generic
-            answer engine.
+            The product promise stays grounded in real Supabase auth, user-owned notes, and account data
+            paths. Public copy should earn trust without implying a fake workspace or generic answer engine.
           </p>
         </article>
         <article>
           <BookOpenCheck data-icon="inline-start" />
           <h2>Student-owned study records.</h2>
           <p>
-            Source-linked notes, graph context, and review history should belong to the learner and
-            remain portable as BinderNotes grows export and data controls.
+            Source-linked notes, graph context, and review history should belong to the learner and remain
+            portable as BinderNotes grows export and data controls.
           </p>
         </article>
       </section>
@@ -739,8 +791,8 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
           <span className="marketing-kicker marketing-kicker--bright">Beta gated for review</span>
           <h2>Start with one source, one note, one better review session.</h2>
           <p>
-            This homepage path keeps the floating BinderNotes feel while making the promise more
-            concrete, faster to load, and easier for students to understand.
+            This homepage path keeps the floating BinderNotes feel while making the promise more concrete,
+            faster to load, and easier for students to understand.
           </p>
           <div className="marketing-hero__actions">
             <Button asChild className="marketing-button marketing-button--primary" size="lg">
@@ -763,15 +815,19 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
 
 function BetaFloatingWorkflowVisual() {
   return (
-    <div className="beta-floating-workflow" data-testid="beta-calm-floating-modules" aria-label="Source-linked study workflow preview">
+    <div
+      className="beta-floating-workflow"
+      data-testid="beta-calm-floating-modules"
+      aria-label="Source-linked study workflow preview"
+    >
       <article className="beta-floating-card beta-floating-card--source">
         <div className="beta-floating-card__top">
           <span>Source excerpt</span>
           <strong>Calc I</strong>
         </div>
         <p>
-          A derivative measures the instantaneous rate of change at a point, built from the limit
-          of secant slopes.
+          A derivative measures the instantaneous rate of change at a point, built from the limit of secant
+          slopes.
         </p>
         <mark>limit of secant slopes</mark>
       </article>
@@ -780,9 +836,7 @@ function BetaFloatingWorkflowVisual() {
           <span>Student note</span>
           <strong>Own words</strong>
         </div>
-        <p>
-          If h gets tiny, the average slope becomes the tangent slope. That is why the limit matters.
-        </p>
+        <p>If h gets tiny, the average slope becomes the tangent slope. That is why the limit matters.</p>
       </article>
       <article className="beta-floating-card beta-floating-card--graph">
         <div className="beta-floating-card__top">
@@ -834,7 +888,9 @@ function MarketingNav() {
         <Link to="/pricing">Pricing</Link>
       </div>
       <div className="marketing-nav__actions">
-        <Link className="marketing-nav__signin" to="/auth">Sign in</Link>
+        <Link className="marketing-nav__signin" to="/auth">
+          Sign in
+        </Link>
         <Link className="marketing-nav__start" to="/auth">
           Start
           <ArrowRight data-icon="inline-end" />
@@ -856,7 +912,11 @@ function MarketingFooter() {
         <Link to="/pricing">Pricing</Link>
         <Link to="/tutorial">Tutorial</Link>
       </nav>
-      <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
+      <Link
+        className="marketing-footer__easter-egg"
+        to="/hidden-hollow"
+        aria-label="Loose stone under the footer"
+      >
         loose stone
       </Link>
     </footer>
@@ -895,8 +955,8 @@ function StudyWorkspaceMockup() {
           <span className="product-panel__eyebrow">Source lesson</span>
           <h3>Calculus Limits and the Derivative Definition</h3>
           <p>
-            The calculus section reopens limits with more precision: important limits,
-            epsilon-delta language, and formal reasoning.
+            The calculus section reopens limits with more precision: important limits, epsilon-delta language,
+            and formal reasoning.
           </p>
           <div className="product-highlight-line">Important limits anchor derivative rules.</div>
           <div className="product-formula">f'(x) = lim (f(x+h) - f(x)) / h</div>
@@ -905,8 +965,7 @@ function StudyWorkspaceMockup() {
           <span className="product-panel__eyebrow">Private notes</span>
           <h3>My explanation</h3>
           <p>
-            Limits describe behavior near a value. Derivatives turn that local behavior into a
-            rate of change.
+            Limits describe behavior near a value. Derivatives turn that local behavior into a rate of change.
           </p>
           <div className="product-toolbar">
             <span>H2</span>
@@ -973,7 +1032,9 @@ function WhiteboardProductMockup() {
   return (
     <article className="whiteboard-product">
       <div className="whiteboard-product__toolbar">
-        <span><PenLine data-icon="inline-start" /> Draw</span>
+        <span>
+          <PenLine data-icon="inline-start" /> Draw
+        </span>
         <span>Text</span>
         <span>Shape</span>
         <span>Modules</span>
@@ -991,9 +1052,7 @@ function WhiteboardProductMockup() {
             <span className="mini-graph__curve" />
           </div>
         </div>
-        <div className="whiteboard-product__sticky">
-          sin(theta) = opposite / hypotenuse
-        </div>
+        <div className="whiteboard-product__sticky">sin(theta) = opposite / hypotenuse</div>
         <span className="whiteboard-product__stroke whiteboard-product__stroke--one" />
         <span className="whiteboard-product__stroke whiteboard-product__stroke--two" />
       </div>

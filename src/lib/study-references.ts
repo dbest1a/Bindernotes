@@ -9,21 +9,12 @@ export type LessonSectionAnchor = {
   order: number;
 };
 
-export function buildLessonSectionAnchorId(
-  lessonId: string,
-  heading: string,
-  occurrence = 0,
-) {
+export function buildLessonSectionAnchorId(lessonId: string, heading: string, occurrence = 0) {
   const headingSlug = slugify(heading) || "section";
-  return occurrence > 0
-    ? `${lessonId}-${headingSlug}-${occurrence + 1}`
-    : `${lessonId}-${headingSlug}`;
+  return occurrence > 0 ? `${lessonId}-${headingSlug}-${occurrence + 1}` : `${lessonId}-${headingSlug}`;
 }
 
-export function collectLessonSectionAnchors(
-  content: JSONContent,
-  lessonId: string,
-): LessonSectionAnchor[] {
+export function collectLessonSectionAnchors(content: JSONContent, lessonId: string): LessonSectionAnchor[] {
   const anchors: LessonSectionAnchor[] = [];
   const occurrences = new Map<string, number>();
 
@@ -83,7 +74,12 @@ export function inferMathBlockLabel(block: MathBlock) {
     if (expressions.some((expression) => expression.includes(">") || expression.includes("<"))) {
       return "Inequality graph";
     }
-    if (expressions.some((expression) => expression.includes("sqrt") || expression.includes("ln") || expression.includes("1/x"))) {
+    if (
+      expressions.some(
+        (expression) =>
+          expression.includes("sqrt") || expression.includes("ln") || expression.includes("1/x"),
+      )
+    ) {
       return "Function graph reference";
     }
     if (expressions.some((expression) => expression.includes("x^2"))) {

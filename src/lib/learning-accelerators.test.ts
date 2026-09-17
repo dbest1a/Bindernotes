@@ -68,7 +68,9 @@ const note: LearnerNote = {
     content: [
       {
         type: "paragraph",
-        content: [{ type: "text", text: "I can factor this but I need to explain why the graph crosses there." }],
+        content: [
+          { type: "text", text: "I can factor this but I need to explain why the graph crosses there." },
+        ],
       },
     ],
   },
@@ -144,7 +146,9 @@ describe("learning accelerators", () => {
       enabledFeatures: ["transferForge", "misstepMuseum", "prereqXray"],
     });
 
-    expect(cards.find((card) => card.id === "transferForge")?.studentPrompt).toContain("Polynomials and Trinomials");
+    expect(cards.find((card) => card.id === "transferForge")?.studentPrompt).toContain(
+      "Polynomials and Trinomials",
+    );
     expect(cards.find((card) => card.id === "misstepMuseum")?.studentPrompt).toContain("almost-right");
     expect(cards.find((card) => card.id === "prereqXray")?.evidence).toEqual(
       expect.arrayContaining([expect.stringContaining("FOIL example")]),

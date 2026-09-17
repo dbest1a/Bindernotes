@@ -109,8 +109,8 @@ export function AuthPage() {
               Notes that feel ready before the setup work starts.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-8 text-background/78">
-              Built for students who need a calm place to read, annotate, derive, and keep their
-              own thinking clearly separate from the source material.
+              Built for students who need a calm place to read, annotate, derive, and keep their own thinking
+              clearly separate from the source material.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <FeaturePill icon={<BookOpenCheck data-icon="inline-start" />} label="Structured binders" />
@@ -129,12 +129,18 @@ export function AuthPage() {
             </Badge>
             <CardTitle className="text-3xl sm:text-4xl">Open Binder Notes</CardTitle>
             <CardDescription>
-              Sign in with email and password or Google. Your workspace is tied to your Supabase
-              account so notes, highlights, and layouts stay with you.
+              Sign in with email and password or Google. Your workspace is tied to your Supabase account so
+              notes, highlights, and layouts stay with you.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {session && !profile && <p className="mb-4 text-sm"><Link className="underline" to="/account">Manage your session or finish pending account deletion</Link></p>}
+            {session && !profile && (
+              <p className="mb-4 text-sm">
+                <Link className="underline" to="/account">
+                  Manage your session or finish pending account deletion
+                </Link>
+              </p>
+            )}
             {!isConfigured ? (
               <p
                 className="mb-5 flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -143,7 +149,8 @@ export function AuthPage() {
                 <AlertCircle className="mt-0.5 shrink-0" data-icon="inline-start" />
                 <span>
                   <strong className="block">Account sign-in is not ready</strong>
-                  Required account service settings are missing. Configure client auth before releasing sign-in.
+                  Required account service settings are missing. Configure client auth before releasing
+                  sign-in.
                 </span>
               </p>
             ) : null}
@@ -221,12 +228,38 @@ export function AuthPage() {
               </Button>
             </form>
 
-            {mode === "login" && isConfigured && <div className="mt-3 space-y-2"><Button variant="ghost" disabled={isSubmitting} onClick={async () => {
-              const email = (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
-              if (!z.string().email().safeParse(email).success) { setRecoveryMessage("Enter your email address above first."); return; }
-              setIsSubmitting(true); try { await requestPasswordRecovery(email); setRecoveryMessage("If this address has an account, a recovery link has been sent."); }
-              catch (cause) { setRecoveryMessage(cause instanceof Error ? cause.message : "Recovery request failed."); } finally { setIsSubmitting(false); }
-            }}>Forgot password?</Button>{recoveryMessage && <p role="status" className="text-sm">{recoveryMessage}</p>}</div>}
+            {mode === "login" && isConfigured && (
+              <div className="mt-3 space-y-2">
+                <Button
+                  variant="ghost"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    const email =
+                      (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
+                    if (!z.string().email().safeParse(email).success) {
+                      setRecoveryMessage("Enter your email address above first.");
+                      return;
+                    }
+                    setIsSubmitting(true);
+                    try {
+                      await requestPasswordRecovery(email);
+                      setRecoveryMessage("If this address has an account, a recovery link has been sent.");
+                    } catch (cause) {
+                      setRecoveryMessage(cause instanceof Error ? cause.message : "Recovery request failed.");
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                >
+                  Forgot password?
+                </Button>
+                {recoveryMessage && (
+                  <p role="status" className="text-sm">
+                    {recoveryMessage}
+                  </p>
+                )}
+              </div>
+            )}
             {isConfigured ? (
               <>
                 <div className="my-4 flex items-center gap-3">
@@ -248,7 +281,6 @@ export function AuthPage() {
                 </Button>
               </>
             ) : null}
-
           </CardContent>
         </Card>
       </section>
@@ -275,11 +307,7 @@ function FeaturePill({ icon, label }: { icon: ReactNode; label: string }) {
 
 function GoogleMark() {
   return (
-    <svg
-      aria-hidden="true"
-      className="size-4"
-      viewBox="0 0 24 24"
-    >
+    <svg aria-hidden="true" className="size-4" viewBox="0 0 24 24">
       <path
         d="M21.805 12.23c0-.76-.068-1.49-.195-2.19H12v4.146h5.498a4.7 4.7 0 0 1-2.037 3.082v2.557h3.296c1.93-1.777 3.048-4.396 3.048-7.595Z"
         fill="#4285F4"

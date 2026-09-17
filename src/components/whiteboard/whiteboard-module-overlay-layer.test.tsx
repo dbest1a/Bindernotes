@@ -80,7 +80,14 @@ describe("WhiteboardModuleOverlayLayer", () => {
   });
 
   it("camera changes do not convert or save board-pinned module coordinates", () => {
-    const module = moduleElement({ moduleId: "scientific-calculator", anchorMode: "board", x: 100, y: 120, width: 420, height: 320 });
+    const module = moduleElement({
+      moduleId: "scientific-calculator",
+      anchorMode: "board",
+      x: 100,
+      y: 120,
+      width: 420,
+      height: 320,
+    });
     const onChangeModule = vi.fn();
     const { rerender } = render(
       <WhiteboardPinnedObjectLayer
@@ -171,7 +178,11 @@ describe("WhiteboardModuleOverlayLayer", () => {
     );
 
     expect(renderModule).not.toHaveBeenCalled();
-    expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("preview");
+    expect(
+      screen
+        .getByTestId("whiteboard-module-card-module-1")
+        .getAttribute("data-whiteboard-module-presentation"),
+    ).toBe("preview");
   });
 
   it("does not mount regular live content when the board card is offscreen", () => {
@@ -189,7 +200,11 @@ describe("WhiteboardModuleOverlayLayer", () => {
     );
 
     expect(renderModule).not.toHaveBeenCalled();
-    expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("preview");
+    expect(
+      screen
+        .getByTestId("whiteboard-module-card-module-1")
+        .getAttribute("data-whiteboard-module-presentation"),
+    ).toBe("preview");
   });
 
   it("keeps board-pinned scientific calculator live through preview-scale zoom", () => {
@@ -207,7 +222,11 @@ describe("WhiteboardModuleOverlayLayer", () => {
     );
 
     expect(renderModule).toHaveBeenCalledWith("scientific-calculator", expect.any(Object));
-    expect(screen.getByTestId("whiteboard-module-card-module-1").getAttribute("data-whiteboard-module-presentation")).toBe("live");
+    expect(
+      screen
+        .getByTestId("whiteboard-module-card-module-1")
+        .getAttribute("data-whiteboard-module-presentation"),
+    ).toBe("live");
     expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
     expect(screen.getByText("Live calculator")).toBeTruthy();
   });
@@ -265,8 +284,24 @@ describe("WhiteboardModuleOverlayLayer", () => {
       <WhiteboardPinnedObjectLayer
         context={context}
         modules={[
-          moduleElement({ id: "pinned", moduleId: "scientific-calculator", anchorMode: "board", pinned: true, x: 100, y: 100 }),
-          moduleElement({ id: "floating", moduleId: "scientific-calculator", anchorMode: "viewport", pinned: false, x: 100, y: 100, width: 420, height: 320 }),
+          moduleElement({
+            id: "pinned",
+            moduleId: "scientific-calculator",
+            anchorMode: "board",
+            pinned: true,
+            x: 100,
+            y: 100,
+          }),
+          moduleElement({
+            id: "floating",
+            moduleId: "scientific-calculator",
+            anchorMode: "viewport",
+            pinned: false,
+            x: 100,
+            y: 100,
+            width: 420,
+            height: 320,
+          }),
         ]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
@@ -278,15 +313,21 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(screen.getByTestId("whiteboard-module-card-pinned").getAttribute("style")).toContain(
       "transform: translate3d(240px, 140px, 0) scale(2)",
     );
-    expect(screen.getByTestId("whiteboard-module-card-floating").getAttribute("style")).toContain("left: 100px");
-    expect(screen.getByTestId("whiteboard-module-card-floating").getAttribute("data-whiteboard-module-anchor")).toBe("viewport");
+    expect(screen.getByTestId("whiteboard-module-card-floating").getAttribute("style")).toContain(
+      "left: 100px",
+    );
+    expect(
+      screen.getByTestId("whiteboard-module-card-floating").getAttribute("data-whiteboard-module-anchor"),
+    ).toBe("viewport");
   });
 
   it("renders viewport anchored Desmos in the viewport tool overlay without camera scaling", () => {
     render(
       <WhiteboardPinnedObjectLayer
         context={context}
-        modules={[moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 720, height: 560 })]}
+        modules={[
+          moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 720, height: 560 }),
+        ]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={() => <div>Live graph</div>}
@@ -344,7 +385,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
       mounted.push("render");
       return <div>Live graph</div>;
     }
-    const modules = [moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 720, height: 560 })];
+    const modules = [
+      moduleElement({ anchorMode: "viewport", pinned: false, x: 120, y: 140, width: 720, height: 560 }),
+    ];
     const renderModule = vi.fn(() => <LiveGraph />);
     const onChangeModule = vi.fn();
     const onRemoveModule = vi.fn();
@@ -830,7 +873,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
       />,
     );
 
-    expect((screen.getByLabelText("Private note editor") as HTMLTextAreaElement).value).toBe("survives pan and zoom");
+    expect((screen.getByLabelText("Private note editor") as HTMLTextAreaElement).value).toBe(
+      "survives pan and zoom",
+    );
     expect(screen.queryByText(/zoom in or enlarge this card/i)).toBeNull();
     expect(mounts).toBe(1);
     expect(unmounts).toBe(0);
@@ -840,7 +885,16 @@ describe("WhiteboardModuleOverlayLayer", () => {
     render(
       <WhiteboardPinnedObjectLayer
         context={context}
-        modules={[moduleElement({ moduleId: "scientific-calculator", anchorMode: "board-fixed-size", x: 100, y: 120, width: 420, height: 320 })]}
+        modules={[
+          moduleElement({
+            moduleId: "scientific-calculator",
+            anchorMode: "board-fixed-size",
+            x: 100,
+            y: 120,
+            width: 420,
+            height: 320,
+          }),
+        ]}
         onChangeModule={vi.fn()}
         onRemoveModule={vi.fn()}
         renderModule={() => <div>Fixed graph</div>}
@@ -1049,14 +1103,28 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const libraryContext = {
       ...context,
       binder: { id: "math-lab", title: "Math Lab" },
-      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      selectedLesson: {
+        id: "math-lab-whiteboard",
+        binder_id: "math-lab",
+        title: "Math Whiteboard Lab",
+        math_blocks: [],
+      },
       lessons: [],
       filteredLessons: [],
       library: {
         folders: [{ id: "folder-history", name: "History" }],
-        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+        ],
         binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
-        lessons: [{ id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline", math_blocks: [] }],
+        lessons: [
+          {
+            id: "lesson-russian-timeline",
+            binder_id: "binder-russian-revolution",
+            title: "Timeline",
+            math_blocks: [],
+          },
+        ],
         loading: false,
         error: null,
       },
@@ -1091,14 +1159,28 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const libraryContext = {
       ...context,
       binder: { id: "math-lab", title: "Math Lab" },
-      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      selectedLesson: {
+        id: "math-lab-whiteboard",
+        binder_id: "math-lab",
+        title: "Math Whiteboard Lab",
+        math_blocks: [],
+      },
       lessons: [],
       filteredLessons: [],
       library: {
         folders: [{ id: "folder-history", name: "History" }],
-        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+        ],
         binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
-        lessons: [{ id: "lesson-russian-timeline", binder_id: "binder-russian-revolution", title: "Timeline", math_blocks: [] }],
+        lessons: [
+          {
+            id: "lesson-russian-timeline",
+            binder_id: "binder-russian-revolution",
+            title: "Timeline",
+            math_blocks: [],
+          },
+        ],
         loading: false,
         error: null,
       },
@@ -1133,7 +1215,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(screen.getByTestId("whiteboard-card-options-menu")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /edit source/i }));
 
-    const editSource = onChangeModule.mock.calls.at(-1)?.[0] as WhiteboardModuleElement & { sourceConfirmed?: boolean };
+    const editSource = onChangeModule.mock.calls.at(-1)?.[0] as WhiteboardModuleElement & {
+      sourceConfirmed?: boolean;
+    };
     expect(editSource.sourceConfirmed).toBe(false);
     expect(editSource.x).toBe(confirmedSource.x);
     expect(editSource.anchorMode).toBe("board-fixed-size");
@@ -1219,7 +1303,12 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const libraryContext = {
       ...context,
       binder: { id: "math-lab", title: "Math Lab" },
-      selectedLesson: { id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab", math_blocks: [] },
+      selectedLesson: {
+        id: "math-lab-whiteboard",
+        binder_id: "math-lab",
+        title: "Math Whiteboard Lab",
+        math_blocks: [],
+      },
       lessons: [],
       filteredLessons: [],
       library: {
@@ -1231,7 +1320,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
             id: "lesson-geometry",
             binder_id: "binder-geometry",
             title: "Rigid Motions",
-            math_blocks: [{ id: "rotation", type: "latex", label: "Rotation rule", latex: "(x,y) -> (-y,x)" }],
+            math_blocks: [
+              { id: "rotation", type: "latex", label: "Rotation rule", latex: "(x,y) -> (-y,x)" },
+            ],
           },
         ],
         loading: false,
@@ -1285,7 +1376,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
       filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
       library: {
         folders: [{ id: "folder-history", name: "History" }],
-        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+        ],
         binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
         lessons: [
           { id: "lesson-russian-overview", binder_id: "binder-russian-revolution", title: "Overview" },
@@ -1467,7 +1560,14 @@ describe("WhiteboardModuleOverlayLayer", () => {
         folders: [{ id: "folder-math", name: "Math" }],
         folderBinders: [{ id: "math-jacob", folder_id: "folder-math", binder_id: "binder-jacob-math-notes" }],
         binders: [{ id: "binder-jacob-math-notes", title: "Jacob Math Notes" }],
-        lessons: [{ id: "lesson-calculus", binder_id: "binder-jacob-math-notes", title: "Calculus Limits", math_blocks: [] }],
+        lessons: [
+          {
+            id: "lesson-calculus",
+            binder_id: "binder-jacob-math-notes",
+            title: "Calculus Limits",
+            math_blocks: [],
+          },
+        ],
         loading: false,
         error: null,
       },
@@ -1518,7 +1618,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
       filteredLessons: [{ id: "math-lab-whiteboard", binder_id: "math-lab", title: "Math Whiteboard Lab" }],
       library: {
         folders: [{ id: "folder-history", name: "History" }],
-        folderBinders: [{ id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" }],
+        folderBinders: [
+          { id: "history-russian", folder_id: "folder-history", binder_id: "binder-russian-revolution" },
+        ],
         binders: [{ id: "binder-russian-revolution", title: "The Russian Revolution" }],
         lessons: [
           { id: "lesson-russian-overview", binder_id: "binder-russian-revolution", title: "Overview" },

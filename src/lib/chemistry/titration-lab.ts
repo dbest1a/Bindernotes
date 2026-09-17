@@ -34,9 +34,13 @@ export function calculateStrongAcidStrongBasePh(input: {
   positive(input.acidVolumeMl, "Initial acid volume");
   nonnegative(input.baseVolumeMl, "Added base volume");
   const totalVolumeMl = finite(input.acidVolumeMl + input.baseVolumeMl, "Total volume");
-  const difference = input.acidMolarity * (input.acidVolumeMl / totalVolumeMl)
-    - input.baseMolarity * (input.baseVolumeMl / totalVolumeMl);
-  return calculateStrongAcidBase({ kind: difference < 0 ? "base" : "acid", concentrationM: Math.abs(difference) }).ph;
+  const difference =
+    input.acidMolarity * (input.acidVolumeMl / totalVolumeMl) -
+    input.baseMolarity * (input.baseVolumeMl / totalVolumeMl);
+  return calculateStrongAcidBase({
+    kind: difference < 0 ? "base" : "acid",
+    concentrationM: Math.abs(difference),
+  }).ph;
 }
 
 function buildMeasurement(

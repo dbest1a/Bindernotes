@@ -11,12 +11,7 @@ type TutorialVideoModalProps = {
   tutorial: TutorialEntry | null;
 };
 
-export function TutorialVideoModal({
-  onClose,
-  onWatched,
-  open,
-  tutorial,
-}: TutorialVideoModalProps) {
+export function TutorialVideoModal({ onClose, onWatched, open, tutorial }: TutorialVideoModalProps) {
   const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
@@ -56,9 +51,7 @@ export function TutorialVideoModal({
               {tutorial.category}
             </p>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight">{tutorial.title}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              {tutorial.summary}
-            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{tutorial.summary}</p>
           </div>
           <button
             aria-label="Close tutorial"

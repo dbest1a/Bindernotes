@@ -124,7 +124,9 @@ describe("math study loop service", () => {
     });
 
     expect(restoreGraphStateFromStudyLink("user-1", link.id)).toEqual(graphState);
-    expect(JSON.parse(window.localStorage.getItem(mathStudyGraphLinksStorageKey("user-1")) ?? "[]")).toHaveLength(1);
+    expect(
+      JSON.parse(window.localStorage.getItem(mathStudyGraphLinksStorageKey("user-1")) ?? "[]"),
+    ).toHaveLength(1);
   });
 
   it("creates a mistake review item from a problem log without storing broad homework AI behavior", () => {

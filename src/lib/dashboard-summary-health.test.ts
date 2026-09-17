@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isDashboardSummaryStale,
-  resolveDashboardSummaryHealth,
-} from "@/lib/dashboard-summary-health";
+import { isDashboardSummaryStale, resolveDashboardSummaryHealth } from "@/lib/dashboard-summary-health";
 
 describe("dashboard summary health", () => {
   const now = new Date("2026-05-07T12:00:00.000Z");

@@ -89,7 +89,9 @@ export function WhiteboardBoardList({
         {boards.map((board) => (
           <div
             className={`whiteboard-board-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl border p-2 transition ${
-              board.id === activeBoardId ? "border-primary/60 bg-primary/10 text-foreground" : "border-border/70 bg-background/70"
+              board.id === activeBoardId
+                ? "border-primary/60 bg-primary/10 text-foreground"
+                : "border-border/70 bg-background/70"
             }`}
             key={board.id}
           >

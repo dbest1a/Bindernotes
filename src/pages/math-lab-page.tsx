@@ -1,14 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import {
-  ArrowRight,
-  Cuboid,
-  FunctionSquare,
-  ListChecks,
-  Maximize2,
-  Minimize2,
-  PenTool,
-} from "lucide-react";
+import { ArrowRight, Cuboid, FunctionSquare, ListChecks, Maximize2, Minimize2, PenTool } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,14 +13,10 @@ import {
 } from "@/components/math/math-workspace-modules";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
-import {
-  useMathWorkspace,
-} from "@/hooks/use-math-workspace";
+import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { cn } from "@/lib/utils";
-import type {
-  MathBlock,
-} from "@/types";
+import type { MathBlock } from "@/types";
 
 const calculusModuleCards = [
   {
@@ -66,14 +54,8 @@ export function MathLabPage() {
   const betaFeatures = useBetaFeatures(profile?.id);
   const mathPerformanceLazyLoading = betaFeatures.isFeatureEnabled("revampBeta");
   const [searchParams] = useSearchParams();
-  const {
-    state,
-    setGraphExpanded,
-    setGraphMode,
-    setGraphVisible,
-    savedFunctionMap,
-    ...mathWorkspace
-  } = useMathWorkspace(profile?.id, "math-lab");
+  const { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace } =
+    useMathWorkspace(profile?.id, "math-lab");
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -109,7 +91,14 @@ export function MathLabPage() {
     });
   };
   const bindings = {
-    controller: { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace },
+    controller: {
+      state,
+      setGraphExpanded,
+      setGraphMode,
+      setGraphVisible,
+      savedFunctionMap,
+      ...mathWorkspace,
+    },
     lessonGraphs: [] as Extract<MathBlock, { type: "graph" }>[],
     pendingGraphLoad,
     pendingExpression,
@@ -157,8 +146,8 @@ export function MathLabPage() {
             Desmos graphing with a fast scientific calculator, inside Binder Notes.
           </h1>
           <p className="mt-4 max-w-2xl page-copy">
-            Work numerically, graph instantly, keep reusable graph states, and only mount the graphing
-            engine when you actually need it.
+            Work numerically, graph instantly, keep reusable graph states, and only mount the graphing engine
+            when you actually need it.
           </p>
         </div>
 
@@ -185,7 +174,11 @@ export function MathLabPage() {
               type="button"
               variant="ghost"
             >
-              {state.graphExpanded ? <Minimize2 data-icon="inline-start" /> : <Maximize2 data-icon="inline-start" />}
+              {state.graphExpanded ? (
+                <Minimize2 data-icon="inline-start" />
+              ) : (
+                <Maximize2 data-icon="inline-start" />
+              )}
               {headerControls.expandLabel}
             </Button>
           </div>
@@ -195,10 +188,12 @@ export function MathLabPage() {
       <section className="page-shell grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div>
           <Badge variant="outline">New math feature</Badge>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Math Whiteboard lives inside the lesson workspace.</h2>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+            Math Whiteboard lives inside the lesson workspace.
+          </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Open a math lesson, choose Math Practice Mode or Full Math Canvas, and use Whiteboard as a graph-paper board
-            with templates plus live lesson, notes, formula, graph, and calculator cards.
+            Open a math lesson, choose Math Practice Mode or Full Math Canvas, and use Whiteboard as a
+            graph-paper board with templates plus live lesson, notes, formula, graph, and calculator cards.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -216,8 +211,8 @@ export function MathLabPage() {
             The guided 2D and 3D Desmos modules live here too.
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Use this free lab for scratch work, or jump into the production math modules for
-            graph-linked lessons, saved graph states, and practice questions.
+            Use this free lab for scratch work, or jump into the production math modules for graph-linked
+            lessons, saved graph states, and practice questions.
           </p>
           <Button asChild className="mt-5" variant="outline">
             <Link to="/math/questions">
@@ -258,7 +253,9 @@ export function MathLabPage() {
         <section
           className={cn(
             "grid gap-4",
-            state.graphExpanded ? "xl:grid-cols-[minmax(0,1.55fr)_380px]" : "xl:grid-cols-[minmax(0,1.2fr)_390px]",
+            state.graphExpanded
+              ? "xl:grid-cols-[minmax(0,1.55fr)_380px]"
+              : "xl:grid-cols-[minmax(0,1.2fr)_390px]",
           )}
         >
           <div className="grid gap-4">
@@ -271,13 +268,19 @@ export function MathLabPage() {
           </div>
 
           <div className="grid gap-4">
-            <ScientificCalculatorModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
+            <ScientificCalculatorModule
+              bindings={bindings}
+              mathPerformanceLazyLoading={mathPerformanceLazyLoading}
+            />
             <SavedGraphsModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
           </div>
         </section>
       ) : (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <ScientificCalculatorModule bindings={bindings} mathPerformanceLazyLoading={mathPerformanceLazyLoading} />
+          <ScientificCalculatorModule
+            bindings={bindings}
+            mathPerformanceLazyLoading={mathPerformanceLazyLoading}
+          />
           <div className="grid gap-4">
             <section className="page-shell p-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

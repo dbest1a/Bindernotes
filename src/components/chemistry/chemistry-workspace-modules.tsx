@@ -60,10 +60,7 @@ import { solubilityRules } from "@/lib/chemistry/solubility-rules";
 import { solveStoichiometryProblem } from "@/lib/chemistry/stoichiometry";
 import { calculateHeatTransfer, describeHeatSign } from "@/lib/chemistry/thermochemistry";
 import { generateStrongAcidStrongBaseCurve } from "@/lib/chemistry/titration";
-import {
-  createTitrationInitialState,
-  titrationReducer,
-} from "@/lib/chemistry/titration-lab";
+import { createTitrationInitialState, titrationReducer } from "@/lib/chemistry/titration-lab";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import type { WorkspaceModuleId } from "@/types";
 
@@ -74,13 +71,7 @@ const stoichTemplate = {
   targetFormula: "H2O",
 };
 
-function Sparkline({
-  points,
-  ariaLabel,
-}: {
-  points: Array<{ x: number; y: number }>;
-  ariaLabel: string;
-}) {
+function Sparkline({ points, ariaLabel }: { points: Array<{ x: number; y: number }>; ariaLabel: string }) {
   const path = points
     .map((point, index) => {
       const x = Math.max(0, Math.min(100, point.x));
@@ -139,7 +130,9 @@ const periodicViewButtons = [
 ];
 
 function elementSummary(element: PeriodicTableElement, trendMode?: TrendMode) {
-  const trend = trendMode ? `, ${trendModeLabels[trendMode].label}: ${getTrendDisplay(element, trendMode)}` : "";
+  const trend = trendMode
+    ? `, ${trendModeLabels[trendMode].label}: ${getTrendDisplay(element, trendMode)}`
+    : "";
   return `${element.name} (${element.symbol}), atomic number ${element.atomicNumber}, group ${element.groupDisplay}, period ${element.period}${trend}`;
 }
 
@@ -147,7 +140,11 @@ function trendHue(trendMode: TrendMode, score: number) {
   if (trendMode === "atomic-radius" || trendMode === "metallic-character") {
     return 35 + score * 28;
   }
-  if (trendMode === "electronegativity" || trendMode === "ionization-energy" || trendMode === "electron-affinity") {
+  if (
+    trendMode === "electronegativity" ||
+    trendMode === "ionization-energy" ||
+    trendMode === "electron-affinity"
+  ) {
     return 205 + score * 60;
   }
   if (trendMode === "density" || trendMode === "melting-point" || trendMode === "boiling-point") {
@@ -164,13 +161,17 @@ function selectedElementFallback() {
 }
 
 function periodicTableElementsByNumber(atomicNumber: number) {
-  return periodicTableElements.find((element) => element.atomicNumber === atomicNumber) ?? selectedElementFallback();
+  return (
+    periodicTableElements.find((element) => element.atomicNumber === atomicNumber) ??
+    selectedElementFallback()
+  );
 }
 
 function tileStyle(element: PeriodicTableElement, trendMode: TrendMode): CSSProperties {
   const score = getTrendScore(element, trendMode);
   const hue = trendHue(trendMode, score);
-  const alpha = trendMode === "category" || trendMode === "state" || trendMode === "block" ? 0.18 : 0.18 + score * 0.42;
+  const alpha =
+    trendMode === "category" || trendMode === "state" || trendMode === "block" ? 0.18 : 0.18 + score * 0.42;
   return {
     gridColumn: element.tableColumn + 1,
     gridRow: element.tableRow,
@@ -187,7 +188,11 @@ function ShellMiniModel({ shells }: { shells: number[] }) {
         <span
           aria-hidden="true"
           key={`${index}-${count}`}
-          style={{ width: `${32 + (index + 1) * 22}px`, height: `${32 + (index + 1) * 22}px`, opacity: 0.35 + count / maxShell / 1.8 }}
+          style={{
+            width: `${32 + (index + 1) * 22}px`,
+            height: `${32 + (index + 1) * 22}px`,
+            opacity: 0.35 + count / maxShell / 1.8,
+          }}
         />
       ))}
       <strong>{shells.join("-")}</strong>
@@ -196,7 +201,11 @@ function ShellMiniModel({ shells }: { shells: number[] }) {
 }
 
 function OrbitalLadder({ configuration }: { configuration: string }) {
-  const orbitals = configuration.replace(/^\[[^\]]+\]\s*/, "").split(/\s+/).filter(Boolean).slice(0, 8);
+  const orbitals = configuration
+    .replace(/^\[[^\]]+\]\s*/, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8);
   return (
     <div className="chem-orbital-mini" aria-label={`Electron configuration ${configuration}`}>
       {(orbitals.length ? orbitals : [configuration]).map((orbital) => (
@@ -261,7 +270,11 @@ function ElementInspector({
         </div>
         <div>
           <dt>Oxidation states</dt>
-          <dd>{element.commonOxidationStates.length ? element.commonOxidationStates.map((state) => (state > 0 ? `+${state}` : state)).join(", ") : "unknown"}</dd>
+          <dd>
+            {element.commonOxidationStates.length
+              ? element.commonOxidationStates.map((state) => (state > 0 ? `+${state}` : state)).join(", ")
+              : "unknown"}
+          </dd>
         </div>
         <div>
           <dt>Electronegativity</dt>
@@ -269,7 +282,11 @@ function ElementInspector({
         </div>
         <div>
           <dt>Ionization energy</dt>
-          <dd>{element.firstIonizationEnergyEv ? `${formatNumber(element.firstIonizationEnergyEv)} eV` : "unknown"}</dd>
+          <dd>
+            {element.firstIonizationEnergyEv
+              ? `${formatNumber(element.firstIonizationEnergyEv)} eV`
+              : "unknown"}
+          </dd>
         </div>
       </dl>
 
@@ -308,7 +325,12 @@ function ElementInspector({
           <Atom data-icon="inline-start" />
           Build atom
         </Button>
-        <Button disabled={!onSendToNotes} onClick={() => onSendToNotes?.(noteText)} type="button" variant="outline">
+        <Button
+          disabled={!onSendToNotes}
+          onClick={() => onSendToNotes?.(noteText)}
+          type="button"
+          variant="outline"
+        >
           <NotebookPen data-icon="inline-start" />
           Send to notes
         </Button>
@@ -325,7 +347,10 @@ function ElementInspector({
             <li key={note}>{note}</li>
           ))}
         </ul>
-        <p>{periodicTableDataLedger[0].source} ({periodicTableDataLedger[0].license}). Source text was not copied.</p>
+        <p>
+          {periodicTableDataLedger[0].source} ({periodicTableDataLedger[0].license}). Source text was not
+          copied.
+        </p>
       </details>
     </aside>
   );
@@ -353,7 +378,9 @@ function TrendReasoningPanel({
       };
     })
     .filter((point): point is { x: number; y: number } => Boolean(point));
-  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+  const path = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(" ");
 
   return (
     <section className="chem-trend-learning-panel" aria-label="Trend explanation and graph">
@@ -369,7 +396,10 @@ function TrendReasoningPanel({
       <div className="chem-trend-legend">
         <span>Selected value</span>
         <strong>
-          {selected.symbol}: {value} {value !== "unknown" && meta.unit !== "family" && meta.unit !== "state" && meta.unit !== "block" ? meta.unit : ""}
+          {selected.symbol}: {value}{" "}
+          {value !== "unknown" && meta.unit !== "family" && meta.unit !== "state" && meta.unit !== "block"
+            ? meta.unit
+            : ""}
         </strong>
         <small>{meta.outlierNote}</small>
         {range ? (
@@ -383,7 +413,11 @@ function TrendReasoningPanel({
         )}
       </div>
       {path ? (
-        <svg className="chem-trend-sparkline" viewBox="0 0 100 100" aria-label={`${meta.label} by atomic number`}>
+        <svg
+          className="chem-trend-sparkline"
+          viewBox="0 0 100 100"
+          aria-label={`${meta.label} by atomic number`}
+        >
           <line x1="0" x2="100" y1="92" y2="92" />
           <line x1="0" x2="0" y1="8" y2="92" />
           <path d={path} />
@@ -416,14 +450,26 @@ function CompareElementsPanel({
           <p className="chem-section-kicker">Compare mode</p>
           <h3>Explain why elements differ</h3>
         </div>
-        <Button disabled={comparison.some((element) => element.atomicNumber === selected.atomicNumber) || comparison.length >= 4} onClick={onAddSelected} type="button" variant="outline">
+        <Button
+          disabled={
+            comparison.some((element) => element.atomicNumber === selected.atomicNumber) ||
+            comparison.length >= 4
+          }
+          onClick={onAddSelected}
+          type="button"
+          variant="outline"
+        >
           Add selected
         </Button>
       </header>
       <div className="chem-compare-grid-v3">
         {visible.map((element) => (
           <article key={element.atomicNumber}>
-            <button aria-label={`Remove ${element.name} from compare`} onClick={() => onRemove(element.atomicNumber)} type="button">
+            <button
+              aria-label={`Remove ${element.name} from compare`}
+              onClick={() => onRemove(element.atomicNumber)}
+              type="button"
+            >
               x
             </button>
             <strong>{element.symbol}</strong>
@@ -439,7 +485,11 @@ function CompareElementsPanel({
               </div>
               <div>
                 <dt>IE1</dt>
-                <dd>{element.firstIonizationEnergyEv ? `${formatNumber(element.firstIonizationEnergyEv)} eV` : "unknown"}</dd>
+                <dd>
+                  {element.firstIonizationEnergyEv
+                    ? `${formatNumber(element.firstIonizationEnergyEv)} eV`
+                    : "unknown"}
+                </dd>
               </div>
               <div>
                 <dt>Valence</dt>
@@ -451,7 +501,8 @@ function CompareElementsPanel({
         ))}
       </div>
       <p className="chem-compare-prompt">
-        AP prompt: Compare the elements using shells, shielding, and effective nuclear charge. Then name the common trap.
+        AP prompt: Compare the elements using shells, shielding, and effective nuclear charge. Then name the
+        common trap.
       </p>
     </section>
   );
@@ -466,7 +517,9 @@ function AtomBuilderWorkbench({
 }) {
   const startingElement = initialElement ?? selectedElementFallback();
   const [protons, setProtons] = useState(startingElement.atomicNumber);
-  const [neutrons, setNeutrons] = useState(Math.max(0, Math.round(startingElement.atomicMass) - startingElement.atomicNumber));
+  const [neutrons, setNeutrons] = useState(
+    Math.max(0, Math.round(startingElement.atomicMass) - startingElement.atomicNumber),
+  );
   const [electrons, setElectrons] = useState(startingElement.atomicNumber);
   const model = buildAtomModel(protons, neutrons, electrons);
   const element = model.element ?? startingElement;
@@ -498,8 +551,12 @@ function AtomBuilderWorkbench({
         </div>
         <ShellMiniModel shells={model.shells.length ? model.shells : [0]} />
         <div className="chem-charge-balance" aria-label="Charge balance">
-          <span style={{ width: `${Math.min(100, Math.max(8, model.protons * 2))}%` }}>p+ {model.protons}</span>
-          <span style={{ width: `${Math.min(100, Math.max(8, model.electrons * 2))}%` }}>e- {model.electrons}</span>
+          <span style={{ width: `${Math.min(100, Math.max(8, model.protons * 2))}%` }}>
+            p+ {model.protons}
+          </span>
+          <span style={{ width: `${Math.min(100, Math.max(8, model.electrons * 2))}%` }}>
+            e- {model.electrons}
+          </span>
         </div>
       </section>
 
@@ -512,7 +569,13 @@ function AtomBuilderWorkbench({
           ].map(({ label, value, setter, helper }) => (
             <label key={label}>
               <span>{label}</span>
-              <Input inputMode="numeric" min={0} onChange={(event) => setter(Number(event.target.value))} type="number" value={value} />
+              <Input
+                inputMode="numeric"
+                min={0}
+                onChange={(event) => setter(Number(event.target.value))}
+                type="number"
+                value={value}
+              />
               <small>{helper}</small>
             </label>
           ))}
@@ -526,7 +589,12 @@ function AtomBuilderWorkbench({
             ["O2-", 8, 8, 10],
             ["Ca2+", 20, 20, 18],
           ].map(([label, nextProtons, nextNeutrons, nextElectrons]) => (
-            <Button key={String(label)} onClick={() => applyPreset(Number(nextProtons), Number(nextNeutrons), Number(nextElectrons))} type="button" variant="outline">
+            <Button
+              key={String(label)}
+              onClick={() => applyPreset(Number(nextProtons), Number(nextNeutrons), Number(nextElectrons))}
+              type="button"
+              variant="outline"
+            >
               Build {label}
             </Button>
           ))}
@@ -550,7 +618,9 @@ function AtomBuilderWorkbench({
           </article>
           <article>
             <span>Charge</span>
-            <strong>{model.chargeLabel} ({model.particleClass})</strong>
+            <strong>
+              {model.chargeLabel} ({model.particleClass})
+            </strong>
           </article>
           <article>
             <span>Configuration</span>
@@ -623,7 +693,10 @@ export function InteractivePeriodicTableModule({
   ]);
   const selected = periodicTableElementsByNumber(selectedAtomicNumber);
   const searchResults = useMemo(() => searchElements(query), [query]);
-  const highlightedAtomicNumbers = useMemo(() => new Set(searchResults.map((element) => element.atomicNumber)), [searchResults]);
+  const highlightedAtomicNumbers = useMemo(
+    () => new Set(searchResults.map((element) => element.atomicNumber)),
+    [searchResults],
+  );
   const selectedTrendValue = getTrendDisplay(selected, trendMode);
 
   function selectElement(element: PeriodicTableElement) {
@@ -698,7 +771,12 @@ export function InteractivePeriodicTableModule({
           <label className="chem-trend-select">
             <Layers className="size-4" />
             <span className="sr-only">Trend mode</span>
-            <select aria-label="Trend mode" className="chem-select" onChange={(event) => setTrendMode(event.target.value as TrendMode)} value={trendMode}>
+            <select
+              aria-label="Trend mode"
+              className="chem-select"
+              onChange={(event) => setTrendMode(event.target.value as TrendMode)}
+              value={trendMode}
+            >
               {coreTrendModes.map((mode) => (
                 <option key={mode} value={mode}>
                   {trendModeLabels[mode].label}
@@ -707,48 +785,86 @@ export function InteractivePeriodicTableModule({
             </select>
           </label>
           <div className="chem-command-pills" role="group" aria-label="Study layer">
-            <Button onClick={() => setStudyLayer("chem101")} type="button" variant={studyLayer === "chem101" ? "default" : "outline"}>
+            <Button
+              onClick={() => setStudyLayer("chem101")}
+              type="button"
+              variant={studyLayer === "chem101" ? "default" : "outline"}
+            >
               Chem 101
             </Button>
-            <Button onClick={() => setStudyLayer("ap")} type="button" variant={studyLayer === "ap" ? "default" : "outline"}>
+            <Button
+              onClick={() => setStudyLayer("ap")}
+              type="button"
+              variant={studyLayer === "ap" ? "default" : "outline"}
+            >
               AP
             </Button>
           </div>
-          <Button onClick={() => setDensity((current) => (current === "comfortable" ? "compact" : "comfortable"))} type="button" variant="outline">
+          <Button
+            onClick={() => setDensity((current) => (current === "comfortable" ? "compact" : "comfortable"))}
+            type="button"
+            variant="outline"
+          >
             {density === "comfortable" ? "Compact" : "Comfortable"}
           </Button>
         </header>
 
         <nav className="chem-mobile-periodic-tabs" aria-label="Periodic table mobile views">
           {mobilePeriodicViews.map((view) => (
-            <button aria-pressed={viewMode === view.id} key={view.id} onClick={() => setViewMode(view.id)} type="button">
+            <button
+              aria-pressed={viewMode === view.id}
+              key={view.id}
+              onClick={() => setViewMode(view.id)}
+              type="button"
+            >
               {view.label}
             </button>
           ))}
         </nav>
 
         <main className="chem-periodic-main-v3" data-view={viewMode}>
-          <section className="chem-periodic-table-zone-v3" data-density={density} aria-label="Complete periodic table">
+          <section
+            className="chem-periodic-table-zone-v3"
+            data-density={density}
+            aria-label="Complete periodic table"
+          >
             <div className="chem-periodic-status-row">
               <Badge variant="secondary">118 elements</Badge>
               <span>
-                {trendModeLabels[trendMode].label}: <strong>{selected.symbol} {selectedTrendValue}</strong>
+                {trendModeLabels[trendMode].label}:{" "}
+                <strong>
+                  {selected.symbol} {selectedTrendValue}
+                </strong>
               </span>
-              <span>{searchResults.length} match{searchResults.length === 1 ? "" : "es"}</span>
+              <span>
+                {searchResults.length} match{searchResults.length === 1 ? "" : "es"}
+              </span>
             </div>
             <div className="chem-periodic-grid-v3" role="grid" aria-label="Periodic table grid">
               {Array.from({ length: 18 }, (_, index) => (
-                <span className="chem-group-label" key={`group-${index + 1}`} style={{ gridColumn: index + 2, gridRow: 1 }}>
+                <span
+                  className="chem-group-label"
+                  key={`group-${index + 1}`}
+                  style={{ gridColumn: index + 2, gridRow: 1 }}
+                >
                   {index + 1}
                 </span>
               ))}
               {Array.from({ length: 7 }, (_, index) => (
-                <span className="chem-period-label" key={`period-${index + 1}`} style={{ gridColumn: 1, gridRow: index + 2 }}>
+                <span
+                  className="chem-period-label"
+                  key={`period-${index + 1}`}
+                  style={{ gridColumn: 1, gridRow: index + 2 }}
+                >
                   {index + 1}
                 </span>
               ))}
-              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 9 }}>Lanthanides</span>
-              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 10 }}>Actinides</span>
+              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 9 }}>
+                Lanthanides
+              </span>
+              <span className="chem-series-label" style={{ gridColumn: "1 / span 4", gridRow: 10 }}>
+                Actinides
+              </span>
               {periodicTableElements.map((element) => {
                 const isSelected = element.atomicNumber === selected.atomicNumber;
                 const isSearchMatch = !query.trim() || highlightedAtomicNumbers.has(element.atomicNumber);
@@ -760,7 +876,9 @@ export function InteractivePeriodicTableModule({
                     data-category={element.category}
                     data-highlight={isSearchMatch ? "true" : "false"}
                     data-selected={isSelected ? "true" : "false"}
-                    data-trend-kind={getTrendNumericValue(element, trendMode) === null ? "category" : "numeric"}
+                    data-trend-kind={
+                      getTrendNumericValue(element, trendMode) === null ? "category" : "numeric"
+                    }
                     key={element.symbol}
                     onClick={() => selectElement(element)}
                     onKeyDown={(event) => {
@@ -795,7 +913,9 @@ export function InteractivePeriodicTableModule({
             </div>
             <div className="chem-category-legend-v3" aria-label="Element category legend">
               {Object.entries(elementCategories).map(([category, label]) => (
-                <span data-category={category} key={category}>{label}</span>
+                <span data-category={category} key={category}>
+                  {label}
+                </span>
               ))}
             </div>
           </section>
@@ -810,7 +930,9 @@ export function InteractivePeriodicTableModule({
                 <button key={element.atomicNumber} onClick={() => selectElement(element)} type="button">
                   <strong>{element.symbol}</strong>
                   <span>{element.name}</span>
-                  <small>{elementCategories[element.category]} - group {element.groupDisplay}</small>
+                  <small>
+                    {elementCategories[element.category]} - group {element.groupDisplay}
+                  </small>
                 </button>
               ))}
             </div>
@@ -835,7 +957,10 @@ export function InteractivePeriodicTableModule({
                 <p className="chem-section-kicker">Atom / isotope / ion builder</p>
                 <h3>Changing protons changes identity. Neutrons change isotope. Electrons change charge.</h3>
               </header>
-              <AtomBuilderWorkbench initialElement={selected} onSelectElement={(element) => setSelectedAtomicNumber(element.atomicNumber)} />
+              <AtomBuilderWorkbench
+                initialElement={selected}
+                onSelectElement={(element) => setSelectedAtomicNumber(element.atomicNumber)}
+              />
             </section>
           ) : null}
 
@@ -843,7 +968,9 @@ export function InteractivePeriodicTableModule({
             <CompareElementsPanel
               comparison={comparison}
               onAddSelected={() => addToCompare(selected)}
-              onRemove={(atomicNumber) => setComparison((current) => current.filter((element) => element.atomicNumber !== atomicNumber))}
+              onRemove={(atomicNumber) =>
+                setComparison((current) => current.filter((element) => element.atomicNumber !== atomicNumber))
+              }
               selected={selected}
             />
           ) : null}
@@ -853,11 +980,25 @@ export function InteractivePeriodicTableModule({
               <p className="chem-section-kicker">BinderNotes study actions</p>
               <h3>Turn the table into work</h3>
             </div>
-            <Button disabled={!onSendToNotes} onClick={() => onSendToNotes?.(`${selected.name}: ${selected.quickCheck}`)} type="button" variant="outline">
+            <Button
+              disabled={!onSendToNotes}
+              onClick={() => onSendToNotes?.(`${selected.name}: ${selected.quickCheck}`)}
+              type="button"
+              variant="outline"
+            >
               <NotebookPen data-icon="inline-start" />
               Send quick check to notes
             </Button>
-            <Button disabled={!onSendToWhiteboard} onClick={() => onSendToWhiteboard?.(`Draw ${selected.name} as shells ${selected.shells.join("-")} and annotate valence electrons.`)} type="button" variant="outline">
+            <Button
+              disabled={!onSendToWhiteboard}
+              onClick={() =>
+                onSendToWhiteboard?.(
+                  `Draw ${selected.name} as shells ${selected.shells.join("-")} and annotate valence electrons.`,
+                )
+              }
+              type="button"
+              variant="outline"
+            >
               <Microscope data-icon="inline-start" />
               Diagram prompt
             </Button>
@@ -874,7 +1015,10 @@ export function InteractivePeriodicTableModule({
 
 export function ElementBuilderModule() {
   return (
-    <WorkspacePanel description="Build atoms, isotopes, and ions with particle-level feedback." title="Element builder">
+    <WorkspacePanel
+      description="Build atoms, isotopes, and ions with particle-level feedback."
+      title="Element builder"
+    >
       <AtomBuilderWorkbench />
     </WorkspacePanel>
   );
@@ -885,7 +1029,10 @@ export function ElectronConfigurationBuilderModule() {
   const element = findElement(elementSymbol) ?? periodicTableElements[7];
 
   return (
-    <WorkspacePanel description="Guided orbital filling practice with block awareness." title="Electron configuration builder">
+    <WorkspacePanel
+      description="Guided orbital filling practice with block awareness."
+      title="Electron configuration builder"
+    >
       <div className="chem-showcase-module" data-chemistry-module="electron-config-builder">
         <div className="chem-showcase-toolbar">
           <Input onChange={(event) => setElementSymbol(event.target.value)} value={elementSymbol} />
@@ -895,7 +1042,10 @@ export function ElectronConfigurationBuilderModule() {
           {["1s", "2s", "2p", "3s", "3p", "4s", "3d", "4p"].map((orbital, index) => (
             <div className="chem-orbital-row" key={orbital}>
               <span>{orbital}</span>
-              <div aria-hidden="true" className={index < Math.ceil(element.atomicNumber / 2) ? "is-filled" : ""} />
+              <div
+                aria-hidden="true"
+                className={index < Math.ceil(element.atomicNumber / 2) ? "is-filled" : ""}
+              />
             </div>
           ))}
         </div>
@@ -919,15 +1069,32 @@ export function PeriodicTrendsGraphModule() {
     }));
 
   return (
-    <WorkspacePanel description="Desmos-ready periodic trend graph with a fast fallback chart." title="Periodic trends graph">
+    <WorkspacePanel
+      description="Desmos-ready periodic trend graph with a fast fallback chart."
+      title="Periodic trends graph"
+    >
       <div className="chem-showcase-module" data-chemistry-module="periodic-trends-graph">
         <div className="chem-showcase-toolbar">
           <LineChart className="size-5 text-primary" />
           <p className="text-sm text-muted-foreground">{desmosStatusCopy()}</p>
         </div>
         <div className="chem-showcase-segment" role="group" aria-label="Trend">
-          {(["electronegativity", "atomic-radius", "ionization-energy", "electron-affinity", "density", "metallic-character"] as TrendMode[]).map((mode) => (
-            <Button key={mode} onClick={() => setTrendMode(mode)} type="button" variant={trendMode === mode ? "default" : "outline"}>
+          {(
+            [
+              "electronegativity",
+              "atomic-radius",
+              "ionization-energy",
+              "electron-affinity",
+              "density",
+              "metallic-character",
+            ] as TrendMode[]
+          ).map((mode) => (
+            <Button
+              key={mode}
+              onClick={() => setTrendMode(mode)}
+              type="button"
+              variant={trendMode === mode ? "default" : "outline"}
+            >
               {trendModeLabels[mode].label}
             </Button>
           ))}
@@ -953,10 +1120,17 @@ export function MoleculeLewisBuilderModule() {
   const detail = moleculeMap[molecule] ?? moleculeMap.H2O;
 
   return (
-    <WorkspacePanel description="MVP Lewis builder for valence, octet, formal charge, and VSEPR thinking." title="Molecule / Lewis builder">
+    <WorkspacePanel
+      description="MVP Lewis builder for valence, octet, formal charge, and VSEPR thinking."
+      title="Molecule / Lewis builder"
+    >
       <div className="chem-showcase-module" data-chemistry-module="molecule-builder">
         <div className="chem-showcase-toolbar">
-          <select className="chem-select" onChange={(event) => setMolecule(event.target.value)} value={molecule}>
+          <select
+            className="chem-select"
+            onChange={(event) => setMolecule(event.target.value)}
+            value={molecule}
+          >
             {Object.keys(moleculeMap).map((formula) => (
               <option key={formula} value={formula}>
                 {formula}
@@ -997,7 +1171,10 @@ export function ReactionBalancerModule() {
   const result = useMemo(() => balanceEquation(equation), [equation]);
 
   return (
-    <WorkspacePanel description="Balance reactions while keeping subscripts locked." title="Reaction balancer">
+    <WorkspacePanel
+      description="Balance reactions while keeping subscripts locked."
+      title="Reaction balancer"
+    >
       <div className="chem-showcase-module" data-chemistry-module="reaction-balancer">
         <div className="grid gap-2">
           <label className="grid gap-2 text-sm">
@@ -1006,7 +1183,12 @@ export function ReactionBalancerModule() {
           </label>
           <div className="flex flex-wrap gap-2">
             {demoReactions.map((reaction) => (
-              <Button key={reaction.id} onClick={() => setEquation(reaction.equation)} type="button" variant="outline">
+              <Button
+                key={reaction.id}
+                onClick={() => setEquation(reaction.equation)}
+                type="button"
+                variant="outline"
+              >
                 {reaction.type}
               </Button>
             ))}
@@ -1028,7 +1210,10 @@ export function ReactionBalancerModule() {
 export function TriRepresentationReactionViewModule() {
   const reaction = demoReactions[2];
   return (
-    <WorkspacePanel description="Symbolic, particle, and macroscopic views move together." title="Tri-representation reaction view">
+    <WorkspacePanel
+      description="Symbolic, particle, and macroscopic views move together."
+      title="Tri-representation reaction view"
+    >
       <div className="chem-showcase-module" data-chemistry-module="tri-reaction-view">
         <div className="grid gap-3 md:grid-cols-3">
           <article className="chem-tri-card">
@@ -1058,7 +1243,10 @@ export function ChemistryMolarMassCalculatorModule() {
   const result = useMemo(() => calculateMolarMass(formula), [formula]);
 
   return (
-    <WorkspacePanel description="Fast molar mass lookup for stoichiometry ladders." title="Molar mass calculator">
+    <WorkspacePanel
+      description="Fast molar mass lookup for stoichiometry ladders."
+      title="Molar mass calculator"
+    >
       <div className="chem-showcase-module" data-chemistry-module="molar-mass-calculator">
         <Input onChange={(event) => setFormula(event.target.value)} value={formula} />
         <div className="chem-result-tile">
@@ -1073,14 +1261,19 @@ export function SolutionMixerModule() {
   const [stock, setStock] = useState("1.00");
   const [target, setTarget] = useState("0.100");
   const [volume, setVolume] = useState("250");
-  const calculation = validateCalculation(() => calculateDilution({
-    stockM: requireFiniteDecimal(stock, "Stock concentration"),
-    targetM: requireFiniteDecimal(target, "Target concentration"),
-    targetVolumeMl: requireFiniteDecimal(volume, "Target volume"),
-  }));
+  const calculation = validateCalculation(() =>
+    calculateDilution({
+      stockM: requireFiniteDecimal(stock, "Stock concentration"),
+      targetM: requireFiniteDecimal(target, "Target concentration"),
+      targetVolumeMl: requireFiniteDecimal(volume, "Target volume"),
+    }),
+  );
 
   return (
-    <WorkspacePanel description="M1V1 = M2V2 solution mixer with safety-aware data capture." title="Solution mixer">
+    <WorkspacePanel
+      description="M1V1 = M2V2 solution mixer with safety-aware data capture."
+      title="Solution mixer"
+    >
       <div className="chem-showcase-module" data-chemistry-module="solution-mixer">
         <div className="grid gap-3 md:grid-cols-3">
           <label className="grid gap-2 text-sm">
@@ -1096,10 +1289,21 @@ export function SolutionMixerModule() {
             <Input onChange={(event) => setVolume(event.target.value)} value={volume} />
           </label>
         </div>
-        {calculation.ok ? <>
-          <div className="chem-beaker"><span style={{ height: `${Math.min(90, Math.max(12, calculation.value.fractionOfStock * 90))}%` }} /></div>
-          <p className="chem-result-tile">Use {calculation.value.stockVolumeMl.toFixed(2)} mL stock, then dilute to {calculation.value.targetVolumeMl.toFixed(0)} mL.</p>
-        </> : <p role="alert">{calculation.message}</p>}
+        {calculation.ok ? (
+          <>
+            <div className="chem-beaker">
+              <span
+                style={{ height: `${Math.min(90, Math.max(12, calculation.value.fractionOfStock * 90))}%` }}
+              />
+            </div>
+            <p className="chem-result-tile">
+              Use {calculation.value.stockVolumeMl.toFixed(2)} mL stock, then dilute to{" "}
+              {calculation.value.targetVolumeMl.toFixed(0)} mL.
+            </p>
+          </>
+        ) : (
+          <p role="alert">{calculation.message}</p>
+        )}
       </div>
     </WorkspacePanel>
   );
@@ -1108,48 +1312,69 @@ export function SolutionMixerModule() {
 export function AcidBaseCalculatorModule() {
   const [kind, setKind] = useState<"acid" | "base">("acid");
   const [concentration, setConcentration] = useState("0.010");
-  const calculation = validateCalculation(() => calculateStrongAcidBase({ kind, concentrationM: requireFiniteDecimal(concentration, "Concentration") }));
+  const calculation = validateCalculation(() =>
+    calculateStrongAcidBase({ kind, concentrationM: requireFiniteDecimal(concentration, "Concentration") }),
+  );
   const result = calculation.ok ? calculation.value : null;
 
   return (
-    <WorkspacePanel description="Ideal, fully dissociated monovalent acid/base at 25°C, including water autoionization. Activity effects are not modeled." title="pH / acid-base calculator">
+    <WorkspacePanel
+      description="Ideal, fully dissociated monovalent acid/base at 25°C, including water autoionization. Activity effects are not modeled."
+      title="pH / acid-base calculator"
+    >
       <div className="chem-showcase-module" data-chemistry-module="ph-calculator">
         <div className="chem-showcase-toolbar">
-          <select className="chem-select" onChange={(event) => setKind(event.target.value as "acid" | "base")} value={kind}>
+          <select
+            className="chem-select"
+            onChange={(event) => setKind(event.target.value as "acid" | "base")}
+            value={kind}
+          >
             <option value="acid">Strong acid</option>
             <option value="base">Strong base</option>
           </select>
-          <Input aria-label="Acid or base concentration (M)" aria-invalid={!calculation.ok} onChange={(event) => setConcentration(event.target.value)} value={concentration} />
+          <Input
+            aria-label="Acid or base concentration (M)"
+            aria-invalid={!calculation.ok}
+            onChange={(event) => setConcentration(event.target.value)}
+            value={concentration}
+          />
         </div>
         {!calculation.ok ? <p role="alert">{calculation.message}</p> : null}
-        {result ? <>
-        <div className="chem-ph-scale">
-          <span style={{ left: `${Math.max(0, Math.min(100, (result.ph / 14) * 100))}%` }} />
-        </div>
-        <div className="chem-stat-grid">
-          <article>
-            <span>pH</span>
-            <strong>{result.ph.toFixed(2)}</strong>
-          </article>
-          <article>
-            <span>pOH</span>
-            <strong>{result.poh.toFixed(2)}</strong>
-          </article>
-          <article>
-            <span>Meaning</span>
-            <strong>{getPhScaleLabel(result.ph)}</strong>
-          </article>
-        </div>
-        </> : null}
+        {result ? (
+          <>
+            <div className="chem-ph-scale">
+              <span style={{ left: `${Math.max(0, Math.min(100, (result.ph / 14) * 100))}%` }} />
+            </div>
+            <div className="chem-stat-grid">
+              <article>
+                <span>pH</span>
+                <strong>{result.ph.toFixed(2)}</strong>
+              </article>
+              <article>
+                <span>pOH</span>
+                <strong>{result.poh.toFixed(2)}</strong>
+              </article>
+              <article>
+                <span>Meaning</span>
+                <strong>{getPhScaleLabel(result.ph)}</strong>
+              </article>
+            </div>
+          </>
+        ) : null}
         <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs">
-          Strong acid does not mean concentrated acid. Strength describes ionization; concentration describes amount per liter.
+          Strong acid does not mean concentrated acid. Strength describes ionization; concentration describes
+          amount per liter.
         </p>
       </div>
     </WorkspacePanel>
   );
 }
 
-export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration" | "kinetics" | "concentration" }) {
+export function ChemistryGraphModule({
+  kind = "titration",
+}: {
+  kind?: "titration" | "kinetics" | "concentration";
+}) {
   const titrationPoints = generateStrongAcidStrongBaseCurve({
     acidMolarity: 0.1,
     acidVolumeMl: 25,
@@ -1161,8 +1386,12 @@ export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration
     initialConcentrationM: 1,
     rateConstant: 0.02,
   }).map((point) => ({ x: (point.timeS / 120) * 100, y: point.concentrationM * 100 }));
-  const concentrationPoints = Array.from({ length: 8 }, (_, index) => ({ x: index * 14, y: 90 - index * 10 }));
-  const points = kind === "kinetics" ? kineticsPoints : kind === "concentration" ? concentrationPoints : titrationPoints;
+  const concentrationPoints = Array.from({ length: 8 }, (_, index) => ({
+    x: index * 14,
+    y: 90 - index * 10,
+  }));
+  const points =
+    kind === "kinetics" ? kineticsPoints : kind === "concentration" ? concentrationPoints : titrationPoints;
 
   return (
     <WorkspacePanel description={desmosStatusCopy()} title={`Desmos ${kind} graph`}>
@@ -1176,26 +1405,44 @@ export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration
 export function KineticsSimulatorModule() {
   const [order, setOrder] = useState<KineticsOrder>(1);
   const [rate, setRate] = useState("0.020");
-  const calculation = validateCalculation(() => generateKineticsDataset({
-    order,
-    initialConcentrationM: 1,
-    rateConstant: requireFiniteDecimal(rate, "Rate constant"),
-  }));
+  const calculation = validateCalculation(() =>
+    generateKineticsDataset({
+      order,
+      initialConcentrationM: 1,
+      rateConstant: requireFiniteDecimal(rate, "Rate constant"),
+    }),
+  );
   const dataset = calculation.ok ? calculation.value : [];
   const points = dataset.map((point) => ({ x: (point.timeS / 120) * 100, y: point.concentrationM * 100 }));
 
   return (
-    <WorkspacePanel description="Reaction-order simulator with linearized plot helpers." title="Kinetics simulator">
+    <WorkspacePanel
+      description="Reaction-order simulator with linearized plot helpers."
+      title="Kinetics simulator"
+    >
       <div className="chem-showcase-module" data-chemistry-module="kinetics-simulator">
         <div className="chem-showcase-toolbar">
-          <select className="chem-select" onChange={(event) => setOrder(Number(event.target.value) as KineticsOrder)} value={order}>
+          <select
+            className="chem-select"
+            onChange={(event) => setOrder(Number(event.target.value) as KineticsOrder)}
+            value={order}
+          >
             <option value={0}>Zero order</option>
             <option value={1}>First order</option>
             <option value={2}>Second order</option>
           </select>
-          <Input aria-label="Rate constant" aria-invalid={!calculation.ok} onChange={(event) => setRate(event.target.value)} value={rate} />
+          <Input
+            aria-label="Rate constant"
+            aria-invalid={!calculation.ok}
+            onChange={(event) => setRate(event.target.value)}
+            value={rate}
+          />
         </div>
-        {!calculation.ok ? <p role="alert">{calculation.message}</p> : <Sparkline ariaLabel="Kinetics concentration vs time" points={points} />}
+        {!calculation.ok ? (
+          <p role="alert">{calculation.message}</p>
+        ) : (
+          <Sparkline ariaLabel="Kinetics concentration vs time" points={points} />
+        )}
         <div className="chem-data-table">
           {dataset.slice(0, 5).map((point) => (
             <div key={point.timeS}>
@@ -1212,15 +1459,20 @@ export function KineticsSimulatorModule() {
 export function ThermochemistryModule() {
   const [mass, setMass] = useState("100");
   const [delta, setDelta] = useState("8");
-  const calculation = validateCalculation(() => calculateHeatTransfer({
-    massG: requireFiniteDecimal(mass, "Mass"),
-    specificHeatJPerGC: 4.184,
-    deltaTemperatureC: requireFiniteDecimal(delta, "Temperature change"),
-  }));
+  const calculation = validateCalculation(() =>
+    calculateHeatTransfer({
+      massG: requireFiniteDecimal(mass, "Mass"),
+      specificHeatJPerGC: 4.184,
+      deltaTemperatureC: requireFiniteDecimal(delta, "Temperature change"),
+    }),
+  );
   const q = calculation.ok ? calculation.value : null;
 
   return (
-    <WorkspacePanel description="Calorimetry, energy diagrams, and q = mc delta T." title="Thermochemistry studio">
+    <WorkspacePanel
+      description="Calorimetry, energy diagrams, and q = mc delta T."
+      title="Thermochemistry studio"
+    >
       <div className="chem-showcase-module" data-chemistry-module="thermochemistry">
         <div className="grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 text-sm">
@@ -1232,11 +1484,17 @@ export function ThermochemistryModule() {
             <Input onChange={(event) => setDelta(event.target.value)} value={delta} />
           </label>
         </div>
-        {q !== null ? <><div className="chem-energy-diagram">
-          <span className={q >= 0 ? "is-endo" : "is-exo"} />
-          <strong>{describeHeatSign(q)}</strong>
-        </div>
-        <p className="chem-result-tile">q = {q.toFixed(1)} J</p></> : !calculation.ok ? <p role="alert">{calculation.message}</p> : null}
+        {q !== null ? (
+          <>
+            <div className="chem-energy-diagram">
+              <span className={q >= 0 ? "is-endo" : "is-exo"} />
+              <strong>{describeHeatSign(q)}</strong>
+            </div>
+            <p className="chem-result-tile">q = {q.toFixed(1)} J</p>
+          </>
+        ) : !calculation.ok ? (
+          <p role="alert">{calculation.message}</p>
+        ) : null}
       </div>
     </WorkspacePanel>
   );
@@ -1244,7 +1502,10 @@ export function ThermochemistryModule() {
 
 export function ChemistryConceptCardsModule() {
   return (
-    <WorkspacePanel description="Concept, formula, misconception, and AP/Gen Chem alignment cards." title="Chemistry concept cards">
+    <WorkspacePanel
+      description="Concept, formula, misconception, and AP/Gen Chem alignment cards."
+      title="Chemistry concept cards"
+    >
       <div className="chem-showcase-module chem-card-stack" data-chemistry-module="concept-cards">
         {chemistryConceptCards.map((card) => (
           <article className="chem-concept-card" key={card.id}>
@@ -1256,7 +1517,9 @@ export function ChemistryConceptCardsModule() {
               <Badge variant="outline">{card.tags[0]}</Badge>
             </div>
             <p className="mt-3 text-xs leading-5 text-muted-foreground">{card.misconception}</p>
-            <p className="mt-2 rounded-xl border border-border/70 bg-background/72 p-3 text-xs">{card.check}</p>
+            <p className="mt-2 rounded-xl border border-border/70 bg-background/72 p-3 text-xs">
+              {card.check}
+            </p>
           </article>
         ))}
       </div>
@@ -1266,7 +1529,10 @@ export function ChemistryConceptCardsModule() {
 
 export function ChemistryQuickToolsModule() {
   return (
-    <WorkspacePanel description="Compact chemistry helpers for fast study work." title="Chemistry quick tools">
+    <WorkspacePanel
+      description="Compact chemistry helpers for fast study work."
+      title="Chemistry quick tools"
+    >
       <div className="chem-showcase-module" data-chemistry-module="quick-tools">
         <div className="grid gap-3 md:grid-cols-2">
           <article className="chem-tool-card">
@@ -1282,7 +1548,12 @@ export function ChemistryQuickToolsModule() {
           <article className="chem-tool-card">
             <Table2 className="size-4 text-primary" />
             <strong>Common ions</strong>
-            <span>{commonIons.slice(0, 4).map((ion) => ion.formula).join(", ")}</span>
+            <span>
+              {commonIons
+                .slice(0, 4)
+                .map((ion) => ion.formula)
+                .join(", ")}
+            </span>
           </article>
           <article className="chem-tool-card">
             <FlaskConical className="size-4 text-primary" />
@@ -1321,7 +1592,10 @@ export function ChemistryChallengeReviewModule() {
     "Interpret the titration curve",
   ];
   return (
-    <WorkspacePanel description="Deterministic chemistry review hooks without AI." title="Chem challenge queue">
+    <WorkspacePanel
+      description="Deterministic chemistry review hooks without AI."
+      title="Chem challenge queue"
+    >
       <div className="chem-showcase-module" data-chemistry-module="review-queue">
         {challenges.map((challenge, index) => (
           <article className="chem-review-card" key={challenge}>
@@ -1343,7 +1617,10 @@ export function ChemistryDataTableModule() {
     stepMl: 5,
   });
   return (
-    <WorkspacePanel description="Lightweight lab data table; no animation frames are saved." title="Chemistry data table">
+    <WorkspacePanel
+      description="Lightweight lab data table; no animation frames are saved."
+      title="Chemistry data table"
+    >
       <div className="chem-data-table">
         {rows.map((row) => (
           <div key={row.volumeMl}>
@@ -1363,7 +1640,9 @@ export function ChemistryStoichiometryCoachModule() {
 
 function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
   const [givenQuantity, setGivenQuantity] = useState("4.032");
-  const [restoredResult, setRestoredResult] = useState<Extract<ChemistryActivity, { kind: "stoichiometry" }>["result"] | null>(null);
+  const [restoredResult, setRestoredResult] = useState<
+    Extract<ChemistryActivity, { kind: "stoichiometry" }>["result"] | null
+  >(null);
   const quantity = parseFiniteDecimal(givenQuantity);
   const computedSolution = useMemo(
     () =>
@@ -1384,10 +1663,20 @@ function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
   const solution = restoredResult ? { ok: true as const, ...restoredResult } : computedSolution;
   const h2Mass = calculateMolarMass("H2");
   const waterMass = calculateMolarMass("H2O");
-  const snapshot: ChemistryActivity | null = solution.ok ? {
-    kind: "stoichiometry", version: 1, template: "template-water-from-hydrogen", givenQuantity,
-    result: { balancedEquation: solution.balancedEquation, steps: solution.steps, conceptTags: solution.conceptTags, finalAnswer: { ...solution.finalAnswer, unit: "g", formula: "H2O" } },
-  } : null;
+  const snapshot: ChemistryActivity | null = solution.ok
+    ? {
+        kind: "stoichiometry",
+        version: 1,
+        template: "template-water-from-hydrogen",
+        givenQuantity,
+        result: {
+          balancedEquation: solution.balancedEquation,
+          steps: solution.steps,
+          conceptTags: solution.conceptTags,
+          finalAnswer: { ...solution.finalAnswer, unit: "g", formula: "H2O" },
+        },
+      }
+    : null;
 
   return (
     <WorkspacePanel
@@ -1395,9 +1684,17 @@ function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
       title="Chemistry Stoichiometry Coach"
     >
       <div className="grid gap-4">
-        <ChemistryActivityStorage ownerId={ownerId} kind="stoichiometry" snapshot={snapshot} onRestore={(saved) => {
-          if (saved.kind === "stoichiometry") { setGivenQuantity(saved.givenQuantity); setRestoredResult(saved.result); }
-        }} />
+        <ChemistryActivityStorage
+          ownerId={ownerId}
+          kind="stoichiometry"
+          snapshot={snapshot}
+          onRestore={(saved) => {
+            if (saved.kind === "stoichiometry") {
+              setGivenQuantity(saved.givenQuantity);
+              setRestoredResult(saved.result);
+            }
+          }}
+        />
         <section className="rounded-2xl border border-border/70 bg-background/70 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1413,7 +1710,10 @@ function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
               Given grams of H2
               <Input
                 inputMode="decimal"
-                onChange={(event) => { setGivenQuantity(event.target.value); setRestoredResult(null); }}
+                onChange={(event) => {
+                  setGivenQuantity(event.target.value);
+                  setRestoredResult(null);
+                }}
                 value={givenQuantity}
               />
             </label>
@@ -1428,7 +1728,9 @@ function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
         {solution.ok ? (
           <section className="grid gap-3">
             <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Balanced equation</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Balanced equation
+              </p>
               <p className="mt-2 font-mono text-sm">{solution.balancedEquation}</p>
             </div>
             <div className="grid gap-2">
@@ -1453,7 +1755,8 @@ function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
             </div>
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4">
               <p className="text-sm font-semibold">
-                Final answer: {solution.finalAnswer.value} {solution.finalAnswer.unit} {solution.finalAnswer.formula}
+                Final answer: {solution.finalAnswer.value} {solution.finalAnswer.unit}{" "}
+                {solution.finalAnswer.formula}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {solution.conceptTags.map((tag) => (
@@ -1478,7 +1781,8 @@ const chemistryLabCoachSteps = [
   {
     title: "Read objective",
     status: "Current lab goal",
-    detail: "Find the concentration pattern in a simplified acid-base titration and connect evidence to a claim.",
+    detail:
+      "Find the concentration pattern in a simplified acid-base titration and connect evidence to a claim.",
     next: "check safety",
   },
   {
@@ -1550,14 +1854,19 @@ export function ChemistryLabCoachModule({
   }
 
   return (
-    <WorkspacePanel description="Step-by-step chemistry lab guidance without AI or background writes." title="Chemistry Lab Coach">
+    <WorkspacePanel
+      description="Step-by-step chemistry lab guidance without AI or background writes."
+      title="Chemistry Lab Coach"
+    >
       <div className="chem-showcase-module chem-lab-coach" data-chemistry-module="lab-coach">
         <header className="chem-lab-coach-hero">
           <div>
             <Badge variant="outline">Step {stepIndex + 1} of 8</Badge>
             <h3 className="mt-3 text-lg font-semibold">{step.status}</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.detail}</p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Next: {step.next}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+              Next: {step.next}
+            </p>
           </div>
           <div className="chem-lab-coach-orb" aria-hidden="true">
             <FlaskConical />
@@ -1590,10 +1899,18 @@ export function ChemistryLabCoachModule({
           <Button onClick={() => openTool("chem-titration-lab", "Titration Lab")} type="button">
             Open Titration Lab
           </Button>
-          <Button onClick={() => openTool("chem-periodic-table", "Element Explorer")} type="button" variant="outline">
+          <Button
+            onClick={() => openTool("chem-periodic-table", "Element Explorer")}
+            type="button"
+            variant="outline"
+          >
             Open Element Explorer
           </Button>
-          <Button onClick={() => openTool("chem-safety-cards", "Safety cards")} type="button" variant="outline">
+          <Button
+            onClick={() => openTool("chem-safety-cards", "Safety cards")}
+            type="button"
+            variant="outline"
+          >
             Open Safety Cards
           </Button>
           <Button onClick={() => openTool("private-notes", "Notes")} type="button" variant="outline">
@@ -1606,11 +1923,18 @@ export function ChemistryLabCoachModule({
             <Button disabled={stepIndex === 0} onClick={() => moveStep(-1)} type="button" variant="outline">
               Previous step
             </Button>
-            <Button disabled={stepIndex === chemistryLabCoachSteps.length - 1} onClick={() => moveStep(1)} type="button">
+            <Button
+              disabled={stepIndex === chemistryLabCoachSteps.length - 1}
+              onClick={() => moveStep(1)}
+              type="button"
+            >
               Next step
             </Button>
           </div>
-          <p className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs" role="status">
+          <p
+            className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs"
+            role="status"
+          >
             {status}
           </p>
         </footer>
@@ -1626,7 +1950,10 @@ export function ChemistryTitrationLabModule() {
 
 function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
   const [state, dispatch] = useReducer(titrationReducer, undefined, createTitrationInitialState);
-  const points = state.measurements.length > 0 ? state.measurements : [{ titrantVolumeMl: 0, ph: state.ph, equivalenceProgress: 0 }];
+  const points =
+    state.measurements.length > 0
+      ? state.measurements
+      : [{ titrantVolumeMl: 0, ph: state.ph, equivalenceProgress: 0 }];
   const latestProgress = state.measurements.at(-1)?.equivalenceProgress ?? 0;
   const endpointHint = getTitrationHint(latestProgress);
   const desmosReady = hasDesmosApiKey();
@@ -1643,9 +1970,18 @@ function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
       description="Strong acid and strong base titration with controlled checkpoints."
       title="Acid-base titration lab"
     >
-      <ChemistryActivityStorage ownerId={ownerId} kind="titration" snapshot={{ kind: "titration", version: 1, state: { ...state, acidMolarity: 0.1, acidVolumeMl: 25, baseMolarity: 0.1 } }} onRestore={(saved) => {
-        if (saved.kind === "titration") dispatch({ type: "restore", state: saved.state });
-      }} />
+      <ChemistryActivityStorage
+        ownerId={ownerId}
+        kind="titration"
+        snapshot={{
+          kind: "titration",
+          version: 1,
+          state: { ...state, acidMolarity: 0.1, acidVolumeMl: 25, baseMolarity: 0.1 },
+        }}
+        onRestore={(saved) => {
+          if (saved.kind === "titration") dispatch({ type: "restore", state: saved.state });
+        }}
+      />
       <div className="chem-titration-v2 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-3">
           <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
@@ -1686,12 +2022,26 @@ function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
               <span className="text-xs text-muted-foreground">{state.titrantAddedMl.toFixed(2)} mL NaOH</span>
             </div>
             <p className="mt-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              {desmosReady ? "Desmos curve ready when this graph surface is selected." : "Fallback chart active"}
+              {desmosReady
+                ? "Desmos curve ready when this graph surface is selected."
+                : "Fallback chart active"}
             </p>
-            <svg aria-label="Titration curve" className="mt-3 h-48 w-full overflow-visible rounded-xl bg-background/75" viewBox="0 0 100 100">
+            <svg
+              aria-label="Titration curve"
+              className="mt-3 h-48 w-full overflow-visible rounded-xl bg-background/75"
+              viewBox="0 0 100 100"
+            >
               <line stroke="currentColor" strokeOpacity="0.18" x1="0" x2="100" y1="50" y2="50" />
               <line stroke="currentColor" strokeOpacity="0.18" x1="50" x2="50" y1="0" y2="100" />
-              <line stroke="hsl(var(--primary))" strokeDasharray="3 4" strokeOpacity="0.55" x1="50" x2="50" y1="0" y2="100" />
+              <line
+                stroke="hsl(var(--primary))"
+                strokeDasharray="3 4"
+                strokeOpacity="0.55"
+                x1="50"
+                x2="50"
+                y1="0"
+                y2="100"
+              />
               <path d={path} fill="none" stroke="hsl(var(--primary))" strokeLinecap="round" strokeWidth="3" />
             </svg>
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1728,7 +2078,9 @@ function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
                   >
                     <span>{measurement.titrantVolumeMl.toFixed(2)} mL</span>
                     <span className="font-medium">pH {measurement.ph.toFixed(2)}</span>
-                    <span className="text-muted-foreground">{getTitrationObservation(measurement.equivalenceProgress)}</span>
+                    <span className="text-muted-foreground">
+                      {getTitrationObservation(measurement.equivalenceProgress)}
+                    </span>
                   </div>
                 ))
               )}
@@ -1737,7 +2089,10 @@ function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
           <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
             <p className="text-sm font-semibold">Lab notebook</p>
             <div className="mt-3 grid gap-2">
-              <ChemistryNotebookFields notebook={state.notebook} onChange={(section, value) => dispatch({ type: "update_notebook", section, value })} />
+              <ChemistryNotebookFields
+                notebook={state.notebook}
+                onChange={(section, value) => dispatch({ type: "update_notebook", section, value })}
+              />
             </div>
           </div>
         </aside>
@@ -1751,21 +2106,59 @@ export function ChemistryLabNotebookModule() {
   return <AccountLabNotebook key={profile?.id ?? "signed-out"} ownerId={profile?.id ?? null} />;
 }
 
-function ChemistryNotebookFields({ notebook, onChange }: { notebook: TitrationNotebook; onChange: (section: keyof TitrationNotebook, value: string) => void }) {
-  const sections: Array<[keyof TitrationNotebook, string]> = [["hypothesis", "Hypothesis"], ["procedure", "Procedure"], ["dataTable", "Data table"], ["calculations", "Calculations"], ["observations", "Observations"], ["errorAnalysis", "Error analysis"], ["conclusion", "Conclusion"]];
-  return <>{sections.map(([section, label]) => <label className="grid gap-2 text-sm" key={section}>{label}<Textarea maxLength={20000} value={notebook[section]} onChange={(event) => onChange(section, event.target.value)} /></label>)}</>;
+function ChemistryNotebookFields({
+  notebook,
+  onChange,
+}: {
+  notebook: TitrationNotebook;
+  onChange: (section: keyof TitrationNotebook, value: string) => void;
+}) {
+  const sections: Array<[keyof TitrationNotebook, string]> = [
+    ["hypothesis", "Hypothesis"],
+    ["procedure", "Procedure"],
+    ["dataTable", "Data table"],
+    ["calculations", "Calculations"],
+    ["observations", "Observations"],
+    ["errorAnalysis", "Error analysis"],
+    ["conclusion", "Conclusion"],
+  ];
+  return (
+    <>
+      {sections.map(([section, label]) => (
+        <label className="grid gap-2 text-sm" key={section}>
+          {label}
+          <Textarea
+            maxLength={20000}
+            value={notebook[section]}
+            onChange={(event) => onChange(section, event.target.value)}
+          />
+        </label>
+      ))}
+    </>
+  );
 }
 
 function AccountLabNotebook({ ownerId }: { ownerId: string | null }) {
   const [notebook, setNotebook] = useState(() => createTitrationInitialState().notebook);
 
   return (
-    <WorkspacePanel description="A separate lab notebook. Titration measurements and its notes are saved together in the titration tool." title="Smart lab notebook">
+    <WorkspacePanel
+      description="A separate lab notebook. Titration measurements and its notes are saved together in the titration tool."
+      title="Smart lab notebook"
+    >
       <div className="grid gap-3">
-        <ChemistryActivityStorage ownerId={ownerId} kind="notebook" snapshot={{ kind: "notebook", version: 1, notebook }} onRestore={(saved) => {
-          if (saved.kind === "notebook") setNotebook(saved.notebook);
-        }} />
-        <ChemistryNotebookFields notebook={notebook} onChange={(section, value) => setNotebook((current) => ({ ...current, [section]: value }))} />
+        <ChemistryActivityStorage
+          ownerId={ownerId}
+          kind="notebook"
+          snapshot={{ kind: "notebook", version: 1, notebook }}
+          onRestore={(saved) => {
+            if (saved.kind === "notebook") setNotebook(saved.notebook);
+          }}
+        />
+        <ChemistryNotebookFields
+          notebook={notebook}
+          onChange={(section, value) => setNotebook((current) => ({ ...current, [section]: value }))}
+        />
       </div>
     </WorkspacePanel>
   );
@@ -1799,16 +2192,19 @@ export function ChemistryReferenceSafetyModule() {
             Misconception tags
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {["mole ratio flipped", "unit not cancelled", "molar mass error", "equation not balanced"].map((tag) => (
-              <Badge key={tag} variant="outline">
-                {tag}
-              </Badge>
-            ))}
+            {["mole ratio flipped", "unit not cancelled", "molar mass error", "equation not balanced"].map(
+              (tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ),
+            )}
           </div>
         </article>
         <p className="flex items-start gap-2 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs leading-5 text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-          Use Save chemistry work in the stoichiometry, titration, and notebook tools to keep a snapshot in your account. Changes are not saved automatically.
+          Use Save chemistry work in the stoichiometry, titration, and notebook tools to keep a snapshot in
+          your account. Changes are not saved automatically.
         </p>
       </div>
     </WorkspacePanel>

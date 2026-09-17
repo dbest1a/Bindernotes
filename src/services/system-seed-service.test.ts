@@ -7,7 +7,6 @@ import {
 } from "@/services/system-seed-service";
 import type { Profile } from "@/types";
 
-
 const adminProfile: Profile = {
   id: "admin-user",
   email: "admin@example.com",
@@ -37,9 +36,7 @@ describe("system seed payload", () => {
     );
     expect(payload.folders).toHaveLength(3);
     expect(payload.workspacePresets.length).toBeGreaterThan(0);
-    expect(payload.seedVersions.every((version) => version.version === SYSTEM_SEED_VERSION)).toBe(
-      true,
-    );
+    expect(payload.seedVersions.every((version) => version.version === SYSTEM_SEED_VERSION)).toBe(true);
   });
 
   it("attaches each seeded binder to a suite folder", () => {
@@ -55,7 +52,9 @@ describe("system seed payload", () => {
 
   it("places Rise of Rome inside the learner-facing History Suite folder", () => {
     const payload = buildSystemSeedPayload(adminProfile);
-    const historyFolder = payload.folders.find((folder) => folder.suite_template_id === SYSTEM_SUITE_IDS.historyDemo);
+    const historyFolder = payload.folders.find(
+      (folder) => folder.suite_template_id === SYSTEM_SUITE_IDS.historyDemo,
+    );
 
     expect(historyFolder).toBeTruthy();
     expect(payload.folderBinders).toEqual(
@@ -96,8 +95,9 @@ describe("system seed payload", () => {
 
   it("surfaces transactional failure without continuing individual writes", async () => {
     const rpc = vi.fn().mockResolvedValue({ error: { message: "permission denied" } });
-    await expect(seedSystemSuitesWithClient({ rpc }, buildSystemSeedPayload(adminProfile)))
-      .rejects.toThrow("Transactional system seed failed: permission denied");
+    await expect(seedSystemSuitesWithClient({ rpc }, buildSystemSeedPayload(adminProfile))).rejects.toThrow(
+      "Transactional system seed failed: permission denied",
+    );
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 

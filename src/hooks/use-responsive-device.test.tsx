@@ -81,7 +81,10 @@ describe("responsive device detection", () => {
       width = 820;
       setViewportWidth(width);
       listeners.forEach((listener) =>
-        listener({ matches: true, media: "(min-width: 768px) and (max-width: 1180px)" } as MediaQueryListEvent),
+        listener({
+          matches: true,
+          media: "(min-width: 768px) and (max-width: 1180px)",
+        } as MediaQueryListEvent),
       );
     });
 
@@ -157,10 +160,7 @@ function setViewportHeight(height: number) {
   });
 }
 
-function stubMatchMedia(
-  matchesForQuery: (query: string) => boolean,
-  listeners: MatchMediaListener[],
-) {
+function stubMatchMedia(matchesForQuery: (query: string) => boolean, listeners: MatchMediaListener[]) {
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: matchesForQuery(query),
     media: query,

@@ -1,15 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import {
-  DASHBOARD_LESSON_SUMMARY_SELECT,
-  DASHBOARD_NOTE_SUMMARY_SELECT,
-} from "@/services/binder-service";
+import { DASHBOARD_LESSON_SUMMARY_SELECT, DASHBOARD_NOTE_SUMMARY_SELECT } from "@/services/binder-service";
 
 const migrationSql = () =>
-  readFileSync(new URL("../../supabase/migrations/0018_backend_performance_layer.sql", import.meta.url), "utf8");
-const binderServiceSource = () =>
-  readFileSync(new URL("./binder-service.ts", import.meta.url), "utf8");
+  readFileSync(
+    new URL("../../supabase/migrations/0018_backend_performance_layer.sql", import.meta.url),
+    "utf8",
+  );
+const binderServiceSource = () => readFileSync(new URL("./binder-service.ts", import.meta.url), "utf8");
 const healthCheckSql = () =>
   readFileSync(new URL("../../scripts/dashboard-summary-health-check.sql", import.meta.url), "utf8");
 

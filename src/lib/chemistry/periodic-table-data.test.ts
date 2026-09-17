@@ -60,13 +60,16 @@ describe("periodic table data model", () => {
     expect(serialized).not.toContain("sample element");
 
     periodicTableElements.forEach((element) => {
-      [element.atomicRadiusPm, element.electronegativity, element.firstIonizationEnergyEv, element.densityGPerCm3].forEach(
-        (value) => {
-          if (value !== null) {
-            expect(value).toBeGreaterThan(0);
-          }
-        },
-      );
+      [
+        element.atomicRadiusPm,
+        element.electronegativity,
+        element.firstIonizationEnergyEv,
+        element.densityGPerCm3,
+      ].forEach((value) => {
+        if (value !== null) {
+          expect(value).toBeGreaterThan(0);
+        }
+      });
       expect(element.shells.reduce((sum, count) => sum + count, 0)).toBe(element.atomicNumber);
     });
 

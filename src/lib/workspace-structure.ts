@@ -1,11 +1,4 @@
-import type {
-  Binder,
-  BinderLesson,
-  DashboardData,
-  Folder,
-  FolderBinderLink,
-  LearnerNote,
-} from "@/types";
+import type { Binder, BinderLesson, DashboardData, Folder, FolderBinderLink, LearnerNote } from "@/types";
 
 export type FolderSummary = {
   folder: Folder;
@@ -48,10 +41,7 @@ export function createFolderSummary(
   };
 }
 
-export function getUnfiledBinders(
-  binders: Binder[],
-  folderBinders: FolderBinderLink[],
-): Binder[] {
+export function getUnfiledBinders(binders: Binder[], folderBinders: FolderBinderLink[]): Binder[] {
   const filedIds = new Set(folderBinders.map((link) => link.binder_id));
   return binders.filter((binder) => !filedIds.has(binder.id));
 }

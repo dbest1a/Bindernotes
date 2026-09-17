@@ -87,8 +87,7 @@ export const russianRevolutionBinder: Binder = {
   level: "Modern World History",
   status: "published",
   price_cents: 0,
-  cover_url:
-    "https://images.unsplash.com/photo-1513326738677-b964603b136d?auto=format&fit=crop&w=1400&q=82",
+  cover_url: "https://images.unsplash.com/photo-1513326738677-b964603b136d?auto=format&fit=crop&w=1400&q=82",
   pinned: true,
   created_at: now,
   updated_at: now,
@@ -1058,7 +1057,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     reliability_note: "Strong for learner-facing chronology; pair with primary documents for DBQ claims.",
     citation_url: "https://openstax.org/books/world-history-volume-2/pages/11-5-the-war-ends",
     quote_text: null,
-    claim_supports: "World War I, Petrograd protest, soldier defection, and soviet organization formed one connected crisis.",
+    claim_supports:
+      "World War I, Petrograd protest, soldier defection, and soviet organization formed one connected crisis.",
     claim_challenges: "The revolution can be explained by ideology alone.",
     created_at: now,
     updated_at: now,
@@ -1079,7 +1079,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     reliability_note: "Good for overview and chronology; not a substitute for primary-source interpretation.",
     citation_url: "https://www.britannica.com/event/Russian-Revolution",
     quote_text: null,
-    claim_supports: "The revolution is best understood as two revolutions in 1917 linked to wartime collapse.",
+    claim_supports:
+      "The revolution is best understood as two revolutions in 1917 linked to wartime collapse.",
     claim_challenges: "October can be studied without February or World War I.",
     created_at: now,
     updated_at: now,
@@ -1097,10 +1098,12 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     purpose: "To calm unrest by promising civil liberties and representative institutions.",
     point_of_view: "Autocratic concession under revolutionary pressure.",
     context_note: "Issued during the 1905 Revolution after strikes and pressure made concession necessary.",
-    reliability_note: "Strong evidence for the regime's promised concessions; weak as proof those promises were honored.",
+    reliability_note:
+      "Strong evidence for the regime's promised concessions; weak as proof those promises were honored.",
     citation_url: "https://commons.wikimedia.org/wiki/File:October_Manifesto_1.jpg",
     quote_text: null,
-    claim_supports: "1905 forced the monarchy to concede representation without truly surrendering autocracy.",
+    claim_supports:
+      "1905 forced the monarchy to concede representation without truly surrendering autocracy.",
     claim_challenges: "The tsarist system was politically flexible enough to avoid later revolution.",
     created_at: now,
     updated_at: now,
@@ -1118,7 +1121,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     purpose: "To abdicate and frame the decision as service to Russia during wartime crisis.",
     point_of_view: "Monarchical self-justification at the moment authority collapsed.",
     context_note: "Produced after Petrograd unrest and elite pressure made continued rule impossible.",
-    reliability_note: "Excellent for how Nicholas framed abdication; not a complete explanation of why the regime fell.",
+    reliability_note:
+      "Excellent for how Nicholas framed abdication; not a complete explanation of why the regime fell.",
     citation_url:
       "https://seventeenmoments.web.illinois.edu/1917-2/february-revolution/february-revolution-texts/abdication-manifesto/",
     quote_text: "We think it best to abdicate the throne.",
@@ -1137,13 +1141,15 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     author: "Vladimir Lenin",
     date_label: "1917",
     audience: "Bolsheviks, soviets, and revolutionary socialists",
-    purpose: "To redirect Bolshevik strategy toward soviet power and opposition to the Provisional Government.",
+    purpose:
+      "To redirect Bolshevik strategy toward soviet power and opposition to the Provisional Government.",
     point_of_view: "Bolshevik revolutionary leadership.",
     context_note: "Written after Lenin returned to Russia during the dual-power crisis.",
     reliability_note: "Strong for Bolshevik strategy; not a neutral account of rival socialist positions.",
     citation_url: "https://www.marxists.org/archive/lenin/works/1917/apr/07.htm",
     quote_text: "No support for the Provisional Government.",
-    claim_supports: "Lenin's strategy turned dual power into a campaign for soviet authority under Bolshevik leadership.",
+    claim_supports:
+      "Lenin's strategy turned dual power into a campaign for soviet authority under Bolshevik leadership.",
     claim_challenges: "The Bolsheviks merely drifted into October without a strategic line.",
     created_at: now,
     updated_at: now,
@@ -1161,7 +1167,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     purpose: "To announce a revolutionary peace policy after the Bolshevik seizure of power.",
     point_of_view: "New Soviet government seeking legitimacy through peace.",
     context_note: "Presented with the Decree on Land after October.",
-    reliability_note: "Strong evidence for Bolshevik promises; compare with Brest-Litovsk to evaluate outcomes.",
+    reliability_note:
+      "Strong evidence for Bolshevik promises; compare with Brest-Litovsk to evaluate outcomes.",
     citation_url: "https://encyclopedia.1914-1918-online.net/article/decree-on-peace/",
     quote_text: "peace without annexations or indemnities",
     claim_supports: "Peace was a central source of Bolshevik legitimacy after October.",
@@ -1182,7 +1189,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     purpose: "To legalize the transfer of landed estates and answer peasant land hunger.",
     point_of_view: "Bolshevik state adapting to peasant demands and Socialist Revolutionary land ideas.",
     context_note: "Issued after October to link Bolshevik rule to village revolution.",
-    reliability_note: "Strong for policy direction; compare with later War Communism for implementation tension.",
+    reliability_note:
+      "Strong for policy direction; compare with later War Communism for implementation tension.",
     citation_url: "https://www.marxists.org/archive/lenin/works/1917/oct/25-26/26d.htm",
     quote_text: null,
     claim_supports: "Peasant land hunger was too important for any new regime to ignore.",
@@ -1203,7 +1211,8 @@ export const russianRevolutionSourceTemplates: HistorySourceTemplate[] = [
     purpose: "To end the state of war between Soviet Russia and the Central Powers.",
     point_of_view: "Diplomatic settlement imposed under military pressure.",
     context_note: "Signed after the Bolsheviks chose survival and peace over continued war.",
-    reliability_note: "Excellent for treaty terms and territorial costs; not sufficient by itself to explain civil-war politics.",
+    reliability_note:
+      "Excellent for treaty terms and territorial costs; not sufficient by itself to explain civil-war politics.",
     citation_url: "https://avalon.law.yale.edu/20th_century/brest.asp",
     quote_text: "the state of war between them has ceased",
     claim_supports: "Bolshevik peace came at heavy cost and intensified legitimacy conflict.",
@@ -1279,8 +1288,7 @@ export const russianRevolutionMythCheckTemplates: HistoryMythCheckTemplate[] = [
     corrected_claim:
       "The NEP allowed limited market activity but preserved Communist Party monopoly and state control of commanding heights.",
     status: "oversimplification",
-    explanation:
-      "NEP was a strategic retreat from War Communism, not a return to political liberalism.",
+    explanation: "NEP was a strategic retreat from War Communism, not a return to political liberalism.",
     created_at: now,
     updated_at: now,
   },
@@ -1301,28 +1309,80 @@ export const russianRevolutionMythCheckTemplates: HistoryMythCheckTemplate[] = [
 ];
 
 const conceptDescriptions: Array<[string, string, string]> = [
-  ["autocracy", "Autocracy", "Rule concentrated in the tsar, bureaucracy, police, army, and imperial legitimacy."],
+  [
+    "autocracy",
+    "Autocracy",
+    "Rule concentrated in the tsar, bureaucracy, police, army, and imperial legitimacy.",
+  ],
   ["serfdom", "Serfdom", "Peasant bondage ended in 1861 but left a contested rural order."],
   ["land-hunger", "Peasant land hunger", "Village demand for land redistribution and security."],
-  ["industrialization", "Industrialization", "State-driven growth that concentrated workers and intensified unrest."],
-  ["russification", "Russification", "Policies pressuring national minorities toward Russian language, culture, and rule."],
+  [
+    "industrialization",
+    "Industrialization",
+    "State-driven growth that concentrated workers and intensified unrest.",
+  ],
+  [
+    "russification",
+    "Russification",
+    "Policies pressuring national minorities toward Russian language, culture, and rule.",
+  ],
   ["marxism", "Marxism in Russia", "Class-struggle theory adapted to a peasant-majority empire."],
   ["soviet", "Soviet", "Council of workers, soldiers, or peasants claiming revolutionary legitimacy."],
   ["duma", "Duma", "Representative assembly created after 1905 but constrained by autocracy."],
-  ["dual-power", "Dual Power", "The unstable coexistence of Provisional Government and Petrograd Soviet authority."],
+  [
+    "dual-power",
+    "Dual Power",
+    "The unstable coexistence of Provisional Government and Petrograd Soviet authority.",
+  ],
   ["petrograd", "Petrograd", "Capital city and center of February and October revolutionary action."],
-  ["provisional-government", "Provisional Government", "Post-February government that failed to solve war, land, bread, and authority."],
-  ["bolshevik", "Bolshevik", "Lenin's faction, defined by disciplined organization and revolutionary seizure strategy."],
-  ["menshevik", "Menshevik", "Marxist rivals of the Bolsheviks, often favoring broader organization and staged development."],
-  ["vanguard-party", "Vanguard party", "Disciplined party model claiming to lead revolutionary class struggle."],
+  [
+    "provisional-government",
+    "Provisional Government",
+    "Post-February government that failed to solve war, land, bread, and authority.",
+  ],
+  [
+    "bolshevik",
+    "Bolshevik",
+    "Lenin's faction, defined by disciplined organization and revolutionary seizure strategy.",
+  ],
+  [
+    "menshevik",
+    "Menshevik",
+    "Marxist rivals of the Bolsheviks, often favoring broader organization and staged development.",
+  ],
+  [
+    "vanguard-party",
+    "Vanguard party",
+    "Disciplined party model claiming to lead revolutionary class struggle.",
+  ],
   ["cheka", "Cheka", "Bolshevik political police created during consolidation and civil war."],
-  ["war-communism", "War Communism", "Civil-war economic system of requisition, nationalization, and coercive control."],
-  ["nep", "New Economic Policy", "Limited market retreat after War Communism while party monopoly stayed intact."],
+  [
+    "war-communism",
+    "War Communism",
+    "Civil-war economic system of requisition, nationalization, and coercive control.",
+  ],
+  [
+    "nep",
+    "New Economic Policy",
+    "Limited market retreat after War Communism while party monopoly stayed intact.",
+  ],
   ["ussr", "USSR", "Union state formed in 1922 from Soviet republics under Communist Party power."],
-  ["kronstadt", "Kronstadt", "Naval fortress whose 1921 rebellion revealed disillusionment with Bolshevik rule."],
-  ["brest-litovsk", "Brest-Litovsk", "Peace treaty that ended Russia's war with Germany at major territorial cost."],
+  [
+    "kronstadt",
+    "Kronstadt",
+    "Naval fortress whose 1921 rebellion revealed disillusionment with Bolshevik rule.",
+  ],
+  [
+    "brest-litovsk",
+    "Brest-Litovsk",
+    "Peace treaty that ended Russia's war with Germany at major territorial cost.",
+  ],
   ["nicholas-ii", "Nicholas II", "Last Romanov tsar whose war leadership and inflexibility became fatal."],
-  ["alexandra", "Alexandra Feodorovna", "Empress whose wartime influence and Rasputin connection fueled distrust."],
+  [
+    "alexandra",
+    "Alexandra Feodorovna",
+    "Empress whose wartime influence and Rasputin connection fueled distrust.",
+  ],
   ["rasputin", "Rasputin", "Court holy man turned symbol of imperial dysfunction."],
   ["lenin", "Lenin", "Bolshevik strategist of soviet power, peace, land, and one-party rule."],
   ["trotsky", "Trotsky", "Petrograd Soviet leader and Red Army organizer."],
@@ -1335,13 +1395,15 @@ const conceptDescriptions: Array<[string, string, string]> = [
   ["sergei-witte", "Sergei Witte", "Modernizer tied to railways, industry, and the 1905 compromise."],
 ];
 
-export const russianRevolutionConceptNodes: ConceptNode[] = conceptDescriptions.map(([id, label, description]) => ({
-  id: `node-russian-${id}`,
-  binder_id: RUSSIAN_REVOLUTION_BINDER_ID,
-  label,
-  description,
-  created_at: now,
-}));
+export const russianRevolutionConceptNodes: ConceptNode[] = conceptDescriptions.map(
+  ([id, label, description]) => ({
+    id: `node-russian-${id}`,
+    binder_id: RUSSIAN_REVOLUTION_BINDER_ID,
+    label,
+    description,
+    created_at: now,
+  }),
+);
 
 function edge(source: string, target: string, label: string): ConceptEdge {
   return {

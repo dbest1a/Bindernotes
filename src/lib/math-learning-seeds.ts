@@ -17,7 +17,8 @@ export const mathSeedCourses: MathCourse[] = [
     id: "course-ap-calculus-ab",
     slug: "ap-calculus-ab",
     title: "AP Calculus AB",
-    description: "Planned course outline. No AP Calculus AB modules are included yet; this is not an exam preparation course.",
+    description:
+      "Planned course outline. No AP Calculus AB modules are included yet; this is not an exam preparation course.",
     order_index: 1,
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
@@ -26,7 +27,8 @@ export const mathSeedCourses: MathCourse[] = [
     id: "course-ap-calculus-bc",
     slug: "ap-calculus-bc",
     title: "AP Calculus BC",
-    description: "Planned course outline. No AP Calculus BC modules are included yet; this is not an exam preparation course.",
+    description:
+      "Planned course outline. No AP Calculus BC modules are included yet; this is not an exam preparation course.",
     order_index: 2,
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
@@ -62,7 +64,8 @@ export const mathSeedCourses: MathCourse[] = [
     id: "course-jacob-math-notes",
     slug: "jacob-math-notes",
     title: "Jacob Math Notes",
-    description: "Introductory modules and practice from geometry through real analysis. Coverage and source provenance are still under review.",
+    description:
+      "Introductory modules and practice from geometry through real analysis. Coverage and source provenance are still under review.",
     order_index: 6,
     created_at: SEED_TIME,
     updated_at: SEED_TIME,
@@ -107,19 +110,18 @@ const topicGroups: Record<string, string[]> = {
   ],
 };
 
-export const mathSeedTopics: MathTopic[] = Object.entries(topicGroups).flatMap(
-  ([courseId, topics]) =>
-    topics.map((title, index) => ({
-      id: `topic-${courseId.replace("course-", "")}-${slugifySeed(title)}`,
-      course_id: courseId,
-      parent_topic_id: null,
-      slug: slugifySeed(title),
-      title,
-      description: topicDescription(title),
-      order_index: index + 1,
-      created_at: SEED_TIME,
-      updated_at: SEED_TIME,
-    })),
+export const mathSeedTopics: MathTopic[] = Object.entries(topicGroups).flatMap(([courseId, topics]) =>
+  topics.map((title, index) => ({
+    id: `topic-${courseId.replace("course-", "")}-${slugifySeed(title)}`,
+    course_id: courseId,
+    parent_topic_id: null,
+    slug: slugifySeed(title),
+    title,
+    description: topicDescription(title),
+    order_index: index + 1,
+    created_at: SEED_TIME,
+    updated_at: SEED_TIME,
+  })),
 );
 
 const foundational = "foundational" satisfies MathDifficulty;
@@ -145,8 +147,7 @@ export const mathSeedModules: MathModule[] = [
         "Use a graph to compare secant and tangent behavior.",
         "Connect algebraic derivatives to local linear predictions.",
       ],
-      graphNotes:
-        "Move a to watch the tangent line touch f(x)=x^2 at different points.",
+      graphNotes: "Move a to watch the tangent line touch f(x)=x^2 at different points.",
       expressions: [
         { id: "f", latex: "f(x)=x^2" },
         { id: "a", latex: "a=1" },
@@ -162,13 +163,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "What the graph is showing",
-          body:
-            "The point (a, f(a)) sits on the parabola. The line through that point uses f'(a) as its slope, so it becomes the tangent line at x = a.",
+          body: "The point (a, f(a)) sits on the parabola. The line through that point uses f'(a) as its slope, so it becomes the tangent line at x = a.",
         },
         {
           title: "Why it matters",
-          body:
-            "Derivative rules become easier to remember when each symbol has a geometric job. f'(a) tells you the instantaneous steepness of the curve.",
+          body: "Derivative rules become easier to remember when each symbol has a geometric job. f'(a) tells you the instantaneous steepness of the curve.",
         },
       ],
     },
@@ -210,13 +209,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Near the center",
-          body:
-            "All three polynomials are built from information at x = 0, so the best comparison starts near the origin.",
+          body: "All three polynomials are built from information at x = 0, so the best comparison starts near the origin.",
         },
         {
           title: "Farther away",
-          body:
-            "A higher-degree Taylor polynomial usually tracks the curve longer, but every polynomial here is still a local approximation.",
+          body: "A higher-degree Taylor polynomial usually tracks the curve longer, but every polynomial here is still a local approximation.",
         },
       ],
     },
@@ -252,13 +249,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "The surface",
-          body:
-            "The graph z = x^2 + y^2 is a bowl. At each point, the surface has an x-direction slope and a y-direction slope.",
+          body: "The graph z = x^2 + y^2 is a bowl. At each point, the surface has an x-direction slope and a y-direction slope.",
         },
         {
           title: "The tangent plane",
-          body:
-            "The tangent plane is the best flat approximation near a chosen point. It uses both partial derivatives at that point.",
+          body: "The tangent plane is the best flat approximation near a chosen point. It uses both partial derivatives at that point.",
         },
       ],
     },
@@ -296,13 +291,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Start with movement",
-          body:
-            "Translations slide, rotations turn, reflections flip, and dilations scale. The coordinates are not decoration; they are the proof trail.",
+          body: "Translations slide, rotations turn, reflections flip, and dilations scale. The coordinates are not decoration; they are the proof trail.",
         },
         {
           title: "Use equations as shape machines",
-          body:
-            "Circle and ellipse equations let students check whether a geometric description matches the picture they expect.",
+          body: "Circle and ellipse equations let students check whether a geometric description matches the picture they expect.",
         },
       ],
     },
@@ -340,13 +333,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Transformations first",
-          body:
-            "The form y=a f(b(x-h))+k tells the graph story before any arithmetic starts.",
+          body: "The form y=a f(b(x-h))+k tells the graph story before any arithmetic starts.",
         },
         {
           title: "Structure as a shortcut",
-          body:
-            "Zeros, holes, asymptotes, and log rules are faster when students can see what each symbol controls.",
+          body: "Zeros, holes, asymptotes, and log rules are faster when students can see what each symbol controls.",
         },
       ],
     },
@@ -383,13 +374,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "The unit circle is the organizer",
-          body:
-            "Trig identities, inverse trig, and radian measure become much less mysterious when the circle stays visible.",
+          body: "Trig identities, inverse trig, and radian measure become much less mysterious when the circle stays visible.",
         },
         {
           title: "Complex and vector thinking",
-          body:
-            "A complex number in polar form and a vector in component form both encode magnitude plus direction.",
+          body: "A complex number in polar form and a vector in component form both encode magnitude plus direction.",
         },
       ],
     },
@@ -402,7 +391,8 @@ export const mathSeedModules: MathModule[] = [
     topic_id: "topic-jacob-math-notes-calculus",
     slug: "jacob-calculus-tangent-integral",
     title: "Jacob Calculus: Tangents, Accumulation, and Series",
-    description: "Limits, derivative rules, integrals, differential equations, parametric curves, and Taylor series.",
+    description:
+      "Limits, derivative rules, integrals, differential equations, parametric curves, and Taylor series.",
     difficulty: intermediate,
     calculator_mode: "2d",
     visibility: "published",
@@ -425,13 +415,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Derivative as a local lens",
-          body:
-            "Every derivative rule should still answer one geometric question: what is the curve doing right here?",
+          body: "Every derivative rule should still answer one geometric question: what is the curve doing right here?",
         },
         {
           title: "Integral as reconstruction",
-          body:
-            "If a rate describes change, an integral rebuilds the total amount from those tiny changes.",
+          body: "If a rate describes change, an integral rebuilds the total amount from those tiny changes.",
         },
       ],
     },
@@ -444,7 +432,8 @@ export const mathSeedModules: MathModule[] = [
     topic_id: "topic-jacob-math-notes-multivariable-calculus",
     slug: "jacob-multivariable-surfaces",
     title: "Jacob Multivariable: Surfaces and Vector Operators",
-    description: "Surfaces, tangent planes, gradients, divergence, curl, Jacobians, and the big integral theorems.",
+    description:
+      "Surfaces, tangent planes, gradients, divergence, curl, Jacobians, and the big integral theorems.",
     difficulty: advanced,
     calculator_mode: "3d",
     visibility: "published",
@@ -466,13 +455,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Partial derivatives are slices",
-          body:
-            "Hold one direction still and inspect slope in the other. The tangent plane combines both directions into one local model.",
+          body: "Hold one direction still and inspect slope in the other. The tangent plane combines both directions into one local model.",
         },
         {
           title: "Operators describe fields",
-          body:
-            "Gradient points uphill, divergence measures source-like behavior, and curl measures rotation-like behavior.",
+          body: "Gradient points uphill, divergence measures source-like behavior, and curl measures rotation-like behavior.",
         },
       ],
     },
@@ -490,8 +477,7 @@ export const mathSeedModules: MathModule[] = [
     calculator_mode: "2d",
     visibility: "published",
     module_json: {
-      overview:
-        "Linear algebra is the study of transformations that respect addition and scaling.",
+      overview: "Linear algebra is the study of transformations that respect addition and scaling.",
       learningGoals: [
         "Interpret matrix columns as transformed basis vectors.",
         "Use determinants as area scale factors in 2D.",
@@ -510,13 +496,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Matrices move space",
-          body:
-            "A matrix is not just a table. It tells every point where to go, starting with the basis vectors.",
+          body: "A matrix is not just a table. It tells every point where to go, starting with the basis vectors.",
         },
         {
           title: "Eigenvectors are stable directions",
-          body:
-            "When a transformation keeps a direction on the same line, the stretch factor is the eigenvalue.",
+          body: "When a transformation keeps a direction on the same line, the stretch factor is the eigenvalue.",
         },
       ],
     },
@@ -552,13 +536,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Behavior before formula",
-          body:
-            "Ask whether solutions grow, decay, oscillate, or settle before diving into symbolic methods.",
+          body: "Ask whether solutions grow, decay, oscillate, or settle before diving into symbolic methods.",
         },
         {
           title: "Fourier as a basis idea",
-          body:
-            "Fourier series use orthogonality to rebuild functions from sine and cosine pieces.",
+          body: "Fourier series use orthogonality to rebuild functions from sine and cosine pieces.",
         },
       ],
     },
@@ -571,19 +553,20 @@ export const mathSeedModules: MathModule[] = [
     topic_id: "topic-jacob-math-notes-real-analysis",
     slug: "jacob-real-analysis-sequence-limits",
     title: "Jacob Real Analysis: Limits and Proof Habits",
-    description: "Sets, sequences, metric spaces, series, continuity, uniform convergence, differentiation, and integration.",
+    description:
+      "Sets, sequences, metric spaces, series, continuity, uniform convergence, differentiation, and integration.",
     difficulty: advanced,
     calculator_mode: "2d",
     visibility: "published",
     module_json: {
-      overview:
-        "Real analysis turns calculus statements into precise definitions and proof patterns.",
+      overview: "Real analysis turns calculus statements into precise definitions and proof patterns.",
       learningGoals: [
         "Read limits through epsilon-style definitions.",
         "Use sequences as a testing language for continuity and convergence.",
         "Separate pointwise ideas from uniform ideas.",
       ],
-      graphNotes: "Plot a sequence settling toward its limit, then use the picture to support the definition.",
+      graphNotes:
+        "Plot a sequence settling toward its limit, then use the picture to support the definition.",
       expressions: [
         { id: "sequence", latex: "a_n=1+\\frac{1}{n}" },
         { id: "limit", latex: "y=1" },
@@ -592,13 +575,11 @@ export const mathSeedModules: MathModule[] = [
       sections: [
         {
           title: "Definitions are tools",
-          body:
-            "Epsilon, delta, metric, compactness, and uniform convergence all exist to control how close objects can get.",
+          body: "Epsilon, delta, metric, compactness, and uniform convergence all exist to control how close objects can get.",
         },
         {
           title: "Proof practice is the module",
-          body:
-            "The goal is not to memorize one proof. It is to recognize which definition gives you the right lever.",
+          body: "The goal is not to memorize one proof. It is to recognize which definition gives you the right lever.",
         },
       ],
     },
@@ -618,8 +599,7 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     title: "Graphical meaning of f'(a)",
     prompt: "What does f'(a) represent graphically?",
     answer: { correctChoiceId: "choice-derivative-meaning-b" },
-    explanation:
-      "The derivative at a point is the slope of the tangent line to the curve at that input.",
+    explanation: "The derivative at a point is the slope of the tangent line to the curve at that input.",
   }),
   question({
     id: "question-slope-x2-at-3",
@@ -655,7 +635,8 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     topicId: "topic-calculus-2-taylor-polynomials",
     type: "multiple_choice",
     title: "Best Taylor approximation near zero",
-    prompt: "For sufficiently small nonzero x, which listed polynomial gives the closest approximation to sin(x)?",
+    prompt:
+      "For sufficiently small nonzero x, which listed polynomial gives the closest approximation to sin(x)?",
     answer: { correctChoiceId: "choice-best-taylor-c" },
     explanation:
       "P5 includes more matching derivative information at the center, so it usually stays closest near zero.",
@@ -696,8 +677,7 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     title: "Partial derivative meaning",
     prompt: "What do the partial derivatives represent on the surface?",
     answer: { correctChoiceId: "choice-partials-meaning-b" },
-    explanation:
-      "They measure slope in the x and y directions while holding the other variable fixed.",
+    explanation: "They measure slope in the x and y directions while holding the other variable fixed.",
   }),
   question({
     id: "question-tangent-plane",
@@ -735,7 +715,11 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     title: "Dilation effect",
     prompt: "What does a dilation with scale factor 2 from the origin do to every coordinate?",
     answer: {
-      acceptedAnswers: ["it doubles every coordinate", "doubles every coordinate", "multiplies each coordinate by 2"],
+      acceptedAnswers: [
+        "it doubles every coordinate",
+        "doubles every coordinate",
+        "multiplies each coordinate by 2",
+      ],
       caseSensitive: false,
       normalizeWhitespace: true,
     },
@@ -776,7 +760,8 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     title: "Tangent line purpose",
     prompt: "Why is the tangent line useful for local prediction?",
     answer: { completionPoints: 1, rubric: "Mentions matching local slope or nearby approximation." },
-    explanation: "The tangent line uses the current point and derivative to approximate nearby function values.",
+    explanation:
+      "The tangent line uses the current point and derivative to approximate nearby function values.",
   }),
   question({
     id: "question-jacob-partials-tangent-plane",
@@ -811,7 +796,8 @@ export const mathSeedQuestions: QuestionBankItem[] = [
     topicId: "topic-jacob-math-notes-differential-equations",
     type: "numeric",
     title: "Logistic carrying capacity",
-    prompt: "For P(t)=M/(1+9e^(-kt)) with M=10 and k>0, what value does P(t) approach as t goes to positive infinity?",
+    prompt:
+      "For P(t)=M/(1+9e^(-kt)) with M=10 and k>0, what value does P(t) approach as t goes to positive infinity?",
     answer: { expected: 10, tolerance: 0.001, units: null },
     explanation: "M is the carrying capacity, so the logistic solution approaches 10.",
   }),
@@ -830,15 +816,45 @@ export const mathSeedQuestions: QuestionBankItem[] = [
 ];
 
 export const mathSeedChoices: QuestionChoice[] = [
-  choice("choice-derivative-meaning-a", "question-derivative-meaning", "The y-intercept of the graph", false, 1),
-  choice("choice-derivative-meaning-b", "question-derivative-meaning", "The slope of the tangent line at x=a", true, 2),
+  choice(
+    "choice-derivative-meaning-a",
+    "question-derivative-meaning",
+    "The y-intercept of the graph",
+    false,
+    1,
+  ),
+  choice(
+    "choice-derivative-meaning-b",
+    "question-derivative-meaning",
+    "The slope of the tangent line at x=a",
+    true,
+    2,
+  ),
   choice("choice-derivative-meaning-c", "question-derivative-meaning", "The area under the curve", false, 3),
   choice("choice-best-taylor-a", "question-best-taylor-near-zero", "P1(x)=x", false, 1),
   choice("choice-best-taylor-b", "question-best-taylor-near-zero", "P3(x)=x-x^3/6", false, 2),
   choice("choice-best-taylor-c", "question-best-taylor-near-zero", "P5(x)=x-x^3/6+x^5/120", true, 3),
-  choice("choice-partials-meaning-a", "question-partials-meaning", "The total volume under the surface", false, 1),
-  choice("choice-partials-meaning-b", "question-partials-meaning", "The x-direction and y-direction slopes", true, 2),
-  choice("choice-partials-meaning-c", "question-partials-meaning", "The equation of every level curve", false, 3),
+  choice(
+    "choice-partials-meaning-a",
+    "question-partials-meaning",
+    "The total volume under the surface",
+    false,
+    1,
+  ),
+  choice(
+    "choice-partials-meaning-b",
+    "question-partials-meaning",
+    "The x-direction and y-direction slopes",
+    true,
+    2,
+  ),
+  choice(
+    "choice-partials-meaning-c",
+    "question-partials-meaning",
+    "The equation of every level curve",
+    false,
+    3,
+  ),
 ];
 
 export function getSeedQuestionChoices(questionId: string) {

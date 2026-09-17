@@ -1,17 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  Coins,
-  Flame,
-  Gem,
-  Heart,
-  Map,
-  RotateCcw,
-  Shield,
-  Sparkles,
-  Trophy,
-} from "lucide-react";
+import { ArrowLeft, Coins, Flame, Gem, Heart, Map, RotateCcw, Shield, Sparkles, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -324,7 +313,8 @@ function resolveRunAction(current: RunState, action: ActionId, roll: number): Ru
       coins += 1;
       tone = "warn";
       changes.push("-1 HP", "+2 danger", "+1 coin");
-      message = "A scout hears your notebook snap shut. You dive under a chain, scrape a shoulder, and grab a loose coin.";
+      message =
+        "A scout hears your notebook snap shut. You dive under a chain, scrape a shoulder, and grab a loose coin.";
     } else if (roll > 0.36) {
       clues += 1;
       score += 28;
@@ -349,7 +339,8 @@ function resolveRunAction(current: RunState, action: ActionId, roll: number): Ru
         score += 52;
         relicList = addRelic(relicList, "ogreBadge");
         changes.push("+1 depth", "+1 clue", "+relic");
-        message = "A riddle-merchant takes the coin, laughs, and slides you a stamped ogre badge with the route scratched inside.";
+        message =
+          "A riddle-merchant takes the coin, laughs, and slides you a stamped ogre badge with the route scratched inside.";
       } else if (roll > 0.24) {
         clues += 1;
         score += 34;
@@ -412,7 +403,8 @@ function resolveRunAction(current: RunState, action: ActionId, roll: number): Ru
       score += 44;
       relicList = addRelic(relicList, "silverSap");
       changes.push("+1 clue", "+1 danger", "+relic");
-      message = "You read the wall runes aloud. The vault answers with a silver sap map and one very suspicious echo.";
+      message =
+        "You read the wall runes aloud. The vault answers with a silver sap map and one very suspicious echo.";
     } else if (roll > 0.18) {
       clues += 1;
       score += 28;
@@ -528,15 +520,31 @@ export function OgreDungeonRunnerPage() {
           <div className="ogre-game-panel ogre-game-panel--scene">
             <div className="ogre-game-hud" aria-label="Run status">
               <StatusPill icon={<Heart aria-hidden="true" size={16} />} label={`HP ${run.hp}`} tone="heart" />
-              <StatusPill icon={<Flame aria-hidden="true" size={16} />} label={`Torch ${run.torch}`} tone="torch" />
-              <StatusPill icon={<Map aria-hidden="true" size={16} />} label={`Depth ${run.depth}`} tone="map" />
-              <StatusPill icon={<Coins aria-hidden="true" size={16} />} label={`Coins ${run.coins}`} tone="coin" />
+              <StatusPill
+                icon={<Flame aria-hidden="true" size={16} />}
+                label={`Torch ${run.torch}`}
+                tone="torch"
+              />
+              <StatusPill
+                icon={<Map aria-hidden="true" size={16} />}
+                label={`Depth ${run.depth}`}
+                tone="map"
+              />
+              <StatusPill
+                icon={<Coins aria-hidden="true" size={16} />}
+                label={`Coins ${run.coins}`}
+                tone="coin"
+              />
               <StatusPill
                 icon={<Shield aria-hidden="true" size={16} />}
                 label={`Danger ${run.danger}/${maxDanger}`}
                 tone="danger"
               />
-              <StatusPill icon={<Trophy aria-hidden="true" size={16} />} label={`Score ${run.score}`} tone="score" />
+              <StatusPill
+                icon={<Trophy aria-hidden="true" size={16} />}
+                label={`Score ${run.score}`}
+                tone="score"
+              />
             </div>
 
             <div className="ogre-game-progress" aria-label={`Dungeon progress ${progress}%`}>
@@ -566,10 +574,7 @@ export function OgreDungeonRunnerPage() {
                 </strong>
                 <div className="ogre-game-clues" aria-label={`${run.clues} route clues`}>
                   {Array.from({ length: requiredClues }).map((_, index) => (
-                    <span
-                      key={index}
-                      className={cn(index < run.clues && "is-found")}
-                    />
+                    <span key={index} className={cn(index < run.clues && "is-found")} />
                   ))}
                 </div>
               </div>
@@ -672,13 +677,25 @@ function GoblinScoutArt() {
   return (
     <svg viewBox="0 0 260 170" role="img" aria-label="Goblin scout illustration">
       <rect width="260" height="170" rx="18" fill="#18251e" />
-      <path d="M28 132 C68 94, 112 116, 152 82 S228 72, 238 128" fill="none" stroke="#8ee1a0" strokeWidth="10" strokeLinecap="round" />
+      <path
+        d="M28 132 C68 94, 112 116, 152 82 S228 72, 238 128"
+        fill="none"
+        stroke="#8ee1a0"
+        strokeWidth="10"
+        strokeLinecap="round"
+      />
       <path d="M82 80 L51 52 L92 61 Z" fill="#8bd17c" />
       <path d="M148 80 L188 50 L176 96 Z" fill="#8bd17c" />
       <ellipse cx="121" cy="88" rx="52" ry="42" fill="#67b96d" />
       <circle cx="101" cy="84" r="8" fill="#101510" />
       <circle cx="141" cy="84" r="8" fill="#101510" />
-      <path d="M103 111 Q121 123 142 111" fill="none" stroke="#101510" strokeWidth="6" strokeLinecap="round" />
+      <path
+        d="M103 111 Q121 123 142 111"
+        fill="none"
+        stroke="#101510"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
       <path d="M75 38 Q121 10 169 39" fill="none" stroke="#f2c15d" strokeWidth="7" strokeLinecap="round" />
       <rect x="194" y="94" width="18" height="44" rx="9" fill="#f2c15d" />
       <circle cx="203" cy="87" r="18" fill="#ffe08a" opacity="0.9" />
@@ -696,9 +713,21 @@ function OgreGateArt() {
       <path d="M166 61 L205 42 L187 75 Z" fill="#7f9782" />
       <circle cx="112" cy="89" r="8" fill="#f5d06a" />
       <circle cx="149" cy="89" r="8" fill="#f5d06a" />
-      <path d="M105 119 Q130 105 156 119" fill="none" stroke="#d8e6d0" strokeWidth="7" strokeLinecap="round" />
+      <path
+        d="M105 119 Q130 105 156 119"
+        fill="none"
+        stroke="#d8e6d0"
+        strokeWidth="7"
+        strokeLinecap="round"
+      />
       <path d="M24 145 H236" stroke="#e3aa5e" strokeWidth="9" strokeLinecap="round" />
-      <path d="M56 145 L84 118 L112 145 L142 118 L170 145 L200 118" fill="none" stroke="#91d7c5" strokeWidth="5" strokeLinecap="round" />
+      <path
+        d="M56 145 L84 118 L112 145 L142 118 L170 145 L200 118"
+        fill="none"
+        stroke="#91d7c5"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -717,7 +746,13 @@ function MushroomVaultArt() {
       <circle cx="185" cy="62" r="6" fill="#15372f" />
       <circle cx="204" cy="82" r="5" fill="#15372f" />
       <path d="M48 139 H218" stroke="#f1b56b" strokeWidth="7" strokeLinecap="round" />
-      <path d="M62 123 L91 109 L118 125 L150 108 L190 122" fill="none" stroke="#a7e38e" strokeWidth="5" strokeLinecap="round" />
+      <path
+        d="M62 123 L91 109 L118 125 L150 108 L190 122"
+        fill="none"
+        stroke="#a7e38e"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

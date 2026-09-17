@@ -20,12 +20,9 @@ type StickyNotesBoardProps = {
 const noteTintClasses: Record<StickyNoteLayout["color"], string> = {
   amber:
     "border-amber-300/70 bg-[linear-gradient(180deg,rgba(255,248,195,0.95),rgba(253,230,138,0.92))] text-amber-950 dark:border-amber-200/25 dark:bg-[linear-gradient(180deg,rgba(120,84,18,0.9),rgba(82,56,12,0.88))] dark:text-amber-50",
-  mint:
-    "border-emerald-300/70 bg-[linear-gradient(180deg,rgba(220,252,231,0.95),rgba(167,243,208,0.92))] text-emerald-950 dark:border-emerald-200/25 dark:bg-[linear-gradient(180deg,rgba(19,78,74,0.92),rgba(17,94,89,0.88))] dark:text-emerald-50",
-  sky:
-    "border-sky-300/70 bg-[linear-gradient(180deg,rgba(224,242,254,0.95),rgba(186,230,253,0.92))] text-sky-950 dark:border-sky-200/25 dark:bg-[linear-gradient(180deg,rgba(12,74,110,0.92),rgba(14,116,144,0.88))] dark:text-sky-50",
-  rose:
-    "border-rose-300/70 bg-[linear-gradient(180deg,rgba(255,228,230,0.96),rgba(254,205,211,0.92))] text-rose-950 dark:border-rose-200/25 dark:bg-[linear-gradient(180deg,rgba(136,19,55,0.9),rgba(159,18,57,0.88))] dark:text-rose-50",
+  mint: "border-emerald-300/70 bg-[linear-gradient(180deg,rgba(220,252,231,0.95),rgba(167,243,208,0.92))] text-emerald-950 dark:border-emerald-200/25 dark:bg-[linear-gradient(180deg,rgba(19,78,74,0.92),rgba(17,94,89,0.88))] dark:text-emerald-50",
+  sky: "border-sky-300/70 bg-[linear-gradient(180deg,rgba(224,242,254,0.95),rgba(186,230,253,0.92))] text-sky-950 dark:border-sky-200/25 dark:bg-[linear-gradient(180deg,rgba(12,74,110,0.92),rgba(14,116,144,0.88))] dark:text-sky-50",
+  rose: "border-rose-300/70 bg-[linear-gradient(180deg,rgba(255,228,230,0.96),rgba(254,205,211,0.92))] text-rose-950 dark:border-rose-200/25 dark:bg-[linear-gradient(180deg,rgba(136,19,55,0.9),rgba(159,18,57,0.88))] dark:text-rose-50",
   violet:
     "border-violet-300/70 bg-[linear-gradient(180deg,rgba(245,243,255,0.95),rgba(221,214,254,0.92))] text-violet-950 dark:border-violet-200/25 dark:bg-[linear-gradient(180deg,rgba(76,29,149,0.9),rgba(91,33,182,0.88))] dark:text-violet-50",
 };

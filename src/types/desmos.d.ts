@@ -87,16 +87,8 @@ declare global {
     setDefaultState?: (state: DesmosState) => void;
     setExpression: (expression: DesmosExpressionState) => void;
     setExpressions?: (expressions: DesmosExpressionState[]) => void;
-    setMathBounds: (bounds: {
-      left: number;
-      right: number;
-      bottom: number;
-      top: number;
-    }) => void;
-    setState: (
-      state: DesmosState,
-      options?: { allowUndo?: boolean; remapColors?: boolean },
-    ) => void;
+    setMathBounds: (bounds: { left: number; right: number; bottom: number; top: number }) => void;
+    setState: (state: DesmosState, options?: { allowUndo?: boolean; remapColors?: boolean }) => void;
     unobserveEvent: (event: "change") => void;
   } & DesmosBaseCalculator;
 

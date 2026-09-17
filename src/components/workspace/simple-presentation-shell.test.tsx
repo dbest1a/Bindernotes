@@ -95,10 +95,10 @@ describe("SimplePresentationShell", () => {
     expect(screen.getByTestId("simple-presentation-shell")).toBeTruthy();
     expect(screen.getByTestId("simple-primary-module")).toBeTruthy();
     expect(screen.getByTestId("simple-lesson-nav")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe(
-      "/dashboard",
+    expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe("/dashboard");
+    expect((screen.getByRole("combobox", { name: "Study surface" }) as HTMLSelectElement).value).toBe(
+      "match",
     );
-    expect((screen.getByRole("combobox", { name: "Study surface" }) as HTMLSelectElement).value).toBe("match");
     expect(container.querySelector(".workspace-canvas")).toBeNull();
     expect(screen.queryByText(/Drag windows/i)).toBeNull();
   });
@@ -238,11 +238,13 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Read the source, work the example, and keep your own explanation beside it.")).toBeTruthy();
+    expect(
+      screen.getByText("Read the source, work the example, and keep your own explanation beside it."),
+    ).toBeTruthy();
     expect(screen.getByText("Progress")).toBeTruthy();
-    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
-      "true",
-    );
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space"),
+    ).toBe("true");
 
     rerender(
       <MemoryRouter>
@@ -255,9 +257,9 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
-      "false",
-    );
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space"),
+    ).toBe("false");
     expect(screen.getByRole("link", { name: "Workspace home" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Study surface" })).toBeTruthy();
     expect(screen.getByText("Reading")).toBeTruthy();
@@ -283,7 +285,9 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-student-calm-mode")).toBe("true");
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-student-calm-mode"),
+    ).toBe("true");
     expect(screen.queryByRole("button", { name: /^Settings$/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Focus$/i })).toBeNull();
 
@@ -293,10 +297,7 @@ describe("SimplePresentationShell", () => {
   });
 });
 
-function createContext(options?: {
-  binder?: Binder;
-  historyEnabled?: boolean;
-}): WorkspaceModuleContext {
+function createContext(options?: { binder?: Binder; historyEnabled?: boolean }): WorkspaceModuleContext {
   const historyEvent: HistoryEventTemplate = {
     id: "event-1",
     suite_template_id: "suite-history",

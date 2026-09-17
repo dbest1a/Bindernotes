@@ -1,4 +1,7 @@
-import { rawPeriodicElementRecords, type RawPeriodicElementRecord } from "@/lib/chemistry/periodic-table-source";
+import {
+  rawPeriodicElementRecords,
+  type RawPeriodicElementRecord,
+} from "@/lib/chemistry/periodic-table-source";
 
 export type ElementCategory =
   | "alkali-metal"
@@ -118,50 +121,60 @@ export const trendModeLabels: Record<
     label: "Category / family",
     unit: "family",
     explanation: "Families group elements that often show similar valence behavior.",
-    apReasoning: "Start with valence shell structure, then explain why a family tends to gain, lose, or share electrons.",
+    apReasoning:
+      "Start with valence shell structure, then explain why a family tends to gain, lose, or share electrons.",
     outlierNote: "Hydrogen is shown as a reactive nonmetal even though it sits above group 1.",
   },
   state: {
     label: "State at 25 C",
     unit: "state",
     explanation: "Room-temperature state connects bonding and intermolecular forces to observable matter.",
-    apReasoning: "Use particle attractions and kinetic energy to justify why some elements are gases or liquids at room temperature.",
-    outlierNote: "Some synthetic elements have limited state data and are marked unknown when the record is not reliable.",
+    apReasoning:
+      "Use particle attractions and kinetic energy to justify why some elements are gases or liquids at room temperature.",
+    outlierNote:
+      "Some synthetic elements have limited state data and are marked unknown when the record is not reliable.",
   },
   "atomic-radius": {
     label: "Atomic radius",
     unit: "pm",
     explanation: "Atomic radius estimates the size of a neutral atom.",
-    apReasoning: "Radius generally decreases across a period as effective nuclear charge pulls the same shell closer.",
-    outlierNote: "Transition metals and f-block elements show smaller changes because d and f electrons shield imperfectly.",
+    apReasoning:
+      "Radius generally decreases across a period as effective nuclear charge pulls the same shell closer.",
+    outlierNote:
+      "Transition metals and f-block elements show smaller changes because d and f electrons shield imperfectly.",
   },
   electronegativity: {
     label: "Electronegativity",
     unit: "Pauling",
     explanation: "Electronegativity estimates how strongly an atom attracts bonding electrons.",
-    apReasoning: "Compare effective nuclear charge and shielding; fluorine is high because bonding electrons feel a strong pull in a compact shell.",
+    apReasoning:
+      "Compare effective nuclear charge and shielding; fluorine is high because bonding electrons feel a strong pull in a compact shell.",
     outlierNote: "Noble gases and many synthetic elements have unknown or nonstandard values.",
   },
   "ionization-energy": {
     label: "First ionization energy",
     unit: "eV",
     explanation: "First ionization energy is the energy needed to remove one electron from a neutral atom.",
-    apReasoning: "It generally increases across a period because valence electrons are held more tightly by higher effective nuclear charge.",
+    apReasoning:
+      "It generally increases across a period because valence electrons are held more tightly by higher effective nuclear charge.",
     outlierNote: "Subshell stability creates common AP exceptions such as Be/B and N/O comparisons.",
   },
   "electron-affinity": {
     label: "Electron affinity",
     unit: "eV",
     explanation: "Electron affinity tracks energy change when an atom gains an electron.",
-    apReasoning: "Use attraction to the nucleus, electron-electron repulsion, and shell filling to explain sign and magnitude.",
-    outlierNote: "Some values are small, negative, or source-dependent; unknown values are not replaced with zero.",
+    apReasoning:
+      "Use attraction to the nucleus, electron-electron repulsion, and shell filling to explain sign and magnitude.",
+    outlierNote:
+      "Some values are small, negative, or source-dependent; unknown values are not replaced with zero.",
   },
   "atomic-mass": {
     label: "Atomic mass",
     unit: "u",
     explanation: "Atomic mass is the weighted average of naturally occurring isotopes when applicable.",
     apReasoning: "Separate mass number for one atom from average atomic mass on the periodic table.",
-    outlierNote: "Synthetic elements are commonly displayed with a mass number rather than a stable natural average.",
+    outlierNote:
+      "Synthetic elements are commonly displayed with a mass number rather than a stable natural average.",
   },
   density: {
     label: "Density",
@@ -174,22 +187,28 @@ export const trendModeLabels: Record<
     label: "Melting point",
     unit: "K",
     explanation: "Melting point reflects how much energy is needed to disrupt the solid structure.",
-    apReasoning: "Relate high melting points to network covalent structures, metallic bonding, or strong particle attractions.",
-    outlierNote: "Carbon is source-sensitive because allotropes and sublimation behavior complicate a single value.",
+    apReasoning:
+      "Relate high melting points to network covalent structures, metallic bonding, or strong particle attractions.",
+    outlierNote:
+      "Carbon is source-sensitive because allotropes and sublimation behavior complicate a single value.",
   },
   "boiling-point": {
     label: "Boiling point",
     unit: "K",
-    explanation: "Boiling point reflects the energy needed for particles to separate into a gas at standard pressure.",
-    apReasoning: "Use particle attractions and structure to compare elements rather than memorizing the whole table.",
+    explanation:
+      "Boiling point reflects the energy needed for particles to separate into a gas at standard pressure.",
+    apReasoning:
+      "Use particle attractions and structure to compare elements rather than memorizing the whole table.",
     outlierNote: "Some transuranic elements have unknown or modeled values.",
   },
   "metallic-character": {
     label: "Metallic character",
     unit: "relative",
     explanation: "Metallic character describes how strongly an element behaves like a metal.",
-    apReasoning: "Metallic character increases down a group as valence electrons are farther from the nucleus and easier to remove.",
-    outlierNote: "Metalloids sit on the boundary and should be explained as mixed behavior, not a hard switch.",
+    apReasoning:
+      "Metallic character increases down a group as valence electrons are farther from the nucleus and easier to remove.",
+    outlierNote:
+      "Metalloids sit on the boundary and should be explained as mixed behavior, not a hard switch.",
   },
   block: {
     label: "Orbital block",
@@ -202,14 +221,16 @@ export const trendModeLabels: Record<
     label: "Valence electrons",
     unit: "e-",
     explanation: "Valence electrons are the outer electrons most involved in bonding and ion formation.",
-    apReasoning: "For main-group elements, group number predicts valence; transition metals often require case-by-case reasoning.",
+    apReasoning:
+      "For main-group elements, group number predicts valence; transition metals often require case-by-case reasoning.",
     outlierNote: "Transition metal valence is marked varies instead of forcing a fake single count.",
   },
   "oxidation-state": {
     label: "Common oxidation state",
     unit: "charge",
     explanation: "Oxidation states keep track of electron accounting in compounds and redox.",
-    apReasoning: "Use periodic position, electronegativity, and compound context to justify likely oxidation states.",
+    apReasoning:
+      "Use periodic position, electronegativity, and compound context to justify likely oxidation states.",
     outlierNote: "Transition metals can have many states; common classroom ions are highlighted separately.",
   },
   "discovery-year": {
@@ -223,7 +244,8 @@ export const trendModeLabels: Record<
     label: "Crust abundance",
     unit: "mg/kg",
     explanation: "Abundance shows how common an element is in Earth's crust.",
-    apReasoning: "Use abundance as real-world context; it is not controlled by periodic electron trends alone.",
+    apReasoning:
+      "Use abundance as real-world context; it is not controlled by periodic electron trends alone.",
     outlierNote: "Synthetic and extremely rare elements may have no meaningful crust abundance.",
   },
 };
@@ -286,8 +308,10 @@ const specificCopy: Record<
 > = {
   H: {
     commonUses: "Fuel cells, acid-base chemistry, hydrogen bonding models, and stars.",
-    chem101Note: "Hydrogen is the simplest atom, so it is the cleanest way to separate proton count, electron count, and charge.",
-    apChemistryNote: "Hydrogen is a good exception-checker: it can be H+ in acids, H- in metal hydrides, or share one pair in covalent bonds.",
+    chem101Note:
+      "Hydrogen is the simplest atom, so it is the cleanest way to separate proton count, electron count, and charge.",
+    apChemistryNote:
+      "Hydrogen is a good exception-checker: it can be H+ in acids, H- in metal hydrides, or share one pair in covalent bonds.",
     bondingBehavior: "Usually forms one bond and follows a duet rather than an octet.",
     commonMisconception: "Hydrogen sits over group 1, but it is not an alkali metal in ordinary chemistry.",
     quickCheck: "Why can hydrogen form H+ in acids but also share electrons in H2?",
@@ -295,17 +319,22 @@ const specificCopy: Record<
   },
   C: {
     commonUses: "Organic molecules, graphite, diamond, carbon dioxide, fuels, polymers, and carbon dating.",
-    chem101Note: "Carbon has four valence electrons, which lets it build chains, rings, and network structures.",
-    apChemistryNote: "Use carbon to connect hybridization, bond polarity, formal charge, and molecular structure.",
-    bondingBehavior: "Often forms four covalent bonds; it can make single, double, or triple bonds depending on the structure.",
-    commonMisconception: "Carbon usually shares electrons instead of becoming a simple C4+ or C4- ion in first-year chemistry.",
+    chem101Note:
+      "Carbon has four valence electrons, which lets it build chains, rings, and network structures.",
+    apChemistryNote:
+      "Use carbon to connect hybridization, bond polarity, formal charge, and molecular structure.",
+    bondingBehavior:
+      "Often forms four covalent bonds; it can make single, double, or triple bonds depending on the structure.",
+    commonMisconception:
+      "Carbon usually shares electrons instead of becoming a simple C4+ or C4- ion in first-year chemistry.",
     quickCheck: "Carbon-14 is radioactive, but why is it still carbon?",
     relatedLessons: ["electron configuration", "bonding", "stoichiometry"],
   },
   N: {
     commonUses: "Air, proteins, fertilizers, explosives, and nitrogen-containing biomolecules.",
     chem101Note: "Nitrogen's five valence electrons often lead to three bonds plus one lone pair.",
-    apChemistryNote: "Nitrogen is useful for formal charge, molecular geometry, acid-base behavior, and oxidation-state reasoning.",
+    apChemistryNote:
+      "Nitrogen is useful for formal charge, molecular geometry, acid-base behavior, and oxidation-state reasoning.",
     bondingBehavior: "Often forms three bonds in neutral molecules and N3- in simple ionic compounds.",
     commonMisconception: "A lone pair is not unused; it shapes geometry and can accept a proton.",
     quickCheck: "Why is NH3 trigonal pyramidal instead of flat?",
@@ -314,18 +343,22 @@ const specificCopy: Record<
   O: {
     commonUses: "Respiration, combustion, oxides, water, acids, bases, and redox reactions.",
     chem101Note: "Oxygen's six valence electrons explain why it commonly forms two bonds or O2-.",
-    apChemistryNote: "Oxygen is a high-electronegativity anchor for bond polarity, oxidation states, and redox balancing.",
+    apChemistryNote:
+      "Oxygen is a high-electronegativity anchor for bond polarity, oxidation states, and redox balancing.",
     bondingBehavior: "Often forms two bonds and carries two lone pairs in neutral molecules.",
-    commonMisconception: "Oxygen is not always neutral in a formula; oxide, peroxide, and covalent oxygen have different electron accounting.",
+    commonMisconception:
+      "Oxygen is not always neutral in a formula; oxide, peroxide, and covalent oxygen have different electron accounting.",
     quickCheck: "Why does oxygen usually form O2- in ionic compounds?",
     relatedLessons: ["redox", "bonding", "molecular polarity"],
   },
   F: {
     commonUses: "Fluorides, polymers, refrigerant chemistry, and etching compounds.",
     chem101Note: "Fluorine is the strongest electronegativity reference in most classroom comparisons.",
-    apChemistryNote: "F vs Cl is a classic radius/electronegativity comparison: fluorine has less shielding and a smaller valence shell.",
+    apChemistryNote:
+      "F vs Cl is a classic radius/electronegativity comparison: fluorine has less shielding and a smaller valence shell.",
     bondingBehavior: "Usually gains one electron or forms one single covalent bond.",
-    commonMisconception: "Being more electronegative does not mean fluorine is larger; it is smaller than chlorine.",
+    commonMisconception:
+      "Being more electronegative does not mean fluorine is larger; it is smaller than chlorine.",
     quickCheck: "Why is F more electronegative than Cl even though both are halogens?",
     relatedLessons: ["periodic trends", "bond polarity", "Coulomb's law"],
   },
@@ -341,7 +374,8 @@ const specificCopy: Record<
   Mg: {
     commonUses: "Light alloys, fireworks, antacids, and biological ions.",
     chem101Note: "Magnesium shows the group 2 pattern: two valence electrons and a common +2 ion.",
-    apChemistryNote: "Compare Mg to Na and Al to reason about ionization energy and metallic character across period 3.",
+    apChemistryNote:
+      "Compare Mg to Na and Al to reason about ionization energy and metallic character across period 3.",
     bondingBehavior: "Usually forms Mg2+ in ionic compounds.",
     quickCheck: "Why does Mg form Mg2+ while Na usually forms Na+?",
   },
@@ -354,8 +388,10 @@ const specificCopy: Record<
   },
   Si: {
     commonUses: "Semiconductors, glass, ceramics, and solar cells.",
-    chem101Note: "Silicon sits below carbon and helps students see how a group trend can preserve valence while changing size.",
-    apChemistryNote: "C vs Si comparisons connect larger radius, lower electronegativity, and network covalent materials.",
+    chem101Note:
+      "Silicon sits below carbon and helps students see how a group trend can preserve valence while changing size.",
+    apChemistryNote:
+      "C vs Si comparisons connect larger radius, lower electronegativity, and network covalent materials.",
     bondingBehavior: "Often forms four covalent bonds in network or molecular structures.",
     quickCheck: "Why does silicon have similar valence behavior to carbon but a larger atomic radius?",
   },
@@ -364,14 +400,16 @@ const specificCopy: Record<
     chem101Note: "Chlorine is the everyday halogen example: seven valence electrons and a common -1 ion.",
     apChemistryNote: "Chlorine supports trend explanations, redox half-reactions, and acid/base naming.",
     bondingBehavior: "Usually gains one electron as chloride or forms one covalent bond.",
-    commonMisconception: "Chlorine atoms and chloride ions have different properties; one is not just a label for the other.",
+    commonMisconception:
+      "Chlorine atoms and chloride ions have different properties; one is not just a label for the other.",
     quickCheck: "Why is Cl- larger than neutral Cl?",
     relatedLessons: ["ionic bonding", "redox", "periodic trends"],
   },
   Fe: {
     commonUses: "Steel, construction, hemoglobin, magnets, and redox chemistry.",
     chem101Note: "Iron introduces transition metals with more than one common charge.",
-    apChemistryNote: "Fe2+/Fe3+ is a useful redox pair because electron removal from transition metals is context-dependent.",
+    apChemistryNote:
+      "Fe2+/Fe3+ is a useful redox pair because electron removal from transition metals is context-dependent.",
     bondingBehavior: "Commonly forms Fe2+ and Fe3+; ligand and redox conditions matter.",
     commonMisconception: "Transition metals do not always have one predictable charge from the group number.",
     quickCheck: "Why do Fe2+ and Fe3+ both appear in chemistry problems?",
@@ -384,10 +422,12 @@ const specificCopy: Record<
   },
   U: {
     commonUses: "Nuclear fuel, radiometric dating context, and nuclear chemistry examples.",
-    chem101Note: "Uranium is useful mainly as a radioactivity and isotope discussion point in general chemistry.",
+    chem101Note:
+      "Uranium is useful mainly as a radioactivity and isotope discussion point in general chemistry.",
     apChemistryNote: "Use uranium to distinguish nuclear change from ordinary chemical bonding changes.",
     bondingBehavior: "Can form multiple oxidation states; nuclear identity still depends on proton count.",
-    commonMisconception: "Radioactivity is a nuclear property, not a sign that ordinary chemical bonds are radioactive.",
+    commonMisconception:
+      "Radioactivity is a nuclear property, not a sign that ordinary chemical bonds are radioactive.",
     quickCheck: "What changes in a nuclear reaction that does not change in an ordinary chemical reaction?",
     relatedLessons: ["nuclear chemistry", "redox"],
   },
@@ -399,7 +439,9 @@ export const periodicTableElementsByAtomicNumber = new Map(
   periodicTableElements.map((element) => [element.atomicNumber, element]),
 );
 
-export const periodicTableElementsBySymbol = new Map(periodicTableElements.map((element) => [element.symbol, element]));
+export const periodicTableElementsBySymbol = new Map(
+  periodicTableElements.map((element) => [element.symbol, element]),
+);
 
 export function findElement(query: string) {
   const normalized = query.trim().toLowerCase();
@@ -555,7 +597,9 @@ export function getTrendDisplay(element: PeriodicTableElement, trend: TrendMode)
     return element.valenceElectrons;
   }
   if (trend === "oxidation-state") {
-    return element.commonOxidationStates.length ? element.commonOxidationStates.map(formatSignedNumber).join(", ") : "unknown";
+    return element.commonOxidationStates.length
+      ? element.commonOxidationStates.map(formatSignedNumber).join(", ")
+      : "unknown";
   }
 
   const value = getTrendNumericValue(element, trend);
@@ -587,7 +631,9 @@ export function buildAtomModel(protons: number, neutrons: number, electrons: num
   if (!element) {
     warnings.push("Choose 1-118 protons to build a known element.");
   } else if (element.radioactive) {
-    warnings.push(`${element.name} has no stable isotope in the data set; treat it as nuclear chemistry context.`);
+    warnings.push(
+      `${element.name} has no stable isotope in the data set; treat it as nuclear chemistry context.`,
+    );
   }
   if (cleanNeutrons === 0 && cleanProtons > 1) {
     warnings.push("Most atoms beyond hydrogen need neutrons for a physically meaningful nucleus.");
@@ -617,8 +663,11 @@ export function buildAtomModel(protons: number, neutrons: number, electrons: num
     massNumber,
     charge,
     chargeLabel: charge === 0 ? "neutral" : formatCharge(charge),
-    particleClass: cleanProtons === 0 ? "invalid" : charge > 0 ? "cation" : charge < 0 ? "anion" : "neutral atom",
-    isotopeNotation: element ? `${element.name}-${massNumber}${charge === 0 ? "" : ` ${formatCharge(charge)}`}` : "unknown atom",
+    particleClass:
+      cleanProtons === 0 ? "invalid" : charge > 0 ? "cation" : charge < 0 ? "anion" : "neutral atom",
+    isotopeNotation: element
+      ? `${element.name}-${massNumber}${charge === 0 ? "" : ` ${formatCharge(charge)}`}`
+      : "unknown atom",
     shells,
     electronConfiguration:
       element && cleanElectrons === cleanProtons
@@ -660,11 +709,16 @@ export function formatNumber(value: number) {
 
 function buildElement(record: RawPeriodicElementRecord): PeriodicTableElement {
   const category = getCategory(record);
-  const electronConfiguration = normalizeElectronConfiguration(record.electronConfiguration, record.atomicNumber);
+  const electronConfiguration = normalizeElectronConfiguration(
+    record.electronConfiguration,
+    record.atomicNumber,
+  );
   const shells = getShellDistribution(electronConfiguration);
   const valenceElectrons = getValenceElectrons(record, shells);
   const phase = getRoomTemperatureState(record);
-  const commonOxidationStates = record.mainOxidationStates.length ? record.mainOxidationStates : record.oxidationStates;
+  const commonOxidationStates = record.mainOxidationStates.length
+    ? record.mainOxidationStates
+    : record.oxidationStates;
   const commonIonCharges = getCommonIonCharges(record, category, commonOxidationStates);
   const copy = specificCopy[record.symbol] ?? {};
 
@@ -719,7 +773,12 @@ function buildElement(record: RawPeriodicElementRecord): PeriodicTableElement {
     commonMisconception,
     quickCheck,
     relatedLessons,
-    dataSources: ["mendeleev-data elements", "mendeleev-data oxidationstates", "mendeleev-data ionizationenergies", "mendeleev-data phasetransitions"],
+    dataSources: [
+      "mendeleev-data elements",
+      "mendeleev-data oxidationstates",
+      "mendeleev-data ionizationenergies",
+      "mendeleev-data phasetransitions",
+    ],
     dataQualityNotes: getDataQualityNotes(record),
   };
 
@@ -809,7 +868,10 @@ function getShellDistribution(configuration: string) {
   return shellCounts;
 }
 
-function getValenceElectrons(record: RawPeriodicElementRecord, shells: number[]): PeriodicTableElement["valenceElectrons"] {
+function getValenceElectrons(
+  record: RawPeriodicElementRecord,
+  shells: number[],
+): PeriodicTableElement["valenceElectrons"] {
   if (record.group === 1) {
     return 1;
   }
@@ -825,7 +887,10 @@ function getValenceElectrons(record: RawPeriodicElementRecord, shells: number[])
   return estimateValenceFromShells(shells, record.block as ElementBlock);
 }
 
-function estimateValenceFromShells(shells: number[], block: ElementBlock): PeriodicTableElement["valenceElectrons"] {
+function estimateValenceFromShells(
+  shells: number[],
+  block: ElementBlock,
+): PeriodicTableElement["valenceElectrons"] {
   if (shells.length === 0) {
     return "unknown";
   }
@@ -848,7 +913,11 @@ function getRoomTemperatureState(record: RawPeriodicElementRecord): ElementState
   return "solid";
 }
 
-function getCommonIonCharges(record: RawPeriodicElementRecord, category: ElementCategory, oxidationStates: number[]) {
+function getCommonIonCharges(
+  record: RawPeriodicElementRecord,
+  category: ElementCategory,
+  oxidationStates: number[],
+) {
   const nonZero = oxidationStates.filter((state) => state !== 0);
   if (record.symbol === "H") {
     return [1, -1];
@@ -881,7 +950,11 @@ function getCommonIonCharges(record: RawPeriodicElementRecord, category: Element
 }
 
 function getMetallicCharacter(element: PeriodicTableElement) {
-  if (element.category.includes("metal") || element.category === "lanthanide" || element.category === "actinide") {
+  if (
+    element.category.includes("metal") ||
+    element.category === "lanthanide" ||
+    element.category === "actinide"
+  ) {
     return Math.min(1, 0.7 + element.period * 0.035);
   }
   if (element.category === "metalloid") {
@@ -936,7 +1009,10 @@ function getGenericChem101Note(
   category: ElementCategory,
   valenceElectrons: PeriodicTableElement["valenceElectrons"],
 ) {
-  const valenceText = typeof valenceElectrons === "number" ? `${valenceElectrons} valence electron${valenceElectrons === 1 ? "" : "s"}` : "variable valence behavior";
+  const valenceText =
+    typeof valenceElectrons === "number"
+      ? `${valenceElectrons} valence electron${valenceElectrons === 1 ? "" : "s"}`
+      : "variable valence behavior";
   return `${record.name} is a ${elementCategories[category].toLowerCase()} in period ${record.period}. For Chemistry 101, use its position to predict ${valenceText}, likely ions, and bonding patterns.`;
 }
 

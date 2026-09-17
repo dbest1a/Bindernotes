@@ -56,47 +56,45 @@ vi.mock("@/hooks/use-math-workspace", () => ({
   useMathWorkspace: (userId?: string, scopeId?: string) => {
     mocks.mathWorkspaceCalls.push({ userId, scopeId });
     return {
-    state: {
-      graphVisible: true,
-      graphExpanded: false,
-      graphMode: "2d",
-      calculatorExpression: "x^2",
-      calculatorResult: null,
-      calculatorError: null,
-      angleMode: "rad",
-      history: [],
-      savedGraphs: [],
-      savedFunctions: [],
-      currentGraphState: null,
-    },
-    setGraphExpanded: mocks.setGraphExpanded,
-    setGraphVisible: mocks.setGraphVisible,
-    setGraphMode: mocks.setGraphMode,
-    savedFunctionMap: {},
-    clearCurrentGraph: vi.fn(),
-    setCurrentGraphState: vi.fn(),
-    setExpression: vi.fn(),
-    appendToken: vi.fn(),
-    backspace: vi.fn(),
-    clearExpression: vi.fn(),
-    clearHistory: vi.fn(),
-    deleteHistoryItem: vi.fn(),
-    evaluate: vi.fn(),
-    reuseHistoryExpression: vi.fn(),
-    reuseSavedFunction: vi.fn(),
-    setAngleMode: vi.fn(),
-    deleteSavedFunction: vi.fn(),
-    deleteGraphSnapshot: vi.fn(),
-    loadGraphSnapshot: vi.fn(),
-    saveGraphSnapshot: vi.fn(),
+      state: {
+        graphVisible: true,
+        graphExpanded: false,
+        graphMode: "2d",
+        calculatorExpression: "x^2",
+        calculatorResult: null,
+        calculatorError: null,
+        angleMode: "rad",
+        history: [],
+        savedGraphs: [],
+        savedFunctions: [],
+        currentGraphState: null,
+      },
+      setGraphExpanded: mocks.setGraphExpanded,
+      setGraphVisible: mocks.setGraphVisible,
+      setGraphMode: mocks.setGraphMode,
+      savedFunctionMap: {},
+      clearCurrentGraph: vi.fn(),
+      setCurrentGraphState: vi.fn(),
+      setExpression: vi.fn(),
+      appendToken: vi.fn(),
+      backspace: vi.fn(),
+      clearExpression: vi.fn(),
+      clearHistory: vi.fn(),
+      deleteHistoryItem: vi.fn(),
+      evaluate: vi.fn(),
+      reuseHistoryExpression: vi.fn(),
+      reuseSavedFunction: vi.fn(),
+      setAngleMode: vi.fn(),
+      deleteSavedFunction: vi.fn(),
+      deleteGraphSnapshot: vi.fn(),
+      loadGraphSnapshot: vi.fn(),
+      saveGraphSnapshot: vi.fn(),
     };
   },
 }));
 
 vi.mock("@/components/math/math-workspace-modules", () => ({
-  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => (
-    <section>{title}</section>
-  ),
+  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => <section>{title}</section>,
   ScientificCalculatorModule: () => <section>Scientific calculator</section>,
   SavedGraphsModule: () => <section>Saved graphs</section>,
 }));
@@ -141,9 +139,7 @@ function renderLab(options: { seedBoard?: boolean } = {}) {
   );
 }
 
-function seedWorkspaceBoard(
-  context: Pick<WorkspaceModuleContext, "binder" | "selectedLesson" | "ownerId">,
-) {
+function seedWorkspaceBoard(context: Pick<WorkspaceModuleContext, "binder" | "selectedLesson" | "ownerId">) {
   const ownerId = context.ownerId ?? "user-1";
   window.localStorage.setItem(
     `bindernotes:whiteboards:${ownerId}:${context.binder.id}:${context.selectedLesson.id}`,
@@ -297,8 +293,9 @@ describe("MathWhiteboardLabPage", () => {
     fireEvent.click(deleteButton);
     await waitFor(() => expect(screen.getByTestId("whiteboard-start-panel")).toBeTruthy());
     expect(
-      JSON.parse(window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]")[0]
-        ?.archivedAt,
+      JSON.parse(
+        window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]",
+      )[0]?.archivedAt,
     ).toBeTruthy();
   });
 
@@ -404,7 +401,11 @@ describe("MathWhiteboardLabPage", () => {
 
     expect(screen.getByText("Desmos graph")).toBeTruthy();
     expect(screen.queryByText(/preview/i)).toBeNull();
-    expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
+    expect(
+      container
+        .querySelector('[data-whiteboard-module="desmos-graph"]')
+        ?.getAttribute("data-whiteboard-module-anchor"),
+    ).toBe("board-fixed-size");
   });
 
   it("adds multiple independent Desmos cards from the toolbox", () => {
@@ -657,12 +658,14 @@ describe("MathWhiteboardLabPage", () => {
     });
 
     const rerenderedCard = container.querySelector('[data-testid="whiteboard-module-card-module-desmos"]');
-    expect(rerenderedCard?.getAttribute("style")).toContain("transform: translate3d(100px, 160px, 0) scale(1)");
+    expect(rerenderedCard?.getAttribute("style")).toContain(
+      "transform: translate3d(100px, 160px, 0) scale(1)",
+    );
     expect(rerenderedCard?.getAttribute("style")).not.toContain("translate3d(100px, 120px");
     expect(
       (
-        (mocks.whiteboardCanvasProps?.board as { scene?: { appState?: { scrollY?: number } } } | undefined)?.scene
-          ?.appState ?? {}
+        (mocks.whiteboardCanvasProps?.board as { scene?: { appState?: { scrollY?: number } } } | undefined)
+          ?.scene?.appState ?? {}
       ).scrollY,
     ).toBe(40);
     rafSpy.mockRestore();
@@ -677,8 +680,12 @@ describe("MathWhiteboardLabPage", () => {
     await waitFor(() => {
       const savedBoards = JSON.parse(
         window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]",
-      ) as Array<{ modules: Array<{ moduleId: string; binderId?: string; lessonId?: string; sourceConfirmed?: boolean }> }>;
-      const sourceModule = savedBoards[0]?.modules.find((moduleElement) => moduleElement.moduleId === "lesson");
+      ) as Array<{
+        modules: Array<{ moduleId: string; binderId?: string; lessonId?: string; sourceConfirmed?: boolean }>;
+      }>;
+      const sourceModule = savedBoards[0]?.modules.find(
+        (moduleElement) => moduleElement.moduleId === "lesson",
+      );
       expect(sourceModule).toBeTruthy();
       expect(sourceModule?.sourceConfirmed).toBe(false);
       expect(sourceModule?.binderId).toBeUndefined();
@@ -716,9 +723,9 @@ describe("MathWhiteboardLabPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /source lesson/i }));
 
     await waitFor(() => {
-      expect(container.querySelector('[data-whiteboard-module="lesson"]')?.getAttribute("data-card-anchor")).toBe(
-        "board-fixed-size",
-      );
+      expect(
+        container.querySelector('[data-whiteboard-module="lesson"]')?.getAttribute("data-card-anchor"),
+      ).toBe("board-fixed-size");
     });
 
     fireEvent.click(screen.getByTestId("whiteboard-card-pin-button"));

@@ -1,9 +1,6 @@
 export type JsonArrayStorage = Pick<Storage, "getItem" | "setItem">;
 
-export function readJsonArray<T>(
-  storage: JsonArrayStorage | undefined,
-  key: string,
-): T[] {
+export function readJsonArray<T>(storage: JsonArrayStorage | undefined, key: string): T[] {
   if (!storage) {
     return [];
   }
@@ -16,10 +13,6 @@ export function readJsonArray<T>(
   }
 }
 
-export function writeJsonArray<T>(
-  storage: JsonArrayStorage | undefined,
-  key: string,
-  values: T[],
-) {
+export function writeJsonArray<T>(storage: JsonArrayStorage | undefined, key: string, values: T[]) {
   storage?.setItem(key, JSON.stringify(values));
 }

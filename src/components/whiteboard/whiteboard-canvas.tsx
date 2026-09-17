@@ -1,5 +1,13 @@
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   extractWhiteboardViewportTransform,
   whiteboardViewportTransformsEqual,
@@ -23,7 +31,9 @@ type WhiteboardCanvasProps = {
   onRetireScene?: (scene: WhiteboardSceneData) => void;
   onFlushReady?: (flush: (() => void) | null) => void;
   onViewportChange?: (transform: WhiteboardViewportTransform) => void;
-  onViewportRequestReady?: (requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => void;
+  onViewportRequestReady?: (
+    requestViewport: ((transform: WhiteboardViewportTransform) => void) | null,
+  ) => void;
   fullscreen?: boolean;
 };
 
@@ -52,7 +62,9 @@ export function WhiteboardCanvas({
   onViewportRequestReady,
   fullscreen = false,
 }: WhiteboardCanvasProps) {
-  const [ExcalidrawComponent, setExcalidrawComponent] = useState<ComponentType<Record<string, unknown>> | null>(null);
+  const [ExcalidrawComponent, setExcalidrawComponent] = useState<ComponentType<
+    Record<string, unknown>
+  > | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawCameraApi | null>(null);
   const latestViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
@@ -145,27 +157,30 @@ export function WhiteboardCanvas({
     }
   }, []);
 
-  const flushPendingSceneChange = useCallback((retiring = false) => {
-    const pendingScene = pendingSceneRef.current;
-    pendingSceneRef.current = null;
-    clearSceneChangeTimer();
-    if (!pendingScene) {
-      return;
-    }
+  const flushPendingSceneChange = useCallback(
+    (retiring = false) => {
+      const pendingScene = pendingSceneRef.current;
+      pendingSceneRef.current = null;
+      clearSceneChangeTimer();
+      if (!pendingScene) {
+        return;
+      }
 
-    const scene = sanitizeExcalidrawInitialData({
-      elements: pendingScene.elements as unknown[],
-      appState: pendingScene.appState,
-      files: pendingScene.files,
-    });
-    if (!hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
-      return;
-    }
+      const scene = sanitizeExcalidrawInitialData({
+        elements: pendingScene.elements as unknown[],
+        appState: pendingScene.appState,
+        files: pendingScene.files,
+      });
+      if (!hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
+        return;
+      }
 
-    latestPersistentSceneRef.current = scene;
-    if (retiring && onRetireScene) onRetireScene(scene);
-    else onSceneChange(scene);
-  }, [clearSceneChangeTimer, onRetireScene, onSceneChange]);
+      latestPersistentSceneRef.current = scene;
+      if (retiring && onRetireScene) onRetireScene(scene);
+      else onSceneChange(scene);
+    },
+    [clearSceneChangeTimer, onRetireScene, onSceneChange],
+  );
 
   const scheduleSceneChangeFlush = useCallback(() => {
     clearSceneChangeTimer();
@@ -255,7 +270,8 @@ export function WhiteboardCanvas({
     (api: ExcalidrawCameraApi) => {
       excalidrawApiRef.current = api;
       if (import.meta.env.DEV && typeof window !== "undefined") {
-        (window as WhiteboardDebugWindow).__BINDERNOTES_WHITEBOARD_CAMERA__ = () => api.getAppState?.() ?? null;
+        (window as WhiteboardDebugWindow).__BINDERNOTES_WHITEBOARD_CAMERA__ = () =>
+          api.getAppState?.() ?? null;
       }
       emitViewportChange(api.getAppState?.() ?? {});
       onViewportRequestReady?.((transform: WhiteboardViewportTransform) => {
@@ -279,10 +295,13 @@ export function WhiteboardCanvas({
 
   const retireRef = useRef({ flushPendingSceneChange, onViewportRequestReady });
   retireRef.current = { flushPendingSceneChange, onViewportRequestReady };
-  useEffect(() => () => {
-    retireRef.current.flushPendingSceneChange(true);
-    retireRef.current.onViewportRequestReady?.(null);
-  }, []);
+  useEffect(
+    () => () => {
+      retireRef.current.flushPendingSceneChange(true);
+      retireRef.current.onViewportRequestReady?.(null);
+    },
+    [],
+  );
   useEffect(() => {
     onFlushReady?.(() => retireRef.current.flushPendingSceneChange());
     return () => onFlushReady?.(null);
@@ -378,9 +397,10 @@ export function WhiteboardCanvas({
         ...(initialData.appState ?? {}),
         // Excalidraw dark mode inverts logical canvas colors. The old dark
         // default inverted to pale gray, making default strokes disappear.
-        viewBackgroundColor: !initialData.appState?.viewBackgroundColor || initialData.appState.viewBackgroundColor === "#11131a"
-          ? "#ffffff"
-          : initialData.appState.viewBackgroundColor,
+        viewBackgroundColor:
+          !initialData.appState?.viewBackgroundColor || initialData.appState.viewBackgroundColor === "#11131a"
+            ? "#ffffff"
+            : initialData.appState.viewBackgroundColor,
       },
       files: (initialData.files ?? {}) as never,
     }),
@@ -390,7 +410,9 @@ export function WhiteboardCanvas({
   const handleExcalidrawChange = useCallback(
     (elements: readonly unknown[], appState: unknown, files: unknown) => {
       emitViewportChange(appState as Record<string, unknown>);
-      pendingSceneRef.current = structuredClone(sanitizeExcalidrawInitialData({ elements: [...elements], appState, files }));
+      pendingSceneRef.current = structuredClone(
+        sanitizeExcalidrawInitialData({ elements: [...elements], appState, files }),
+      );
       scheduleSceneChangeFlush();
     },
     [emitViewportChange, scheduleSceneChangeFlush],

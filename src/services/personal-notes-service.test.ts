@@ -5,33 +5,46 @@ const supabaseCalls = vi.hoisted(() => ({
   tables: [] as string[],
   inserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   upserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
-  rpc: vi.fn(async (_name: string, args: { p_record: Record<string, unknown>; p_expected_revision: number }) => ({ data: { created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z", archived_at: null, ...args.p_record, revision: args.p_expected_revision + 1 }, error: null as { code: string; message: string } | null })),
+  rpc: vi.fn(
+    async (_name: string, args: { p_record: Record<string, unknown>; p_expected_revision: number }) => ({
+      data: {
+        created_at: "2026-09-17T00:00:00Z",
+        updated_at: "2026-09-17T00:00:00Z",
+        archived_at: null,
+        ...args.p_record,
+        revision: args.p_expected_revision + 1,
+      },
+      error: null as { code: string; message: string } | null,
+    }),
+  ),
 }));
 
 const binderServiceMocks = vi.hoisted(() => ({
   getDashboard: vi.fn(),
-  upsertLearnerNote: vi.fn(async (input: {
-    id?: string;
-    ownerId: string;
-    binderId: string;
-    lessonId: string;
-    folderId?: string | null;
-    title: string;
-    content: JSONContent;
-    mathBlocks: unknown[];
-  }) => ({
-    id: input.id ?? "learner-note-1",
-    owner_id: input.ownerId,
-    binder_id: input.binderId,
-    lesson_id: input.lessonId,
-    folder_id: input.folderId ?? null,
-    title: input.title,
-    content: input.content,
-    math_blocks: input.mathBlocks,
-    pinned: false,
-    created_at: "2026-04-29T12:00:00.000Z",
-    updated_at: "2026-04-29T12:00:00.000Z",
-  })),
+  upsertLearnerNote: vi.fn(
+    async (input: {
+      id?: string;
+      ownerId: string;
+      binderId: string;
+      lessonId: string;
+      folderId?: string | null;
+      title: string;
+      content: JSONContent;
+      mathBlocks: unknown[];
+    }) => ({
+      id: input.id ?? "learner-note-1",
+      owner_id: input.ownerId,
+      binder_id: input.binderId,
+      lesson_id: input.lessonId,
+      folder_id: input.folderId ?? null,
+      title: input.title,
+      content: input.content,
+      math_blocks: input.mathBlocks,
+      pinned: false,
+      created_at: "2026-04-29T12:00:00.000Z",
+      updated_at: "2026-04-29T12:00:00.000Z",
+    }),
+  ),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -54,7 +67,11 @@ vi.mock("@/lib/supabase", () => ({
         select: () => chain,
         single: async () => ({
           data: {
-            id: `${table}-row`, created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z", archived_at: null, revision: 0,
+            id: `${table}-row`,
+            created_at: "2026-09-17T00:00:00Z",
+            updated_at: "2026-09-17T00:00:00Z",
+            archived_at: null,
+            revision: 0,
             ...payload,
           },
           error: null,
@@ -191,9 +208,24 @@ describe("Personal Notes service writes", () => {
     const note = { id: "note-1", ownerId: "user-1", title: "Updated note", content };
     await expect(updateLoosePersonalNote(note)).rejects.toThrow(/original saved revision/);
     await updateLoosePersonalNote({ ...note, expectedRevision: 2, operationId: "same-operation" });
-    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith("save_personal_content", expect.objectContaining({ p_kind: "note", p_expected_revision: 2, p_operation_id: "same-operation" }));
-    await updatePersonalDocument({ ...note, binderId: "binder-1", expectedRevision: 4, operationId: "document-operation" });
-    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith("save_personal_content", expect.objectContaining({ p_kind: "document", p_expected_revision: 4, p_operation_id: "document-operation" }));
+    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith(
+      "save_personal_content",
+      expect.objectContaining({ p_kind: "note", p_expected_revision: 2, p_operation_id: "same-operation" }),
+    );
+    await updatePersonalDocument({
+      ...note,
+      binderId: "binder-1",
+      expectedRevision: 4,
+      operationId: "document-operation",
+    });
+    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith(
+      "save_personal_content",
+      expect.objectContaining({
+        p_kind: "document",
+        p_expected_revision: 4,
+        p_operation_id: "document-operation",
+      }),
+    );
     expect(supabaseCalls.upserts).toEqual([]);
   });
 });

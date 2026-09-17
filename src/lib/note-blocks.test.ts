@@ -24,7 +24,9 @@ describe("note block source references", () => {
     const sourceLine = roundTripped.find((node: { type?: string; content?: Array<{ marks?: unknown[] }> }) =>
       JSON.stringify(node).includes("sourceMarker"),
     );
-    const marker = sourceLine?.content?.[0]?.marks?.find((mark: { type?: string }) => mark.type === "sourceMarker");
+    const marker = sourceLine?.content?.[0]?.marks?.find(
+      (mark: { type?: string }) => mark.type === "sourceMarker",
+    );
 
     expect(marker).toMatchObject({
       type: "sourceMarker",

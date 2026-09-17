@@ -182,16 +182,76 @@ const sourceFilterOptions: Array<{
 ];
 
 const savedSearchChips = [
-  { label: "Recent", query: "", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Pinned", query: "pinned", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Binder-linked", query: "", sourceFilter: "binder-linked" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Loose notes", query: "", sourceFilter: "loose" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Math", query: "math", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "History", query: "history", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Review later", query: "", sourceFilter: "all" as PersonalNotesSourceFilter, tag: "review-later", folderName: null },
-  { label: "Has formulas", query: "formula math", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Untitled", query: "untitled", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: null },
-  { label: "Unfiled", query: "", sourceFilter: "all" as PersonalNotesSourceFilter, tag: null, folderName: "Unfiled" },
+  {
+    label: "Recent",
+    query: "",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Pinned",
+    query: "pinned",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Binder-linked",
+    query: "",
+    sourceFilter: "binder-linked" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Loose notes",
+    query: "",
+    sourceFilter: "loose" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Math",
+    query: "math",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "History",
+    query: "history",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Review later",
+    query: "",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: "review-later",
+    folderName: null,
+  },
+  {
+    label: "Has formulas",
+    query: "formula math",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Untitled",
+    query: "untitled",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: null,
+  },
+  {
+    label: "Unfiled",
+    query: "",
+    sourceFilter: "all" as PersonalNotesSourceFilter,
+    tag: null,
+    folderName: "Unfiled",
+  },
 ];
 
 const editorWidthOptions: Array<{ value: PersonalNotesEditorWidth; label: string }> = [
@@ -259,7 +319,11 @@ export function PersonalNotesPage() {
   const shellRef = useRef<HTMLElement | null>(null);
 
   const entries = data?.entries ?? [];
-  const bodySearch = usePersonalNoteSearch(profile?.id, query, entries.some((entry) => entry.contentLoaded === false));
+  const bodySearch = usePersonalNoteSearch(
+    profile?.id,
+    query,
+    entries.some((entry) => entry.contentLoaded === false),
+  );
   const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const filteredEntries = useMemo(
@@ -290,11 +354,12 @@ export function PersonalNotesPage() {
     () => resolveSelectedCategoryId(notebookCategories, sourceFilter, folderFilter),
     [folderFilter, notebookCategories, sourceFilter],
   );
-  const selectedCategory = notebookCategories.find((category) => category.id === selectedCategoryId) ?? notebookCategories[0];
+  const selectedCategory =
+    notebookCategories.find((category) => category.id === selectedCategoryId) ?? notebookCategories[0];
   const selectedNotebookScope =
     notebookCategories.find((category) => category.id === selectedNotebookScopeId) ?? notebookCategories[0];
   const selectedNotebookBinder = selectedNotebookBinderId
-    ? notebookHierarchy.bindersById.get(selectedNotebookBinderId) ?? null
+    ? (notebookHierarchy.bindersById.get(selectedNotebookBinderId) ?? null)
     : null;
   const notesViewEntries = useMemo(() => {
     const baseEntries = selectedNotebookBinder
@@ -310,10 +375,19 @@ export function PersonalNotesPage() {
       folderName: null,
       tag: tagFilter,
     });
-  }, [notebookTreeEntries, preferences.showBinderNotes, query, selectedNotebookBinder, selectedNotebookScope, tagFilter, bodySearch.matches]);
+  }, [
+    notebookTreeEntries,
+    preferences.showBinderNotes,
+    query,
+    selectedNotebookBinder,
+    selectedNotebookScope,
+    tagFilter,
+    bodySearch.matches,
+  ]);
   const notesListTitle = selectedNotebookBinder
     ? `${selectedNotebookBinder.scopeLabel} / ${selectedNotebookBinder.title}`
-    : selectedNotebookScope?.label ?? (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`);
+    : (selectedNotebookScope?.label ??
+      (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`));
   const routeSelectedId = params.noteId ?? params.documentId ?? null;
   const selectedMetadataEntry = useMemo(() => {
     const wanted = routeSelectedId ?? selectedId;
@@ -326,8 +400,10 @@ export function PersonalNotesPage() {
   const draftContent = editor.snapshot.content;
   const draftTagsInput = editor.snapshot.tagsInput;
   const dirty = editor.dirty;
-  const saveState: SaveState = editor.state === "saving" ? "saving" : editor.error || editor.state === "conflict" ? "error" : "saved";
-  const saveError = recoveryError && recoveryError.id === selectedEntry?.id ? recoveryError.message : editor.error;
+  const saveState: SaveState =
+    editor.state === "saving" ? "saving" : editor.error || editor.state === "conflict" ? "error" : "saved";
+  const saveError =
+    recoveryError && recoveryError.id === selectedEntry?.id ? recoveryError.message : editor.error;
   const persistSelected = editor.save;
   const setDraftTitle = (title: string) => editor.change({ title });
   const setDraftContent = (content: JSONContent) => editor.change({ content });
@@ -342,12 +418,14 @@ export function PersonalNotesPage() {
     dirty,
     saveState,
   });
-  const personalStorageReady = !data?.loadIssues?.some((issue) =>
-    issue.code === "personal_schema_missing" || issue.code === "personal_schema_blocked",
+  const personalStorageReady = !data?.loadIssues?.some(
+    (issue) => issue.code === "personal_schema_missing" || issue.code === "personal_schema_blocked",
   );
   const focusActive = focusMode || preferences.focusMode;
   const sidebarsAreHidden = focusActive ? !focusSideMonitorOpen : sidebarsHidden;
-  const shouldShowNotebookPane = focusActive ? focusSideMonitorOpen : !sidebarsHidden && preferences.showNotebookPane;
+  const shouldShowNotebookPane = focusActive
+    ? focusSideMonitorOpen
+    : !sidebarsHidden && preferences.showNotebookPane;
   const shouldShowNotesListPane = !focusActive && !sidebarsHidden && preferences.showNotesListPane;
   const topChromeIsHidden = topChromeHidden || focusActive;
 
@@ -469,7 +547,9 @@ export function PersonalNotesPage() {
     setSelectedId(filteredEntries[0].id);
   }, [filteredEntries, routeSelectedId, selectedId]);
 
-  useEffect(() => { setReviewQueueMessage(null); }, [selectedEntry?.id]);
+  useEffect(() => {
+    setReviewQueueMessage(null);
+  }, [selectedEntry?.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -521,18 +601,14 @@ export function PersonalNotesPage() {
       }
 
       if (
-        filtersOpen
-        && !filterMenuRef.current?.contains(target)
-        && !filterButtonRef.current?.contains(target)
+        filtersOpen &&
+        !filterMenuRef.current?.contains(target) &&
+        !filterButtonRef.current?.contains(target)
       ) {
         setFiltersOpen(false);
       }
 
-      if (
-        newMenuOpen
-        && !newMenuRef.current?.contains(target)
-        && !newButtonRef.current?.contains(target)
-      ) {
+      if (newMenuOpen && !newMenuRef.current?.contains(target) && !newButtonRef.current?.contains(target)) {
         setNewMenuOpen(false);
       }
     };
@@ -618,18 +694,24 @@ export function PersonalNotesPage() {
     setCreateDialog("move-folder");
   }, [data?.personalFolders.length, selectedEntry]);
 
-  const submitTagForSelected = useCallback((tag: string) => {
-    if (!selectedEntry || selectedEntry.kind === "binder-note") return;
-    const tags = [...new Set([...editor.snapshot.tags, tag.trim()])].filter(Boolean);
-    editor.change({ tags, tagsInput: tags.join(", ") });
-    void editor.save();
-  }, [editor, selectedEntry]);
+  const submitTagForSelected = useCallback(
+    (tag: string) => {
+      if (!selectedEntry || selectedEntry.kind === "binder-note") return;
+      const tags = [...new Set([...editor.snapshot.tags, tag.trim()])].filter(Boolean);
+      editor.change({ tags, tagsInput: tags.join(", ") });
+      void editor.save();
+    },
+    [editor, selectedEntry],
+  );
 
-  const submitMoveSelectedToFolder = useCallback(async (folderId: string | null) => {
-    if (!selectedEntry || selectedEntry.kind !== "personal-note") return;
-    editor.change({ folderId });
-    await editor.save();
-  }, [editor, selectedEntry]);
+  const submitMoveSelectedToFolder = useCallback(
+    async (folderId: string | null) => {
+      if (!selectedEntry || selectedEntry.kind !== "personal-note") return;
+      editor.change({ folderId });
+      await editor.save();
+    },
+    [editor, selectedEntry],
+  );
 
   const resolveConflict = async (action: "copy" | "remote") => {
     const id = selectedEntry?.id;
@@ -639,7 +721,10 @@ export function PersonalNotesPage() {
       else await editor.useRemote();
       setRecoveryError(null);
     } catch (error) {
-      setRecoveryError({ id, message: error instanceof Error ? error.message : "Recovery failed; your draft is retained." });
+      setRecoveryError({
+        id,
+        message: error instanceof Error ? error.message : "Recovery failed; your draft is retained.",
+      });
     }
   };
 
@@ -668,7 +753,9 @@ export function PersonalNotesPage() {
       });
       setReviewQueueMessage("Added to Review Queue.");
     } catch (errorValue) {
-      setReviewQueueMessage(errorValue instanceof Error ? errorValue.message : "Could not add this note to Review Queue.");
+      setReviewQueueMessage(
+        errorValue instanceof Error ? errorValue.message : "Could not add this note to Review Queue.",
+      );
     }
   }, [draftContent, draftTitle, profile?.id, reviewQueueBeta, selectedEntry]);
 
@@ -679,25 +766,49 @@ export function PersonalNotesPage() {
   }, [createLooseNote, isLoading, searchParams, selectedMetadataEntry]);
 
   const editorPanel = contentQuery.loadingContent ? (
-    <p role="status" className="p-6">Loading note content…</p>
+    <p role="status" className="p-6">
+      Loading note content…
+    </p>
   ) : selectedMetadataEntry && contentQuery.isError && !selectedEntry ? (
-    <div role="alert" className="p-6"><p>The note content could not be loaded. Your saved note is unchanged.</p>
-      <Button onClick={() => void contentQuery.refetch()} type="button">Retry loading note</Button>
+    <div role="alert" className="p-6">
+      <p>The note content could not be loaded. Your saved note is unchanged.</p>
+      <Button onClick={() => void contentQuery.refetch()} type="button">
+        Retry loading note
+      </Button>
     </div>
   ) : (
     <>
       {editor.backups.length ? (
         <details className="m-3 rounded-md border p-3">
           <summary>Recover other device drafts ({editor.backups.length})</summary>
-          <p className="my-2 text-sm">These backups may come from another tab or an interrupted session. Recovering creates a separate note and keeps the current saved version.</p>
+          <p className="my-2 text-sm">
+            These backups may come from another tab or an interrupted session. Recovering creates a separate
+            note and keeps the current saved version.
+          </p>
           {editor.backups.map((backup) => (
             <div key={backup.key} className="my-2 flex flex-wrap items-center gap-2">
-              <span>{backup.draft.snapshot.title || "Untitled draft"} · {new Date(backup.recordedAt).toLocaleString()}</span>
-              <Button type="button" variant="outline" onClick={() => {
-                void editor.preserveBackup(backup.key).catch((error: unknown) => {
-                  if (selectedEntry) setRecoveryError({id: selectedEntry.id, message: error instanceof Error ? error.message : "The backup could not be recovered. It is still stored on this device."});
-                });
-              }}>Recover as a separate note</Button>
+              <span>
+                {backup.draft.snapshot.title || "Untitled draft"} ·{" "}
+                {new Date(backup.recordedAt).toLocaleString()}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void editor.preserveBackup(backup.key).catch((error: unknown) => {
+                    if (selectedEntry)
+                      setRecoveryError({
+                        id: selectedEntry.id,
+                        message:
+                          error instanceof Error
+                            ? error.message
+                            : "The backup could not be recovered. It is still stored on this device.",
+                      });
+                  });
+                }}
+              >
+                Recover as a separate note
+              </Button>
             </div>
           ))}
         </details>
@@ -705,74 +816,93 @@ export function PersonalNotesPage() {
       {editor.state === "conflict" ? (
         <div role="alert" className="m-3 flex flex-wrap items-center gap-3 rounded-md border p-3">
           <p>This note changed elsewhere. Your draft is preserved on this device.</p>
-          <Button onClick={() => void resolveConflict("copy")} type="button">Save my draft as a separate note</Button>
+          <Button onClick={() => void resolveConflict("copy")} type="button">
+            Save my draft as a separate note
+          </Button>
           {discardDraftId === selectedEntry?.id ? (
             <div className="flex items-center gap-2">
               <span>Discard this device’s draft? This cannot be undone.</span>
-              <Button onClick={() => { setDiscardDraftId(null); void resolveConflict("remote"); }} type="button" variant="outline">Yes, discard this draft</Button>
-              <Button onClick={() => setDiscardDraftId(null)} type="button" variant="outline">Keep my draft</Button>
+              <Button
+                onClick={() => {
+                  setDiscardDraftId(null);
+                  void resolveConflict("remote");
+                }}
+                type="button"
+                variant="outline"
+              >
+                Yes, discard this draft
+              </Button>
+              <Button onClick={() => setDiscardDraftId(null)} type="button" variant="outline">
+                Keep my draft
+              </Button>
             </div>
           ) : (
-            <Button onClick={() => setDiscardDraftId(selectedEntry?.id ?? null)} type="button" variant="outline">Discard my draft and load saved version</Button>
+            <Button
+              onClick={() => setDiscardDraftId(selectedEntry?.id ?? null)}
+              type="button"
+              variant="outline"
+            >
+              Discard my draft and load saved version
+            </Button>
           )}
         </div>
       ) : null}
-    <PersonalNoteEditor
-      autosaveEnabled={preferences.autosave}
-      dirty={dirty}
-      draftContent={draftContent}
-      draftTagsInput={draftTagsInput}
-      draftTitle={draftTitle}
-      entry={selectedEntry}
-      entries={entries}
-      editorWidth={preferences.editorWidth}
-      focusMode={focusActive}
-      focusSideMonitorOpen={shouldShowNotebookPane}
-      annotatorMode={preferences.annotatorTools}
-      compactMetadata={preferences.compactMetadata}
-      noteLinkAutocomplete={preferences.noteLinkAutocomplete}
-      reviewQueueBeta={reviewQueueBeta}
-      reviewQueueMessage={reviewQueueMessage}
-      sourceLinkedNotesBeta={sourceLinkedNotesBeta}
-      showAnnotationColorFilter={preferences.showAnnotationColorFilter}
-      onAddTag={addTagToSelected}
-      onAddToReview={addSelectedNoteToReview}
-      onContentChange={(content) => {
-        setDraftContent(content);
-      }}
-      onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
-      onFocusModeChange={(enabled) => {
-        if (enabled) {
-          setFocusMode(true);
-          setFocusSideMonitorOpen(false);
-          updatePreferences({ focusMode: true });
-          return;
-        }
-        exitFullscreenFocus();
-      }}
-      onToggleFocusSideMonitor={() => setFocusSideMonitorOpen((current) => !current)}
-      onInsertTemplate={(content) => {
-        setDraftContent(content);
-      }}
-      onOpenBinder={() => {
-        if (selectedEntry?.quickJumpToBinderUrl) {
-          navigate(selectedEntry.quickJumpToBinderUrl);
-        }
-      }}
-      onCreateNote={createLooseNote}
-      onOpenSource={(sourceUrl) => navigate(sourceUrl)}
-      onPin={toggleSelectedPin}
-      onRetrySave={() => void persistSelected()}
-      onSave={() => void persistSelected()}
-      onTagsChange={(tags) => {
-        setDraftTagsInput(tags);
-      }}
-      onTitleChange={(title) => {
-        setDraftTitle(title);
-      }}
-      saveError={saveError}
-      saveState={saveState}
-    />
+      <PersonalNoteEditor
+        autosaveEnabled={preferences.autosave}
+        dirty={dirty}
+        draftContent={draftContent}
+        draftTagsInput={draftTagsInput}
+        draftTitle={draftTitle}
+        entry={selectedEntry}
+        entries={entries}
+        editorWidth={preferences.editorWidth}
+        focusMode={focusActive}
+        focusSideMonitorOpen={shouldShowNotebookPane}
+        annotatorMode={preferences.annotatorTools}
+        compactMetadata={preferences.compactMetadata}
+        noteLinkAutocomplete={preferences.noteLinkAutocomplete}
+        reviewQueueBeta={reviewQueueBeta}
+        reviewQueueMessage={reviewQueueMessage}
+        sourceLinkedNotesBeta={sourceLinkedNotesBeta}
+        showAnnotationColorFilter={preferences.showAnnotationColorFilter}
+        onAddTag={addTagToSelected}
+        onAddToReview={addSelectedNoteToReview}
+        onContentChange={(content) => {
+          setDraftContent(content);
+        }}
+        onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
+        onFocusModeChange={(enabled) => {
+          if (enabled) {
+            setFocusMode(true);
+            setFocusSideMonitorOpen(false);
+            updatePreferences({ focusMode: true });
+            return;
+          }
+          exitFullscreenFocus();
+        }}
+        onToggleFocusSideMonitor={() => setFocusSideMonitorOpen((current) => !current)}
+        onInsertTemplate={(content) => {
+          setDraftContent(content);
+        }}
+        onOpenBinder={() => {
+          if (selectedEntry?.quickJumpToBinderUrl) {
+            navigate(selectedEntry.quickJumpToBinderUrl);
+          }
+        }}
+        onCreateNote={createLooseNote}
+        onOpenSource={(sourceUrl) => navigate(sourceUrl)}
+        onPin={toggleSelectedPin}
+        onRetrySave={() => void persistSelected()}
+        onSave={() => void persistSelected()}
+        onTagsChange={(tags) => {
+          setDraftTagsInput(tags);
+        }}
+        onTitleChange={(title) => {
+          setDraftTitle(title);
+        }}
+        saveError={saveError}
+        saveState={saveState}
+      />
     </>
   );
 
@@ -846,7 +976,9 @@ export function PersonalNotesPage() {
         }
         setSidebarsHidden((current) => !current);
       }}
-      onToggleStyle={() => updatePreferences({ style: preferences.style === "minimal" ? "studio" : "minimal" })}
+      onToggleStyle={() =>
+        updatePreferences({ style: preferences.style === "minimal" ? "studio" : "minimal" })
+      }
       onToggleTopChrome={() => setTopChromeHidden((current) => !current)}
       focusMode={focusActive}
       personalStorageReady={personalStorageReady}
@@ -895,14 +1027,31 @@ export function PersonalNotesPage() {
         ) : (
           <>
             <div className="z-20 shrink-0 border-b border-border/70 bg-background/95 px-2 py-2 shadow-sm backdrop-blur sm:px-3">
-              <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-2" data-testid="personal-notes-toolbar">
+              <div
+                className="flex min-h-11 min-w-0 flex-wrap items-center gap-2"
+                data-testid="personal-notes-toolbar"
+              >
                 <div className="flex min-w-0 shrink-0 items-center gap-2">
-                  <h1 className="truncate text-sm font-semibold tracking-tight sm:text-base">Personal Notes</h1>
-                  <Badge className="hidden sm:inline-flex" variant="secondary">{mainNotesCount} main</Badge>
-                  <Badge className="hidden lg:inline-flex" variant="secondary">{binderLinkedCount} linked</Badge>
-                  <Badge className="hidden xl:inline-flex" variant="secondary">{personalDocumentsCount} docs</Badge>
+                  <h1 className="truncate text-sm font-semibold tracking-tight sm:text-base">
+                    Personal Notes
+                  </h1>
+                  <Badge className="hidden sm:inline-flex" variant="secondary">
+                    {mainNotesCount} main
+                  </Badge>
+                  <Badge className="hidden lg:inline-flex" variant="secondary">
+                    {binderLinkedCount} linked
+                  </Badge>
+                  <Badge className="hidden xl:inline-flex" variant="secondary">
+                    {personalDocumentsCount} docs
+                  </Badge>
                   <Badge className="hidden sm:inline-flex" variant={dirty ? "destructive" : "outline"}>
-                    {sourceLinkedNotesBeta ? betaAutosaveStatus.label : dirty ? "Unsaved" : saveState === "saving" ? "Saving" : "Synced"}
+                    {sourceLinkedNotesBeta
+                      ? betaAutosaveStatus.label
+                      : dirty
+                        ? "Unsaved"
+                        : saveState === "saving"
+                          ? "Saving"
+                          : "Synced"}
                   </Badge>
                 </div>
 
@@ -971,11 +1120,36 @@ export function PersonalNotesPage() {
                         role="menu"
                       >
                         {[
-                          { label: "New note", meta: "Blank page", icon: <FilePlus2 />, action: createLooseNote },
-                          { label: "New binder", meta: "Container", icon: <BookMarked />, action: createBinder },
-                          { label: "New document", meta: "In binder", icon: <FileText />, action: createDocument },
-                          { label: "New folder", meta: "Subject", icon: <FolderPlus />, action: createFolder },
-                          { label: "New canvas notebook", meta: "Visual", icon: <LayoutGrid />, action: createCanvasNotebook },
+                          {
+                            label: "New note",
+                            meta: "Blank page",
+                            icon: <FilePlus2 />,
+                            action: createLooseNote,
+                          },
+                          {
+                            label: "New binder",
+                            meta: "Container",
+                            icon: <BookMarked />,
+                            action: createBinder,
+                          },
+                          {
+                            label: "New document",
+                            meta: "In binder",
+                            icon: <FileText />,
+                            action: createDocument,
+                          },
+                          {
+                            label: "New folder",
+                            meta: "Subject",
+                            icon: <FolderPlus />,
+                            action: createFolder,
+                          },
+                          {
+                            label: "New canvas notebook",
+                            meta: "Visual",
+                            icon: <LayoutGrid />,
+                            action: createCanvasNotebook,
+                          },
                         ].map((item, index) => (
                           <button
                             aria-label={item.label}
@@ -994,7 +1168,10 @@ export function PersonalNotesPage() {
                               {item.icon}
                             </span>
                             <span className="min-w-0 truncate">{item.label}</span>
-                            <span aria-hidden="true" className="text-[11px] font-semibold text-muted-foreground">
+                            <span
+                              aria-hidden="true"
+                              className="text-[11px] font-semibold text-muted-foreground"
+                            >
                               {item.meta}
                             </span>
                           </button>
@@ -1013,7 +1190,9 @@ export function PersonalNotesPage() {
                     <PanelLeft />
                   </Button>
                   <Button
-                    aria-label={preferences.showNotesListPane ? "Hide notes list pane" : "Show notes list pane"}
+                    aria-label={
+                      preferences.showNotesListPane ? "Hide notes list pane" : "Show notes list pane"
+                    }
                     className="hidden sm:inline-flex"
                     onClick={() => updatePreferences({ showNotesListPane: !preferences.showNotesListPane })}
                     size="sm"
@@ -1041,20 +1220,47 @@ export function PersonalNotesPage() {
                   >
                     <Settings2 />
                   </Button>
-                  {profile && <PersonalNotesTrash key={profile.id} ownerId={profile.id} data={data} hasUnsavedChanges={dirty || editor.state === "saving"} />}
+                  {profile && (
+                    <PersonalNotesTrash
+                      key={profile.id}
+                      ownerId={profile.id}
+                      data={data}
+                      hasUnsavedChanges={dirty || editor.state === "saving"}
+                    />
+                  )}
                   {profile && <PersonalFiles ownerId={profile.id} />}
-                  <Button className="hidden lg:inline-flex" onClick={() => setCommandOpen(true)} size="sm" type="button" variant="outline">
+                  <Button
+                    className="hidden lg:inline-flex"
+                    onClick={() => setCommandOpen(true)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <Command data-icon="inline-start" />
                     Ctrl/Cmd+K
                   </Button>
                 </div>
               </div>
-              {bodySearch.searching && <p role="status" className="mt-2 text-xs text-muted-foreground">Searching note text…</p>}
-              {bodySearch.error && <p role="alert" className="mt-2 text-xs">Note text search could not finish. <button type="button" className="underline" onClick={() => void bodySearch.retry()}>Retry search</button></p>}
+              {bodySearch.searching && (
+                <p role="status" className="mt-2 text-xs text-muted-foreground">
+                  Searching note text…
+                </p>
+              )}
+              {bodySearch.error && (
+                <p role="alert" className="mt-2 text-xs">
+                  Note text search could not finish.{" "}
+                  <button type="button" className="underline" onClick={() => void bodySearch.retry()}>
+                    Retry search
+                  </button>
+                </p>
+              )}
             </div>
 
             {filtersOpen ? (
-              <div className="z-20 shrink-0 border-b border-border/60 bg-background/96 px-2 pb-2 shadow-sm sm:px-3" data-testid="personal-notes-filter-dock">
+              <div
+                className="z-20 shrink-0 border-b border-border/60 bg-background/96 px-2 pb-2 shadow-sm sm:px-3"
+                data-testid="personal-notes-filter-dock"
+              >
                 <div
                   aria-label="Saved note filters"
                   className="ml-auto grid w-full max-w-[420px] gap-2 rounded-lg border border-border bg-popover p-2 shadow-xl"
@@ -1101,16 +1307,12 @@ export function PersonalNotesPage() {
                 </div>
               </div>
             ) : null}
-
           </>
         )}
 
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-1.5 py-1.5 sm:px-2 lg:px-3">
           {error ? (
-            <PersonalNotesLoadDiagnostics
-              error={error}
-              onRetry={() => void refetchPersonalNotes()}
-            />
+            <PersonalNotesLoadDiagnostics error={error} onRetry={() => void refetchPersonalNotes()} />
           ) : null}
 
           {isLoading ? (
@@ -1248,13 +1450,7 @@ export function PersonalNotesPage() {
     </main>
   );
 }
-function PersonalNotesLoadDiagnostics({
-  error,
-  onRetry,
-}: {
-  error: unknown;
-  onRetry: () => void;
-}) {
+function PersonalNotesLoadDiagnostics({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   const details = getLoadErrorDetails(error);
 
   return (
@@ -1266,9 +1462,7 @@ function PersonalNotesLoadDiagnostics({
             {details.code ? <Badge variant="outline">{details.code}</Badge> : null}
           </div>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">Personal Notes could not load</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {details.reason}
-          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{details.reason}</p>
           {details.technicalReason ? (
             <p className="mt-3 rounded-md border border-border/70 bg-background/80 px-3 py-2 font-mono text-xs text-muted-foreground">
               {details.technicalReason}
@@ -1295,21 +1489,27 @@ function PersonalNotesSchemaIssues({ issues }: { issues: PersonalNotesLoadIssue[
         <div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">Workspace diagnostic</Badge>
-            <Badge variant="secondary">{issues.length} schema signal{issues.length === 1 ? "" : "s"}</Badge>
+            <Badge variant="secondary">
+              {issues.length} schema signal{issues.length === 1 ? "" : "s"}
+            </Badge>
           </div>
           <h2 className="mt-3 text-lg font-semibold">Supabase workspace needs the Personal Notes tables</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Binder-linked private notes can still load from existing learner notes. New personal folders, binders,
-            documents, and loose notes need the Personal Notes tables in this Supabase workspace.
+            Binder-linked private notes can still load from existing learner notes. New personal folders,
+            binders, documents, and loose notes need the Personal Notes tables in this Supabase workspace.
           </p>
           <p className="mt-3 rounded-md border border-border/70 bg-background/78 px-3 py-2 font-mono text-xs text-muted-foreground">
-            Apply supabase/migrations/0016_personal_notes_workspace.sql to this Supabase workspace, then retry.
+            Apply supabase/migrations/0016_personal_notes_workspace.sql to this Supabase workspace, then
+            retry.
           </p>
         </div>
       </div>
       <div className="mt-4 grid gap-2">
         {issues.map((issue) => (
-          <div className="rounded-md border border-border/70 bg-background/78 p-3" key={`${issue.table}:${issue.code}`}>
+          <div
+            className="rounded-md border border-border/70 bg-background/78 p-3"
+            key={`${issue.table}:${issue.code}`}
+          >
             <p className="text-sm font-semibold">{issue.title}</p>
             <p className="mt-1 text-sm text-muted-foreground">{issue.message}</p>
             <p className="mt-2 font-mono text-xs text-muted-foreground">{issue.technicalReason}</p>
@@ -1349,7 +1549,8 @@ function PersonalNotesEmptyState({
         </p>
         {!personalStorageReady ? (
           <p className="mx-auto mt-4 max-w-xl rounded-md border border-amber-500/35 bg-amber-500/8 px-3 py-2 text-sm text-muted-foreground">
-            Personal note creation unlocks after the Personal Notes schema migration is applied to this Supabase workspace.
+            Personal note creation unlocks after the Personal Notes schema migration is applied to this
+            Supabase workspace.
           </p>
         ) : null}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -1451,7 +1652,10 @@ function PersonalNotesCreateDialog({
     () => new Map(noteFolderOptions.map((folder) => [folder.value, folder.name])),
     [noteFolderOptions],
   );
-  const resolveFolderValue = (value: string | null | undefined, options: CreateDialogFolderOption[] = noteFolderOptions) => {
+  const resolveFolderValue = (
+    value: string | null | undefined,
+    options: CreateDialogFolderOption[] = noteFolderOptions,
+  ) => {
     const trimmed = value?.trim();
     if (!trimmed) {
       return "";
@@ -1478,7 +1682,7 @@ function PersonalNotesCreateDialog({
             title: normalizeSelectLabel(binder.title, "Untitled binder"),
             value: `personal:${binder.id}`,
             folderValue,
-            folderLabel: folderValue ? folderNameByValue.get(folderValue) ?? "Personal folder" : "Unfiled",
+            folderLabel: folderValue ? (folderNameByValue.get(folderValue) ?? "Personal folder") : "Unfiled",
             workspaceFolderId: null,
             lessons: [],
           };
@@ -1517,8 +1721,10 @@ function PersonalNotesCreateDialog({
             title: normalizeSelectLabel(binder.title, "Untitled binder"),
             value: `workspace:${binder.id}`,
             folderValue,
-            folderLabel: folderValue ? folderNameByValue.get(folderValue) ?? "Workspace folder" : "Unfiled",
-            workspaceFolderId: folderValue.startsWith("workspace:") ? folderValue.slice("workspace:".length) : null,
+            folderLabel: folderValue ? (folderNameByValue.get(folderValue) ?? "Workspace folder") : "Unfiled",
+            workspaceFolderId: folderValue.startsWith("workspace:")
+              ? folderValue.slice("workspace:".length)
+              : null,
             lessons: workspaceLessonsByBinder[binder.id] ?? [],
           };
         })
@@ -1529,8 +1735,10 @@ function PersonalNotesCreateDialog({
     () => [...personalBinderOptions, ...workspaceBinderOptions],
     [personalBinderOptions, workspaceBinderOptions],
   );
-  const initialPersonalBinder = personalBinderOptions.find((binder) => binder.id === selectedEntry?.personalBinderId) ?? null;
-  const initialWorkspaceBinder = workspaceBinderOptions.find((binder) => binder.id === selectedEntry?.sourceBinderId) ?? null;
+  const initialPersonalBinder =
+    personalBinderOptions.find((binder) => binder.id === selectedEntry?.personalBinderId) ?? null;
+  const initialWorkspaceBinder =
+    workspaceBinderOptions.find((binder) => binder.id === selectedEntry?.sourceBinderId) ?? null;
   const initialFolderId =
     initialPersonalBinder?.folderValue ||
     initialWorkspaceBinder?.folderValue ||
@@ -1539,7 +1747,9 @@ function PersonalNotesCreateDialog({
   const [title, setTitle] = useState(defaultTitleForDialog(kind));
   const [description, setDescription] = useState("");
   const [folderId, setFolderId] = useState(initialFolderId);
-  const [binderId, setBinderId] = useState(initialPersonalBinder?.value ?? initialWorkspaceBinder?.value ?? "");
+  const [binderId, setBinderId] = useState(
+    initialPersonalBinder?.value ?? initialWorkspaceBinder?.value ?? "",
+  );
   const [sourceLessonId, setSourceLessonId] = useState(selectedEntry?.sourceDocumentId ?? "");
   const [templateId, setTemplateId] = useState("blank");
   const [canvasLayout, setCanvasLayout] = useState("blank");
@@ -1547,16 +1757,20 @@ function PersonalNotesCreateDialog({
   const [color, setColor] = useState("teal");
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const template = personalNoteTemplates.find((candidate) => candidate.id === templateId) ?? personalNoteTemplates[0];
+  const template =
+    personalNoteTemplates.find((candidate) => candidate.id === templateId) ?? personalNoteTemplates[0];
   const dialogTitle = titleForDialog(kind);
   const availableFolderOptions = kind === "note" ? noteFolderOptions : personalFolderOptions;
   const activeFolderId = resolveFolderValue(folderId, availableFolderOptions);
   const activeFolder = availableFolderOptions.find((folder) => folder.value === activeFolderId) ?? null;
   const selectedBinderOption = noteBinderOptions.find((binder) => binder.value === binderId) ?? null;
-  const selectedPersonalBinderOption = personalBinderOptions.find((binder) => binder.value === binderId) ?? null;
-  const selectedWorkspaceBinderOption = selectedBinderOption?.kind === "workspace" ? selectedBinderOption : null;
+  const selectedPersonalBinderOption =
+    personalBinderOptions.find((binder) => binder.value === binderId) ?? null;
+  const selectedWorkspaceBinderOption =
+    selectedBinderOption?.kind === "workspace" ? selectedBinderOption : null;
   const canSubmitDocument = kind !== "document" || Boolean(selectedPersonalBinderOption);
-  const canSubmitNote = kind !== "note" || !selectedWorkspaceBinderOption || selectedWorkspaceBinderOption.lessons.length > 0;
+  const canSubmitNote =
+    kind !== "note" || !selectedWorkspaceBinderOption || selectedWorkspaceBinderOption.lessons.length > 0;
   const visibleBinderOptions = useMemo(() => {
     if (kind !== "note" || !activeFolderId) {
       return noteBinderOptions;
@@ -1618,7 +1832,9 @@ function PersonalNotesCreateDialog({
           const note = await mutations.saveBinderLinkedNote.mutateAsync({
             binderId: selectedWorkspaceBinderOption.id,
             lessonId,
-            folderId: selectedWorkspaceBinderOption.workspaceFolderId ?? (activeFolder?.kind === "workspace" ? activeFolder.id : null),
+            folderId:
+              selectedWorkspaceBinderOption.workspaceFolderId ??
+              (activeFolder?.kind === "workspace" ? activeFolder.id : null),
             title: title.trim() || "Untitled note",
             content: template.content,
             mathBlocks: [],
@@ -1635,7 +1851,9 @@ function PersonalNotesCreateDialog({
             tags: template.tags ?? [],
           });
           onSetSourceFilter("all");
-          onUpdatePreferences({ defaultNewNoteLocation: selectedPersonalBinderOption ? "last-binder" : "loose" });
+          onUpdatePreferences({
+            defaultNewNoteLocation: selectedPersonalBinderOption ? "last-binder" : "loose",
+          });
           onNavigate(`/notes/n/${note.id}`);
         }
       } else if (kind === "binder") {
@@ -1688,7 +1906,9 @@ function PersonalNotesCreateDialog({
       }
       onClose();
     } catch (errorValue) {
-      setLocalError(errorValue instanceof Error ? errorValue.message : "Personal Notes could not save this change.");
+      setLocalError(
+        errorValue instanceof Error ? errorValue.message : "Personal Notes could not save this change.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1762,7 +1982,11 @@ function PersonalNotesCreateDialog({
             </label>
           ) : null}
 
-          {kind === "note" || kind === "binder" || kind === "folder" || kind === "canvas" || kind === "move-folder" ? (
+          {kind === "note" ||
+          kind === "binder" ||
+          kind === "folder" ||
+          kind === "canvas" ||
+          kind === "move-folder" ? (
             <label className="grid min-w-0 gap-2 text-sm font-medium">
               {kind === "move-folder" ? "Move to folder" : "Folder"}
               <select
@@ -1812,14 +2036,18 @@ function PersonalNotesCreateDialog({
                   setBinderId(nextBinderId);
                   if (selectedBinder) {
                     setFolderId(selectedBinder.folderValue);
-                    setSourceLessonId(selectedBinder.kind === "workspace" ? selectedBinder.lessons[0]?.id ?? "" : "");
+                    setSourceLessonId(
+                      selectedBinder.kind === "workspace" ? (selectedBinder.lessons[0]?.id ?? "") : "",
+                    );
                   } else {
                     setSourceLessonId("");
                   }
                 }}
                 value={binderId}
               >
-                <option value="">{activeFolderId ? "Loose note in selected folder" : "Loose note / No binder"}</option>
+                <option value="">
+                  {activeFolderId ? "Loose note in selected folder" : "Loose note / No binder"}
+                </option>
                 {noteBinderOptions.length === 0 ? (
                   <option disabled value="__no-binders">
                     No binders yet
@@ -1972,7 +2200,9 @@ function getLoadErrorDetails(error: unknown) {
     .join(" ");
   const normalized = technicalReason.toLowerCase();
   const reason =
-    normalized.includes("does not exist") || normalized.includes("could not find the table") || value?.code === "42P01"
+    normalized.includes("does not exist") ||
+    normalized.includes("could not find the table") ||
+    value?.code === "42P01"
       ? "A Personal Notes storage table is not available in Supabase."
       : normalized.includes("row-level security") || value?.code === "42501"
         ? "Supabase RLS blocked the signed-in account from reading Personal Notes."
@@ -2125,13 +2355,14 @@ function NormalNotesView({
   tagSummaries: Array<{ name: string; count: number }>;
 }) {
   const cards = useMemo(
-    () => buildOrganizeCards({
-      entries,
-      folderSummaries,
-      hierarchy,
-      showQuickAccess: preferences.showQuickAccess,
-      tagSummaries,
-    }),
+    () =>
+      buildOrganizeCards({
+        entries,
+        folderSummaries,
+        hierarchy,
+        showQuickAccess: preferences.showQuickAccess,
+        tagSummaries,
+      }),
     [entries, folderSummaries, hierarchy, preferences.showQuickAccess, tagSummaries],
   );
   const cardMap = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
@@ -2290,7 +2521,9 @@ function NormalNotesView({
                     }
                   }}
                   onSelect={() => {
-                    const entry = entries.find((candidate) => candidate.folderName === card.title.replace(/ folder$/, ""));
+                    const entry = entries.find(
+                      (candidate) => candidate.folderName === card.title.replace(/ folder$/, ""),
+                    );
                     if (entry) {
                       onSelectEntry(entry);
                     }
@@ -2336,11 +2569,18 @@ function NormalNotesView({
               <div className="min-h-0 overflow-hidden">{editor}</div>
               <div className="hidden border-t border-border/55 p-3 xl:block">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Current notes</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Current notes
+                  </h3>
                   <Badge variant="outline">{entries.length}</Badge>
                 </div>
                 <div className="mt-2 max-h-40 overflow-auto">
-                  <NoteList compact entries={entries.slice(0, 8)} onSelectEntry={onSelectEntry} selectedEntry={selectedEntry} />
+                  <NoteList
+                    compact
+                    entries={entries.slice(0, 8)}
+                    onSelectEntry={onSelectEntry}
+                    selectedEntry={selectedEntry}
+                  />
                 </div>
               </div>
             </div>
@@ -2546,7 +2786,10 @@ function buildOrganizeCards({
     cards.push({
       id: "tags",
       title: "Tags",
-      subtitle: tagSummaries.slice(0, 4).map((tag) => tag.name).join(", "),
+      subtitle: tagSummaries
+        .slice(0, 4)
+        .map((tag) => tag.name)
+        .join(", "),
       count: tagSummaries.length,
       kind: "linked",
       tone: "#14b8a6",
@@ -2611,7 +2854,9 @@ function PersonalNotesHomeView({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Personal Notes home</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Review what matters, then jump back into writing.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review what matters, then jump back into writing.
+            </p>
           </div>
           {showQuickAccess ? (
             <div className="flex flex-wrap gap-2" data-testid="personal-notes-home-quick-access">
@@ -2631,12 +2876,21 @@ function PersonalNotesHomeView({
           ) : null}
         </div>
         <div className="mt-5 grid gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Recent notes</h3>
-          <NoteList compact entries={entries.slice(0, 6)} onSelectEntry={onSelectEntry} selectedEntry={selectedEntry} />
+          <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Recent notes
+          </h3>
+          <NoteList
+            compact
+            entries={entries.slice(0, 6)}
+            onSelectEntry={onSelectEntry}
+            selectedEntry={selectedEntry}
+          />
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
           <section className="rounded-lg border border-border/70 bg-background/45 p-3">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Notebooks by folder</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Notebooks by folder
+            </h3>
             <div className="mt-3 grid gap-3">
               {notebookScopes.length ? (
                 notebookScopes.map((scope) => (
@@ -2653,27 +2907,37 @@ function PersonalNotesHomeView({
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Create a binder or write a binder private note to build your notebook map.</p>
+                <p className="text-sm text-muted-foreground">
+                  Create a binder or write a binder private note to build your notebook map.
+                </p>
               )}
             </div>
           </section>
           <section className="rounded-lg border border-border/70 bg-background/45 p-3">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Binder-linked notes</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Binder-linked notes
+            </h3>
             <div className="mt-3 grid gap-2">
               {binderLinkedBinders.length ? (
                 binderLinkedBinders.slice(0, 6).map((binder) => (
                   <div className="rounded-md border border-border/60 bg-card px-3 py-2" key={binder.id}>
                     <div className="truncate text-sm font-medium">{binder.title}</div>
-                    <p className="text-xs text-muted-foreground">{binder.scopeLabel} / {binder.count} notes</p>
+                    <p className="text-xs text-muted-foreground">
+                      {binder.scopeLabel} / {binder.count} notes
+                    </p>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Binder private notes will group here by source binder.</p>
+                <p className="text-sm text-muted-foreground">
+                  Binder private notes will group here by source binder.
+                </p>
               )}
             </div>
           </section>
           <section className="rounded-lg border border-border/70 bg-background/45 p-3">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Loose notes</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Loose notes
+            </h3>
             <div className="mt-3 grid gap-2">
               {looseEntries.length ? (
                 looseEntries.slice(0, 6).map((entry) => (
@@ -2688,7 +2952,9 @@ function PersonalNotesHomeView({
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">Loose notes can stay unfiled until you are ready to organize.</p>
+                <p className="text-sm text-muted-foreground">
+                  Loose notes can stay unfiled until you are ready to organize.
+                </p>
               )}
             </div>
           </section>
@@ -2751,7 +3017,9 @@ function MinimalNotesView({
 }) {
   const binderRows = hierarchy.bindersByScope[selectedScope?.id ?? "all"] ?? [];
   const shouldChooseBinder =
-    notebookSidebarLevel !== "binder" && selectedScope?.id !== "loose" && selectedScope?.id !== "binder-linked";
+    notebookSidebarLevel !== "binder" &&
+    selectedScope?.id !== "loose" &&
+    selectedScope?.id !== "binder-linked";
 
   return (
     <div
@@ -2780,118 +3048,135 @@ function MinimalNotesView({
             />
           ) : (
             <>
-          <div className="flex items-center justify-between gap-2 px-1 py-1">
-            {notebookSidebarLevel === "scopes" ? (
-              <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Notebook</h2>
-            ) : (
-              <Button
-                aria-label={notebookSidebarLevel === "binder" ? `Back to ${selectedScope.label} binders` : "Back to notebook scopes"}
-                onClick={onStepBack}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                <ChevronLeft data-icon="inline-start" />
-                Back
-              </Button>
-            )}
-            <Button onClick={onClearFilters} size="sm" type="button" variant="ghost">
-              Clear
-            </Button>
-          </div>
-          <div className="mt-2 grid gap-1">
-            {notebookSidebarLevel === "scopes"
-              ? categories.map((category) => (
-                  <button
-                    aria-label={`${category.label} ${category.count}`}
-                    className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition ${
-                      selectedCategoryId === category.id
-                        ? "bg-primary/12 text-foreground"
-                        : "text-muted-foreground hover:bg-secondary/65 hover:text-foreground"
-                    }`}
-                    key={category.id}
-                    onClick={() => onSelectCategory(category)}
-                    type="button"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <ChevronRight className="size-3.5 shrink-0" />
-                      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
-                      <span className="truncate">{category.label}</span>
-                    </span>
-                    <span className="text-xs">{category.count}</span>
-                  </button>
-                ))
-              : null}
-            {notebookSidebarLevel === "binders" ? (
-              <div className="grid gap-2">
-                <div className="px-1 py-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Scope</p>
-                  <p className="mt-1 truncate text-base font-semibold">{selectedScope.label}</p>
-                </div>
-                {selectedScope.id === "loose" ? (
-                  <p className="rounded-md border border-border/65 bg-card p-3 text-sm text-muted-foreground">
-                    Loose notes appear in the notes pane.
-                  </p>
-                ) : binderRows.length ? (
-                  binderRows.map((binder) => (
-                    <button
-                      aria-label={`${binder.title} ${binder.count}`}
-                      className="min-w-0 rounded-md border border-border/65 bg-card px-3 py-2 text-left transition hover:bg-secondary/65"
-                      key={binder.id}
-                      onClick={() => onSelectBinder(binder)}
-                      type="button"
-                    >
-                      <span className="block truncate text-sm font-semibold">{binder.title}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">{binder.count} notes</span>
-                    </button>
-                  ))
+              <div className="flex items-center justify-between gap-2 px-1 py-1">
+                {notebookSidebarLevel === "scopes" ? (
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Notebook
+                  </h2>
                 ) : (
-                  <p className="rounded-md border border-border/65 bg-card p-3 text-sm text-muted-foreground">
-                    No binders in {selectedScope.label} yet.
-                  </p>
-                )}
-              </div>
-            ) : null}
-            {notebookSidebarLevel === "binder" && selectedBinder ? (
-              <div className="grid gap-3">
-                <div className="px-1 py-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{selectedScope.label}</p>
-                  <h3 className="mt-1 text-base font-semibold leading-tight">{selectedBinder.title}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{selectedBinder.count} notes</p>
-                </div>
-                {selectedBinder.sourceUrl ? (
-                  <Link
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm font-medium hover:bg-secondary/70"
-                    to={selectedBinder.sourceUrl}
+                  <Button
+                    aria-label={
+                      notebookSidebarLevel === "binder"
+                        ? `Back to ${selectedScope.label} binders`
+                        : "Back to notebook scopes"
+                    }
+                    onClick={onStepBack}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
                   >
-                    <ArrowUpRight className="size-4" />
-                    Open binder workspace
-                  </Link>
+                    <ChevronLeft data-icon="inline-start" />
+                    Back
+                  </Button>
+                )}
+                <Button onClick={onClearFilters} size="sm" type="button" variant="ghost">
+                  Clear
+                </Button>
+              </div>
+              <div className="mt-2 grid gap-1">
+                {notebookSidebarLevel === "scopes"
+                  ? categories.map((category) => (
+                      <button
+                        aria-label={`${category.label} ${category.count}`}
+                        className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition ${
+                          selectedCategoryId === category.id
+                            ? "bg-primary/12 text-foreground"
+                            : "text-muted-foreground hover:bg-secondary/65 hover:text-foreground"
+                        }`}
+                        key={category.id}
+                        onClick={() => onSelectCategory(category)}
+                        type="button"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <ChevronRight className="size-3.5 shrink-0" />
+                          <span
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: category.color }}
+                          />
+                          <span className="truncate">{category.label}</span>
+                        </span>
+                        <span className="text-xs">{category.count}</span>
+                      </button>
+                    ))
+                  : null}
+                {notebookSidebarLevel === "binders" ? (
+                  <div className="grid gap-2">
+                    <div className="px-1 py-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Scope
+                      </p>
+                      <p className="mt-1 truncate text-base font-semibold">{selectedScope.label}</p>
+                    </div>
+                    {selectedScope.id === "loose" ? (
+                      <p className="rounded-md border border-border/65 bg-card p-3 text-sm text-muted-foreground">
+                        Loose notes appear in the notes pane.
+                      </p>
+                    ) : binderRows.length ? (
+                      binderRows.map((binder) => (
+                        <button
+                          aria-label={`${binder.title} ${binder.count}`}
+                          className="min-w-0 rounded-md border border-border/65 bg-card px-3 py-2 text-left transition hover:bg-secondary/65"
+                          key={binder.id}
+                          onClick={() => onSelectBinder(binder)}
+                          type="button"
+                        >
+                          <span className="block truncate text-sm font-semibold">{binder.title}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {binder.count} notes
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="rounded-md border border-border/65 bg-card p-3 text-sm text-muted-foreground">
+                        No binders in {selectedScope.label} yet.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+                {notebookSidebarLevel === "binder" && selectedBinder ? (
+                  <div className="grid gap-3">
+                    <div className="px-1 py-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        {selectedScope.label}
+                      </p>
+                      <h3 className="mt-1 text-base font-semibold leading-tight">{selectedBinder.title}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{selectedBinder.count} notes</p>
+                    </div>
+                    {selectedBinder.sourceUrl ? (
+                      <Link
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-border/80 bg-background px-3 py-2 text-sm font-medium hover:bg-secondary/70"
+                        to={selectedBinder.sourceUrl}
+                      >
+                        <ArrowUpRight className="size-4" />
+                        Open binder workspace
+                      </Link>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-            ) : null}
-          </div>
-          {showSideMonitorTags && tagSummaries.length ? (
-            <div className="mt-5">
-              <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tags</h3>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {tagSummaries.slice(0, 12).map((tag) => (
-                  <button
-                    className={`rounded-md border px-2 py-1 text-xs ${
-                      tagFilter === tag.name
-                        ? "border-primary/50 bg-primary/10 text-foreground"
-                        : "border-border/70 text-muted-foreground hover:bg-secondary/70"
-                    }`}
-                    key={tag.name}
-                    onClick={() => onTagFilter(tagFilter === tag.name ? null : tag.name)}
-                    type="button"
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+              {showSideMonitorTags && tagSummaries.length ? (
+                <div className="mt-5">
+                  <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Tags
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {tagSummaries.slice(0, 12).map((tag) => (
+                      <button
+                        className={`rounded-md border px-2 py-1 text-xs ${
+                          tagFilter === tag.name
+                            ? "border-primary/50 bg-primary/10 text-foreground"
+                            : "border-border/70 text-muted-foreground hover:bg-secondary/70"
+                        }`}
+                        key={tag.name}
+                        onClick={() => onTagFilter(tagFilter === tag.name ? null : tag.name)}
+                        type="button"
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </aside>
@@ -2908,7 +3193,12 @@ function MinimalNotesView({
           </div>
           <div className="h-[calc(100%-2.25rem)] overflow-auto pr-1">
             {entries.length ? (
-              <NoteList compact entries={entries} onSelectEntry={onSelectEntry} selectedEntry={selectedEntry} />
+              <NoteList
+                compact
+                entries={entries}
+                onSelectEntry={onSelectEntry}
+                selectedEntry={selectedEntry}
+              />
             ) : (
               <div className="rounded-lg border border-border/65 bg-card p-4 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">
@@ -2925,10 +3215,7 @@ function MinimalNotesView({
         </aside>
       ) : null}
 
-      <section
-        className="min-w-0 flex-1 bg-background"
-        data-testid="personal-notes-editor-stage"
-      >
+      <section className="min-w-0 flex-1 bg-background" data-testid="personal-notes-editor-stage">
         {editor}
       </section>
     </div>
@@ -3032,8 +3319,13 @@ function StructuredNotebookTree({
                 type="button"
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <ChevronRight className={`size-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                  <ChevronRight
+                    className={`size-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                  />
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: category.color }}
+                  />
                   <span className="truncate">{category.label}</span>
                 </span>
                 <span className="text-xs">{category.count}</span>
@@ -3066,7 +3358,9 @@ function StructuredNotebookTree({
                             type="button"
                           >
                             <span className="flex min-w-0 items-center gap-2">
-                              <ChevronRight className={`size-3.5 shrink-0 transition-transform ${binderExpanded ? "rotate-90" : ""}`} />
+                              <ChevronRight
+                                className={`size-3.5 shrink-0 transition-transform ${binderExpanded ? "rotate-90" : ""}`}
+                              />
                               <span className="truncate font-medium">{binder.title}</span>
                             </span>
                             <span className="text-xs text-muted-foreground">{binder.count}</span>
@@ -3087,7 +3381,9 @@ function StructuredNotebookTree({
                       );
                     })
                   ) : (
-                    <p className="px-2 py-1.5 text-xs text-muted-foreground">No binders in {category.label} yet.</p>
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                      No binders in {category.label} yet.
+                    </p>
                   )}
                 </div>
               ) : null}
@@ -3097,7 +3393,9 @@ function StructuredNotebookTree({
       </div>
       {showSideMonitorTags && tagSummaries.length ? (
         <div className="mt-5">
-          <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tags</h3>
+          <h3 className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Tags
+          </h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tagSummaries.slice(0, 12).map((tag) => (
               <button
@@ -3135,13 +3433,17 @@ function StructuredNotebookEntryButton({
     <button
       aria-label={`${entry.title} ${noteTypeLabel}`}
       className={`min-w-0 rounded-md px-2 py-1.5 text-left transition ${
-        isSelected ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-secondary/65 hover:text-foreground"
+        isSelected
+          ? "bg-primary/15 text-foreground"
+          : "text-muted-foreground hover:bg-secondary/65 hover:text-foreground"
       }`}
       onClick={() => onSelectEntry(entry)}
       type="button"
     >
       <span className="block truncate text-xs font-medium">{entry.title}</span>
-      <span className="block truncate text-[11px]">{entry.kind === "binder-note" ? "Binder private note" : noteTypeLabel}</span>
+      <span className="block truncate text-[11px]">
+        {entry.kind === "binder-note" ? "Binder private note" : noteTypeLabel}
+      </span>
     </button>
   );
 }
@@ -3226,12 +3528,16 @@ function PersonalNoteEditor({
   const editorRef = useRef<Editor | null>(null);
   const savedEditorSelectionRef = useRef<{ from: number; to: number } | null>(null);
 
-  const selectedTemplate = personalNoteTemplates.find((template) => template.id === selectedTemplateId) ?? personalNoteTemplates[0];
+  const selectedTemplate =
+    personalNoteTemplates.find((template) => template.id === selectedTemplateId) ?? personalNoteTemplates[0];
   const contentIsEmpty = extractPlainText(draftContent).trim().length === 0;
   const health = entry ? getPersonalNoteHealth(entry, { unsaved: dirty }) : [];
   const sourceReferences = entry ? getPersonalNoteSourceReferences(entry) : [];
   const betaAutosaveStatus = getPersonalNoteAutosaveStatus({ autosaveEnabled, dirty, saveState });
-  const noteLinks = entry && noteLinkAutocomplete ? buildNoteLinkInsights(entry, entries, draftContent) : { linked: [], backlinks: [] };
+  const noteLinks =
+    entry && noteLinkAutocomplete
+      ? buildNoteLinkInsights(entry, entries, draftContent)
+      : { linked: [], backlinks: [] };
   const selectionToolbarEnabled = annotatorMode !== "off" && annotatorMode !== "hotkeys";
   const annotationHotkeysEnabled = annotatorMode === "hotkeys" || annotatorMode === "both";
   const annotationRecords = useMemo(
@@ -3266,15 +3572,18 @@ function PersonalNoteEditor({
     return savedEditorSelectionRef.current;
   }, []);
 
-  const captureSelectionFromToolbar = useCallback((selectionState: PersonalNoteSelectionState | null) => {
-    const nextRange = editorSelectionFromPersonalNoteSelection(editorRef.current, selectionState);
-    if (nextRange) {
-      savedEditorSelectionRef.current = nextRange;
-      return;
-    }
+  const captureSelectionFromToolbar = useCallback(
+    (selectionState: PersonalNoteSelectionState | null) => {
+      const nextRange = editorSelectionFromPersonalNoteSelection(editorRef.current, selectionState);
+      if (nextRange) {
+        savedEditorSelectionRef.current = nextRange;
+        return;
+      }
 
-    captureEditorSelection();
-  }, [captureEditorSelection]);
+      captureEditorSelection();
+    },
+    [captureEditorSelection],
+  );
 
   const editorCommandChain = useCallback(() => {
     const chain = editorRef.current?.chain().focus();
@@ -3282,27 +3591,32 @@ function PersonalNoteEditor({
       return null;
     }
 
-    return savedEditorSelectionRef.current
-      ? chain.setTextSelection(savedEditorSelectionRef.current)
-      : chain;
+    return savedEditorSelectionRef.current ? chain.setTextSelection(savedEditorSelectionRef.current) : chain;
   }, []);
 
-  const openAnnotationPopover = useCallback((kind: "comment" | "link" | "tag") => {
-    captureEditorSelection();
-    setAnnotationPopover(kind);
-  }, [captureEditorSelection]);
+  const openAnnotationPopover = useCallback(
+    (kind: "comment" | "link" | "tag") => {
+      captureEditorSelection();
+      setAnnotationPopover(kind);
+    },
+    [captureEditorSelection],
+  );
 
-  const applyHighlight = useCallback((color = "#fde68a") => {
-    const colorMeta = annotationHighlightColors.find((item) => item.color === color) ?? annotationHighlightColors[0];
-    editorCommandChain()?.toggleHighlight({ color }).run();
-    rememberAnnotation({
-      type: "highlight",
-      label: `${colorMeta.label} highlight`,
-      color: colorMeta.value,
-      text: getCurrentSelectionText() || draftTitle,
-    });
-    savedEditorSelectionRef.current = null;
-  }, [draftTitle, editorCommandChain, rememberAnnotation]);
+  const applyHighlight = useCallback(
+    (color = "#fde68a") => {
+      const colorMeta =
+        annotationHighlightColors.find((item) => item.color === color) ?? annotationHighlightColors[0];
+      editorCommandChain()?.toggleHighlight({ color }).run();
+      rememberAnnotation({
+        type: "highlight",
+        label: `${colorMeta.label} highlight`,
+        color: colorMeta.value,
+        text: getCurrentSelectionText() || draftTitle,
+      });
+      savedEditorSelectionRef.current = null;
+    },
+    [draftTitle, editorCommandChain, rememberAnnotation],
+  );
 
   const removeHighlight = useCallback(() => {
     editorCommandChain()?.unsetHighlight().run();
@@ -3315,24 +3629,27 @@ function PersonalNoteEditor({
     savedEditorSelectionRef.current = null;
   }, [draftTitle, editorCommandChain, rememberAnnotation]);
 
-  const runEditorMark = useCallback((command: "bold" | "italic" | "underline" | "quote") => {
-    const chain = editorCommandChain();
-    if (command === "bold") {
-      chain?.toggleBold().run();
-    } else if (command === "italic") {
-      chain?.toggleItalic().run();
-    } else if (command === "underline") {
-      chain?.toggleUnderline().run();
-      rememberAnnotation({
-        type: "highlight",
-        label: "Underline",
-        color: "all",
-        text: getCurrentSelectionText() || draftTitle,
-      });
-    } else {
-      chain?.toggleBlockquote().run();
-    }
-  }, [draftTitle, editorCommandChain, rememberAnnotation]);
+  const runEditorMark = useCallback(
+    (command: "bold" | "italic" | "underline" | "quote") => {
+      const chain = editorCommandChain();
+      if (command === "bold") {
+        chain?.toggleBold().run();
+      } else if (command === "italic") {
+        chain?.toggleItalic().run();
+      } else if (command === "underline") {
+        chain?.toggleUnderline().run();
+        rememberAnnotation({
+          type: "highlight",
+          label: "Underline",
+          color: "all",
+          text: getCurrentSelectionText() || draftTitle,
+        });
+      } else {
+        chain?.toggleBlockquote().run();
+      }
+    },
+    [draftTitle, editorCommandChain, rememberAnnotation],
+  );
 
   const saveAnnotationPopover = useCallback(() => {
     const text = annotationDraft.trim();
@@ -3371,17 +3688,18 @@ function PersonalNoteEditor({
     const selectedText = getCurrentSelectionText() || draftTitle || "Source-linked passage";
     const commandId = `source-${Date.now()}`;
     const chain = editorCommandChain() as
-      | { setMark?: (name: string, attrs: Record<string, unknown>) => { run: () => boolean } }
-      | undefined;
-    chain?.setMark?.("sourceMarker", {
-      binderId: entry.sourceBinderId,
-      binderTitle: entry.sourceBinderTitle,
-      excerpt: selectedText,
-      id: commandId,
-      lessonId: entry.sourceDocumentId,
-      lessonTitle: entry.sourceDocumentTitle,
-      sourceUrl: entry.quickJumpToBinderUrl ?? "",
-    }).run();
+      { setMark?: (name: string, attrs: Record<string, unknown>) => { run: () => boolean } } | undefined;
+    chain
+      ?.setMark?.("sourceMarker", {
+        binderId: entry.sourceBinderId,
+        binderTitle: entry.sourceBinderTitle,
+        excerpt: selectedText,
+        id: commandId,
+        lessonId: entry.sourceDocumentId,
+        lessonTitle: entry.sourceDocumentTitle,
+        sourceUrl: entry.quickJumpToBinderUrl ?? "",
+      })
+      .run();
     rememberAnnotation({
       type: "source-marker",
       label: "Source marker",
@@ -3458,7 +3776,14 @@ function PersonalNoteEditor({
 
     window.addEventListener("keydown", handleAnnotationHotkey);
     return () => window.removeEventListener("keydown", handleAnnotationHotkey);
-  }, [addSourceMarker, annotationHotkeysEnabled, applyHighlight, entry, openAnnotationPopover, removeHighlight]);
+  }, [
+    addSourceMarker,
+    annotationHotkeysEnabled,
+    applyHighlight,
+    entry,
+    openAnnotationPopover,
+    removeHighlight,
+  ]);
 
   useEffect(() => {
     const handleAnnotationCommand = (event: Event) => {
@@ -3548,7 +3873,10 @@ function PersonalNoteEditor({
           className="flex shrink-0 flex-col gap-2 border-b border-border/55 bg-secondary/18 px-4 py-2 text-xs xl:flex-row xl:items-center xl:justify-between"
           data-testid="binder-source-action-row"
         >
-          <div className="min-w-0 flex-1 truncate" title={`Linked to ${entry.sourceBinderTitle} / ${entry.sourceDocumentTitle}`}>
+          <div
+            className="min-w-0 flex-1 truncate"
+            title={`Linked to ${entry.sourceBinderTitle} / ${entry.sourceDocumentTitle}`}
+          >
             <span className="font-semibold">Linked to {entry.sourceBinderTitle}</span>
             <span className="text-muted-foreground"> / {entry.sourceDocumentTitle}</span>
           </div>
@@ -3592,20 +3920,48 @@ function PersonalNoteEditor({
                 ))}
               </select>
               {entry.kind !== "binder-note" ? (
-                <Button aria-label={entry.pinned ? "Unpin note" : "Pin note"} className="px-2" onClick={onPin} size="sm" type="button" variant="ghost">
+                <Button
+                  aria-label={entry.pinned ? "Unpin note" : "Pin note"}
+                  className="px-2"
+                  onClick={onPin}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
                   <Pin />
                 </Button>
               ) : null}
-              <Button aria-label="Templates" className="px-2" onClick={() => setToolsOpen("templates")} size="sm" type="button" variant="ghost">
+              <Button
+                aria-label="Templates"
+                className="px-2"
+                onClick={() => setToolsOpen("templates")}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
                 <FileText />
               </Button>
               {entry.kind !== "binder-note" ? (
-                <Button aria-label="Tags" className="px-2" onClick={() => setToolsOpen("tags")} size="sm" type="button" variant="ghost">
+                <Button
+                  aria-label="Tags"
+                  className="px-2"
+                  onClick={() => setToolsOpen("tags")}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
                   <Tags />
                 </Button>
               ) : null}
               {noteLinkAutocomplete ? (
-                <Button aria-label="Links" className="px-2" onClick={() => setToolsOpen("links")} size="sm" type="button" variant="ghost">
+                <Button
+                  aria-label="Links"
+                  className="px-2"
+                  onClick={() => setToolsOpen("links")}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
                   <NotebookTabs />
                 </Button>
               ) : null}
@@ -3658,14 +4014,22 @@ function PersonalNoteEditor({
                     : dirty
                       ? "Save now"
                       : "No changes to save"
-                  : saveState === "saving" ? "Saving" : "Save"}
+                  : saveState === "saving"
+                    ? "Saving"
+                    : "Save"}
               </Button>
             </div>
           </div>
 
           <div className={`${compactMetadata ? "mt-0" : "mt-1"} flex flex-wrap items-center gap-1.5`}>
             <Badge variant={saveState === "error" ? "destructive" : dirty ? "outline" : "secondary"}>
-              {sourceLinkedNotesBeta ? betaAutosaveStatus.label : saveState === "error" ? "Save failed" : dirty ? "Unsaved" : "Saved"}
+              {sourceLinkedNotesBeta
+                ? betaAutosaveStatus.label
+                : saveState === "error"
+                  ? "Save failed"
+                  : dirty
+                    ? "Unsaved"
+                    : "Saved"}
             </Badge>
             {sourceLinkedNotesBeta && betaAutosaveStatus.savedLabel ? (
               <Badge variant="secondary">{betaAutosaveStatus.savedLabel}</Badge>
@@ -3673,7 +4037,9 @@ function PersonalNoteEditor({
             {health.slice(0, compactMetadata ? 4 : 8).map((signal) => (
               <Badge
                 key={signal.id}
-                variant={signal.tone === "warning" ? "outline" : signal.tone === "good" ? "secondary" : "outline"}
+                variant={
+                  signal.tone === "warning" ? "outline" : signal.tone === "good" ? "secondary" : "outline"
+                }
               >
                 {signal.label}
               </Badge>
@@ -3692,7 +4058,9 @@ function PersonalNoteEditor({
               role="status"
             >
               <span className="font-semibold text-foreground">{betaAutosaveStatus.label}</span>
-              {betaAutosaveStatus.savedLabel ? <span className="ml-2">{betaAutosaveStatus.savedLabel}</span> : null}
+              {betaAutosaveStatus.savedLabel ? (
+                <span className="ml-2">{betaAutosaveStatus.savedLabel}</span>
+              ) : null}
               <span className="ml-2">{saveError ?? betaAutosaveStatus.detail}</span>
             </div>
           ) : null}
@@ -3758,24 +4126,60 @@ function PersonalNoteEditor({
 
       {annotationPopover ? (
         <div
-          aria-label={annotationPopover === "comment" ? "Annotation comment popover" : annotationPopover === "tag" ? "Annotation tag popover" : "Annotation link popover"}
+          aria-label={
+            annotationPopover === "comment"
+              ? "Annotation comment popover"
+              : annotationPopover === "tag"
+                ? "Annotation tag popover"
+                : "Annotation link popover"
+          }
           className="absolute right-4 top-32 z-40 w-full max-w-sm rounded-lg border border-border bg-popover p-3 shadow-2xl"
           role="dialog"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">{annotationPopover === "comment" ? "Comment" : annotationPopover === "tag" ? "Tag selection" : "Link"}</h2>
-            <Button aria-label="Close annotation popover" onClick={() => setAnnotationPopover(null)} size="icon" type="button" variant="ghost">
+            <h2 className="text-sm font-semibold">
+              {annotationPopover === "comment"
+                ? "Comment"
+                : annotationPopover === "tag"
+                  ? "Tag selection"
+                  : "Link"}
+            </h2>
+            <Button
+              aria-label="Close annotation popover"
+              onClick={() => setAnnotationPopover(null)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
               <X />
             </Button>
           </div>
           <Input
-            aria-label={annotationPopover === "comment" ? "Comment text" : annotationPopover === "tag" ? "Selection tag" : "Link URL"}
+            aria-label={
+              annotationPopover === "comment"
+                ? "Comment text"
+                : annotationPopover === "tag"
+                  ? "Selection tag"
+                  : "Link URL"
+            }
             className="mt-3"
             onChange={(event) => setAnnotationDraft(event.target.value)}
-            placeholder={annotationPopover === "comment" ? "Add a margin note" : annotationPopover === "tag" ? "Tag this selection" : "Paste a link"}
+            placeholder={
+              annotationPopover === "comment"
+                ? "Add a margin note"
+                : annotationPopover === "tag"
+                  ? "Tag this selection"
+                  : "Paste a link"
+            }
             value={annotationDraft}
           />
-          <Button className="mt-3" disabled={!annotationDraft.trim()} onClick={saveAnnotationPopover} size="sm" type="button">
+          <Button
+            className="mt-3"
+            disabled={!annotationDraft.trim()}
+            onClick={saveAnnotationPopover}
+            size="sm"
+            type="button"
+          >
             Save annotation
           </Button>
         </div>
@@ -3806,7 +4210,13 @@ function PersonalNoteEditor({
                     ? "Links and backlinks"
                     : "Annotations"}
             </h2>
-            <Button aria-label="Close drawer" onClick={() => setToolsOpen(null)} size="icon" type="button" variant="ghost">
+            <Button
+              aria-label="Close drawer"
+              onClick={() => setToolsOpen(null)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
               <X />
             </Button>
           </div>
@@ -3861,18 +4271,24 @@ function PersonalNoteEditor({
             {toolsOpen === "links" ? (
               <div className="grid gap-5">
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Linked notes</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Linked notes
+                  </h3>
                   <LinkedEntryList emptyLabel="No note links yet." entries={noteLinks.linked} />
                 </section>
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Backlinks</h3>
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Backlinks
+                  </h3>
                   <LinkedEntryList emptyLabel="No backlinks yet." entries={noteLinks.backlinks} />
                 </section>
               </div>
             ) : null}
             {toolsOpen === "annotations" ? (
               <div className="grid gap-3 text-sm">
-                <p className="text-muted-foreground">Highlights, comments, links, and annotation markers for this note collect here.</p>
+                <p className="text-muted-foreground">
+                  Highlights, comments, links, and annotation markers for this note collect here.
+                </p>
                 <HighlightColorFilterSelect
                   label="Annotation color filter"
                   onChange={setHighlightColorFilter}
@@ -3881,7 +4297,9 @@ function PersonalNoteEditor({
                 {entry.kind === "binder-note" ? (
                   <div className="rounded-md border border-border bg-background p-3">
                     <p className="font-semibold">Source context</p>
-                    <p className="mt-1 text-muted-foreground">{entry.sourceBinderTitle} / {entry.sourceDocumentTitle}</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {entry.sourceBinderTitle} / {entry.sourceDocumentTitle}
+                    </p>
                   </div>
                 ) : null}
                 {visibleAnnotationRecords.length > 0 ? (
@@ -3952,8 +4370,13 @@ function BetaSourceReferenceCard({
           <dl className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
             {sourceDetails.map((detail) => (
               <div className="min-w-0" key={`${detail.label}:${detail.value}`}>
-                <dt className="font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">{detail.label}</dt>
-                <dd className="truncate text-sm font-medium normal-case tracking-normal text-foreground" title={detail.value}>
+                <dt className="font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
+                  {detail.label}
+                </dt>
+                <dd
+                  className="truncate text-sm font-medium normal-case tracking-normal text-foreground"
+                  title={detail.value}
+                >
                   {detail.value}
                 </dd>
               </div>
@@ -4147,9 +4570,7 @@ function PersonalNotesSelectionToolbar({
   }
 
   const toolbarTransform =
-    selection.anchor.placement === "above"
-      ? "translate(-50%, calc(-100% - 12px))"
-      : "translate(-50%, 12px)";
+    selection.anchor.placement === "above" ? "translate(-50%, calc(-100% - 12px))" : "translate(-50%, 12px)";
 
   const runSelectionAction = (action: () => void, clearAfter = false) => {
     onSelectionCapture(selectionRef.current);
@@ -4193,7 +4614,11 @@ function PersonalNotesSelectionToolbar({
             {color.toolbarLabel}
           </button>
         ))}
-        <SelectionToolbarButton label="Remove highlight" onClick={() => runSelectionAction(onRemoveHighlight, true)} variant="outline">
+        <SelectionToolbarButton
+          label="Remove highlight"
+          onClick={() => runSelectionAction(onRemoveHighlight, true)}
+          variant="outline"
+        >
           <X data-icon="inline-start" />
           Remove
         </SelectionToolbarButton>
@@ -4210,25 +4635,45 @@ function PersonalNotesSelectionToolbar({
         <SelectionToolbarButton label="Quote selection" onClick={() => runSelectionAction(onQuote)}>
           <Quote data-icon="inline-start" />
         </SelectionToolbarButton>
-        <SelectionToolbarButton label="Link selection" onClick={() => runSelectionAction(onLink, false)} variant="outline">
+        <SelectionToolbarButton
+          label="Link selection"
+          onClick={() => runSelectionAction(onLink, false)}
+          variant="outline"
+        >
           <Link2 data-icon="inline-start" />
           Link
         </SelectionToolbarButton>
-        <SelectionToolbarButton label="Comment selection" onClick={() => runSelectionAction(onComment, false)} variant="outline">
+        <SelectionToolbarButton
+          label="Comment selection"
+          onClick={() => runSelectionAction(onComment, false)}
+          variant="outline"
+        >
           <MessageSquare data-icon="inline-start" />
           Comment
         </SelectionToolbarButton>
-        <SelectionToolbarButton label="Tag selection" onClick={() => runSelectionAction(onTag, false)} variant="outline">
+        <SelectionToolbarButton
+          label="Tag selection"
+          onClick={() => runSelectionAction(onTag, false)}
+          variant="outline"
+        >
           <Tags data-icon="inline-start" />
           Tag
         </SelectionToolbarButton>
         {entry.kind === "binder-note" ? (
-          <SelectionToolbarButton label="Source citation marker" onClick={() => runSelectionAction(onSourceMarker)} variant="outline">
+          <SelectionToolbarButton
+            label="Source citation marker"
+            onClick={() => runSelectionAction(onSourceMarker)}
+            variant="outline"
+          >
             <ArrowUpRight data-icon="inline-start" />
             Source
           </SelectionToolbarButton>
         ) : null}
-        <SelectionToolbarButton label="Open annotations drawer" onClick={() => runSelectionAction(onOpenAnnotations, false)} variant="outline">
+        <SelectionToolbarButton
+          label="Open annotations drawer"
+          onClick={() => runSelectionAction(onOpenAnnotations, false)}
+          variant="outline"
+        >
           <NotebookTabs data-icon="inline-start" />
         </SelectionToolbarButton>
         {showColorFilter ? (
@@ -4354,9 +4799,7 @@ function isPersonalNoteRangeInsideRoot(range: Range, root: Element) {
 }
 
 function measurePersonalNoteSelectionAnchor(range: Range): PersonalNoteSelectionAnchor | null {
-  const clientRects = Array.from(range.getClientRects()).filter(
-    (rect) => rect.width > 0 || rect.height > 0,
-  );
+  const clientRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 || rect.height > 0);
   const primaryRect = clientRects
     .slice()
     .sort((left, right) => left.top - right.top || left.left - right.left)[0];
@@ -4525,8 +4968,8 @@ function buildNoteLinkInsights(
   draftContent: JSONContent,
 ) {
   const linkedTitles = new Set(extractBracketLinks(extractPlainText(draftContent)).map(normalizeLooseText));
-  const linked = entries.filter((candidate) =>
-    candidate.id !== entry.id && linkedTitles.has(normalizeLooseText(candidate.title)),
+  const linked = entries.filter(
+    (candidate) => candidate.id !== entry.id && linkedTitles.has(normalizeLooseText(candidate.title)),
   );
   const backlinks = entries.filter((candidate) => {
     if (candidate.id === entry.id) {
@@ -4539,13 +4982,7 @@ function buildNoteLinkInsights(
   return { linked, backlinks };
 }
 
-function LinkedEntryList({
-  emptyLabel,
-  entries,
-}: {
-  emptyLabel: string;
-  entries: PersonalNotesEntry[];
-}) {
+function LinkedEntryList({ emptyLabel, entries }: { emptyLabel: string; entries: PersonalNotesEntry[] }) {
   if (entries.length === 0) {
     return <p className="mt-2 text-sm text-muted-foreground">{emptyLabel}</p>;
   }
@@ -4562,7 +4999,9 @@ function LinkedEntryList({
 }
 
 function extractBracketLinks(text: string) {
-  return Array.from(text.matchAll(/\[\[([^\]]+)\]\]/g)).map((match) => match[1].trim()).filter(Boolean);
+  return Array.from(text.matchAll(/\[\[([^\]]+)\]\]/g))
+    .map((match) => match[1].trim())
+    .filter(Boolean);
 }
 
 function normalizeLooseText(value: string) {
@@ -4657,7 +5096,12 @@ function highlightColorFromValue(value: unknown): AnnotationHighlightFilter {
   if (color.includes("86efac") || color.includes("green")) {
     return "green";
   }
-  if (color.includes("d8b4fe") || color.includes("pink") || color.includes("purple") || color.includes("violet")) {
+  if (
+    color.includes("d8b4fe") ||
+    color.includes("pink") ||
+    color.includes("purple") ||
+    color.includes("violet")
+  ) {
     return "pink";
   }
   if (color.includes("fdba74") || color.includes("orange")) {
@@ -4688,12 +5132,7 @@ function NoteList({
   selectedEntry: PersonalNotesEntry | null;
 }) {
   if (entries.length === 0) {
-    return (
-      <EmptyState
-        description="Try a different search or create a new note."
-        title="No notes match"
-      />
-    );
+    return <EmptyState description="Try a different search or create a new note." title="No notes match" />;
   }
 
   return (
@@ -4703,9 +5142,7 @@ function NoteList({
           className={`w-full max-w-full overflow-hidden text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             compact
               ? `rounded-md px-2.5 py-2 ${
-                  selectedEntry?.id === entry.id
-                    ? "bg-primary/12 text-foreground"
-                    : "hover:bg-secondary/60"
+                  selectedEntry?.id === entry.id ? "bg-primary/12 text-foreground" : "hover:bg-secondary/60"
                 }`
               : `rounded-md border px-2.5 py-2.5 ${
                   selectedEntry?.id === entry.id
@@ -4722,7 +5159,8 @@ function NoteList({
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 break-words text-sm font-semibold leading-5">{entry.title}</p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {entry.personalBinderTitle ?? entry.sourceBinderTitle ?? entry.folderName} / {entry.sourceType}
+                {entry.personalBinderTitle ?? entry.sourceBinderTitle ?? entry.folderName} /{" "}
+                {entry.sourceType}
               </p>
             </div>
             {entry.pinned ? (
@@ -4738,7 +5176,9 @@ function NoteList({
             {entry.kind === "binder-note" ? <Badge variant="secondary">Linked</Badge> : null}
             {!compact
               ? entry.tags.slice(0, 3).map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
+                  <Badge key={tag} variant="outline">
+                    {tag}
+                  </Badge>
                 ))
               : null}
           </div>
@@ -4918,7 +5358,14 @@ function CommandPalette({
   const noteQuickSwitchCommands: CommandPaletteCommand[] = noteQuickSwitchEntries.map((entry) => {
     const binderContext = entry.personalBinderTitle ?? entry.sourceBinderTitle;
     const location = [entry.folderName, binderContext, entry.sourceDocumentTitle].filter(Boolean).join(" / ");
-    const kindLabel = entry.kind === "binder-note" ? "Linked" : entry.kind === "personal-document" ? "Doc" : entry.pinned ? "Pinned" : "Note";
+    const kindLabel =
+      entry.kind === "binder-note"
+        ? "Linked"
+        : entry.kind === "personal-document"
+          ? "Doc"
+          : entry.pinned
+            ? "Pinned"
+            : "Note";
     return {
       label: `Open note: ${entry.title}`,
       description: location || entry.sourceType,
@@ -4952,18 +5399,56 @@ function CommandPalette({
       label: "Create",
       description: "Start notes, binders, folders, documents, and canvases.",
       commands: [
-        { label: "New note", description: "Choose a folder and binder before saving.", action: onCreateNote, icon: <FilePlus2 />, disabled: !personalStorageReady },
-        { label: "New binder", description: "Create a container inside a folder.", action: onCreateBinder, icon: <BookMarked />, disabled: !personalStorageReady },
-        { label: "New document", description: "Add a document to a personal binder.", action: onCreateDocument, icon: <FileText />, disabled: !personalStorageReady },
-        { label: "New folder", description: "Create a top-level subject folder.", action: onCreateFolder, icon: <FolderPlus />, disabled: !personalStorageReady },
-        { label: "New canvas notebook", description: "Create a visual canvas notebook.", action: onCreateCanvasNotebook, icon: <Plus />, disabled: !personalStorageReady },
-        { label: "Open Templates", description: "Start from a note template.", action: onOpenTemplates, icon: <FileText />, disabled: !personalStorageReady },
+        {
+          label: "New note",
+          description: "Choose a folder and binder before saving.",
+          action: onCreateNote,
+          icon: <FilePlus2 />,
+          disabled: !personalStorageReady,
+        },
+        {
+          label: "New binder",
+          description: "Create a container inside a folder.",
+          action: onCreateBinder,
+          icon: <BookMarked />,
+          disabled: !personalStorageReady,
+        },
+        {
+          label: "New document",
+          description: "Add a document to a personal binder.",
+          action: onCreateDocument,
+          icon: <FileText />,
+          disabled: !personalStorageReady,
+        },
+        {
+          label: "New folder",
+          description: "Create a top-level subject folder.",
+          action: onCreateFolder,
+          icon: <FolderPlus />,
+          disabled: !personalStorageReady,
+        },
+        {
+          label: "New canvas notebook",
+          description: "Create a visual canvas notebook.",
+          action: onCreateCanvasNotebook,
+          icon: <Plus />,
+          disabled: !personalStorageReady,
+        },
+        {
+          label: "Open Templates",
+          description: "Start from a note template.",
+          action: onOpenTemplates,
+          icon: <FileText />,
+          disabled: !personalStorageReady,
+        },
       ],
     },
     {
       id: "quick-switcher",
       label: normalizedCommandQuery ? "Matching Notes" : "Recent Notes",
-      description: normalizedCommandQuery ? "Open notes that match title, binder, folder, tags, or text." : "Pinned and recently updated notes.",
+      description: normalizedCommandQuery
+        ? "Open notes that match title, binder, folder, tags, or text."
+        : "Pinned and recently updated notes.",
       commands: noteQuickSwitchCommands,
     },
     {
@@ -4971,9 +5456,20 @@ function CommandPalette({
       label: "Find And Open",
       description: "Move around folders, binders, and recent notes.",
       commands: [
-        { label: "Show all notes", description: "Clear filters and show the whole workspace.", action: onShowAllNotes, icon: <NotebookTabs /> },
+        {
+          label: "Show all notes",
+          description: "Clear filters and show the whole workspace.",
+          action: onShowAllNotes,
+          icon: <NotebookTabs />,
+        },
         ...subjectCommands,
-        { label: "Open recent note", description: "Open the most recent note in this workspace.", action: onOpenRecent, icon: <ChevronRight />, disabled: entries.length === 0 },
+        {
+          label: "Open recent note",
+          description: "Open the most recent note in this workspace.",
+          action: onOpenRecent,
+          icon: <ChevronRight />,
+          disabled: entries.length === 0,
+        },
         {
           label: "Open source binder workspace",
           description: "Jump back to the original binder for this linked note.",
@@ -4988,15 +5484,60 @@ function CommandPalette({
       label: "Side Monitor",
       description: "Control the folder and binder explorer.",
       commands: [
-        { label: "Go back in side monitor", description: "Step up one level in Scope Drill-in.", action: onNotebookBack, icon: <ChevronLeft /> },
-        { label: "Reset side monitor", description: "Return the side monitor to the full tree.", action: onShowAllNotes, icon: <NotebookTabs /> },
-        { label: "Clear selected binder", description: "Leave the current binder selection.", action: onNotebookBack, icon: <BookMarked /> },
-        { label: "Use Project Tree", description: "Persistent folder, binder, and note hierarchy.", action: () => onUpdatePreferences({ sidebarNavigationMode: "project-tree" }), icon: <NotebookTabs /> },
-        { label: "Use Scope Drill-in", description: "Narrow the sidebar as you choose scopes.", action: () => onUpdatePreferences({ sidebarNavigationMode: "scope-drill-in" }), icon: <NotebookTabs /> },
-        { label: sidebarsHidden ? "Show side monitor" : "Hide side monitor", description: "Show or hide the full side area.", action: onToggleSidebars, icon: <PanelLeft /> },
-        { label: "Toggle side monitor", description: "Show or hide only the side monitor.", action: onToggleNotebookPane, icon: <PanelLeft /> },
-        { label: "Toggle Notes list pane", description: "Show or hide the middle notes list.", action: onToggleNotesListPane, icon: <PanelLeft /> },
-        { label: "Toggle binder-linked notes", description: "Include or hide notes linked from binders.", action: onToggleBinderNotes, icon: <ListFilter /> },
+        {
+          label: "Go back in side monitor",
+          description: "Step up one level in Scope Drill-in.",
+          action: onNotebookBack,
+          icon: <ChevronLeft />,
+        },
+        {
+          label: "Reset side monitor",
+          description: "Return the side monitor to the full tree.",
+          action: onShowAllNotes,
+          icon: <NotebookTabs />,
+        },
+        {
+          label: "Clear selected binder",
+          description: "Leave the current binder selection.",
+          action: onNotebookBack,
+          icon: <BookMarked />,
+        },
+        {
+          label: "Use Project Tree",
+          description: "Persistent folder, binder, and note hierarchy.",
+          action: () => onUpdatePreferences({ sidebarNavigationMode: "project-tree" }),
+          icon: <NotebookTabs />,
+        },
+        {
+          label: "Use Scope Drill-in",
+          description: "Narrow the sidebar as you choose scopes.",
+          action: () => onUpdatePreferences({ sidebarNavigationMode: "scope-drill-in" }),
+          icon: <NotebookTabs />,
+        },
+        {
+          label: sidebarsHidden ? "Show side monitor" : "Hide side monitor",
+          description: "Show or hide the full side area.",
+          action: onToggleSidebars,
+          icon: <PanelLeft />,
+        },
+        {
+          label: "Toggle side monitor",
+          description: "Show or hide only the side monitor.",
+          action: onToggleNotebookPane,
+          icon: <PanelLeft />,
+        },
+        {
+          label: "Toggle Notes list pane",
+          description: "Show or hide the middle notes list.",
+          action: onToggleNotesListPane,
+          icon: <PanelLeft />,
+        },
+        {
+          label: "Toggle binder-linked notes",
+          description: "Include or hide notes linked from binders.",
+          action: onToggleBinderNotes,
+          icon: <ListFilter />,
+        },
       ],
     },
     {
@@ -5004,13 +5545,46 @@ function CommandPalette({
       label: "Editor And Layout",
       description: "Focus, width, chrome, and appearance commands.",
       commands: [
-        { label: "Focus editor", description: "Move attention back to the active note.", action: onFocusEditor, icon: <Maximize2 />, disabled: !selectedEntry },
-        { label: focusMode ? "Exit focus mode" : "Enter focus mode", description: "Minimize surrounding UI while writing.", action: onToggleFocusMode, icon: <Focus />, disabled: !selectedEntry },
-        { label: "Enter fullscreen focus", description: "Use the fullest writing surface.", action: onEnterFullscreenFocus, icon: <Maximize2 />, disabled: !selectedEntry },
-        { label: topChromeHidden ? "Show top chrome" : "Hide top chrome", description: "Toggle the top toolbar.", action: onToggleTopChrome, icon: <PanelLeft /> },
+        {
+          label: "Focus editor",
+          description: "Move attention back to the active note.",
+          action: onFocusEditor,
+          icon: <Maximize2 />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: focusMode ? "Exit focus mode" : "Enter focus mode",
+          description: "Minimize surrounding UI while writing.",
+          action: onToggleFocusMode,
+          icon: <Focus />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Enter fullscreen focus",
+          description: "Use the fullest writing surface.",
+          action: onEnterFullscreenFocus,
+          icon: <Maximize2 />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: topChromeHidden ? "Show top chrome" : "Hide top chrome",
+          description: "Toggle the top toolbar.",
+          action: onToggleTopChrome,
+          icon: <PanelLeft />,
+        },
         ...editorWidthCommands,
-        { label: "Toggle App Appearance Minimal/Studio", description: "Switch the Personal Notes visual style.", action: onToggleStyle, icon: <Sparkles /> },
-        { label: "Open settings", description: "Open all Personal Notes preferences.", action: onOpenSettings, icon: <Settings2 /> },
+        {
+          label: "Toggle App Appearance Minimal/Studio",
+          description: "Switch the Personal Notes visual style.",
+          action: onToggleStyle,
+          icon: <Sparkles />,
+        },
+        {
+          label: "Open settings",
+          description: "Open all Personal Notes preferences.",
+          action: onOpenSettings,
+          icon: <Settings2 />,
+        },
       ],
     },
     {
@@ -5018,26 +5592,144 @@ function CommandPalette({
       label: "Highlights And Annotations",
       description: "Mark, comment, link, tag, and filter selected text.",
       commands: [
-        { label: "Enable selection popup", description: "Show the annotation popup near selected text.", action: () => onUpdatePreferences({ annotatorTools: "floating" }), icon: <Highlighter /> },
-        { label: "Disable selection popup", description: "Turn annotation controls off.", action: () => onUpdatePreferences({ annotatorTools: "off" }), icon: <X /> },
-        { label: "Add highlight", description: "Highlight the selected text.", action: () => dispatchAnnotationCommand("highlight"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Highlight selected text yellow", description: "Apply yellow highlight.", action: () => dispatchAnnotationCommand("highlight-yellow"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Highlight selected text blue", description: "Apply blue highlight.", action: () => dispatchAnnotationCommand("highlight-blue"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Highlight selected text green", description: "Apply green highlight.", action: () => dispatchAnnotationCommand("highlight-green"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Highlight selected text pink/purple", description: "Apply pink or purple highlight.", action: () => dispatchAnnotationCommand("highlight-pink"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Highlight selected text orange", description: "Apply question highlight.", action: () => dispatchAnnotationCommand("highlight-orange"), icon: <Highlighter />, disabled: !selectedEntry },
-        { label: "Add comment", description: "Attach a comment to selected text.", action: () => dispatchAnnotationCommand("comment"), icon: <MessageSquare />, disabled: !selectedEntry },
-        { label: "Add link", description: "Link selected text.", action: () => dispatchAnnotationCommand("link"), icon: <Link2 />, disabled: !selectedEntry },
-        { label: "Add tag to selection", description: "Tag selected text.", action: () => dispatchAnnotationCommand("tag"), icon: <Tags />, disabled: !selectedEntry },
-        { label: "Add source marker", description: "Mark source context on a binder-linked note.", action: () => dispatchAnnotationCommand("source-marker"), icon: <ArrowUpRight />, disabled: selectedEntry?.kind !== "binder-note" },
-        { label: "Remove annotation", description: "Remove the selected annotation mark.", action: () => dispatchAnnotationCommand("remove-highlight"), icon: <X />, disabled: !selectedEntry },
-        { label: "Open annotations drawer", description: "Review annotation details.", action: () => dispatchAnnotationCommand("open-drawer"), icon: <NotebookTabs />, disabled: !selectedEntry },
-        { label: "Filter highlights: All colors", description: "Show every highlight color.", action: () => dispatchAnnotationCommand("filter-all"), icon: <ListFilter />, disabled: !selectedEntry },
-        { label: "Filter highlights: Yellow", description: "Show yellow highlights.", action: () => dispatchAnnotationCommand("filter-yellow"), icon: <ListFilter />, disabled: !selectedEntry },
-        { label: "Filter highlights: Blue", description: "Show blue highlights.", action: () => dispatchAnnotationCommand("filter-blue"), icon: <ListFilter />, disabled: !selectedEntry },
-        { label: "Filter highlights: Green", description: "Show green highlights.", action: () => dispatchAnnotationCommand("filter-green"), icon: <ListFilter />, disabled: !selectedEntry },
-        { label: "Filter highlights: Pink/Purple", description: "Show pink or purple highlights.", action: () => dispatchAnnotationCommand("filter-pink"), icon: <ListFilter />, disabled: !selectedEntry },
-        { label: "Filter highlights: Orange", description: "Show orange highlights.", action: () => dispatchAnnotationCommand("filter-orange"), icon: <ListFilter />, disabled: !selectedEntry },
+        {
+          label: "Enable selection popup",
+          description: "Show the annotation popup near selected text.",
+          action: () => onUpdatePreferences({ annotatorTools: "floating" }),
+          icon: <Highlighter />,
+        },
+        {
+          label: "Disable selection popup",
+          description: "Turn annotation controls off.",
+          action: () => onUpdatePreferences({ annotatorTools: "off" }),
+          icon: <X />,
+        },
+        {
+          label: "Add highlight",
+          description: "Highlight the selected text.",
+          action: () => dispatchAnnotationCommand("highlight"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Highlight selected text yellow",
+          description: "Apply yellow highlight.",
+          action: () => dispatchAnnotationCommand("highlight-yellow"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Highlight selected text blue",
+          description: "Apply blue highlight.",
+          action: () => dispatchAnnotationCommand("highlight-blue"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Highlight selected text green",
+          description: "Apply green highlight.",
+          action: () => dispatchAnnotationCommand("highlight-green"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Highlight selected text pink/purple",
+          description: "Apply pink or purple highlight.",
+          action: () => dispatchAnnotationCommand("highlight-pink"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Highlight selected text orange",
+          description: "Apply question highlight.",
+          action: () => dispatchAnnotationCommand("highlight-orange"),
+          icon: <Highlighter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Add comment",
+          description: "Attach a comment to selected text.",
+          action: () => dispatchAnnotationCommand("comment"),
+          icon: <MessageSquare />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Add link",
+          description: "Link selected text.",
+          action: () => dispatchAnnotationCommand("link"),
+          icon: <Link2 />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Add tag to selection",
+          description: "Tag selected text.",
+          action: () => dispatchAnnotationCommand("tag"),
+          icon: <Tags />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Add source marker",
+          description: "Mark source context on a binder-linked note.",
+          action: () => dispatchAnnotationCommand("source-marker"),
+          icon: <ArrowUpRight />,
+          disabled: selectedEntry?.kind !== "binder-note",
+        },
+        {
+          label: "Remove annotation",
+          description: "Remove the selected annotation mark.",
+          action: () => dispatchAnnotationCommand("remove-highlight"),
+          icon: <X />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Open annotations drawer",
+          description: "Review annotation details.",
+          action: () => dispatchAnnotationCommand("open-drawer"),
+          icon: <NotebookTabs />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: All colors",
+          description: "Show every highlight color.",
+          action: () => dispatchAnnotationCommand("filter-all"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: Yellow",
+          description: "Show yellow highlights.",
+          action: () => dispatchAnnotationCommand("filter-yellow"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: Blue",
+          description: "Show blue highlights.",
+          action: () => dispatchAnnotationCommand("filter-blue"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: Green",
+          description: "Show green highlights.",
+          action: () => dispatchAnnotationCommand("filter-green"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: Pink/Purple",
+          description: "Show pink or purple highlights.",
+          action: () => dispatchAnnotationCommand("filter-pink"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Filter highlights: Orange",
+          description: "Show orange highlights.",
+          action: () => dispatchAnnotationCommand("filter-orange"),
+          icon: <ListFilter />,
+          disabled: !selectedEntry,
+        },
       ],
     },
     {
@@ -5045,12 +5737,46 @@ function CommandPalette({
       label: "Current Note",
       description: "Actions for the selected note.",
       commands: [
-        { label: "Move to folder", description: "Move this personal note to a folder.", action: onMoveToFolder, icon: <FolderPlus />, disabled: selectedEntry?.kind !== "personal-note" },
-        { label: selectedEntry?.pinned ? "Unpin" : "Pin", description: "Pin or unpin this personal note.", action: onPin, icon: <Pin />, disabled: !selectedEntry || selectedEntry.kind === "binder-note" },
-        { label: "Add tag", description: "Add a tag to this personal note.", action: onAddTag, icon: <Tags />, disabled: !selectedEntry || selectedEntry.kind === "binder-note" },
-        { label: "Copy note link", description: "Copy a link to the current note.", action: onCopyLink, icon: <ArrowUpRight />, disabled: !selectedEntry },
-        { label: "Open Review Queue", description: "Open notes marked for review.", action: onOpenReviewQueue, icon: <CheckSquare /> },
-        { label: "Toggle Review Queue sidebar", description: "Show or hide review queue panel.", action: onToggleReviewSidebar, icon: <CheckSquare /> },
+        {
+          label: "Move to folder",
+          description: "Move this personal note to a folder.",
+          action: onMoveToFolder,
+          icon: <FolderPlus />,
+          disabled: selectedEntry?.kind !== "personal-note",
+        },
+        {
+          label: selectedEntry?.pinned ? "Unpin" : "Pin",
+          description: "Pin or unpin this personal note.",
+          action: onPin,
+          icon: <Pin />,
+          disabled: !selectedEntry || selectedEntry.kind === "binder-note",
+        },
+        {
+          label: "Add tag",
+          description: "Add a tag to this personal note.",
+          action: onAddTag,
+          icon: <Tags />,
+          disabled: !selectedEntry || selectedEntry.kind === "binder-note",
+        },
+        {
+          label: "Copy note link",
+          description: "Copy a link to the current note.",
+          action: onCopyLink,
+          icon: <ArrowUpRight />,
+          disabled: !selectedEntry,
+        },
+        {
+          label: "Open Review Queue",
+          description: "Open notes marked for review.",
+          action: onOpenReviewQueue,
+          icon: <CheckSquare />,
+        },
+        {
+          label: "Toggle Review Queue sidebar",
+          description: "Show or hide review queue panel.",
+          action: onToggleReviewSidebar,
+          icon: <CheckSquare />,
+        },
       ],
     },
   ];
@@ -5058,7 +5784,11 @@ function CommandPalette({
     .map((group) => ({
       ...group,
       commands: group.commands.filter((command) =>
-        matchesCommandSearch([group.label, group.description, command.label, command.description, command.keywords].filter(Boolean).join(" ")),
+        matchesCommandSearch(
+          [group.label, group.description, command.label, command.description, command.keywords]
+            .filter(Boolean)
+            .join(" "),
+        ),
       ),
     }))
     .filter((group) => group.commands.length > 0);
@@ -5081,7 +5811,13 @@ function CommandPalette({
             placeholder="Search commands, folders, side monitor, highlights"
             value={commandQuery}
           />
-          <Button aria-label="Close command palette" onClick={onClose} size="icon" type="button" variant="ghost">
+          <Button
+            aria-label="Close command palette"
+            onClick={onClose}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
             <X />
           </Button>
         </div>
@@ -5095,7 +5831,9 @@ function CommandPalette({
               <section className="rounded-lg px-1 py-2" key={group.id}>
                 <div className="mb-1 flex items-end justify-between gap-3 px-2">
                   <div className="min-w-0">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{group.label}</h3>
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      {group.label}
+                    </h3>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground/75">{group.description}</p>
                   </div>
                   <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -5118,9 +5856,13 @@ function CommandPalette({
                         {command.icon}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground">{command.label}</span>
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {command.label}
+                        </span>
                         {command.description ? (
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{command.description}</span>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {command.description}
+                          </span>
                         ) : null}
                       </span>
                       {command.meta ? (
@@ -5134,7 +5876,9 @@ function CommandPalette({
               </section>
             ))
           ) : (
-            <div className="rounded-lg border border-border/70 p-4 text-sm text-muted-foreground">No commands match this search.</div>
+            <div className="rounded-lg border border-border/70 p-4 text-sm text-muted-foreground">
+              No commands match this search.
+            </div>
           )}
         </div>
       </div>
@@ -5193,7 +5937,8 @@ function PersonalNotesSettingsDrawer({
     {
       id: "organization",
       label: "Organization",
-      terms: "organization binder private notes tags backlinks review queue default new note location source workspace",
+      terms:
+        "organization binder private notes tags backlinks review queue default new note location source workspace",
     },
     {
       id: "canvas",
@@ -5208,7 +5953,11 @@ function PersonalNotesSettingsDrawer({
   ].filter((section) => `${section.label} ${section.terms}`.toLowerCase().includes(normalizedQuery));
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80" data-app-appearance={preferences.style} role="presentation">
+    <div
+      className="fixed inset-0 z-50 bg-background/80"
+      data-app-appearance={preferences.style}
+      role="presentation"
+    >
       <aside
         aria-label="Personal Notes settings"
         className="ml-auto flex h-full w-full max-w-[560px] flex-col border-l border-border bg-background text-foreground shadow-2xl"
@@ -5218,13 +5967,21 @@ function PersonalNotesSettingsDrawer({
         <div className="border-b border-border/70 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border/70 bg-secondary/45 p-3">
-              <div className="grid size-12 shrink-0 place-items-center rounded-lg border border-border/70 bg-background font-bold">PN</div>
+              <div className="grid size-12 shrink-0 place-items-center rounded-lg border border-border/70 bg-background font-bold">
+                PN
+              </div>
               <div className="min-w-0">
                 <span className="page-kicker">Settings</span>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">Personal Notes settings</h2>
               </div>
             </div>
-            <Button aria-label="Close Personal Notes settings" onClick={onClose} size="icon" type="button" variant="ghost">
+            <Button
+              aria-label="Close Personal Notes settings"
+              onClick={onClose}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
               <X />
             </Button>
           </div>
@@ -5272,7 +6029,9 @@ function PersonalNotesSettingsDrawer({
                 <div className="mt-3 grid gap-3">
                   <SettingSelect
                     label="Personal Notes sidebar mode"
-                    onChange={(value) => onUpdate({ sidebarNavigationMode: value as PersonalNotesSidebarNavigationMode })}
+                    onChange={(value) =>
+                      onUpdate({ sidebarNavigationMode: value as PersonalNotesSidebarNavigationMode })
+                    }
                     value={preferences.sidebarNavigationMode}
                   >
                     <option value="project-tree">Project Tree</option>
@@ -5313,8 +6072,16 @@ function PersonalNotesSettingsDrawer({
 
               {section.id === "focus" ? (
                 <div className="mt-3 grid gap-3">
-                  <ToggleSetting checked={sidebarsHidden} label="Hide side monitor and notes list" onChange={onToggleSidebars} />
-                  <ToggleSetting checked={topChromeHidden} label="Hide top chrome" onChange={onToggleTopChrome} />
+                  <ToggleSetting
+                    checked={sidebarsHidden}
+                    label="Hide side monitor and notes list"
+                    onChange={onToggleSidebars}
+                  />
+                  <ToggleSetting
+                    checked={topChromeHidden}
+                    label="Hide top chrome"
+                    onChange={onToggleTopChrome}
+                  />
                   <ToggleSetting checked={focusMode} label="Focus mode" onChange={onToggleFocusMode} />
                   <ToggleSetting
                     checked={preferences.fullscreenFocusEnabled}
@@ -5338,7 +6105,11 @@ function PersonalNotesSettingsDrawer({
 
               {section.id === "editor" ? (
                 <div className="mt-3 grid gap-3">
-                  <ToggleSetting checked={preferences.autosave} label="Autosave" onChange={(checked) => onUpdate({ autosave: checked })} />
+                  <ToggleSetting
+                    checked={preferences.autosave}
+                    label="Autosave"
+                    onChange={(checked) => onUpdate({ autosave: checked })}
+                  />
                   <ToggleSetting
                     checked={preferences.compactMetadata}
                     label="Compact metadata"
@@ -5370,7 +6141,9 @@ function PersonalNotesSettingsDrawer({
                   />
                   <SettingSelect
                     label="Default new note location"
-                    onChange={(value) => onUpdate({ defaultNewNoteLocation: value as typeof preferences.defaultNewNoteLocation })}
+                    onChange={(value) =>
+                      onUpdate({ defaultNewNoteLocation: value as typeof preferences.defaultNewNoteLocation })
+                    }
                     value={preferences.defaultNewNoteLocation}
                   >
                     <option value="loose">Loose</option>
@@ -5378,7 +6151,8 @@ function PersonalNotesSettingsDrawer({
                     <option value="ask">Ask every time</option>
                   </SettingSelect>
                   <div className="rounded-xl border border-border/70 bg-background/45 p-3 text-sm leading-6 text-muted-foreground">
-                    Tags, backlinks, templates, and Review Queue stay hidden until opened from the command palette or editor actions.
+                    Tags, backlinks, templates, and Review Queue stay hidden until opened from the command
+                    palette or editor actions.
                   </div>
                 </div>
               ) : null}
@@ -5397,7 +6171,9 @@ function PersonalNotesSettingsDrawer({
                   />
                   <SettingSelect
                     label="Canvas snap mode"
-                    onChange={(value) => onUpdate({ canvasSnapMode: value as typeof preferences.canvasSnapMode })}
+                    onChange={(value) =>
+                      onUpdate({ canvasSnapMode: value as typeof preferences.canvasSnapMode })
+                    }
                     value={preferences.canvasSnapMode}
                   >
                     <option value="edges">Edges</option>
@@ -5406,7 +6182,9 @@ function PersonalNotesSettingsDrawer({
                   </SettingSelect>
                   <SettingSelect
                     label="Mobile canvas behavior"
-                    onChange={(value) => onUpdate({ mobileCanvasBehavior: value as typeof preferences.mobileCanvasBehavior })}
+                    onChange={(value) =>
+                      onUpdate({ mobileCanvasBehavior: value as typeof preferences.mobileCanvasBehavior })
+                    }
                     value={preferences.mobileCanvasBehavior}
                   >
                     <option value="module-switcher">Module switcher</option>
@@ -5417,13 +6195,24 @@ function PersonalNotesSettingsDrawer({
 
               {section.id === "keyboard" ? (
                 <div className="mt-3 grid gap-3 rounded-xl border border-border/70 bg-background/45 p-3 text-sm leading-6 text-muted-foreground">
-                  <p>Ctrl/Cmd+K opens the command palette for search, notes, panes, focus, annotator tools, and settings.</p>
+                  <p>
+                    Ctrl/Cmd+K opens the command palette for search, notes, panes, focus, annotator tools, and
+                    settings.
+                  </p>
                   {preferences.annotatorTools === "hotkeys" ? (
                     <div className="grid gap-2 text-xs font-semibold text-foreground sm:grid-cols-2">
-                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+H highlight</span>
-                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+Shift+H remove</span>
-                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+N note</span>
-                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+A annotations</span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">
+                        Ctrl+Alt+H highlight
+                      </span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">
+                        Ctrl+Alt+Shift+H remove
+                      </span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">
+                        Ctrl+Alt+N note
+                      </span>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1">
+                        Ctrl+Alt+A annotations
+                      </span>
                     </div>
                   ) : null}
                 </div>
@@ -5462,11 +6251,12 @@ function SettingSelect({
   );
 }
 
-const annotatorModeOptions: Array<{ label: string; shortLabel: string; value: PersonalNotesAnnotatorMode }> = [
-  { label: "Off", shortLabel: "Off", value: "off" },
-  { label: "Selection popup", shortLabel: "Popup", value: "floating" },
-  { label: "Hotkeys", shortLabel: "Hotkeys", value: "hotkeys" },
-];
+const annotatorModeOptions: Array<{ label: string; shortLabel: string; value: PersonalNotesAnnotatorMode }> =
+  [
+    { label: "Off", shortLabel: "Off", value: "off" },
+    { label: "Selection popup", shortLabel: "Popup", value: "floating" },
+    { label: "Hotkeys", shortLabel: "Hotkeys", value: "hotkeys" },
+  ];
 
 function AnnotatorModeControl({
   onChange,
@@ -5481,7 +6271,9 @@ function AnnotatorModeControl({
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold text-muted-foreground">Annotator tools</span>
-        <Badge variant="outline">{annotatorModeOptions.find((option) => option.value === normalizedValue)?.shortLabel ?? "Popup"}</Badge>
+        <Badge variant="outline">
+          {annotatorModeOptions.find((option) => option.value === normalizedValue)?.shortLabel ?? "Popup"}
+        </Badge>
       </div>
       <div
         aria-label="Annotator tools"
@@ -5545,20 +6337,72 @@ function buildFolderSummaries(entries: PersonalNotesEntry[]) {
   return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function buildNotebookCategories(entries: PersonalNotesEntry[], showBinderNotes: boolean): NotebookCategory[] {
+function buildNotebookCategories(
+  entries: PersonalNotesEntry[],
+  showBinderNotes: boolean,
+): NotebookCategory[] {
   const visible = showBinderNotes ? entries : entries.filter((entry) => entry.kind !== "binder-note");
   const folderCount = (label: string) => visible.filter((entry) => entry.folderName === label).length;
   const looseCount = visible.filter((entry) => entry.kind === "personal-note").length;
   const linkedCount = visible.filter((entry) => entry.kind === "binder-note").length;
 
   const categories: NotebookCategory[] = [
-    { id: "all", label: "All notes", count: visible.length, color: "hsl(var(--primary))", sourceFilter: "all", folderName: null },
-    { id: "history", label: "History", count: folderCount("History"), color: "#14b8a6", sourceFilter: "all", folderName: "History" },
-    { id: "math", label: "Math", count: folderCount("Math"), color: "#3b82f6", sourceFilter: "all", folderName: "Math" },
-    { id: "chemistry", label: "Chemistry", count: folderCount("Chemistry"), color: "#22c55e", sourceFilter: "all", folderName: "Chemistry" },
-    { id: "other", label: "Other", count: folderCount("Other"), color: "#a855f7", sourceFilter: "all", folderName: "Other" },
-    { id: "unfiled", label: "Unfiled", count: folderCount("Unfiled"), color: "#94a3b8", sourceFilter: "all", folderName: "Unfiled" },
-    { id: "loose", label: "Loose notes", count: looseCount, color: "#f59e0b", sourceFilter: "loose", folderName: null },
+    {
+      id: "all",
+      label: "All notes",
+      count: visible.length,
+      color: "hsl(var(--primary))",
+      sourceFilter: "all",
+      folderName: null,
+    },
+    {
+      id: "history",
+      label: "History",
+      count: folderCount("History"),
+      color: "#14b8a6",
+      sourceFilter: "all",
+      folderName: "History",
+    },
+    {
+      id: "math",
+      label: "Math",
+      count: folderCount("Math"),
+      color: "#3b82f6",
+      sourceFilter: "all",
+      folderName: "Math",
+    },
+    {
+      id: "chemistry",
+      label: "Chemistry",
+      count: folderCount("Chemistry"),
+      color: "#22c55e",
+      sourceFilter: "all",
+      folderName: "Chemistry",
+    },
+    {
+      id: "other",
+      label: "Other",
+      count: folderCount("Other"),
+      color: "#a855f7",
+      sourceFilter: "all",
+      folderName: "Other",
+    },
+    {
+      id: "unfiled",
+      label: "Unfiled",
+      count: folderCount("Unfiled"),
+      color: "#94a3b8",
+      sourceFilter: "all",
+      folderName: "Unfiled",
+    },
+    {
+      id: "loose",
+      label: "Loose notes",
+      count: looseCount,
+      color: "#f59e0b",
+      sourceFilter: "loose",
+      folderName: null,
+    },
   ];
 
   if (showBinderNotes) {
@@ -5581,8 +6425,9 @@ function resolveSelectedCategoryId(
   folderFilter: string | null,
 ) {
   return (
-    categories.find((category) =>
-      category.sourceFilter === sourceFilter && (category.folderName ?? null) === (folderFilter ?? null),
+    categories.find(
+      (category) =>
+        category.sourceFilter === sourceFilter && (category.folderName ?? null) === (folderFilter ?? null),
     )?.id ?? "all"
   );
 }
@@ -5603,7 +6448,10 @@ function entriesForNotebookCategory(entries: PersonalNotesEntry[], category: Not
   return [];
 }
 
-function buildNotebookHierarchy(entries: PersonalNotesEntry[], categories: NotebookCategory[]): NotebookHierarchy {
+function buildNotebookHierarchy(
+  entries: PersonalNotesEntry[],
+  categories: NotebookCategory[],
+): NotebookHierarchy {
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
   const bindersByScope = new Map<string, Map<string, NotebookBinderNode>>();
 
@@ -5666,9 +6514,9 @@ function buildNotebookHierarchy(entries: PersonalNotesEntry[], categories: Noteb
   return { bindersById, bindersByScope: normalizedByScope };
 }
 
-function notebookBinderGroupForEntry(entry: PersonalNotesEntry):
-  | { id: string; title: string; kind: NotebookBinderNode["kind"] }
-  | null {
+function notebookBinderGroupForEntry(
+  entry: PersonalNotesEntry,
+): { id: string; title: string; kind: NotebookBinderNode["kind"] } | null {
   if (entry.kind === "binder-note") {
     const id = entry.sourceBinderId ?? entry.sourceBinderTitle ?? "unknown-source-binder";
     return {
@@ -5746,7 +6594,14 @@ function buildTagSummaries(entries: PersonalNotesEntry[]) {
 }
 
 function parseTags(value: string) {
-  return [...new Set(value.split(",").map((tag) => tag.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function normalizeSelectLabel(value: unknown, fallback: string) {
@@ -5760,10 +6615,7 @@ function normalizeSelectLabel(value: unknown, fallback: string) {
   return trimmed;
 }
 
-function formatBinderSelectLabel(
-  binder: CreateDialogBinderOption,
-  activeFolderId: string,
-) {
+function formatBinderSelectLabel(binder: CreateDialogBinderOption, activeFolderId: string) {
   if (!activeFolderId || binder.folderValue === activeFolderId) {
     return binder.title;
   }

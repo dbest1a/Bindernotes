@@ -4,8 +4,8 @@ import { buildWorkspacePresetDefinitionsFromRows } from "@/services/workspace-pr
 
 describe("workspace-preset-service", () => {
   it("builds validated suite-specific preset definitions from seeded rows", () => {
-    const guidedDesktop = historyPresetDefinitions.find((preset) => preset.id === "history-guided")?.breakpoints
-      .desktop;
+    const guidedDesktop = historyPresetDefinitions.find((preset) => preset.id === "history-guided")
+      ?.breakpoints.desktop;
     expect(guidedDesktop).toBeTruthy();
 
     const definitions = buildWorkspacePresetDefinitionsFromRows("suite-rise-of-rome", [

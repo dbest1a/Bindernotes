@@ -88,7 +88,10 @@ vi.mock("@/hooks/use-binders", () => ({
 }));
 
 import { FolderPage } from "@/pages/folder-page";
-import { CHEMISTRY_SHOWCASE_BINDER_ID, chemistryShowcaseLessons } from "@/lib/chemistry/chemistry-showcase-content";
+import {
+  CHEMISTRY_SHOWCASE_BINDER_ID,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 
 describe("FolderPage", () => {
   beforeEach(() => {

@@ -6,15 +6,25 @@ import type { PropsWithChildren } from "react";
 const mocks = vi.hoisted(() => ({ search: vi.fn() }));
 vi.mock("@/services/personal-note-search-service", () => ({ searchPersonalNoteBodies: mocks.search }));
 import { usePersonalNoteSearch } from "./use-personal-note-search";
-afterEach(() => { cleanup(); mocks.search.mockReset(); });
+afterEach(() => {
+  cleanup();
+  mocks.search.mockReset();
+});
 
 describe("note text search identity boundaries", () => {
   it("does not show a previous query or account's late matches", async () => {
     const pending = new Map<string, (value: Set<string>) => void>();
-    mocks.search.mockImplementation((owner: string, text: string) => new Promise((resolve) => pending.set(`${owner}:${text}`, resolve)));
+    mocks.search.mockImplementation(
+      (owner: string, text: string) => new Promise((resolve) => pending.set(`${owner}:${text}`, resolve)),
+    );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const wrapper = ({ children }: PropsWithChildren) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-    const { result, rerender } = renderHook(({ owner, query }) => usePersonalNoteSearch(owner, query, true), { wrapper, initialProps: { owner: "a", query: "first" } });
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result, rerender } = renderHook(({ owner, query }) => usePersonalNoteSearch(owner, query, true), {
+      wrapper,
+      initialProps: { owner: "a", query: "first" },
+    });
     await waitFor(() => expect(pending.has("a:first")).toBe(true));
     rerender({ owner: "b", query: "second" });
     expect(result.current.matches).toBeUndefined();

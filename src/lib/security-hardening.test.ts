@@ -4,8 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = process.cwd();
 const securityMigrationPath = "supabase/migrations/0019_security_hardening_rls.sql";
-const advisorCleanupMigrationPath =
-  "supabase/migrations/0020_supabase_security_advisor_lint_cleanup.sql";
+const advisorCleanupMigrationPath = "supabase/migrations/0020_supabase_security_advisor_lint_cleanup.sql";
 const clientPrivilegeLockMigrationPath =
   "supabase/migrations/0021_lock_profile_and_purchase_client_privileges.sql";
 const performanceAdvisorCleanupMigrationPath =
@@ -39,7 +38,9 @@ describe("security hardening migration", () => {
     for (const policy of ["learner notes own", "comments own", "highlights own"]) {
       expect(accountNotesSql).toContain(`create policy "${policy}"`);
     }
-    expect(accountNotesSql).toContain("for all using (owner_id = auth.uid()) with check (owner_id = auth.uid())");
+    expect(accountNotesSql).toContain(
+      "for all using (owner_id = auth.uid()) with check (owner_id = auth.uid())",
+    );
   });
 
   it("blocks profile role self-promotion while preserving safe profile edits", () => {
@@ -105,7 +106,9 @@ describe("security hardening migration", () => {
       expect(sql).toContain(`revoke execute on function ${functionName} from public, anon, authenticated`);
     }
 
-    expect(sql).toContain("grant execute on function public.process_summary_refresh_queue(integer) to service_role");
+    expect(sql).toContain(
+      "grant execute on function public.process_summary_refresh_queue(integer) to service_role",
+    );
     expect(sql).toContain("grant execute on function public.refresh_all_admin_summaries() to service_role");
   });
 
@@ -185,10 +188,14 @@ describe("Supabase Security Advisor lint cleanup migration", () => {
     expect(sql).toContain("create schema if not exists private");
     expect(sql).toContain("revoke all on schema private from public");
     expect(sql).toContain("create or replace function private.is_admin()");
-    expect(sql).toContain("create or replace function private.owns_published_or_enrolled(target_binder_id text)");
+    expect(sql).toContain(
+      "create or replace function private.owns_published_or_enrolled(target_binder_id text)",
+    );
     expect(sql).toContain("create or replace function private.can_read_suite_template(target_suite_id text)");
     expect(sql).toContain("set search_path = public, pg_temp");
-    expect(sql).toContain("grant execute on function private.is_admin() to anon, authenticated, service_role");
+    expect(sql).toContain(
+      "grant execute on function private.is_admin() to anon, authenticated, service_role",
+    );
     expect(sql).toContain("'public.is_admin()', 'private.is_admin()'");
     expect(sql).toContain("'public.owns_published_or_enrolled(', 'private.owns_published_or_enrolled('");
     expect(sql).toContain("'public.can_read_suite_template(', 'private.can_read_suite_template('");
@@ -205,26 +212,40 @@ describe("Supabase Security Advisor lint cleanup migration", () => {
     }
 
     expect(sql).toContain("to_regprocedure('public.owns_published_or_enrolled(uuid)')");
-    expect(sql).toContain("alter function public.owns_published_or_enrolled(uuid) set search_path = public, pg_temp");
-    expect(sql).toContain("revoke execute on function public.owns_published_or_enrolled(uuid) from authenticated");
+    expect(sql).toContain(
+      "alter function public.owns_published_or_enrolled(uuid) set search_path = public, pg_temp",
+    );
+    expect(sql).toContain(
+      "revoke execute on function public.owns_published_or_enrolled(uuid) from authenticated",
+    );
   });
 
   it("keeps only trusted server/auth grants for functions that still need direct execution", () => {
     const sql = normalized(advisorCleanupMigrationPath);
 
     expect(sql).toContain("grant execute on function public.handle_new_user() to supabase_auth_admin");
-    expect(sql).toContain("grant execute on function public.process_summary_refresh_queue(integer) to service_role");
-    expect(sql).toContain("grant execute on function public.refresh_all_dashboard_summaries() to service_role");
+    expect(sql).toContain(
+      "grant execute on function public.process_summary_refresh_queue(integer) to service_role",
+    );
+    expect(sql).toContain(
+      "grant execute on function public.refresh_all_dashboard_summaries() to service_role",
+    );
     expect(sql).not.toContain("grant execute on function public.is_admin() to authenticated");
-    expect(sql).not.toContain("grant execute on function public.can_read_suite_template(text) to authenticated");
+    expect(sql).not.toContain(
+      "grant execute on function public.can_read_suite_template(text) to authenticated",
+    );
   });
 
   it("pins remaining mutable search paths and removes broad tutorial bucket listing policies", () => {
     const sql = normalized(advisorCleanupMigrationPath);
 
     expect(sql).toContain("alter function public.bn_word_count(text) set search_path = public, pg_temp");
-    expect(sql).toContain("alter function public.set_personal_notes_updated_at() set search_path = public, pg_temp");
-    expect(sql).toContain("alter function public.bn_jsonb_plain_text(jsonb) set search_path = public, pg_temp");
+    expect(sql).toContain(
+      "alter function public.set_personal_notes_updated_at() set search_path = public, pg_temp",
+    );
+    expect(sql).toContain(
+      "alter function public.bn_jsonb_plain_text(jsonb) set search_path = public, pg_temp",
+    );
     expect(sql).toContain('drop policy if exists "tutorial posters public read" on storage.objects');
     expect(sql).toContain('drop policy if exists "tutorial videos public read" on storage.objects');
     expect(sql).not.toContain('create policy "tutorial posters public read"');
@@ -237,7 +258,9 @@ describe("client privilege lock migration", () => {
     const sql = normalized(clientPrivilegeLockMigrationPath);
 
     expect(sql).toContain("revoke update on public.profiles from anon, authenticated");
-    expect(sql).toContain("revoke update (id, email, role, created_at) on public.profiles from anon, authenticated");
+    expect(sql).toContain(
+      "revoke update (id, email, role, created_at) on public.profiles from anon, authenticated",
+    );
     expect(sql).toContain("grant update (full_name, updated_at) on public.profiles to authenticated");
     expect(sql).not.toMatch(/grant update \([^)]*role[^)]*\) on public\.profiles/);
 
@@ -317,7 +340,9 @@ describe("Supabase Performance Advisor cleanup migration", () => {
 
     expect(sql).toContain("on public.workspace_preferences");
     expect(sql).toContain("user_id = (select auth.uid())");
-    expect(sql).toContain("revoke update (id, email, role, created_at) on public.profiles from anon, authenticated");
+    expect(sql).toContain(
+      "revoke update (id, email, role, created_at) on public.profiles from anon, authenticated",
+    );
     expect(sql).toContain("revoke insert, update, delete on public.purchases from anon, authenticated");
     expect(sql).toContain("grant select on public.purchases to authenticated");
   });

@@ -37,7 +37,9 @@ describe("LandingPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." }),
+    ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Study notes that remember the source." })).toBeNull();
     expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth");
     expect(screen.getAllByText("Split Study").length).toBeGreaterThan(0);
@@ -72,7 +74,9 @@ describe("LandingPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." }),
+    ).toBeTruthy();
     expect(screen.queryByTestId("beta-calm-homepage")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Study notes that remember the source." })).toBeNull();
   });
@@ -155,8 +159,12 @@ describe("LandingPage", () => {
     expect(within(workflow).getByText("Graph + formula context")).toBeTruthy();
     expect(within(workflow).getByText("Review card")).toBeTruthy();
     expect(within(workflow).getByText("Exam-ready mistake list")).toBeTruthy();
-    expect(screen.getByText("AI study helpers, when enabled, work from your notes and sources.")).toBeTruthy();
-    expect(screen.queryByText(/AI tutor for everything|homework outsourcing|answers your homework/i)).toBeNull();
+    expect(
+      screen.getByText("AI study helpers, when enabled, work from your notes and sources."),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/AI tutor for everything|homework outsourcing|answers your homework/i),
+    ).toBeNull();
   });
 
   it("keeps the beta homepage route gated until the flag is on", () => {
@@ -167,7 +175,9 @@ describe("LandingPage", () => {
     );
 
     expect(screen.queryByTestId("beta-calm-homepage")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." }),
+    ).toBeTruthy();
   });
 
   it("surfaces the gated /homepage-beta preview route without adding demo account buttons", () => {
@@ -181,7 +191,9 @@ describe("LandingPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("beta-calm-homepage").getAttribute("data-beta-preview-route")).toBe("homepage-beta");
+    expect(screen.getByTestId("beta-calm-homepage").getAttribute("data-beta-preview-route")).toBe(
+      "homepage-beta",
+    );
     expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth");
     expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
     expect(document.body.textContent).not.toMatch(/try demo|enter demo|demo sign-in/i);

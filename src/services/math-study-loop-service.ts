@@ -150,7 +150,10 @@ export function listProblemLogEntries(ownerId: string, storage = defaultStorage(
     .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
 }
 
-export function listFormulaTheoremCards(ownerId: string, storage = defaultStorage()): MathFormulaTheoremCard[] {
+export function listFormulaTheoremCards(
+  ownerId: string,
+  storage = defaultStorage(),
+): MathFormulaTheoremCard[] {
   return readJsonArray<MathFormulaTheoremCard>(storage, mathStudyFormulaCardsStorageKey(ownerId))
     .filter((card) => card.owner_id === ownerId)
     .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
@@ -332,19 +335,44 @@ export function formatMistakeType(value: MathMistakeType) {
 }
 
 export async function addProblemMistakeToCloudReview(input: {
-  betaEnabled: boolean; ownerId: string; problemLog: MathProblemLogEntry; reviewQueueBetaEnabled: boolean;
+  betaEnabled: boolean;
+  ownerId: string;
+  problemLog: MathProblemLogEntry;
+  reviewQueueBetaEnabled: boolean;
 }) {
   assertMathStudyLoopBetaEnabled(input.betaEnabled);
-  if (input.problemLog.owner_id !== input.ownerId) throw new Error("This problem belongs to a different account.");
+  if (input.problemLog.owner_id !== input.ownerId)
+    throw new Error("This problem belongs to a different account.");
   const problem = input.problemLog;
   const item = await createCloudStudyItem({
-    ownerId: input.ownerId, betaEnabled: input.reviewQueueBetaEnabled, type: "mistake_review",
+    ownerId: input.ownerId,
+    betaEnabled: input.reviewQueueBetaEnabled,
+    type: "mistake_review",
     prompt: `Review mistake: ${problem.problem_title}`,
-    answer: [`Mistake type: ${formatMistakeType(problem.mistake_type)}`, `Attempt: ${problem.attempt}`, `Correct/final answer: ${problem.final_answer}`].join("\n"),
-    binderId: problem.binder_id, binderTitle: problem.binder_title, courseId: problem.course_id, courseTitle: problem.course_title,
-    sourceId: problem.id, sourceKind: "mistake", sourceTitle: problem.problem_title, sourceExcerpt: problem.attempt,
+    answer: [
+      `Mistake type: ${formatMistakeType(problem.mistake_type)}`,
+      `Attempt: ${problem.attempt}`,
+      `Correct/final answer: ${problem.final_answer}`,
+    ].join("\n"),
+    binderId: problem.binder_id,
+    binderTitle: problem.binder_title,
+    courseId: problem.course_id,
+    courseTitle: problem.course_title,
+    sourceId: problem.id,
+    sourceKind: "mistake",
+    sourceTitle: problem.problem_title,
+    sourceExcerpt: problem.attempt,
   });
-  const logs = listProblemLogEntries(input.ownerId).map((entry) => entry.id === problem.id ? { ...entry, linked_review_item_id: item.id, review_due_at: item.due_at, updated_at: new Date().toISOString() } : entry);
+  const logs = listProblemLogEntries(input.ownerId).map((entry) =>
+    entry.id === problem.id
+      ? {
+          ...entry,
+          linked_review_item_id: item.id,
+          review_due_at: item.due_at,
+          updated_at: new Date().toISOString(),
+        }
+      : entry,
+  );
   writeJsonArray(defaultStorage(), mathStudyProblemLogsStorageKey(input.ownerId), logs);
   return item;
 }
@@ -356,7 +384,7 @@ export function assertMathStudyLoopBetaEnabled(betaEnabled: boolean) {
 }
 
 function normalizeTags(value: string[] | string | undefined) {
-  const raw = Array.isArray(value) ? value : value?.split(",") ?? [];
+  const raw = Array.isArray(value) ? value : (value?.split(",") ?? []);
   return [...new Set(raw.map((tag) => tag.trim()).filter(Boolean))].slice(0, 12);
 }
 

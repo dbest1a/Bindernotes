@@ -1,5 +1,13 @@
 import type { JSONContent } from "@tiptap/react";
-import type { Binder, BinderLesson, Folder, FolderBinderLink, MathBlock, WorkspaceModuleId, WorkspacePresetId } from "@/types";
+import type {
+  Binder,
+  BinderLesson,
+  Folder,
+  FolderBinderLink,
+  MathBlock,
+  WorkspaceModuleId,
+  WorkspacePresetId,
+} from "@/types";
 import { slugify } from "@/lib/utils";
 
 export const CHEMISTRY_SHOWCASE_FOLDER_ID = "folder-chemistry";
@@ -107,7 +115,8 @@ export const chemistryCourseSourceLedger = [
     title: "Chemistry 2e",
     fileName: "chemistry-2e_-_WEB.pdf",
     sourceType: "OpenStax open educational resource, metadata title Chemistry 2e",
-    topicsChecked: "introductory chemistry sequence, measurement, atoms, bonding, reactions, gases, solutions, kinetics, thermodynamics, equilibrium, acid-base, electrochemistry",
+    topicsChecked:
+      "introductory chemistry sequence, measurement, atoms, bonding, reactions, gases, solutions, kinetics, thermodynamics, equilibrium, acid-base, electrochemistry",
     reuse: "No direct prose, diagrams, tables, worked problems, captions, or answer keys were reused.",
   },
   {
@@ -121,7 +130,8 @@ export const chemistryCourseSourceLedger = [
     title: "CHM 102",
     fileName: "474_CHM 102.pdf",
     sourceType: "course slides/reference PDF, license not confirmed",
-    topicsChecked: "second-semester bridge topics for equilibrium, acids and bases, thermodynamics, and electrochemistry",
+    topicsChecked:
+      "second-semester bridge topics for equilibrium, acids and bases, thermodynamics, and electrochemistry",
     reuse: "Used only for factual orientation and advanced bridge placement.",
   },
   {
@@ -382,7 +392,8 @@ const formulaBank: Record<FormulaTopic, FormulaEntry[]> = {
     {
       name: "Photon energy",
       latex: "E=h\\nu=\\frac{hc}{\\lambda}",
-      variables: "E is energy, h is Planck's constant, nu is frequency, c is light speed, lambda is wavelength.",
+      variables:
+        "E is energy, h is Planck's constant, nu is frequency, c is light speed, lambda is wavelength.",
       units: "J per photon, Hz, m.",
       use: "Use when light evidence connects wavelength to electron energy changes.",
       trap: "Convert nm to m before using c/lambda.",
@@ -574,7 +585,8 @@ const vocabDictionary: Record<string, VocabEntry> = {
   model: {
     definition: "a simplified representation that helps explain or predict chemical behavior",
     precision: "A model is useful when it connects to evidence and limits are stated.",
-    example: "Particle drawings model gas pressure; a decorative sketch that ignores particles is not a chemistry model.",
+    example:
+      "Particle drawings model gas pressure; a decorative sketch that ignores particles is not a chemistry model.",
   },
   measurement: {
     definition: "a quantity recorded with a number and a unit",
@@ -584,7 +596,8 @@ const vocabDictionary: Record<string, VocabEntry> = {
   "dimensional analysis": {
     definition: "a unit-cancellation method for converting from one quantity to another",
     precision: "Every conversion factor must equal one relationship written as a ratio.",
-    example: "1000 mL/1 L converts liters to milliliters; multiplying by an unrelated number is not dimensional analysis.",
+    example:
+      "1000 mL/1 L converts liters to milliliters; multiplying by an unrelated number is not dimensional analysis.",
   },
   uncertainty: {
     definition: "the expected range of doubt in a measured value",
@@ -689,7 +702,8 @@ const vocabDictionary: Record<string, VocabEntry> = {
   entropy: {
     definition: "a thermodynamic measure related to energy dispersal and accessible microstates",
     precision: "Entropy is not simply messiness; particle count, phase, and temperature matter.",
-    example: "Vaporization usually increases entropy because gas particles have more accessible arrangements.",
+    example:
+      "Vaporization usually increases entropy because gas particles have more accessible arrangements.",
   },
   redox: {
     definition: "electron-transfer chemistry involving oxidation and reduction",
@@ -782,7 +796,11 @@ function lessonDoc(spec: ChemistryLessonSpec): JSONContent {
       heading("Spaced Review Cards"),
       bulletList(buildReviewCards(spec)),
       heading("Related Concept Links"),
-      bulletList(spec.relatedConcepts.map((concept) => `${concept} - revisit this when ${buildRelatedConceptReason(spec, concept)}.`)),
+      bulletList(
+        spec.relatedConcepts.map(
+          (concept) => `${concept} - revisit this when ${buildRelatedConceptReason(spec, concept)}.`,
+        ),
+      ),
       heading("Mastery Checklist"),
       bulletList(buildMasteryChecklist(spec)),
       heading("Copyright Hygiene Check"),
@@ -887,18 +905,20 @@ export const chemistryShowcaseLessons: BinderLesson[] = lessonSpecs.map((lesson)
   updated_at: now,
 }));
 
-export const chemistryShowcaseLessonMetadata: ChemistryShowcaseLessonMetadata[] = lessonSpecs.map((lesson) => ({
-  lessonId: lesson.id,
-  unitId: lesson.unitId,
-  unitTitle: lesson.unitTitle,
-  unitOrder: lesson.unitOrder,
-  presetId: lesson.presetId,
-  difficulty: lesson.difficulty,
-  conceptTags: lesson.conceptTags,
-  alignmentTags: lesson.alignmentTags,
-  moduleIds: lesson.moduleIds,
-  relatedConcepts: lesson.relatedConcepts,
-}));
+export const chemistryShowcaseLessonMetadata: ChemistryShowcaseLessonMetadata[] = lessonSpecs.map(
+  (lesson) => ({
+    lessonId: lesson.id,
+    unitId: lesson.unitId,
+    unitTitle: lesson.unitTitle,
+    unitOrder: lesson.unitOrder,
+    presetId: lesson.presetId,
+    difficulty: lesson.difficulty,
+    conceptTags: lesson.conceptTags,
+    alignmentTags: lesson.alignmentTags,
+    moduleIds: lesson.moduleIds,
+    relatedConcepts: lesson.relatedConcepts,
+  }),
+);
 
 export const chemistryCourseFolder = chemistryShowcaseFolder;
 export const chemistryCourseBinder = chemistryShowcaseBinder;
@@ -907,7 +927,10 @@ export const chemistryCourseLessons = chemistryShowcaseLessons;
 export const chemistryCourseLessonMetadata = chemistryShowcaseLessonMetadata;
 
 export function getChemistryShowcasePresetForLesson(lessonId: string): WorkspacePresetId {
-  return chemistryShowcaseLessonMetadata.find((metadata) => metadata.lessonId === lessonId)?.presetId ?? "chem-guided-study";
+  return (
+    chemistryShowcaseLessonMetadata.find((metadata) => metadata.lessonId === lessonId)?.presetId ??
+    "chem-guided-study"
+  );
 }
 
 export const getChemistryCoursePresetForLesson = getChemistryShowcasePresetForLesson;
@@ -919,21 +942,27 @@ function inferCategory(unitId: string, title: string): LessonCategory {
   if (unitId === "u1") return "atomic";
   if (unitId === "u2") return "bonding";
   if (unitId === "u3") return "imf-gases-solutions";
-  if (unitId === "u4") return lower.includes("stoichiometry") || lower.includes("limiting") ? "stoichiometry" : "reactions";
+  if (unitId === "u4")
+    return lower.includes("stoichiometry") || lower.includes("limiting") ? "stoichiometry" : "reactions";
   if (unitId === "u5") return "kinetics";
   if (unitId === "u6") return "thermochemistry";
   if (unitId === "u7") return "equilibrium";
   if (unitId === "u8") return "acid-base";
-  if (unitId === "u9") return lower.includes("redox") || lower.includes("cell") || lower.includes("electro") ? "electrochemistry" : "thermochemistry";
+  if (unitId === "u9")
+    return lower.includes("redox") || lower.includes("cell") || lower.includes("electro")
+      ? "electrochemistry"
+      : "thermochemistry";
   return "measurement";
 }
 
 function inferPreset(unitId: string, title: string, category: LessonCategory): WorkspacePresetId {
   const lower = title.toLowerCase();
-  if (lower.includes("lab safety") || lower.includes("data lab") || lower.includes("experimental design")) return "chemistry-lab";
+  if (lower.includes("lab safety") || lower.includes("data lab") || lower.includes("experimental design"))
+    return "chemistry-lab";
   if (category === "atomic") return "chem-element-explorer";
   if (category === "bonding") return "chem-bonding-studio";
-  if (category === "reactions") return lower.includes("titration") ? "chem-acid-base-titration-lab" : "chem-reaction-studio";
+  if (category === "reactions")
+    return lower.includes("titration") ? "chem-acid-base-titration-lab" : "chem-reaction-studio";
   if (category === "stoichiometry") return "chem-stoichiometry-lab";
   if (category === "kinetics") return "chem-kinetics-graph-lab";
   if (category === "thermochemistry") return "chem-thermochemistry-studio";
@@ -944,7 +973,8 @@ function inferPreset(unitId: string, title: string, category: LessonCategory): W
       ? "chem-solutions-molarity-lab"
       : "chem-guided-study";
   }
-  if (unitId === "u10") return lower.includes("review set") || lower.includes("final") ? "chem-full-studio" : "chem-guided-study";
+  if (unitId === "u10")
+    return lower.includes("review set") || lower.includes("final") ? "chem-full-studio" : "chem-guided-study";
   return "chem-guided-study";
 }
 
@@ -957,7 +987,13 @@ function inferFormulaTopics(title: string, category: LessonCategory): FormulaTop
   if (category === "bonding") topics.add("bonding");
   if (category === "imf-gases-solutions") {
     if (lower.includes("gas")) topics.add("gases").add("stoichiometry");
-    if (lower.includes("solution") || lower.includes("molarity") || lower.includes("dilution") || lower.includes("solubility")) topics.add("solutions");
+    if (
+      lower.includes("solution") ||
+      lower.includes("molarity") ||
+      lower.includes("dilution") ||
+      lower.includes("solubility")
+    )
+      topics.add("solutions");
     topics.add("data-analysis");
   }
   if (category === "reactions") topics.add("stoichiometry").add("solutions");
@@ -997,19 +1033,62 @@ function inferVocabTerms(title: string, category: LessonCategory): string[] {
 }
 
 function moduleIdsForPreset(presetId: WorkspacePresetId): WorkspaceModuleId[] {
-  const base: WorkspaceModuleId[] = ["lesson", "private-notes", "formula-sheet", "flashcards", "whiteboard", "related-concepts"];
+  const base: WorkspaceModuleId[] = [
+    "lesson",
+    "private-notes",
+    "formula-sheet",
+    "flashcards",
+    "whiteboard",
+    "related-concepts",
+  ];
   const extras: Partial<Record<WorkspacePresetId, WorkspaceModuleId[]>> = {
     "chem-guided-study": ["chem-concept-cards", "chem-quick-tools", "scientific-calculator"],
-    "chem-element-explorer": ["chem-periodic-table", "chem-element-builder", "chem-electron-config-builder", "chem-periodic-trends-graph"],
+    "chem-element-explorer": [
+      "chem-periodic-table",
+      "chem-element-builder",
+      "chem-electron-config-builder",
+      "chem-periodic-trends-graph",
+    ],
     "chem-bonding-studio": ["chem-molecule-builder", "chem-geometry-viewer", "chem-concept-cards"],
     "chem-reaction-studio": ["chem-reaction-balancer", "chem-tri-reaction-view", "chem-stoichiometry-coach"],
-    "chem-stoichiometry-lab": ["chem-stoichiometry-coach", "chem-molar-mass-calculator", "chem-reaction-balancer", "scientific-calculator"],
-    "chem-solutions-molarity-lab": ["chem-solution-mixer", "chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
-    "chem-acid-base-titration-lab": ["chem-titration-lab", "chem-ph-calculator", "chem-desmos-titration-curve", "chem-lab-notebook"],
+    "chem-stoichiometry-lab": [
+      "chem-stoichiometry-coach",
+      "chem-molar-mass-calculator",
+      "chem-reaction-balancer",
+      "scientific-calculator",
+    ],
+    "chem-solutions-molarity-lab": [
+      "chem-solution-mixer",
+      "chem-molarity-calculator",
+      "chem-desmos-concentration-graph",
+      "chem-lab-notebook",
+    ],
+    "chem-acid-base-titration-lab": [
+      "chem-titration-lab",
+      "chem-ph-calculator",
+      "chem-desmos-titration-curve",
+      "chem-lab-notebook",
+    ],
     "chem-kinetics-graph-lab": ["chem-kinetics-simulator", "chem-desmos-kinetics-plot", "chem-data-table"],
-    "chem-thermochemistry-studio": ["chem-calorimetry-lab", "chem-energy-diagram", "chem-calculation-sheet", "chem-lab-notebook"],
-    "chem-full-studio": ["chem-periodic-table", "chem-reaction-balancer", "chem-stoichiometry-coach", "chem-lab-notebook", "chem-review-queue"],
-    "chemistry-lab": ["chem-titration-lab", "chem-lab-notebook", "chem-reference-safety", "chem-stoichiometry-coach"],
+    "chem-thermochemistry-studio": [
+      "chem-calorimetry-lab",
+      "chem-energy-diagram",
+      "chem-calculation-sheet",
+      "chem-lab-notebook",
+    ],
+    "chem-full-studio": [
+      "chem-periodic-table",
+      "chem-reaction-balancer",
+      "chem-stoichiometry-coach",
+      "chem-lab-notebook",
+      "chem-review-queue",
+    ],
+    "chemistry-lab": [
+      "chem-titration-lab",
+      "chem-lab-notebook",
+      "chem-reference-safety",
+      "chem-stoichiometry-coach",
+    ],
   };
 
   return unique([...base, ...(extras[presetId] ?? [])]);
@@ -1045,11 +1124,20 @@ function buildRelatedConcepts(unit: ChemistryUnitSpec, title: string, category: 
     "ap-review": ["AP justification", "mixed representation", "error analysis"],
   };
 
-  return unique([unit.title.replace(/^Unit \d+ - /, ""), title, ...byCategory[category], ...common]).slice(0, 8);
+  return unique([unit.title.replace(/^Unit \d+ - /, ""), title, ...byCategory[category], ...common]).slice(
+    0,
+    8,
+  );
 }
 
 function inferDifficulty(unitId: string, title: string): ChemistryLessonSpec["difficulty"] {
-  if (title.includes("AP Mixed") || title.includes("Full AP") || title.includes("FRQ") || title.includes("MCQ")) return "challenge";
+  if (
+    title.includes("AP Mixed") ||
+    title.includes("Full AP") ||
+    title.includes("FRQ") ||
+    title.includes("MCQ")
+  )
+    return "challenge";
   if (unitId === "u0" || title.includes("Basics") || title.includes("Overview")) return "intro";
   return "core";
 }
@@ -1069,7 +1157,10 @@ function buildLearningObjectives(spec: ChemistryLessonSpec): string[] {
 }
 
 function buildPrerequisites(spec: ChemistryLessonSpec): string[] {
-  const shared = ["Comfort converting units and checking that units cancel.", "Willingness to draw particles before jumping into algebra."];
+  const shared = [
+    "Comfort converting units and checking that units cancel.",
+    "Willingness to draw particles before jumping into algebra.",
+  ];
   const categorySpecific: Record<LessonCategory, string[]> = {
     measurement: ["Basic calculator notation and percent calculations."],
     atomic: ["Protons define element identity; electrons define charge and many properties."],
@@ -1236,7 +1327,8 @@ function buildPracticeSet(spec: ChemistryLessonSpec): string[] {
 
 function categoryModelAnswer(category: LessonCategory) {
   const answers: Record<LessonCategory, string> = {
-    measurement: "measurement and uncertainty are central, with particles used to interpret what the measurement means",
+    measurement:
+      "measurement and uncertainty are central, with particles used to interpret what the measurement means",
     atomic: "charge, electron energy, and evidence for shells are central",
     bonding: "charge attraction, valence electrons, and molecular shape are central",
     "imf-gases-solutions": "particle spacing, attractions, and concentration are central",
@@ -1290,18 +1382,30 @@ function formatFormulaEntry(formula: FormulaEntry): string {
 
 function buildWhiteboardPrompt(spec: ChemistryLessonSpec): string {
   const prompts: Record<LessonCategory, string> = {
-    measurement: "Create a three-column board: measured quantity, unit path, and uncertainty note. Add arrows showing how raw data becomes a defensible claim.",
-    atomic: "Draw a nucleus, electron energy levels, and one evidence arrow from spectrum or PES data to the shell model.",
-    bonding: "Build a Lewis structure map: electron count, skeleton, lone pairs, formal charge, geometry, and polarity.",
-    "imf-gases-solutions": "Sketch particles before and after a phase, gas, or solution change. Label attractions, spacing, and motion.",
-    reactions: "Draw a tri-representation panel: balanced symbolic equation, particle diagram, and lab observation.",
-    stoichiometry: "Draw the mole bridge as a unit ladder from given amount to target amount, with each conversion factor labeled.",
-    kinetics: "Draw an energy diagram and a concentration-time graph beside each other. Label what a catalyst changes and what it does not change.",
-    thermochemistry: "Sketch system and surroundings with arrows for heat flow, then pair it with an energy diagram.",
-    equilibrium: "Draw a reversible-reaction balance with Q and K comparison arrows, then show how a disturbance changes direction.",
-    "acid-base": "Sketch conjugate acid-base pairs and a titration curve; mark buffer region, equivalence point, and indicator range when relevant.",
-    electrochemistry: "Draw an electrochemical cell with anode, cathode, electron flow, ion flow, and voltage sign.",
-    "ap-review": "Create a representation triangle: particle diagram, equation/calculation, and written justification. Add one arrow showing how each supports the next.",
+    measurement:
+      "Create a three-column board: measured quantity, unit path, and uncertainty note. Add arrows showing how raw data becomes a defensible claim.",
+    atomic:
+      "Draw a nucleus, electron energy levels, and one evidence arrow from spectrum or PES data to the shell model.",
+    bonding:
+      "Build a Lewis structure map: electron count, skeleton, lone pairs, formal charge, geometry, and polarity.",
+    "imf-gases-solutions":
+      "Sketch particles before and after a phase, gas, or solution change. Label attractions, spacing, and motion.",
+    reactions:
+      "Draw a tri-representation panel: balanced symbolic equation, particle diagram, and lab observation.",
+    stoichiometry:
+      "Draw the mole bridge as a unit ladder from given amount to target amount, with each conversion factor labeled.",
+    kinetics:
+      "Draw an energy diagram and a concentration-time graph beside each other. Label what a catalyst changes and what it does not change.",
+    thermochemistry:
+      "Sketch system and surroundings with arrows for heat flow, then pair it with an energy diagram.",
+    equilibrium:
+      "Draw a reversible-reaction balance with Q and K comparison arrows, then show how a disturbance changes direction.",
+    "acid-base":
+      "Sketch conjugate acid-base pairs and a titration curve; mark buffer region, equivalence point, and indicator range when relevant.",
+    electrochemistry:
+      "Draw an electrochemical cell with anode, cathode, electron flow, ion flow, and voltage sign.",
+    "ap-review":
+      "Create a representation triangle: particle diagram, equation/calculation, and written justification. Add one arrow showing how each supports the next.",
   };
 
   return `${prompts[spec.category]} Keep the diagram original and focused on ${spec.title}.`;
@@ -1309,18 +1413,27 @@ function buildWhiteboardPrompt(spec: ChemistryLessonSpec): string {
 
 function buildDataPrompt(spec: ChemistryLessonSpec): { prompt: string; tasks: string[] } {
   const data: Record<LessonCategory, string> = {
-    measurement: "Original data: Trial 1 mass 12.42 g, volume 4.18 mL; Trial 2 mass 12.39 g, volume 4.15 mL; Trial 3 mass 12.45 g, volume 4.20 mL.",
-    atomic: "Original data: Element X has isotope masses 68.93 amu and 70.92 amu with abundances 60.1% and 39.9%.",
-    bonding: "Original data: Molecule A has polar bonds arranged linear; Molecule B has similar bond polarity arranged bent.",
-    "imf-gases-solutions": "Original data: at 298 K, gas pressure readings are 0.82 atm at 3.00 L, 1.22 atm at 2.00 L, and 2.42 atm at 1.00 L.",
-    reactions: "Original data: mixing solution A and solution B produces 0.842 g precipitate after filtering and drying.",
+    measurement:
+      "Original data: Trial 1 mass 12.42 g, volume 4.18 mL; Trial 2 mass 12.39 g, volume 4.15 mL; Trial 3 mass 12.45 g, volume 4.20 mL.",
+    atomic:
+      "Original data: Element X has isotope masses 68.93 amu and 70.92 amu with abundances 60.1% and 39.9%.",
+    bonding:
+      "Original data: Molecule A has polar bonds arranged linear; Molecule B has similar bond polarity arranged bent.",
+    "imf-gases-solutions":
+      "Original data: at 298 K, gas pressure readings are 0.82 atm at 3.00 L, 1.22 atm at 2.00 L, and 2.42 atm at 1.00 L.",
+    reactions:
+      "Original data: mixing solution A and solution B produces 0.842 g precipitate after filtering and drying.",
     stoichiometry: "Original data: 1.25 g reactant A and 2.40 g reactant B form 1.91 g product after drying.",
     kinetics: "Original data: time 0, 20, 40, 60 s; [A] 0.800, 0.566, 0.400, 0.283 M.",
     thermochemistry: "Original data: 48.0 g water changes from 21.4 C to 29.8 C in a foam-cup calorimeter.",
-    equilibrium: "Original data: initial [A] = 0.500 M and equilibrium [B] = 0.160 M for A <=> 2B in a sealed vessel.",
-    "acid-base": "Original data: titration pH values at 0.00, 12.50, 24.50, 25.00, 25.50 mL are 2.10, 2.45, 3.30, 7.00, 10.70.",
-    electrochemistry: "Original data: a cell runs at 0.250 A for 965 s and deposits a metal from M2+ solution.",
-    "ap-review": "Original data: a student records a table, a particle drawing, and a calculation that appear to disagree by one unit conversion.",
+    equilibrium:
+      "Original data: initial [A] = 0.500 M and equilibrium [B] = 0.160 M for A <=> 2B in a sealed vessel.",
+    "acid-base":
+      "Original data: titration pH values at 0.00, 12.50, 24.50, 25.00, 25.50 mL are 2.10, 2.45, 3.30, 7.00, 10.70.",
+    electrochemistry:
+      "Original data: a cell runs at 0.250 A for 965 s and deposits a metal from M2+ solution.",
+    "ap-review":
+      "Original data: a student records a table, a particle drawing, and a calculation that appear to disagree by one unit conversion.",
   };
 
   return {
@@ -1336,21 +1449,60 @@ function buildDataPrompt(spec: ChemistryLessonSpec): { prompt: string; tasks: st
 
 function buildMisconceptions(spec: ChemistryLessonSpec): string[] {
   const common: Record<LessonCategory, string[]> = {
-    measurement: ["More digits do not automatically mean better data.", "Accuracy and precision answer different questions."],
-    atomic: ["Changing electron count changes charge; changing proton count changes element identity.", "Orbitals are probability models, not tiny planetary tracks."],
-    bonding: ["Formal charge is not the same as partial charge.", "A polar bond does not guarantee a polar molecule."],
-    "imf-gases-solutions": ["Boiling or dissolving usually changes attractions between particles, not the formula identity.", "Strong intermolecular forces are not covalent bonds."],
-    reactions: ["Subscripts cannot be changed to balance a reaction.", "Spectator ions are present but do not drive the net ionic change."],
-    stoichiometry: ["The limiting reactant is not always the reactant with the smaller mass.", "Mole ratios come from balanced coefficients, not molar masses."],
-    kinetics: ["Rate-law exponents are determined from data, not taken from the balanced equation.", "A catalyst changes pathway, not reaction enthalpy or K."],
-    thermochemistry: ["Temperature and heat are related but not identical.", "Exothermic for the system means heat leaves the system."],
-    equilibrium: ["Equilibrium does not mean equal reactant and product concentrations.", "Adding a pure solid does not appear in K expressions."],
-    "acid-base": ["Strong means complete ionization, not high concentration.", "A buffer is not immune to pH change; it has capacity limits."],
-    electrochemistry: ["Electrons do not travel through the salt bridge.", "Cell potentials are not multiplied by stoichiometric coefficients."],
-    "ap-review": ["AP explanations need chemistry reasoning, not just the answer choice.", "A correct number without units and justification can still be incomplete."],
+    measurement: [
+      "More digits do not automatically mean better data.",
+      "Accuracy and precision answer different questions.",
+    ],
+    atomic: [
+      "Changing electron count changes charge; changing proton count changes element identity.",
+      "Orbitals are probability models, not tiny planetary tracks.",
+    ],
+    bonding: [
+      "Formal charge is not the same as partial charge.",
+      "A polar bond does not guarantee a polar molecule.",
+    ],
+    "imf-gases-solutions": [
+      "Boiling or dissolving usually changes attractions between particles, not the formula identity.",
+      "Strong intermolecular forces are not covalent bonds.",
+    ],
+    reactions: [
+      "Subscripts cannot be changed to balance a reaction.",
+      "Spectator ions are present but do not drive the net ionic change.",
+    ],
+    stoichiometry: [
+      "The limiting reactant is not always the reactant with the smaller mass.",
+      "Mole ratios come from balanced coefficients, not molar masses.",
+    ],
+    kinetics: [
+      "Rate-law exponents are determined from data, not taken from the balanced equation.",
+      "A catalyst changes pathway, not reaction enthalpy or K.",
+    ],
+    thermochemistry: [
+      "Temperature and heat are related but not identical.",
+      "Exothermic for the system means heat leaves the system.",
+    ],
+    equilibrium: [
+      "Equilibrium does not mean equal reactant and product concentrations.",
+      "Adding a pure solid does not appear in K expressions.",
+    ],
+    "acid-base": [
+      "Strong means complete ionization, not high concentration.",
+      "A buffer is not immune to pH change; it has capacity limits.",
+    ],
+    electrochemistry: [
+      "Electrons do not travel through the salt bridge.",
+      "Cell potentials are not multiplied by stoichiometric coefficients.",
+    ],
+    "ap-review": [
+      "AP explanations need chemistry reasoning, not just the answer choice.",
+      "A correct number without units and justification can still be incomplete.",
+    ],
   };
 
-  return [...common[spec.category], `For ${spec.title}, check the model and the units before deciding the final claim.`];
+  return [
+    ...common[spec.category],
+    `For ${spec.title}, check the model and the units before deciding the final claim.`,
+  ];
 }
 
 function buildReviewCards(spec: ChemistryLessonSpec): string[] {
@@ -1379,16 +1531,18 @@ function buildRelatedConceptReason(spec: ChemistryLessonSpec, concept: string) {
 }
 
 function buildMathBlocks(spec: ChemistryLessonSpec): MathBlock[] {
-  return getFormulaEntries(spec.formulaTopics).slice(0, 3).map((formula, index) => ({
-    id: `${spec.id}-formula-${index + 1}`,
-    type: "latex",
-    latex: formula.latex,
-    label: formula.name,
-    description: `${formula.use} Common trap: ${formula.trap}`,
-    sourceHeading: "Formula Sheet",
-    sourceAnchorId: `${spec.id}-formula-sheet`,
-    topic: spec.unitTitle,
-  }));
+  return getFormulaEntries(spec.formulaTopics)
+    .slice(0, 3)
+    .map((formula, index) => ({
+      id: `${spec.id}-formula-${index + 1}`,
+      type: "latex",
+      latex: formula.latex,
+      label: formula.name,
+      description: `${formula.use} Common trap: ${formula.trap}`,
+      sourceHeading: "Formula Sheet",
+      sourceAnchorId: `${spec.id}-formula-sheet`,
+      topic: spec.unitTitle,
+    }));
 }
 
 function unique<T>(items: T[]): T[] {

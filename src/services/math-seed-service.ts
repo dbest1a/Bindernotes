@@ -18,20 +18,16 @@ export type MathSeedCounts = {
 
 export type MathSeedResult = MathSeedCounts;
 
-type SeedTable =
-  | "math_courses"
-  | "math_topics"
-  | "math_modules"
-  | "question_bank"
-  | "question_choices";
+type SeedTable = "math_courses" | "math_topics" | "math_modules" | "question_bank" | "question_choices";
 
-export async function seedMathLearningWithClient(
-  client: CatalogSeedClient,
-): Promise<MathSeedResult> {
+export async function seedMathLearningWithClient(client: CatalogSeedClient): Promise<MathSeedResult> {
   const { error } = await client.rpc("apply_catalog_seed", {
     p_payload: {
-      math_courses: mathSeedCourses, math_topics: mathSeedTopics, math_modules: mathSeedModules,
-      question_bank: mathSeedQuestions, question_choices: mathSeedChoices,
+      math_courses: mathSeedCourses,
+      math_topics: mathSeedTopics,
+      math_modules: mathSeedModules,
+      question_bank: mathSeedQuestions,
+      question_choices: mathSeedChoices,
     },
   });
   if (error) throw new Error(`Transactional math seed failed: ${error.message}`);
@@ -64,9 +60,7 @@ export async function getMathSeedCounts(client: SupabaseClient): Promise<MathSee
 }
 
 async function countRows(client: SupabaseClient, table: SeedTable) {
-  const { count, error } = await client
-    .from(table)
-    .select("id", { count: "exact", head: true });
+  const { count, error } = await client.from(table).select("id", { count: "exact", head: true });
 
   if (error) {
     throw new Error(`Failed to count ${table}: ${error.message}`);

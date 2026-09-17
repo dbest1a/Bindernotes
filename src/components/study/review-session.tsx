@@ -10,7 +10,11 @@ export function ReviewSession({
   onRate,
 }: {
   items: StudyItem[];
-  onRate: (item: StudyItem, rating: StudyReviewRating, response: string) => StudyReviewEvent | Promise<StudyReviewEvent>;
+  onRate: (
+    item: StudyItem,
+    rating: StudyReviewRating,
+    response: string,
+  ) => StudyReviewEvent | Promise<StudyReviewEvent>;
 }) {
   const [reviewedItemIds, setReviewedItemIds] = useState<Set<string>>(() => new Set());
   const [response, setResponse] = useState("");
@@ -21,7 +25,12 @@ export function ReviewSession({
   const [error, setError] = useState("");
   const running = useRef(false);
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const activeItem = items.find((item) => !reviewedItemIds.has(item.id)) ?? null;
   const summary = useMemo(
     () => buildStudySessionSummary({ events, items: [...items, ...reviewedItems] }),
@@ -32,21 +41,32 @@ export function ReviewSession({
     if (!activeItem || running.current) {
       return;
     }
-    running.current = true; setPending(true); setError("");
+    running.current = true;
+    setPending(true);
+    setError("");
     try {
-    const event = await onRate(activeItem, rating, response);
-    if (!alive.current) return;
-    setEvents((current) => [...current, event]);
-    setReviewedItems((current) => [...current, activeItem]);
-    setReviewedItemIds((current) => {
-      const next = new Set(current);
-      next.add(activeItem.id);
-      return next;
-    });
-    setResponse("");
-    setRevealed(false);
-    } catch (error) { if (alive.current) setError(error instanceof Error ? error.message : "Rating could not be saved. Your response is still here."); }
-    finally { if (alive.current) { running.current = false; setPending(false); } }
+      const event = await onRate(activeItem, rating, response);
+      if (!alive.current) return;
+      setEvents((current) => [...current, event]);
+      setReviewedItems((current) => [...current, activeItem]);
+      setReviewedItemIds((current) => {
+        const next = new Set(current);
+        next.add(activeItem.id);
+        return next;
+      });
+      setResponse("");
+      setRevealed(false);
+    } catch (error) {
+      if (alive.current)
+        setError(
+          error instanceof Error ? error.message : "Rating could not be saved. Your response is still here.",
+        );
+    } finally {
+      if (alive.current) {
+        running.current = false;
+        setPending(false);
+      }
+    }
   };
 
   return (
@@ -58,7 +78,9 @@ export function ReviewSession({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Study Session</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Study Session
+          </p>
           <h2 className="text-2xl font-semibold tracking-tight">One card at a time</h2>
         </div>
         <Badge variant="secondary">{events.length} reviewed</Badge>
@@ -69,7 +91,9 @@ export function ReviewSession({
       {activeItem ? (
         <ReviewCard
           item={activeItem}
-          onRate={(rating) => { void rateActive(rating); }}
+          onRate={(rating) => {
+            void rateActive(rating);
+          }}
           pending={pending}
           onResponseChange={setResponse}
           onReveal={() => setRevealed(true)}
@@ -114,7 +138,9 @@ function SessionSummaryView({
         </div>
         <div>
           <dt className="text-muted-foreground">Next due</dt>
-          <dd className="font-semibold">{summary.nextDue ? formatDue(summary.nextDue) : "Nothing scheduled"}</dd>
+          <dd className="font-semibold">
+            {summary.nextDue ? formatDue(summary.nextDue) : "Nothing scheduled"}
+          </dd>
         </div>
       </dl>
       {!compact || summary.hardItems.length ? (

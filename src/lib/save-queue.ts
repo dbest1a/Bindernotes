@@ -21,7 +21,9 @@ export class SaveQueue {
   private sequences = new Map<string, number>();
   private tails = new Map<string, Promise<unknown>>();
 
-  getAccount() { return this.ownerId; }
+  getAccount() {
+    return this.ownerId;
+  }
 
   setAccount(ownerId: string | null) {
     if (ownerId === this.ownerId) return;
@@ -37,7 +39,9 @@ export class SaveQueue {
 
   subscribeAccount(listener: (ownerId: string | null) => void) {
     this.accountListeners.add(listener);
-    return () => { this.accountListeners.delete(listener); };
+    return () => {
+      this.accountListeners.delete(listener);
+    };
   }
 
   subscribe(listener: SaveQueueListener) {
@@ -91,35 +95,39 @@ export class SaveQueue {
     });
 
     const previous = this.tails.get(input.scopeKey) ?? Promise.resolve();
-    const operation = previous.catch(() => undefined).then(async () => {
-      if (!current()) throw new Error("The account changed before this save could finish.");
-      return input.runner();
-    });
+    const operation = previous
+      .catch(() => undefined)
+      .then(async () => {
+        if (!current()) throw new Error("The account changed before this save could finish.");
+        return input.runner();
+      });
     this.tails.set(input.scopeKey, operation);
     try {
       const result = await operation;
       if (!current()) throw new Error("The account changed before this save could finish.");
-      if (latest()) this.setRecord(input.scopeKey, {
-        ownerId: input.ownerId,
-        entityType: input.entityType,
-        scopeKey: input.scopeKey,
-        state: "saved",
-        lastSavedAt: new Date().toISOString(),
-        error: null,
-        retry: null,
-      });
+      if (latest())
+        this.setRecord(input.scopeKey, {
+          ownerId: input.ownerId,
+          entityType: input.entityType,
+          scopeKey: input.scopeKey,
+          state: "saved",
+          lastSavedAt: new Date().toISOString(),
+          error: null,
+          retry: null,
+        });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Save failed.";
-      if (latest()) this.setRecord(input.scopeKey, {
-        ownerId: input.ownerId,
-        entityType: input.entityType,
-        scopeKey: input.scopeKey,
-        state: "failed",
-        lastSavedAt: this.records.get(input.scopeKey)?.lastSavedAt ?? null,
-        error: message,
-        retry: input.runner,
-      });
+      if (latest())
+        this.setRecord(input.scopeKey, {
+          ownerId: input.ownerId,
+          entityType: input.entityType,
+          scopeKey: input.scopeKey,
+          state: "failed",
+          lastSavedAt: this.records.get(input.scopeKey)?.lastSavedAt ?? null,
+          error: message,
+          retry: input.runner,
+        });
       throw error;
     } finally {
       if (this.tails.get(input.scopeKey) === operation) this.tails.delete(input.scopeKey);

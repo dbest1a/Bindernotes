@@ -9,7 +9,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { bucketStudyItems, type StudyReviewRating } from "@/lib/study-scheduler";
 import type { StudyItem } from "@/services/study-items-service";
-import { createCloudStudyItem, listCanonicalReviews, recordCloudStudyReview, retryPendingReviewSaves } from "@/services/canonical-review-service";
+import {
+  createCloudStudyItem,
+  listCanonicalReviews,
+  recordCloudStudyReview,
+  retryPendingReviewSaves,
+} from "@/services/canonical-review-service";
 import { reviewIsActive, type SavedReviewRecord } from "@/lib/canonical-review";
 import { ReviewMigrationPanel } from "@/components/study/review-migration-panel";
 
@@ -25,7 +30,12 @@ const baseReviewTabs: Array<{ id: ReviewTab; label: string }> = [
 
 export function ReviewPage() {
   const { profile } = useAuth();
-  if (!profile) return <main className="app-page"><EmptyState title="Sign in to review" description="Your review cards belong to your account." /></main>;
+  if (!profile)
+    return (
+      <main className="app-page">
+        <EmptyState title="Sign in to review" description="Your review cards belong to your account." />
+      </main>
+    );
   return <AccountReviewPage key={profile.id} ownerId={profile.id} />;
 }
 
@@ -37,7 +47,10 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
   const [activeTab, setActiveTab] = useState<ReviewTab>("due");
   const [binderFilter, setBinderFilter] = useState("all");
   const [records, setRecords] = useState<SavedReviewRecord[]>([]);
-  const items = useMemo(() => records.filter((saved) => reviewIsActive(saved.record)).map((saved) => saved.record.item), [records]);
+  const items = useMemo(
+    () => records.filter((saved) => reviewIsActive(saved.record)).map((saved) => saved.record.item),
+    [records],
+  );
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -46,18 +59,28 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
   useEffect(() => {
     if (!reviewQueueBeta) return;
     const controller = new AbortController();
-    setLoading(true); setLoadError("");
-    void listCanonicalReviews(ownerId, controller.signal).then((result) => {
-      if (!controller.signal.aborted) setRecords(result);
-    }).catch((error) => {
-      if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Could not load review work.");
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    setLoading(true);
+    setLoadError("");
+    void listCanonicalReviews(ownerId, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setRecords(result);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setLoadError(error instanceof Error ? error.message : "Could not load review work.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, [ownerId, reviewQueueBeta, reload]);
 
   const buckets = useMemo(() => bucketStudyItems(items), [items]);
   const reviewTabs = useMemo(
-    () => (mathStudyLoopBeta ? [...baseReviewTabs, { id: "mistakes" as const, label: "Review mistakes" }] : baseReviewTabs),
+    () =>
+      mathStudyLoopBeta
+        ? [...baseReviewTabs, { id: "mistakes" as const, label: "Review mistakes" }]
+        : baseReviewTabs,
     [mathStudyLoopBeta],
   );
   const binderOptions = useMemo(
@@ -74,7 +97,7 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
         : activeTab === "difficult"
           ? buckets.difficult
           : activeTab === "mastered"
-          ? buckets.mastered
+            ? buckets.mastered
             : activeTab === "binder"
               ? items
               : activeTab === "mistakes"
@@ -86,7 +109,15 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
     }
 
     return base.filter((item) => (item.binder_id ?? item.course_id ?? "unfiled") === binderFilter);
-  }, [activeTab, binderFilter, buckets.difficult, buckets.dueToday, buckets.mastered, buckets.upcoming, items]);
+  }, [
+    activeTab,
+    binderFilter,
+    buckets.difficult,
+    buckets.dueToday,
+    buckets.mastered,
+    buckets.upcoming,
+    items,
+  ]);
 
   if (!reviewQueueBeta) {
     return (
@@ -104,19 +135,23 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
   const createStarterItem = async () => {
     if (creating) return;
     setCreating(true);
-    try { await createCloudStudyItem({
-      answer: "Write the source-linked answer in your own words before checking.",
-      betaEnabled: reviewQueueBeta,
-      ownerId: profile.id,
-      prompt: "Explain one idea from today's notes.",
-      sourceKind: "manual",
-      sourceTitle: "Manual review item",
-      type: "free_response",
-    });
-    refreshItems();
-    setMessage("Review item saved to your account.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Review item could not be saved."); }
-    finally { setCreating(false); }
+    try {
+      await createCloudStudyItem({
+        answer: "Write the source-linked answer in your own words before checking.",
+        betaEnabled: reviewQueueBeta,
+        ownerId: profile.id,
+        prompt: "Explain one idea from today's notes.",
+        sourceKind: "manual",
+        sourceTitle: "Manual review item",
+        type: "free_response",
+      });
+      refreshItems();
+      setMessage("Review item saved to your account.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Review item could not be saved.");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const recordRating = async (item: StudyItem, rating: StudyReviewRating, response: string) => {
@@ -129,7 +164,9 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
       rating,
       response,
     });
-    setRecords((current) => current.map((saved) => saved.record.item.id === item.id ? result.saved : saved));
+    setRecords((current) =>
+      current.map((saved) => (saved.record.item.id === item.id ? result.saved : saved)),
+    );
     return result.event;
   };
 
@@ -144,7 +181,8 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
           <Badge variant="secondary">Beta Revamp</Badge>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight">Review Queue</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Turn notes, highlights, formulas, problems, and mistakes into active recall without open-ended homework AI.
+            Turn notes, highlights, formulas, problems, and mistakes into active recall without open-ended
+            homework AI.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -168,11 +206,36 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
         <MetricCard label="Mastered" value={buckets.mastered.length} />
       </section>
 
-      {message ? <p className="rounded-lg border border-border/70 bg-card/85 px-3 py-2 text-sm" role="status">{message}</p> : null}
+      {message ? (
+        <p className="rounded-lg border border-border/70 bg-card/85 px-3 py-2 text-sm" role="status">
+          {message}
+        </p>
+      ) : null}
       <ReviewMigrationPanel key={ownerId} ownerId={ownerId} onImported={refreshItems} />
-      <Button variant="outline" onClick={() => { void retryPendingReviewSaves(ownerId).then((count) => { setMessage(`${count} pending review saves confirmed.`); refreshItems(); }).catch((error) => setMessage(error instanceof Error ? error.message : "Pending saves could not be confirmed.")); }}>Retry pending review saves</Button>
+      <Button
+        variant="outline"
+        onClick={() => {
+          void retryPendingReviewSaves(ownerId)
+            .then((count) => {
+              setMessage(`${count} pending review saves confirmed.`);
+              refreshItems();
+            })
+            .catch((error) =>
+              setMessage(error instanceof Error ? error.message : "Pending saves could not be confirmed."),
+            );
+        }}
+      >
+        Retry pending review saves
+      </Button>
       {loading && <p role="status">Loading account review work…</p>}
-      {loadError && <p role="alert">{loadError} <Button variant="outline" onClick={refreshItems}>Retry loading</Button></p>}
+      {loadError && (
+        <p role="alert">
+          {loadError}{" "}
+          <Button variant="outline" onClick={refreshItems}>
+            Retry loading
+          </Button>
+        </p>
+      )}
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
         <aside className="page-shell grid gap-4 p-4">
@@ -214,12 +277,15 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
               visibleItems.map((item) => (
                 <article className="rounded-lg border border-border/70 bg-background/78 p-3" key={item.id}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={item.status === "difficult" ? "outline" : "secondary"}>{item.status}</Badge>
+                    <Badge variant={item.status === "difficult" ? "outline" : "secondary"}>
+                      {item.status}
+                    </Badge>
                     <Badge variant="outline">{item.type.replace(/_/g, " ")}</Badge>
                   </div>
                   <h2 className="mt-2 font-semibold">{item.prompt}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {item.binder_title ?? item.course_title ?? item.source_title ?? "Unfiled"} - due {formatDate(item.due_at)}
+                    {item.binder_title ?? item.course_title ?? item.source_title ?? "Unfiled"} - due{" "}
+                    {formatDate(item.due_at)}
                   </p>
                 </article>
               ))
@@ -237,7 +303,11 @@ function AccountReviewPage({ ownerId }: { ownerId: string }) {
             <BookOpenCheck className="size-5 text-primary" />
             <h2 className="text-lg font-semibold">Study Session</h2>
           </div>
-          <ReviewSession key={`${ownerId}:${activeTab}:${binderFilter}`} items={visibleItems.filter((item) => item.status !== "mastered")} onRate={recordRating} />
+          <ReviewSession
+            key={`${ownerId}:${activeTab}:${binderFilter}`}
+            items={visibleItems.filter((item) => item.status !== "mastered")}
+            onRate={recordRating}
+          />
         </section>
       </section>
     </main>

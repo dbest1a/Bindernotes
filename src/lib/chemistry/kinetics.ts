@@ -16,7 +16,8 @@ export function generateKineticsDataset(input: {
   const count = input.points ?? 12;
   const duration = input.durationS ?? 120;
   if (![0, 1, 2].includes(input.order)) throw new RangeError("Reaction order must be zero, one, or two.");
-  if (!Number.isInteger(count) || count < 2 || count > 10000) throw new RangeError("Use between 2 and 10000 data points.");
+  if (!Number.isInteger(count) || count < 2 || count > 10000)
+    throw new RangeError("Use between 2 and 10000 data points.");
   positive(duration, "Duration");
   const initial = positive(input.initialConcentrationM, "Initial concentration");
   const k = nonnegative(input.rateConstant, "Rate constant");
@@ -34,7 +35,11 @@ export function generateKineticsDataset(input: {
     }
 
     const linearized =
-      input.order === 0 ? concentrationM : input.order === 1 ? Math.log(initial) - decay : 1 / initial + decay;
+      input.order === 0
+        ? concentrationM
+        : input.order === 1
+          ? Math.log(initial) - decay
+          : 1 / initial + decay;
 
     return {
       timeS,

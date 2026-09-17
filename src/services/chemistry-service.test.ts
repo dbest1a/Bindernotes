@@ -16,9 +16,7 @@ describe("chemistry service payload guards", () => {
       finalAnswer: { value: 36.03, unit: "g", formula: "H2O" },
       conceptTags: ["stoichiometry"],
       mistakeTags: ["skipped_mole_bridge"],
-      stepSummaries: [
-        { kind: "given_to_moles", label: "Convert grams H2 to moles.", value: 2, unit: "mol" },
-      ],
+      stepSummaries: [{ kind: "given_to_moles", label: "Convert grams H2 to moles.", value: 2, unit: "mol" }],
       privateScratchText: "This text should never be saved.",
     });
 

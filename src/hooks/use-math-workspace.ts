@@ -126,15 +126,20 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
   const scopeToken = scopeTokenRef.current;
   useEffect(() => {
     scopeToken.active = true;
-    return () => { scopeToken.active = false; };
+    return () => {
+      scopeToken.active = false;
+    };
   }, [scopeToken]);
-  const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
-    if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return;
-    setStoredState((current) => {
-      if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return current;
-      return typeof update === "function" ? update(current) : update;
-    });
-  }, [scopeToken]);
+  const setState = useCallback(
+    (update: SetStateAction<MathWorkspaceState>) => {
+      if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return;
+      setStoredState((current) => {
+        if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return current;
+        return typeof update === "function" ? update(current) : update;
+      });
+    },
+    [scopeToken],
+  );
 
   // Reset before committing children or persistence effects for another scope.
   if (loadedScopeKey !== scopeKey) {
@@ -155,26 +160,31 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     [state.history],
   );
   const savedFunctionMap = useMemo(
-    () =>
-      Object.fromEntries(state.savedFunctions.map((item) => [item.name, item.expression])),
+    () => Object.fromEntries(state.savedFunctions.map((item) => [item.name, item.expression])),
     [state.savedFunctions],
   );
 
-  const setExpression = useCallback((expression: string) => {
-    setState((current) => ({
-      ...current,
-      calculatorExpression: expression,
-      calculatorError: null,
-    }));
-  }, [setState]);
+  const setExpression = useCallback(
+    (expression: string) => {
+      setState((current) => ({
+        ...current,
+        calculatorExpression: expression,
+        calculatorError: null,
+      }));
+    },
+    [setState],
+  );
 
-  const appendToken = useCallback((token: string) => {
-    setState((current) => ({
-      ...current,
-      calculatorExpression: `${current.calculatorExpression}${token}`,
-      calculatorError: null,
-    }));
-  }, [setState]);
+  const appendToken = useCallback(
+    (token: string) => {
+      setState((current) => ({
+        ...current,
+        calculatorExpression: `${current.calculatorExpression}${token}`,
+        calculatorError: null,
+      }));
+    },
+    [setState],
+  );
 
   const clearExpression = useCallback(() => {
     setState((current) => ({
@@ -203,14 +213,11 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       if (definition) {
         const timestamp = new Date().toISOString();
         const nextDefinition: SavedMathFunction = {
-          id:
-            current.savedFunctions.find((item) => item.name === definition.name)?.id ??
-            crypto.randomUUID(),
+          id: current.savedFunctions.find((item) => item.name === definition.name)?.id ?? crypto.randomUUID(),
           name: definition.name,
           expression: definition.expression,
           createdAt:
-            current.savedFunctions.find((item) => item.name === definition.name)?.createdAt ??
-            timestamp,
+            current.savedFunctions.find((item) => item.name === definition.name)?.createdAt ?? timestamp,
           updatedAt: timestamp,
         };
         const entry: CalculatorHistoryItem = {
@@ -237,12 +244,8 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
 
       const result = evaluateScientificExpression(expression, {
         angleMode: current.angleMode,
-        ans:
-          current.history.find((item) => Number.isFinite(item.numericResult))?.numericResult ??
-          undefined,
-        functions: Object.fromEntries(
-          current.savedFunctions.map((item) => [item.name, item.expression]),
-        ),
+        ans: current.history.find((item) => Number.isFinite(item.numericResult))?.numericResult ?? undefined,
+        functions: Object.fromEntries(current.savedFunctions.map((item) => [item.name, item.expression])),
       });
 
       if (!result.ok) {
@@ -272,150 +275,186 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     });
   }, [setState]);
 
-  const setAngleMode = useCallback((angleMode: AngleMode) => {
-    setState((current) => ({ ...current, angleMode }));
-  }, [setState]);
+  const setAngleMode = useCallback(
+    (angleMode: AngleMode) => {
+      setState((current) => ({ ...current, angleMode }));
+    },
+    [setState],
+  );
 
-  const reuseHistoryExpression = useCallback((expression: string) => {
-    setState((current) => ({
-      ...current,
-      calculatorExpression: expression,
-      calculatorError: null,
-    }));
-  }, [setState]);
+  const reuseHistoryExpression = useCallback(
+    (expression: string) => {
+      setState((current) => ({
+        ...current,
+        calculatorExpression: expression,
+        calculatorError: null,
+      }));
+    },
+    [setState],
+  );
 
-  const deleteHistoryItem = useCallback((id: string) => {
-    setState((current) => ({
-      ...current,
-      history: current.history.filter((item) => item.id !== id),
-    }));
-  }, [setState]);
+  const deleteHistoryItem = useCallback(
+    (id: string) => {
+      setState((current) => ({
+        ...current,
+        history: current.history.filter((item) => item.id !== id),
+      }));
+    },
+    [setState],
+  );
 
   const clearHistory = useCallback(() => {
     setState((current) => ({ ...current, history: [] }));
   }, [setState]);
 
-  const setGraphVisible = useCallback((graphVisible: boolean) => {
-    setState((current) => ({ ...current, graphVisible }));
-  }, [setState]);
+  const setGraphVisible = useCallback(
+    (graphVisible: boolean) => {
+      setState((current) => ({ ...current, graphVisible }));
+    },
+    [setState],
+  );
 
-  const setGraphExpanded = useCallback((graphExpanded: boolean) => {
-    setState((current) => ({ ...current, graphExpanded }));
-  }, [setState]);
+  const setGraphExpanded = useCallback(
+    (graphExpanded: boolean) => {
+      setState((current) => ({ ...current, graphExpanded }));
+    },
+    [setState],
+  );
 
-  const setGraphMode = useCallback((graphMode: GraphMode) => {
-    setState((current) => {
-      if (current.graphMode === graphMode) {
-        return current;
-      }
+  const setGraphMode = useCallback(
+    (graphMode: GraphMode) => {
+      setState((current) => {
+        if (current.graphMode === graphMode) {
+          return current;
+        }
 
-      return {
+        return {
+          ...current,
+          graphMode,
+          graphVisible: true,
+          currentGraphState: current.graphStatesByMode[graphMode] ?? null,
+        };
+      });
+    },
+    [setState],
+  );
+
+  const setCurrentGraphState = useCallback(
+    (graphState: DesmosState | null) => {
+      setState((current) => ({
         ...current,
-        graphMode,
-        graphVisible: true,
-        currentGraphState: current.graphStatesByMode[graphMode] ?? null,
-      };
-    });
-  }, [setState]);
-
-  const setCurrentGraphState = useCallback((graphState: DesmosState | null) => {
-    setState((current) => ({
-      ...current,
-      currentGraphState: graphState,
-      graphStatesByMode: {
-        ...current.graphStatesByMode,
-        [current.graphMode]: graphState,
-      },
-    }));
-  }, [setState]);
-
-  const saveGraphSnapshot = useCallback((name: string) => {
-    if (!state.currentGraphState) {
-      return false;
-    }
-
-    const trimmed = name.trim();
-
-    setState((current) => {
-      if (!current.currentGraphState) {
-        return current;
-      }
-
-      const timestamp = new Date().toISOString();
-      const existingByName = trimmed
-        ? current.savedGraphs.find((item) => item.name.toLowerCase() === trimmed.toLowerCase())
-        : null;
-      const snapshot: SavedGraphState = {
-        id: existingByName?.id ?? crypto.randomUUID(),
-        kind: "snapshot",
-        lessonId: scopeId,
-        name: trimmed || existingByName?.name || `Graph ${current.savedGraphs.length + 1}`,
-        calculatorMode: current.graphMode,
-        state: current.currentGraphState,
-        createdAt: existingByName?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-      };
-
-      return {
-        ...current,
-        savedGraphs: [
-          snapshot,
-          ...current.savedGraphs.filter((item) => item.id !== snapshot.id),
-        ].slice(0, MAX_SAVED_GRAPHS),
-      };
-    });
-
-    return true;
-  }, [scopeId, state.currentGraphState, setState]);
-
-  const loadGraphSnapshot = useCallback((snapshotId: string) => {
-    setState((current) => {
-      const snapshot = current.savedGraphs.find((item) => item.id === snapshotId);
-      if (!snapshot) {
-        return current;
-      }
-
-      return {
-        ...current,
-        graphMode: snapshot.calculatorMode,
-        currentGraphState: snapshot.state,
+        currentGraphState: graphState,
         graphStatesByMode: {
           ...current.graphStatesByMode,
-          [snapshot.calculatorMode]: snapshot.state,
+          [current.graphMode]: graphState,
         },
-        graphVisible: true,
-      };
-    });
-  }, [setState]);
+      }));
+    },
+    [setState],
+  );
 
-  const deleteGraphSnapshot = useCallback((snapshotId: string) => {
-    setState((current) => ({
-      ...current,
-      savedGraphs: current.savedGraphs.filter((item) => item.id !== snapshotId),
-    }));
-  }, [setState]);
-
-  const deleteSavedFunction = useCallback((functionId: string) => {
-    setState((current) => ({
-      ...current,
-      savedFunctions: current.savedFunctions.filter((item) => item.id !== functionId),
-    }));
-  }, [setState]);
-
-  const reuseSavedFunction = useCallback((functionId: string) => {
-    setState((current) => {
-      const definition = current.savedFunctions.find((item) => item.id === functionId);
-      if (!definition) {
-        return current;
+  const saveGraphSnapshot = useCallback(
+    (name: string) => {
+      if (!state.currentGraphState) {
+        return false;
       }
 
-      return {
+      const trimmed = name.trim();
+
+      setState((current) => {
+        if (!current.currentGraphState) {
+          return current;
+        }
+
+        const timestamp = new Date().toISOString();
+        const existingByName = trimmed
+          ? current.savedGraphs.find((item) => item.name.toLowerCase() === trimmed.toLowerCase())
+          : null;
+        const snapshot: SavedGraphState = {
+          id: existingByName?.id ?? crypto.randomUUID(),
+          kind: "snapshot",
+          lessonId: scopeId,
+          name: trimmed || existingByName?.name || `Graph ${current.savedGraphs.length + 1}`,
+          calculatorMode: current.graphMode,
+          state: current.currentGraphState,
+          createdAt: existingByName?.createdAt ?? timestamp,
+          updatedAt: timestamp,
+        };
+
+        return {
+          ...current,
+          savedGraphs: [snapshot, ...current.savedGraphs.filter((item) => item.id !== snapshot.id)].slice(
+            0,
+            MAX_SAVED_GRAPHS,
+          ),
+        };
+      });
+
+      return true;
+    },
+    [scopeId, state.currentGraphState, setState],
+  );
+
+  const loadGraphSnapshot = useCallback(
+    (snapshotId: string) => {
+      setState((current) => {
+        const snapshot = current.savedGraphs.find((item) => item.id === snapshotId);
+        if (!snapshot) {
+          return current;
+        }
+
+        return {
+          ...current,
+          graphMode: snapshot.calculatorMode,
+          currentGraphState: snapshot.state,
+          graphStatesByMode: {
+            ...current.graphStatesByMode,
+            [snapshot.calculatorMode]: snapshot.state,
+          },
+          graphVisible: true,
+        };
+      });
+    },
+    [setState],
+  );
+
+  const deleteGraphSnapshot = useCallback(
+    (snapshotId: string) => {
+      setState((current) => ({
         ...current,
-        calculatorExpression: `${definition.name}(x)=${definition.expression}`,
-        calculatorError: null,
-      };
-    });
-  }, [setState]);
+        savedGraphs: current.savedGraphs.filter((item) => item.id !== snapshotId),
+      }));
+    },
+    [setState],
+  );
+
+  const deleteSavedFunction = useCallback(
+    (functionId: string) => {
+      setState((current) => ({
+        ...current,
+        savedFunctions: current.savedFunctions.filter((item) => item.id !== functionId),
+      }));
+    },
+    [setState],
+  );
+
+  const reuseSavedFunction = useCallback(
+    (functionId: string) => {
+      setState((current) => {
+        const definition = current.savedFunctions.find((item) => item.id === functionId);
+        if (!definition) {
+          return current;
+        }
+
+        return {
+          ...current,
+          calculatorExpression: `${definition.name}(x)=${definition.expression}`,
+          calculatorError: null,
+        };
+      });
+    },
+    [setState],
+  );
 
   const clearCurrentGraph = useCallback(() => {
     setState((current) => ({
@@ -467,7 +506,7 @@ function normalizeGraphStatesByMode(
 ): Record<GraphMode, DesmosState | null> {
   const stored = parsed.graphStatesByMode as Partial<Record<GraphMode, DesmosState | null>> | undefined;
   return {
-    "2d": stored?.["2d"] ?? (graphMode === "2d" ? parsed.currentGraphState ?? null : null),
-    "3d": stored?.["3d"] ?? (graphMode === "3d" ? parsed.currentGraphState ?? null : null),
+    "2d": stored?.["2d"] ?? (graphMode === "2d" ? (parsed.currentGraphState ?? null) : null),
+    "3d": stored?.["3d"] ?? (graphMode === "3d" ? (parsed.currentGraphState ?? null) : null),
   };
 }

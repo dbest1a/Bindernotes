@@ -132,6 +132,8 @@ export async function saveLabRun(payload: LabRunPayload): Promise<SupabaseResult
     return { ok: false, error: "Supabase chemistry storage is not configured." };
   }
 
-  const { error } = await supabase.from("user_lab_runs").insert({ ...payload, checkpoint: databaseJson(payload.checkpoint) });
+  const { error } = await supabase
+    .from("user_lab_runs")
+    .insert({ ...payload, checkpoint: databaseJson(payload.checkpoint) });
   return error ? { ok: false, error: errorMessage(error) } : { ok: true };
 }

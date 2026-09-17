@@ -80,11 +80,7 @@ import {
   unfiledDashboardFolderId,
   type DashboardOrganizationDraft,
 } from "@/lib/dashboard-organization";
-import {
-  deriveBinderTitle,
-  deriveLessonTitle,
-  getDisplayTitle,
-} from "@/lib/workspace-records";
+import { deriveBinderTitle, deriveLessonTitle, getDisplayTitle } from "@/lib/workspace-records";
 import { dashboardViewModeOptions, type DashboardViewMode } from "@/lib/admin-dashboard-preferences";
 import { markDevPerformance } from "@/lib/performance-marks";
 import { cn } from "@/lib/utils";
@@ -114,7 +110,13 @@ type DragPreviewState = {
 };
 
 const adminDashboardNoticeDismissMs = 10000;
-const adminDashboardSubjectOptions = ["General", "Chemistry", "Mathematics", "History", "Study Skills"] as const;
+const adminDashboardSubjectOptions = [
+  "General",
+  "Chemistry",
+  "Mathematics",
+  "History",
+  "Study Skills",
+] as const;
 
 function inferSubjectFromFolderName(value: string | null | undefined) {
   const normalized = (value ?? "").toLowerCase();
@@ -166,9 +168,7 @@ const adminDashboardCollisionDetection: CollisionDetection = (args) => {
     }
     return true;
   };
-  const pointerCollisions = pointerWithin(args).filter((collision) =>
-    isCompatible(String(collision.id)),
-  );
+  const pointerCollisions = pointerWithin(args).filter((collision) => isCompatible(String(collision.id)));
   if (pointerCollisions.length > 0) {
     return pointerCollisions;
   }
@@ -229,12 +229,7 @@ function getDropPlacement(
   return edgeCandidates[0].placement;
 }
 
-function reorderIdsByPlacement(
-  order: string[],
-  activeId: string,
-  overId: string,
-  placement: DropPlacement,
-) {
+function reorderIdsByPlacement(order: string[], activeId: string, overId: string, placement: DropPlacement) {
   const fromIndex = order.indexOf(activeId);
   const toIndex = order.indexOf(overId);
   if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
@@ -262,7 +257,9 @@ function updateDraftFolderOrder(
   placement: DropPlacement,
 ): DashboardOrganizationDraft {
   const folderOrder = reorderIdsByPlacement(draft.folderOrder, activeFolderId, overFolderId, placement);
-  return folderOrder === draft.folderOrder ? draft : { ...draft, folderOrder, updatedAt: new Date().toISOString() };
+  return folderOrder === draft.folderOrder
+    ? draft
+    : { ...draft, folderOrder, updatedAt: new Date().toISOString() };
 }
 
 function updateDraftBinderOrder(
@@ -272,7 +269,9 @@ function updateDraftBinderOrder(
   placement: DropPlacement,
 ): DashboardOrganizationDraft {
   const binderOrder = reorderIdsByPlacement(draft.binderOrder, activeBinderId, overBinderId, placement);
-  return binderOrder === draft.binderOrder ? draft : { ...draft, binderOrder, updatedAt: new Date().toISOString() };
+  return binderOrder === draft.binderOrder
+    ? draft
+    : { ...draft, binderOrder, updatedAt: new Date().toISOString() };
 }
 
 function getDashboardDropTarget(activeId: string, preview: DragPreviewState | null) {
@@ -368,8 +367,8 @@ export function AdminDashboardMakeover({
   const filebarRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [baseWorkspaceView, updateBaseWorkspaceView] = useDashboardWorkspaceViewPreference(profile.id);
-  const [adminDashboardWidth, setAdminDashboardWidth] = useState<DashboardWorkspaceWidth>(() =>
-    loadAdminDashboardWidthPreference(profile.id) ?? "full",
+  const [adminDashboardWidth, setAdminDashboardWidth] = useState<DashboardWorkspaceWidth>(
+    () => loadAdminDashboardWidthPreference(profile.id) ?? "full",
   );
   const workspaceMutations = useDashboardWorkspaceMutations(profile);
   const [openCommandMenu, setOpenCommandMenu] = useState<"new" | "browse" | "open" | "view" | null>(null);
@@ -531,20 +530,17 @@ export function AdminDashboardMakeover({
     };
   }, [dragPreview?.id]);
 
-  const lessonsByBinderId = useMemo(
-    () => {
-      const groups = data.lessons.reduce<Record<string, BinderLesson[]>>((nextGroups, lesson) => {
-        nextGroups[lesson.binder_id] = nextGroups[lesson.binder_id] ?? [];
-        nextGroups[lesson.binder_id].push(lesson);
-        return nextGroups;
-      }, {});
-      for (const binder of data.binders) {
-        groups[binder.id] = groups[binder.id] ?? [];
-      }
-      return groups;
-    },
-    [data.binders, data.lessons],
-  );
+  const lessonsByBinderId = useMemo(() => {
+    const groups = data.lessons.reduce<Record<string, BinderLesson[]>>((nextGroups, lesson) => {
+      nextGroups[lesson.binder_id] = nextGroups[lesson.binder_id] ?? [];
+      nextGroups[lesson.binder_id].push(lesson);
+      return nextGroups;
+    }, {});
+    for (const binder of data.binders) {
+      groups[binder.id] = groups[binder.id] ?? [];
+    }
+    return groups;
+  }, [data.binders, data.lessons]);
   const binderById = useMemo(
     () => new Map(data.binders.map((binder) => [binder.id, binder])),
     [data.binders],
@@ -574,7 +570,7 @@ export function AdminDashboardMakeover({
   );
   const activeFolderBinder = activeDragId ? parseFolderBinderSortableId(activeDragId) : null;
   const activeBinderId = activeDragId
-    ? stripPrefix(activeDragId, "binder:") ?? activeFolderBinder?.binderId ?? null
+    ? (stripPrefix(activeDragId, "binder:") ?? activeFolderBinder?.binderId ?? null)
     : null;
   const filteredFolders = useMemo(
     () =>
@@ -588,7 +584,9 @@ export function AdminDashboardMakeover({
               ? `${deriveBinderTitle(binder, lessonsByBinderId[binderId] ?? [])} ${lessonTitles} ${noteTitles}`
               : "";
           })
-          .join(" ")}`.toLowerCase().includes(normalizedQuery),
+          .join(" ")}`
+          .toLowerCase()
+          .includes(normalizedQuery),
       ),
     [
       binderById,
@@ -609,13 +607,7 @@ export function AdminDashboardMakeover({
     [lessonsByBinderId, normalizedQuery, notesByBinderId, orderedBinders],
   );
   const recentDocumentSearchTextById = useMemo(
-    () =>
-      new Map(
-        data.recentLessons.map((lesson) => [
-          lesson.id,
-          deriveLessonTitle(lesson).toLowerCase(),
-        ]),
-      ),
+    () => new Map(data.recentLessons.map((lesson) => [lesson.id, deriveLessonTitle(lesson).toLowerCase()])),
     [data.recentLessons],
   );
   const recentDocuments = useMemo(
@@ -663,8 +655,7 @@ export function AdminDashboardMakeover({
     }
     if (workspaceView.sort === "documents") {
       return folders.sort(
-        (left, right) =>
-          (documentCountByFolderId[right.id] ?? 0) - (documentCountByFolderId[left.id] ?? 0),
+        (left, right) => (documentCountByFolderId[right.id] ?? 0) - (documentCountByFolderId[left.id] ?? 0),
       );
     }
     return folders;
@@ -778,9 +769,7 @@ export function AdminDashboardMakeover({
 
   const beginCreate = (kind: AdminDashboardCreateKind) => {
     setCreateKind(kind);
-    setDraftTitle(
-      kind === "folder" ? "New folder" : kind === "binder" ? "New binder" : "New document",
-    );
+    setDraftTitle(kind === "folder" ? "New folder" : kind === "binder" ? "New binder" : "New document");
     setDraftFolderId(firstFolder?.id ?? "");
     setDraftBinderId(firstBinder?.id ?? "");
     setDraftSubject(inferSubjectFromFolderName(firstFolder?.name));
@@ -848,7 +837,10 @@ export function AdminDashboardMakeover({
     const measuredHasSize = Boolean(measuredRect && measuredRect.width > 0 && measuredRect.height > 0);
     const initialRect = measuredHasSize ? measuredRect : event.active.rect.current.initial;
     const fallbackPoint = initialRect
-      ? { x: initialRect.left + Math.min(56, initialRect.width / 2), y: initialRect.top + Math.min(56, initialRect.height / 2) }
+      ? {
+          x: initialRect.left + Math.min(56, initialRect.width / 2),
+          y: initialRect.top + Math.min(56, initialRect.height / 2),
+        }
       : { x: 0, y: 0 };
     const point = getClientPoint(event.activatorEvent) ?? fallbackPoint;
     const nextPreview = {
@@ -926,7 +918,8 @@ export function AdminDashboardMakeover({
       return;
     }
 
-    const overFolderId = stripPrefix(effectiveOverId, "folder-drop:") ?? stripPrefix(effectiveOverId, "folder:");
+    const overFolderId =
+      stripPrefix(effectiveOverId, "folder-drop:") ?? stripPrefix(effectiveOverId, "folder:");
     if (overFolderId) {
       setDraft((current) =>
         moveBinderToFolder(current, {
@@ -1003,8 +996,8 @@ export function AdminDashboardMakeover({
           </div>
           <h1>Your BinderNotes Workspace</h1>
           <p>
-            A premium command center for arranging folders, binders, and documents before the
-            experience graduates to every learner.
+            A premium command center for arranging folders, binders, and documents before the experience
+            graduates to every learner.
           </p>
           <div className="admin-dashboard-search">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
@@ -1128,7 +1121,11 @@ export function AdminDashboardMakeover({
                           <LibraryBig className="size-4" />
                           Binders
                         </button>
-                        <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                        <button
+                          onClick={() => changeScope("documents", { focusSearch: true })}
+                          role="menuitem"
+                          type="button"
+                        >
                           <BookCopy className="size-4" />
                           Recent documents
                         </button>
@@ -1136,24 +1133,40 @@ export function AdminDashboardMakeover({
                     ) : null}
                     {menu.id === "open" ? (
                       <>
-                        <button onClick={() => changeScope("documents", { focusSearch: true })} role="menuitem" type="button">
+                        <button
+                          onClick={() => changeScope("documents", { focusSearch: true })}
+                          role="menuitem"
+                          type="button"
+                        >
                           <Search className="size-4" />
                           Show recent documents
                         </button>
                         {firstFolder ? (
-                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/folders/${firstFolder.id}`}>
+                          <Link
+                            onClick={() => setOpenCommandMenu(null)}
+                            role="menuitem"
+                            to={`/folders/${firstFolder.id}`}
+                          >
                             <FolderOpen className="size-4" />
                             {getDisplayTitle(firstFolder.name, "First folder")}
                           </Link>
                         ) : null}
                         {firstBinder ? (
-                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/binders/${firstBinder.id}`}>
+                          <Link
+                            onClick={() => setOpenCommandMenu(null)}
+                            role="menuitem"
+                            to={`/binders/${firstBinder.id}`}
+                          >
                             <LibraryBig className="size-4" />
                             {deriveBinderTitle(firstBinder, lessonsByBinderId[firstBinder.id] ?? [])}
                           </Link>
                         ) : null}
                         {nextDocument ? (
-                          <Link onClick={() => setOpenCommandMenu(null)} role="menuitem" to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+                          <Link
+                            onClick={() => setOpenCommandMenu(null)}
+                            role="menuitem"
+                            to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}
+                          >
                             <FileText className="size-4" />
                             {deriveLessonTitle(nextDocument)}
                           </Link>
@@ -1196,9 +1209,15 @@ export function AdminDashboardMakeover({
                           type="button"
                         >
                           <BookCopy className="size-4" />
-                          {workspaceView.showRecentDocuments ? "Hide recent documents" : "Show recent documents"}
+                          {workspaceView.showRecentDocuments
+                            ? "Hide recent documents"
+                            : "Show recent documents"}
                         </button>
-                        <button onClick={() => changeScope("all", { focusSearch: true })} role="menuitem" type="button">
+                        <button
+                          onClick={() => changeScope("all", { focusSearch: true })}
+                          role="menuitem"
+                          type="button"
+                        >
                           <Search className="size-4" />
                           Search everything
                         </button>
@@ -1219,7 +1238,10 @@ export function AdminDashboardMakeover({
           <div className="admin-dashboard-filebar__primary">
             {nextDocument ? (
               <Button asChild size="sm" type="button">
-                <Link data-testid="admin-dashboard-open-next" to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}>
+                <Link
+                  data-testid="admin-dashboard-open-next"
+                  to={`/binders/${nextDocument.binder_id}/documents/${nextDocument.id}`}
+                >
                   Open next
                   <ChevronRight className="size-4" />
                 </Link>
@@ -1237,7 +1259,11 @@ export function AdminDashboardMakeover({
       </section>
 
       {createKind ? (
-        <form className="admin-dashboard-create-card" data-testid="admin-dashboard-create-card" onSubmit={submitCreate}>
+        <form
+          className="admin-dashboard-create-card"
+          data-testid="admin-dashboard-create-card"
+          onSubmit={submitCreate}
+        >
           <div>
             <span className="admin-dashboard-kicker">
               {createKind === "folder"
@@ -1248,11 +1274,7 @@ export function AdminDashboardMakeover({
             </span>
             <label>
               <span>Name</span>
-              <Input
-                autoFocus
-                onChange={(event) => setDraftTitle(event.target.value)}
-                value={draftTitle}
-              />
+              <Input autoFocus onChange={(event) => setDraftTitle(event.target.value)} value={draftTitle} />
             </label>
           </div>
           {createKind === "binder" ? (
@@ -1509,30 +1531,33 @@ function AdminDashboardReadOnlySections({
       </section>
 
       {showWorkspaceMap ? (
-      <section className="admin-dashboard-section">
-        <div className="admin-dashboard-section__header">
-          <div>
-            <span className="admin-dashboard-kicker">Workspace Map</span>
-            <h2>Drop binders into folders</h2>
+        <section className="admin-dashboard-section">
+          <div className="admin-dashboard-section__header">
+            <div>
+              <span className="admin-dashboard-kicker">Workspace Map</span>
+              <h2>Drop binders into folders</h2>
+            </div>
+            <p>
+              Folder targets pulse while you organize, and binder placement is saved in the admin layout
+              draft.
+            </p>
           </div>
-          <p>Folder targets pulse while you organize, and binder placement is saved in the admin layout draft.</p>
-        </div>
-        <div className="admin-workspace-map">
-          {orderedFolders.map((folder) => (
-            <StaticFolderDropZone
-              binderById={binderById}
-              draft={draft}
-              folder={folder}
-              key={folder.id}
+          <div className="admin-workspace-map">
+            {orderedFolders.map((folder) => (
+              <StaticFolderDropZone
+                binderById={binderById}
+                draft={draft}
+                folder={folder}
+                key={folder.id}
+                lessonsByBinderId={lessonsByBinderId}
+              />
+            ))}
+            <StaticUnfiledDropZone
+              binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
               lessonsByBinderId={lessonsByBinderId}
             />
-          ))}
-          <StaticUnfiledDropZone
-            binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
-            lessonsByBinderId={lessonsByBinderId}
-          />
-        </div>
-      </section>
+          </div>
+        </section>
       ) : null}
     </>
   );
@@ -1640,32 +1665,35 @@ function AdminDashboardEditableSections({
       </section>
 
       {showWorkspaceMap ? (
-      <section className="admin-dashboard-section">
-        <div className="admin-dashboard-section__header">
-          <div>
-            <span className="admin-dashboard-kicker">Workspace Map</span>
-            <h2>Drop binders into folders</h2>
+        <section className="admin-dashboard-section">
+          <div className="admin-dashboard-section__header">
+            <div>
+              <span className="admin-dashboard-kicker">Workspace Map</span>
+              <h2>Drop binders into folders</h2>
+            </div>
+            <p>
+              Folder targets pulse while you organize, and binder placement is saved in the admin layout
+              draft.
+            </p>
           </div>
-          <p>Folder targets pulse while you organize, and binder placement is saved in the admin layout draft.</p>
-        </div>
-        <div className="admin-workspace-map">
-          {orderedFolders.map((folder) => (
-            <FolderDropZone
-              binderById={binderById}
-              draft={draft}
-              folder={folder}
+          <div className="admin-workspace-map">
+            {orderedFolders.map((folder) => (
+              <FolderDropZone
+                binderById={binderById}
+                draft={draft}
+                folder={folder}
+                isEditing
+                key={folder.id}
+                lessonsByBinderId={lessonsByBinderId}
+              />
+            ))}
+            <UnfiledDropZone
+              binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
               isEditing
-              key={folder.id}
               lessonsByBinderId={lessonsByBinderId}
             />
-          ))}
-          <UnfiledDropZone
-            binders={orderedBinders.filter((binder) => !draft.binderFolderIdByBinderId[binder.id])}
-            isEditing
-            lessonsByBinderId={lessonsByBinderId}
-          />
-        </div>
-      </section>
+          </div>
+        </section>
       ) : null}
     </DndContext>
   );
@@ -1695,8 +1723,8 @@ function AdminDashboardDragPreview({
   const folderId = stripPrefix(preview.id, "folder:");
   const folderBinder = parseFolderBinderSortableId(preview.id);
   const binderId = stripPrefix(preview.id, "binder:") ?? folderBinder?.binderId ?? null;
-  const folder = folderId ? folderById.get(folderId) ?? null : null;
-  const binder = binderId ? binderById.get(binderId) ?? null : null;
+  const folder = folderId ? (folderById.get(folderId) ?? null) : null;
+  const binder = binderId ? (binderById.get(binderId) ?? null) : null;
   const left = preview.pointerX - preview.offsetX;
   const top = preview.pointerY - preview.offsetY;
   const style = {
@@ -1710,7 +1738,10 @@ function AdminDashboardDragPreview({
     const binderIds = draft.folderBinderOrderByFolderId[folderId] ?? [];
     return createPortal(
       <div className="admin-drag-floating-preview" data-testid="admin-drag-overlay-card" style={style}>
-        <article className="admin-folder-card admin-folder-card--preview" data-testid="admin-folder-drag-preview">
+        <article
+          className="admin-folder-card admin-folder-card--preview"
+          data-testid="admin-folder-drag-preview"
+        >
           <div className="admin-folder-card__top">
             <span className="admin-folder-card__icon">
               <FolderOpen />
@@ -1834,11 +1865,7 @@ function AdminFolderCard({
     <>
       <div className="admin-folder-card__top">
         {isEditing ? (
-          <button
-            aria-label={`Drag ${folder.name} to reorder`}
-            className="admin-drag-handle"
-            type="button"
-          >
+          <button aria-label={`Drag ${folder.name} to reorder`} className="admin-drag-handle" type="button">
             <GripVertical />
           </button>
         ) : (
@@ -1856,9 +1883,7 @@ function AdminFolderCard({
         {binderIds.slice(0, 3).map((binderId) => {
           const binder = binderById.get(binderId);
           return binder ? (
-            <span key={binder.id}>
-              {deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}
-            </span>
+            <span key={binder.id}>{deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}</span>
           ) : null;
         })}
         {binderIds.length === 0 ? <span>No binders yet</span> : null}
@@ -1877,11 +1902,13 @@ function AdminFolderCard({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      style={{
-        "--stagger-index": index,
-        transform: CSS.Transform.toString(transform),
-        transition,
-      } as CSSProperties}
+      style={
+        {
+          "--stagger-index": index,
+          transform: CSS.Transform.toString(transform),
+          transition,
+        } as CSSProperties
+      }
     >
       {body}
     </article>
@@ -1935,9 +1962,7 @@ function StaticAdminFolderCard({
         {binderIds.slice(0, 3).map((binderId) => {
           const binder = binderById.get(binderId);
           return binder ? (
-            <span key={binder.id}>
-              {deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}
-            </span>
+            <span key={binder.id}>{deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])}</span>
           ) : null;
         })}
         {binderIds.length === 0 ? <span>No binders yet</span> : null}
@@ -1969,11 +1994,7 @@ function AdminBinderCard({
       <div className="admin-binder-card__cover">
         {binder.cover_url ? <img alt="" src={binder.cover_url} /> : <LibraryBig />}
         {isEditing ? (
-          <button
-            aria-label={`Drag ${title} to reorder`}
-            className="admin-drag-handle"
-            type="button"
-          >
+          <button aria-label={`Drag ${title} to reorder`} className="admin-drag-handle" type="button">
             <GripVertical />
           </button>
         ) : null}
@@ -1981,7 +2002,9 @@ function AdminBinderCard({
       <div className="admin-binder-card__body">
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{binder.subject}</Badge>
-          {folder ? <Badge variant="outline">{getDisplayTitle(folder.name, "Recovered Folder")}</Badge> : null}
+          {folder ? (
+            <Badge variant="outline">{getDisplayTitle(folder.name, "Recovered Folder")}</Badge>
+          ) : null}
         </div>
         <h3>{title}</h3>
         <p>{binder.description}</p>
@@ -1996,11 +2019,13 @@ function AdminBinderCard({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      style={{
-        "--stagger-index": index,
-        transform: CSS.Transform.toString(transform),
-        transition,
-      } as CSSProperties}
+      style={
+        {
+          "--stagger-index": index,
+          transform: CSS.Transform.toString(transform),
+          transition,
+        } as CSSProperties
+      }
     >
       {body}
     </article>
@@ -2040,7 +2065,9 @@ function StaticAdminBinderCard({
       <div className="admin-binder-card__body">
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{binder.subject}</Badge>
-          {folder ? <Badge variant="outline">{getDisplayTitle(folder.name, "Recovered Folder")}</Badge> : null}
+          {folder ? (
+            <Badge variant="outline">{getDisplayTitle(folder.name, "Recovered Folder")}</Badge>
+          ) : null}
         </div>
         <h3>{title}</h3>
         <p>{binder.description}</p>
@@ -2173,11 +2200,7 @@ function FolderBinderChip({
       }}
     >
       {isEditing ? (
-        <button
-          aria-label={`Drag ${title} to reorder`}
-          className="admin-mini-drag-handle"
-          type="button"
-        >
+        <button aria-label={`Drag ${title} to reorder`} className="admin-mini-drag-handle" type="button">
           <GripVertical />
         </button>
       ) : null}
@@ -2230,7 +2253,10 @@ function UnfiledDropZone({
 
   return (
     <article
-      className={cn("admin-folder-drop-zone admin-folder-drop-zone--unfiled", isOver && "admin-folder-drop-zone--over")}
+      className={cn(
+        "admin-folder-drop-zone admin-folder-drop-zone--unfiled",
+        isOver && "admin-folder-drop-zone--over",
+      )}
       data-admin-drop-id={folderDropId(unfiledDashboardFolderId)}
       ref={setNodeRef}
     >

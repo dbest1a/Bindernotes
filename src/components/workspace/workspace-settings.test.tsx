@@ -26,7 +26,9 @@ describe("WorkspaceSettings appearance scope", () => {
       <WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />,
     );
 
-    expect(screen.getAllByRole("button", { name: /Workspace view / }).map((button) => button.textContent)).toEqual([
+    expect(
+      screen.getAllByRole("button", { name: /Workspace view / }).map((button) => button.textContent),
+    ).toEqual([
       expect.stringContaining("Canvas"),
       expect.stringContaining("Simple"),
       expect.stringContaining("Facelift"),
@@ -43,13 +45,7 @@ describe("WorkspaceSettings appearance scope", () => {
       }),
     );
 
-    rerender(
-      <WorkspaceSettings
-        onChange={onChange}
-        preferences={faceliftPreferences}
-        mode="layout"
-      />,
-    );
+    rerender(<WorkspaceSettings onChange={onChange} preferences={faceliftPreferences} mode="layout" />);
 
     expect(screen.getByText("Facelift surface")).toBeTruthy();
     expect(
@@ -74,12 +70,7 @@ describe("WorkspaceSettings appearance scope", () => {
     };
 
     render(
-      <WorkspaceSettings
-        onChange={vi.fn()}
-        preferences={preferences}
-        mode="layout"
-        revampBetaEnabled
-      />,
+      <WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" revampBetaEnabled />,
     );
 
     for (const query of ["facelift", "workspace", "folder", "document", "mobile", "compact"]) {
@@ -121,17 +112,18 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("renders organized settings folders that can expand and collapse", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     const { container } = render(
       <WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />,
     );
 
-    expect(screen.getByRole("button", { name: /layout & presets/i }).getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /layout & presets/i }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded"),
+    ).toBe("true");
     expect(screen.getByRole("button", { name: /edit layout/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /snapping & canvas/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /module display/i })).toBeTruthy();
@@ -142,7 +134,9 @@ describe("WorkspaceSettings appearance scope", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /colors & study surface/i }));
 
-    expect(screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.getByRole("button", { name: /colors & study surface/i }).getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(screen.queryByText("App Theme")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /colors & study surface/i }));
@@ -151,10 +145,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("auto-expands matching folders and hides non-matching folders while searching", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
 
@@ -162,16 +153,15 @@ describe("WorkspaceSettings appearance scope", () => {
       target: { value: "hover" },
     });
 
-    expect(screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
     expect(screen.getByText("Hover motion")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /colors & study surface/i })).toBeNull();
   });
 
   it("finds settings by folder labels and setting descriptions", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
 
@@ -188,10 +178,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("filters settings by label and description while keeping matching controls visible", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} />);
 
@@ -204,10 +191,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("filters regular preference settings without losing appearance controls", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="preferences" />);
 
@@ -220,10 +204,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("filters settings by aliases such as bezel for Safe Edge Padding", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
 
@@ -236,17 +217,16 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("finds graph and responsive settings through required aliases", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
 
     fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
       target: { value: "graph" },
     });
-    expect(screen.getByRole("button", { name: /tools & modules/i }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: /tools & modules/i }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
     expect(screen.getByText("Graph appearance")).toBeTruthy();
 
     for (const query of ["phone", "mobile", "tablet"]) {
@@ -264,12 +244,7 @@ describe("WorkspaceSettings appearance scope", () => {
     );
 
     render(
-      <WorkspaceSettings
-        binderSubject="Math"
-        mode="layout"
-        onChange={vi.fn()}
-        preferences={preferences}
-      />,
+      <WorkspaceSettings binderSubject="Math" mode="layout" onChange={vi.fn()} preferences={preferences} />,
     );
 
     fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
@@ -280,18 +255,10 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("surfaces Enhanced Visuals from workspace search while Performance Mode stays default", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(
-      <WorkspaceSettings
-        mode="layout"
-        onChange={vi.fn()}
-        preferences={preferences}
-        revampBetaEnabled
-      />,
+      <WorkspaceSettings mode="layout" onChange={vi.fn()} preferences={preferences} revampBetaEnabled />,
     );
 
     for (const query of ["performance", "lag", "smooth", "animation", "tool menu"]) {
@@ -299,9 +266,9 @@ describe("WorkspaceSettings appearance scope", () => {
         target: { value: query },
       });
 
-      expect(screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded")).toBe(
-        "true",
-      );
+      expect(
+        screen.getByRole("button", { name: /motion & performance/i }).getAttribute("aria-expanded"),
+      ).toBe("true");
       expect(screen.getByText("Enhanced Visuals")).toBeTruthy();
       expect(screen.getByRole("button", { name: /enhanced visuals/i }).getAttribute("aria-pressed")).toBe(
         "false",
@@ -311,10 +278,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("shows an empty state when settings search has no matches", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} />);
 
@@ -326,10 +290,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("does not mutate workspace layout or lose unsaved setting changes while searching", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const onChange = vi.fn();
     const { rerender } = render(
       <WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />,
@@ -360,10 +321,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("defaults maximize module space on and lets users restore the richer module headers", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const onChange = vi.fn();
 
     render(<WorkspaceSettings onChange={onChange} preferences={preferences} />);
@@ -380,10 +338,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("keeps the canvas module launcher off by default and exposes a layout setting to show it", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const onChange = vi.fn();
 
     render(<WorkspaceSettings onChange={onChange} preferences={preferences} mode="layout" />);
@@ -401,10 +356,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("finds the canvas launcher setting through launcher and side menu search", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" />);
 
@@ -417,10 +369,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("finds the maximize module space toggle through source, lesson, notes, header, space, compact, and maximize searches", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const { unmount } = render(<WorkspaceSettings onChange={vi.fn()} preferences={preferences} />);
 
     for (const query of ["source", "lesson", "notes", "header", "space", "compact", "maximize"]) {
@@ -440,12 +389,7 @@ describe("WorkspaceSettings appearance scope", () => {
     };
 
     render(
-      <WorkspaceSettings
-        onChange={vi.fn()}
-        preferences={preferences}
-        mode="layout"
-        revampBetaEnabled
-      />,
+      <WorkspaceSettings onChange={vi.fn()} preferences={preferences} mode="layout" revampBetaEnabled />,
     );
 
     fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
@@ -576,12 +520,7 @@ describe("WorkspaceSettings appearance scope", () => {
     const onClose = vi.fn();
 
     render(
-      <WorkspaceSettings
-        mode="preferences"
-        onChange={vi.fn()}
-        onClose={onClose}
-        preferences={preferences}
-      />,
+      <WorkspaceSettings mode="preferences" onChange={vi.fn()} onClose={onClose} preferences={preferences} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Workspace view Canvas" }));
@@ -617,7 +556,9 @@ describe("WorkspaceSettings appearance scope", () => {
 
     render(<WorkspaceSettings onChange={onChange} preferences={preferences} />);
 
-    expect(screen.getByRole("button", { name: /show secondary preset strip/i }).textContent).toContain("Hidden");
+    expect(screen.getByRole("button", { name: /show secondary preset strip/i }).textContent).toContain(
+      "Hidden",
+    );
 
     for (const query of ["selector", "preset", "strip", "secondary"]) {
       fireEvent.change(screen.getByPlaceholderText(/search settings/i), {
@@ -657,18 +598,10 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("keeps the full layout setup controls visible without recommended preset disclosure", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     const { container } = render(
-      <WorkspaceSettings
-        binderSubject="math"
-        onChange={vi.fn()}
-        preferences={preferences}
-        mode="layout"
-      />,
+      <WorkspaceSettings binderSubject="math" onChange={vi.fn()} preferences={preferences} mode="layout" />,
     );
 
     expect(screen.getByText("Workspace view")).toBeTruthy();
@@ -680,10 +613,7 @@ describe("WorkspaceSettings appearance scope", () => {
   });
 
   it("keeps settings folders usable on phone and tablet widths", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
     setViewportWidth(390);
     const { rerender } = render(

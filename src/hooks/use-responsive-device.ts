@@ -47,9 +47,7 @@ export function useViewportCategory() {
 }
 
 export function useResponsiveDevice(): ResponsiveDeviceSnapshot {
-  const [snapshot, setSnapshot] = useState<ResponsiveDeviceSnapshot>(() =>
-    readResponsiveDeviceSnapshot(),
-  );
+  const [snapshot, setSnapshot] = useState<ResponsiveDeviceSnapshot>(() => readResponsiveDeviceSnapshot());
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -96,9 +94,7 @@ export function useResponsiveDevice(): ResponsiveDeviceSnapshot {
   return snapshot;
 }
 
-function readResponsiveDeviceSnapshot(
-  existingQueries?: ResponsiveMediaQuery[],
-): ResponsiveDeviceSnapshot {
+function readResponsiveDeviceSnapshot(existingQueries?: ResponsiveMediaQuery[]): ResponsiveDeviceSnapshot {
   const queries =
     existingQueries ??
     (typeof window !== "undefined" && typeof window.matchMedia === "function"
@@ -122,10 +118,8 @@ function readResponsiveDeviceSnapshot(
     portraitQuery,
     landscapeQuery,
   ] = queries;
-  const hasViewportWidth =
-    typeof window !== "undefined" && Number.isFinite(window.innerWidth);
-  const hasViewportHeight =
-    typeof window !== "undefined" && Number.isFinite(window.innerHeight);
+  const hasViewportWidth = typeof window !== "undefined" && Number.isFinite(window.innerWidth);
+  const hasViewportHeight = typeof window !== "undefined" && Number.isFinite(window.innerHeight);
   let category = hasViewportWidth ? getViewportCategory(window.innerWidth) : "desktop";
   let orientation: ViewportOrientation =
     hasViewportWidth && hasViewportHeight && window.innerHeight >= window.innerWidth

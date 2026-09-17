@@ -32,7 +32,10 @@ vi.mock("@/components/workspace/workspace-modules", () => {
       "desmos-graph": {
         title: "Desmos graph",
         render: (context: { graphKeypad?: boolean }) => (
-          <section data-graph-keypad={context.graphKeypad === false ? "hidden" : "visible"} data-testid="desmos-graph-module">
+          <section
+            data-graph-keypad={context.graphKeypad === false ? "hidden" : "visible"}
+            data-testid="desmos-graph-module"
+          >
             Graph body
             {context.graphKeypad === false ? null : <span>Full graph keypad</span>}
           </section>
@@ -43,7 +46,10 @@ vi.mock("@/components/workspace/workspace-modules", () => {
       "saved-graphs": module("Saved graphs", "Saved graphs body"),
       whiteboard: {
         title: "Whiteboard",
-        render: (context: { onExitWhiteboardFocus?: () => void; whiteboardSidebarDefaultCollapsed?: boolean }) => (
+        render: (context: {
+          onExitWhiteboardFocus?: () => void;
+          whiteboardSidebarDefaultCollapsed?: boolean;
+        }) => (
           <section
             data-testid="whiteboard-module"
             data-whiteboard-default-sidebar={context.whiteboardSidebarDefaultCollapsed ? "rail" : "expanded"}
@@ -195,7 +201,9 @@ describe("StudyPanelsShell", () => {
     const { container } = renderStudyPanelsShell();
 
     expect(screen.getByTestId("study-panels-shell")).toBeTruthy();
-    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe("hidden");
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe(
+      "hidden",
+    );
     expect(screen.queryByLabelText(/study panel presets/i)).toBeNull();
     expect(container.querySelector(".workspace-canvas-shell")).toBeNull();
     expect(screen.getByText("Lesson body")).toBeTruthy();
@@ -276,7 +284,13 @@ describe("StudyPanelsShell", () => {
     renderStudyPanelsShell(
       {
         preset: "history-source-evidence",
-        enabledModules: ["lesson", "private-notes", "history-timeline", "history-evidence", "history-argument"],
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "history-timeline",
+          "history-evidence",
+          "history-argument",
+        ],
       },
       {
         binder: {
@@ -324,7 +338,9 @@ describe("StudyPanelsShell", () => {
     fireEvent.click(screen.getByRole("tab", { name: /extras|tools/i }));
 
     expect(screen.getByLabelText(/study tools/i)).toBeTruthy();
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool")).toBeTruthy();
+    expect(
+      container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-drawer-tool"),
+    ).toBeTruthy();
   });
 
   it("routes every top Study Panels mode to a visible surface instead of a decorative active state", () => {
@@ -347,7 +363,9 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByTestId("study-tool-preview-private-notes")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("tab", { name: /lesson/i }));
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "lesson",
+    );
     expect(screen.getByText("Lesson body")).toBeTruthy();
   });
 
@@ -374,7 +392,13 @@ describe("StudyPanelsShell", () => {
     const { container } = renderStudyPanelsShell(
       {
         preset: "history-source-evidence",
-        enabledModules: ["lesson", "private-notes", "history-timeline", "history-evidence", "history-argument"],
+        enabledModules: [
+          "lesson",
+          "private-notes",
+          "history-timeline",
+          "history-evidence",
+          "history-argument",
+        ],
       },
       {
         binder: {
@@ -478,7 +502,9 @@ describe("StudyPanelsShell", () => {
     const elementCard = screen.getByTestId("study-tool-preview-chem-periodic-table");
     expect(elementCard.textContent).toContain("Element Explorer");
     expect(elementCard.textContent).toContain("Beta");
-    expect(screen.getByTestId("study-tool-preview-chem-titration-lab").textContent).toContain("Titration Lab");
+    expect(screen.getByTestId("study-tool-preview-chem-titration-lab").textContent).toContain(
+      "Titration Lab",
+    );
   });
 
   it("keeps Recall Lab hidden until its beta flag is enabled", () => {
@@ -587,7 +613,9 @@ describe("StudyPanelsShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^split study$/i }));
 
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "lesson",
+    );
     expect(screen.getByRole("status").textContent).toContain("Split Study is already active");
   });
 
@@ -606,7 +634,9 @@ describe("StudyPanelsShell", () => {
     const presetStrip = screen.getByLabelText(/study panel presets/i);
     expect(presetStrip).toBeTruthy();
     expect(within(presetStrip).getByRole("button", { name: /^split study$/i })).toBeTruthy();
-    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe("visible");
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-secondary-preset-strip")).toBe(
+      "visible",
+    );
   });
 
   it("turns focus mode into a fullscreen board-and-notes workspace without the top chrome", () => {
@@ -630,7 +660,9 @@ describe("StudyPanelsShell", () => {
     );
 
     expect(screen.getByTestId("study-panels-shell").getAttribute("data-focus-mode-active")).toBe("true");
-    expect(screen.getByTestId("study-panels-shell").getAttribute("data-study-panels-tab-strip")).toBe("hidden");
+    expect(screen.getByTestId("study-panels-shell").getAttribute("data-study-panels-tab-strip")).toBe(
+      "hidden",
+    );
     expect(document.querySelector(".study-panels-shell__top")).toBeNull();
     expect(screen.queryByRole("tablist", { name: /study panel modules/i })).toBeNull();
     expect(screen.getByRole("toolbar", { name: /fullscreen study controls/i })).toBeTruthy();
@@ -670,7 +702,9 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByText("Lesson body")).toBeTruthy();
     expect(screen.getByText("Notes body")).toBeTruthy();
     expect(document.querySelector(".study-panels-split")).toBeTruthy();
-    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe("lesson");
+    expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
+      "lesson",
+    );
     expect(document.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
       "private-notes",
     );
@@ -884,24 +918,26 @@ describe("StudyPanelsShell", () => {
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-action-row")).toBe(
       "visible",
     );
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
-      "expanded",
-    );
+    expect(
+      container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state"),
+    ).toBe("expanded");
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
       "private-notes",
     );
 
     fireEvent.click(screen.getByRole("button", { name: /hide split actions/i }));
 
-    expect(container.querySelector("[data-study-panels-action-row='compact']")?.getAttribute("data-study-actions-state")).toBe(
-      "collapsed",
-    );
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
-      "collapsed",
-    );
-    expect(container.querySelector(".study-panels-compact-action-row__content")?.getAttribute("aria-hidden")).toBe(
-      "true",
-    );
+    expect(
+      container
+        .querySelector("[data-study-panels-action-row='compact']")
+        ?.getAttribute("data-study-actions-state"),
+    ).toBe("collapsed");
+    expect(
+      container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state"),
+    ).toBe("collapsed");
+    expect(
+      container.querySelector(".study-panels-compact-action-row__content")?.getAttribute("aria-hidden"),
+    ).toBe("true");
     expect(window.localStorage.getItem("bindernotes.study-panels.layout.actions:binder-1:lesson-1")).toBe(
       "collapsed",
     );
@@ -909,18 +945,22 @@ describe("StudyPanelsShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /show split actions/i }));
 
-    expect(container.querySelector("[data-study-panels-action-row='compact']")?.getAttribute("data-study-actions-state")).toBe(
-      "expanded",
-    );
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state")).toBe(
-      "expanded",
-    );
-    expect(window.localStorage.getItem("bindernotes.study-panels.layout.actions:binder-1:lesson-1")).toBeNull();
+    expect(
+      container
+        .querySelector("[data-study-panels-action-row='compact']")
+        ?.getAttribute("data-study-actions-state"),
+    ).toBe("expanded");
+    expect(
+      container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-actions-state"),
+    ).toBe("expanded");
+    expect(
+      window.localStorage.getItem("bindernotes.study-panels.layout.actions:binder-1:lesson-1"),
+    ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /hide secondary panel for lesson/i }));
 
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-secondary-panel-hidden")).toBe(
-      "true",
-    );
+    expect(
+      container.querySelector(".study-panels-shell__body")?.getAttribute("data-secondary-panel-hidden"),
+    ).toBe("true");
     expect(screen.queryByText("Notes body")).toBeNull();
     expect(screen.getByRole("button", { name: /show secondary panel for lesson/i })).toBeTruthy();
   });
@@ -932,21 +972,32 @@ describe("StudyPanelsShell", () => {
     );
     const { container } = renderStudyPanelsShell({
       preset: "math-guided-study",
-      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "whiteboard",
+        "desmos-graph",
+        "formula-sheet",
+        "recent-highlights",
+      ],
     });
 
     fireEvent.click(screen.getByRole("tab", { name: /^notes$/i }));
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
       "private-notes",
     );
-    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe("lesson");
+    expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-secondary")).toBe(
+      "lesson",
+    );
 
     fireEvent.click(screen.getByRole("tab", { name: /^graph$/i }));
     expect(screen.getByTestId("desmos-graph-module").getAttribute("data-graph-keypad")).toBe("hidden");
     expect(screen.queryByText("Full graph keypad")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: /^board$/i }));
-    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe("rail");
+    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe(
+      "rail",
+    );
     expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
       "whiteboard",
     );
@@ -976,7 +1027,14 @@ describe("StudyPanelsShell", () => {
     );
     const { container } = renderStudyPanelsShell({
       preset: "math-guided-study",
-      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "whiteboard",
+        "desmos-graph",
+        "formula-sheet",
+        "recent-highlights",
+      ],
     });
     const expectedPrimaryByTab = new Map([
       ["Lesson", "lesson"],
@@ -993,9 +1051,9 @@ describe("StudyPanelsShell", () => {
       expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
         moduleId,
       );
-      expect(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected")).toBe(
-        "true",
-      );
+      expect(
+        screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected"),
+      ).toBe("true");
     }
   });
 
@@ -1054,9 +1112,9 @@ describe("StudyPanelsShell", () => {
       expect(container.querySelector(".study-panels-shell__body")?.getAttribute("data-study-primary")).toBe(
         moduleId,
       );
-      expect(screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected")).toBe(
-        "true",
-      );
+      expect(
+        screen.getByRole("tab", { name: new RegExp(`^${label}$`, "i") }).getAttribute("aria-selected"),
+      ).toBe("true");
     }
 
     fireEvent.click(screen.getByRole("tab", { name: /^timeline sequence$/i }));
@@ -1087,9 +1145,9 @@ describe("StudyPanelsShell", () => {
     expect(screen.getByRole("tab", { name: /extras/i })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: /^tools$/i })).toBeNull();
     expect((screen.getByRole("button", { name: /quote to note/i }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: /send highlight to notes/i }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole("button", { name: /send highlight to notes/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole("tab", { name: /highlights/i }));
 
@@ -1112,14 +1170,18 @@ describe("StudyPanelsShell", () => {
     );
     const { container } = renderStudyPanelsShell();
 
-    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe("68/32");
+    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe(
+      "68/32",
+    );
 
     fireEvent.click(screen.getByRole("tab", { name: /^notes$/i }));
 
-    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe("72/28");
-    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-storage-key")).toContain(
-      ":notes",
+    expect(container.querySelector(".study-panels-split")?.getAttribute("data-study-split-layout")).toBe(
+      "72/28",
     );
+    expect(
+      container.querySelector(".study-panels-split")?.getAttribute("data-study-split-storage-key"),
+    ).toContain(":notes");
   });
 
   it("protects v2 lesson notes and board splits from cramped saved layouts", () => {
@@ -1137,7 +1199,14 @@ describe("StudyPanelsShell", () => {
     );
     const { container } = renderStudyPanelsShell({
       preset: "math-guided-study",
-      enabledModules: ["lesson", "private-notes", "whiteboard", "desmos-graph", "formula-sheet", "recent-highlights"],
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "whiteboard",
+        "desmos-graph",
+        "formula-sheet",
+        "recent-highlights",
+      ],
     });
 
     const lessonSplit = container.querySelector(".study-panels-split");
@@ -1150,6 +1219,8 @@ describe("StudyPanelsShell", () => {
     expect(boardSplit?.getAttribute("data-study-split-layout")).toBe("76/24");
     expect(boardSplit?.getAttribute("data-study-split-min-primary")).toBe("60");
     expect(boardSplit?.getAttribute("data-study-split-min-secondary")).toBe("20");
-    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe("rail");
+    expect(screen.getByTestId("whiteboard-module").getAttribute("data-whiteboard-default-sidebar")).toBe(
+      "rail",
+    );
   });
 });

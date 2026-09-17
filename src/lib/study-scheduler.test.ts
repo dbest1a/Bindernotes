@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  bucketStudyItems,
-  buildStudySessionSummary,
-  scheduleStudyItemReview,
-} from "@/lib/study-scheduler";
+import { bucketStudyItems, buildStudySessionSummary, scheduleStudyItemReview } from "@/lib/study-scheduler";
 import type { StudyItem } from "@/services/study-items-service";
 
 const baseNow = new Date("2026-05-14T12:00:00.000Z");
@@ -21,9 +17,25 @@ describe("study scheduler", () => {
   it("buckets due, upcoming, difficult, mastered, and binder groups", () => {
     const buckets = bucketStudyItems(
       [
-        studyItem({ id: "due", due_at: "2026-05-14T09:00:00.000Z", binder_id: "binder-calc", binder_title: "Calculus" }),
-        studyItem({ id: "upcoming", due_at: "2026-05-18T09:00:00.000Z", binder_id: "binder-calc", binder_title: "Calculus" }),
-        studyItem({ id: "hard", status: "difficult", due_at: "2026-05-14T10:00:00.000Z", binder_id: "binder-history", binder_title: "History" }),
+        studyItem({
+          id: "due",
+          due_at: "2026-05-14T09:00:00.000Z",
+          binder_id: "binder-calc",
+          binder_title: "Calculus",
+        }),
+        studyItem({
+          id: "upcoming",
+          due_at: "2026-05-18T09:00:00.000Z",
+          binder_id: "binder-calc",
+          binder_title: "Calculus",
+        }),
+        studyItem({
+          id: "hard",
+          status: "difficult",
+          due_at: "2026-05-14T10:00:00.000Z",
+          binder_id: "binder-history",
+          binder_title: "History",
+        }),
         studyItem({ id: "mastered", status: "mastered", due_at: "2026-06-01T09:00:00.000Z" }),
       ],
       baseNow,

@@ -71,16 +71,12 @@ describe("workspace preferences", () => {
   });
 
   it("selects a Canvas Rework starter by applying and fitting that starter exactly once", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
 
-    const next = applyCanvasReworkStarterLayoutToViewport(
-      preferences,
-      "split-study",
-      { width: 1200, height: 720 },
-    );
+    const next = applyCanvasReworkStarterLayoutToViewport(preferences, "split-study", {
+      width: 1200,
+      height: 720,
+    });
 
     expect(next.preset).toBe("split-study");
     expect(next.canvas.layoutSource).toBe("preset");
@@ -90,9 +86,7 @@ describe("workspace preferences", () => {
     expect(next.canvas.presetAppliedAtViewport).toEqual(
       expect.objectContaining({ width: 1200, height: 720 }),
     );
-    expect(next.windowLayout.lesson).toEqual(
-      expect.objectContaining({ x: 0, y: 0, w: 600, h: 720 }),
-    );
+    expect(next.windowLayout.lesson).toEqual(expect.objectContaining({ x: 0, y: 0, w: 600, h: 720 }));
     expect(next.windowLayout["private-notes"]).toEqual(
       expect.objectContaining({ x: 600, y: 0, w: 600, h: 720 }),
     );
@@ -278,8 +272,7 @@ describe("workspace preferences", () => {
     expect(fitted.windowLayout["private-notes"]?.x).toBe(810);
     expect(
       Math.round(
-        (fitted.windowLayout["private-notes"]?.x ?? 0) +
-          (fitted.windowLayout["private-notes"]?.w ?? 0),
+        (fitted.windowLayout["private-notes"]?.x ?? 0) + (fitted.windowLayout["private-notes"]?.w ?? 0),
       ),
     ).toBe(1440);
     expect(fitted.canvas.layoutSource).toBe("custom");
@@ -408,7 +401,9 @@ describe("workspace preferences", () => {
     expect(workspaceModules.find((module) => module.id === "whiteboard")).toMatchObject({
       name: "Whiteboard",
     });
-    expect(workspacePresets.find((preset) => preset.id === "math-practice-mode")?.description).toContain("practice");
+    expect(workspacePresets.find((preset) => preset.id === "math-practice-mode")?.description).toContain(
+      "practice",
+    );
     expect(
       // Whiteboard should be available from settings/module launchers but not injected into the core two-pane preset.
       createDefaultWorkspacePreferences("user-1", "binder-1").enabledModules,
@@ -419,7 +414,9 @@ describe("workspace preferences", () => {
     expect(workspaceModules.find((module) => module.id === "flashcards")).toMatchObject({
       name: "Recall Lab",
     });
-    expect(workspacePresets.find((preset) => preset.id === "recall-lab")?.description).toContain("source-linked");
+    expect(workspacePresets.find((preset) => preset.id === "recall-lab")?.description).toContain(
+      "source-linked",
+    );
 
     const layout = resolveWorkspacePresetLayout("recall-lab", "guided");
     expect(layout.enabledModules[0]).toBe("flashcards");
@@ -506,26 +503,22 @@ describe("workspace preferences", () => {
       },
     };
 
-    const facelift = applyWorkspacePresentationModeToViewport(
-      withCanvasMemory,
-      "facelift",
-      { width: 1440, height: 860 },
-    );
-    const faceliftCanvas = applyFaceliftSurfaceModeToViewport(
-      facelift,
-      "canvas",
-      { width: 1440, height: 860 },
-    );
-    const classicCanvas = applyWorkspacePresentationModeToViewport(
-      faceliftCanvas,
-      "canvas",
-      { width: 1440, height: 860 },
-    );
-    const classicSimple = applyWorkspacePresentationModeToViewport(
-      classicCanvas,
-      "simple",
-      { width: 1440, height: 860 },
-    );
+    const facelift = applyWorkspacePresentationModeToViewport(withCanvasMemory, "facelift", {
+      width: 1440,
+      height: 860,
+    });
+    const faceliftCanvas = applyFaceliftSurfaceModeToViewport(facelift, "canvas", {
+      width: 1440,
+      height: 860,
+    });
+    const classicCanvas = applyWorkspacePresentationModeToViewport(faceliftCanvas, "canvas", {
+      width: 1440,
+      height: 860,
+    });
+    const classicSimple = applyWorkspacePresentationModeToViewport(classicCanvas, "simple", {
+      width: 1440,
+      height: 860,
+    });
 
     expect(facelift.workspacePresentationMode).toBe("facelift");
     expect(facelift.activeMode).toBe("simple");
@@ -587,10 +580,9 @@ describe("workspace preferences", () => {
 
   it("offers Prism Ink as an interactive built-in color scheme", () => {
     const prismInk = workspaceThemes.find((theme) => theme.id === "prism-ink");
-    const next = updateWorkspaceAppearance(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      { appTheme: "prism-ink" },
-    );
+    const next = updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+      appTheme: "prism-ink",
+    });
 
     expect(prismInk).toMatchObject({
       name: "Prism Ink",
@@ -637,10 +629,9 @@ describe("workspace preferences", () => {
   });
 
   it("clones a built-in app theme into Custom when the accent changes", () => {
-    const preferences = updateWorkspaceAppearance(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      { appTheme: "space" },
-    );
+    const preferences = updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+      appTheme: "space",
+    });
 
     const next = updateWorkspaceAppearance(preferences, { accent: "amber" });
 
@@ -745,7 +736,10 @@ describe("workspace preferences", () => {
 
   it("filters presets by subject and mode without duplicate Math Graph Lab titles", () => {
     const math = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "modular");
-    const history = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-history"), "modular");
+    const history = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-history"),
+      "modular",
+    );
     const simple = createDefaultWorkspacePreferences("user-1", "binder-1");
     const mathPresets = getVisibleWorkspacePresets(math, { binderSubject: "Mathematics" });
     const historyPresets = getVisibleWorkspacePresets(history, {
@@ -776,9 +770,7 @@ describe("workspace preferences", () => {
 
     expect(recommendations).toHaveLength(2);
     expect(recommendations[0]?.id).toBe("math-graph-lab");
-    expect(recommendations.map((preset) => preset.id)).toEqual(
-      expect.arrayContaining(["math-graph-lab"]),
-    );
+    expect(recommendations.map((preset) => preset.id)).toEqual(expect.arrayContaining(["math-graph-lab"]));
     expect(
       recommendations.every((preset) =>
         [
@@ -807,18 +799,13 @@ describe("workspace preferences", () => {
   });
 
   it("applies preset selection through the same viewport-aware fit path as the Fit button", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1180, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "math-proof-concept", viewport);
-    const manuallyFitted = fitWorkspaceToViewport(
-      applyPreset(preferences, "math-proof-concept"),
-      viewport,
-      { force: true },
-    );
+    const manuallyFitted = fitWorkspaceToViewport(applyPreset(preferences, "math-proof-concept"), viewport, {
+      force: true,
+    });
     const visibleModules = selected.enabledModules.filter(
       (moduleId) => !selected.moduleLayout[moduleId]?.collapsed,
     );
@@ -830,7 +817,9 @@ describe("workspace preferences", () => {
       const frame = selected.windowLayout[moduleId]!;
       const minimum = getWorkspaceModuleMinimumSize(
         moduleId,
-        (getWorkspacePresetDesign("math-proof-concept").primary as readonly WorkspaceModuleId[]).includes(moduleId)
+        (getWorkspacePresetDesign("math-proof-concept").primary as readonly WorkspaceModuleId[]).includes(
+          moduleId,
+        )
           ? "primary"
           : "secondary",
       );
@@ -843,10 +832,7 @@ describe("workspace preferences", () => {
   });
 
   it("auto-fits Split Study with lesson and notes stretched to the usable viewport bottom", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1366, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "split-study", viewport);
@@ -863,10 +849,7 @@ describe("workspace preferences", () => {
   });
 
   it("fits Split Study as two edge-to-edge panes meeting at the center", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1366, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "split-study", viewport);
@@ -884,10 +867,7 @@ describe("workspace preferences", () => {
   });
 
   it("ignores stale manual canvas frames for Revamp Beta preset selection", () => {
-    const base = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const preferences = {
       ...base,
       preset: "math-practice-mode" as const,
@@ -1032,8 +1012,8 @@ describe("workspace preferences", () => {
     presets.forEach((presetId) => {
       styles.forEach((style) => {
         const layout = resolveWorkspacePresetLayout(presetId, style);
-        const frames = Object.entries(layout.windowLayout ?? {}).filter((entry): entry is [string, WorkspaceWindowFrame] =>
-          Boolean(entry[1]),
+        const frames = Object.entries(layout.windowLayout ?? {}).filter(
+          (entry): entry is [string, WorkspaceWindowFrame] => Boolean(entry[1]),
         );
 
         for (let index = 0; index < frames.length; index += 1) {
@@ -1213,9 +1193,7 @@ describe("workspace preferences", () => {
         expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(1440);
         expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(900);
         expect(frame.w, `${presetId}/${moduleId} too narrow`).toBeGreaterThanOrEqual(
-          moduleId === "lesson" || moduleId === "private-notes" || moduleId === "desmos-graph"
-            ? 420
-            : 300,
+          moduleId === "lesson" || moduleId === "private-notes" || moduleId === "desmos-graph" ? 420 : 300,
         );
         expect(frame.h, `${presetId}/${moduleId} too short`).toBeGreaterThanOrEqual(220);
       });
@@ -1278,11 +1256,31 @@ describe("workspace preferences", () => {
       primary: WorkspaceModuleId;
       secondary: WorkspaceModuleId[];
     }> = [
-      { presetId: "history-guided", primary: "lesson", secondary: ["history-timeline", "history-evidence", "private-notes"] },
-      { presetId: "history-timeline-focus", primary: "history-timeline", secondary: ["lesson", "private-notes"] },
-      { presetId: "history-source-evidence", primary: "history-evidence", secondary: ["lesson", "private-notes"] },
-      { presetId: "history-argument-builder", primary: "history-argument", secondary: ["history-evidence", "lesson"] },
-      { presetId: "history-full-studio", primary: "history-argument", secondary: ["lesson", "history-timeline", "history-evidence"] },
+      {
+        presetId: "history-guided",
+        primary: "lesson",
+        secondary: ["history-timeline", "history-evidence", "private-notes"],
+      },
+      {
+        presetId: "history-timeline-focus",
+        primary: "history-timeline",
+        secondary: ["lesson", "private-notes"],
+      },
+      {
+        presetId: "history-source-evidence",
+        primary: "history-evidence",
+        secondary: ["lesson", "private-notes"],
+      },
+      {
+        presetId: "history-argument-builder",
+        primary: "history-argument",
+        secondary: ["history-evidence", "lesson"],
+      },
+      {
+        presetId: "history-full-studio",
+        primary: "history-argument",
+        secondary: ["lesson", "history-timeline", "history-evidence"],
+      },
     ];
 
     expectations.forEach(({ presetId, primary, secondary }) => {
@@ -1309,7 +1307,9 @@ describe("workspace preferences", () => {
         expect(frame.w, `${presetId}/${moduleId} width`).toBeGreaterThanOrEqual(minimum.width);
         expect(frame.h, `${presetId}/${moduleId} height`).toBeGreaterThanOrEqual(minimum.height);
       });
-      expect(hasTinyBottomStrip(visibleModules.map((moduleId) => tidied.windowLayout[moduleId]!))).toBe(false);
+      expect(hasTinyBottomStrip(visibleModules.map((moduleId) => tidied.windowLayout[moduleId]!))).toBe(
+        false,
+      );
 
       if (
         presetId !== "history-guided" &&
@@ -1376,8 +1376,12 @@ describe("workspace preferences", () => {
           );
           expect(frame.x, `${presetId}/${moduleId} x`).toBeGreaterThanOrEqual(0);
           expect(frame.y, `${presetId}/${moduleId} y`).toBeGreaterThanOrEqual(0);
-          expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(viewport.width);
-          expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(viewport.height);
+          expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(
+            viewport.width,
+          );
+          expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(
+            viewport.height,
+          );
           expect(frame.w, `${presetId}/${moduleId} too narrow`).toBeGreaterThanOrEqual(minimum.width);
           expect(frame.h, `${presetId}/${moduleId} too short`).toBeGreaterThanOrEqual(minimum.height);
         });
@@ -1410,9 +1414,7 @@ describe("workspace preferences", () => {
     const visibleFrames = visibleModules.map((moduleId) => fitted.windowLayout[moduleId]!);
 
     expect(visibleModules).toEqual(["history-timeline", "lesson", "private-notes"]);
-    expect(fitted.windowLayout["history-timeline"]!.w).toBeGreaterThan(
-      fitted.windowLayout.lesson!.w,
-    );
+    expect(fitted.windowLayout["history-timeline"]!.w).toBeGreaterThan(fitted.windowLayout.lesson!.w);
     expect(hasTinyBottomStrip(visibleFrames)).toBe(false);
   });
 
@@ -1483,7 +1485,10 @@ describe("workspace preferences", () => {
   });
 
   it("fits tall preset layouts into the visible viewport without unreadable panels", () => {
-    const preferences = applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "annotation-mode");
+    const preferences = applyPreset(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "annotation-mode",
+    );
     const fitted = fitWorkspaceToViewport(preferences, { width: 1280, height: 820 }, { force: true });
     const lessonWindow = fitted.windowLayout.lesson;
     const notesWindow = fitted.windowLayout["private-notes"];
@@ -1512,10 +1517,7 @@ describe("workspace preferences", () => {
   });
 
   it("tidies a broken layout instead of returning the same broken frames", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const broken = {
       ...preferences,
       preset: "split-study" as WorkspacePresetId,

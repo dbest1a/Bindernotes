@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDoc } from "@/lib/utils";
-import {
-  cleanAccidentalNotePrefix,
-  detectAccidentalNotePrefix,
-} from "@/lib/note-hygiene";
+import { cleanAccidentalNotePrefix, detectAccidentalNotePrefix } from "@/lib/note-hygiene";
 import { extractPlainText } from "@/lib/math-detection";
 
 describe("note hygiene", () => {
@@ -19,11 +16,16 @@ describe("note hygiene", () => {
   });
 
   it("does not flag normal student writing", () => {
-    expect(detectAccidentalNotePrefix(emptyDoc("Rigid motions preserve length and angle measure."))).toBeNull();
+    expect(
+      detectAccidentalNotePrefix(emptyDoc("Rigid motions preserve length and angle measure.")),
+    ).toBeNull();
   });
 
   it("removes only the accidental-looking prefix without deleting the real note", () => {
-    const cleaned = cleanAccidentalNotePrefix(emptyDoc(";;;'';;mm Rigid motions preserve distances."), ";;;'';;mm ");
+    const cleaned = cleanAccidentalNotePrefix(
+      emptyDoc(";;;'';;mm Rigid motions preserve distances."),
+      ";;;'';;mm ",
+    );
 
     expect(extractPlainText(cleaned)).toBe("Rigid motions preserve distances.");
   });

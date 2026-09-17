@@ -90,11 +90,7 @@ export type StoichiometryQuantity = {
   unit: "g" | "mol";
 };
 
-export type StoichiometryStepKind =
-  | "balance_equation"
-  | "given_to_moles"
-  | "mole_ratio"
-  | "moles_to_target";
+export type StoichiometryStepKind = "balance_equation" | "given_to_moles" | "mole_ratio" | "moles_to_target";
 
 export type StoichiometryStepSummary = {
   kind: StoichiometryStepKind;
@@ -125,12 +121,7 @@ export type StoichiometrySolution =
   | ChemistryError;
 
 export type TitrationNotebookSection =
-  | "hypothesis"
-  | "procedure"
-  | "calculations"
-  | "observations"
-  | "errorAnalysis"
-  | "conclusion";
+  "hypothesis" | "procedure" | "calculations" | "observations" | "errorAnalysis" | "conclusion";
 
 export type TitrationNotebook = Record<TitrationNotebookSection, string> & {
   dataTable: string;

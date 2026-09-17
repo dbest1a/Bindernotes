@@ -18,8 +18,12 @@ describe("bounded metadata loading", () => {
   });
   it("does not silently return partial data when a later page fails", async () => {
     const error = { message: "offline" };
-    expect(await readMetadataPages(async (from) => from === 0
-      ? { data: Array.from({ length: 200 }, (_, id) => ({ id })), error: null }
-      : { data: null, error })).toEqual({ data: [], error });
+    expect(
+      await readMetadataPages(async (from) =>
+        from === 0
+          ? { data: Array.from({ length: 200 }, (_, id) => ({ id })), error: null }
+          : { data: null, error },
+      ),
+    ).toEqual({ data: [], error });
   });
 });

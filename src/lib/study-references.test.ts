@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { collectLessonSectionAnchors, findLessonSectionAnchorId, inferMathBlockLabel } from "@/lib/study-references";
+import {
+  collectLessonSectionAnchors,
+  findLessonSectionAnchorId,
+  inferMathBlockLabel,
+} from "@/lib/study-references";
 
 describe("study references", () => {
   it("collects stable lesson anchors from headings", () => {

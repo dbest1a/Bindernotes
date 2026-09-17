@@ -70,9 +70,7 @@ describe("DesmosGraph", () => {
     expect(screen.getByText(/loading desmos/i)).toBeTruthy();
 
     await waitFor(() => expect(GraphingCalculator).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(screen.queryByText(/loading desmos/i)).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByText(/loading desmos/i)).toBeNull());
   });
 
   it("updates keypad settings without remounting the graphing calculator", async () => {
@@ -115,7 +113,9 @@ describe("DesmosGraph", () => {
 
     rerender(<DesmosGraph onStateChange={vi.fn()} showKeypad state={null} />);
 
-    await waitFor(() => expect(calculator.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ keypad: true })));
+    await waitFor(() =>
+      expect(calculator.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ keypad: true })),
+    );
     expect(GraphingCalculator).toHaveBeenCalledTimes(1);
     expect(calculator.destroy).not.toHaveBeenCalled();
   });
@@ -140,19 +140,17 @@ describe("DesmosGraph", () => {
       },
     } as unknown as DesmosApi);
 
-    const rectSpy = vi
-      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockImplementation(() => ({
-        bottom: 0,
-        height: 0,
-        left: 0,
-        right: 0,
-        toJSON: () => ({}),
-        top: 0,
-        width: 0,
-        x: 0,
-        y: 0,
-      }));
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+      bottom: 0,
+      height: 0,
+      left: 0,
+      right: 0,
+      toJSON: () => ({}),
+      top: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+    }));
 
     render(<DesmosGraph onStateChange={vi.fn()} state={null} />);
 
@@ -212,8 +210,7 @@ describe("DesmosGraph", () => {
     const Calculator = vi.fn(() => calculator);
     vi.mocked(desmosLoader.isDesmosFeatureEnabled).mockImplementation(
       (api, feature) =>
-        feature === "GraphingCalculator" &&
-        Boolean((api as DesmosApi).enabledFeatures?.GraphingCalculator),
+        feature === "GraphingCalculator" && Boolean((api as DesmosApi).enabledFeatures?.GraphingCalculator),
     );
     vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({
       Calculator,
@@ -237,9 +234,7 @@ describe("DesmosGraph", () => {
     render(<DesmosGraph onStateChange={vi.fn()} state={null} />);
 
     await waitFor(() => expect(Calculator).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(screen.queryByText(/this desmos tool is not enabled/i)).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByText(/this desmos tool is not enabled/i)).toBeNull());
   });
 
   it("shows a safe fallback when Desmos 3D is unavailable", async () => {

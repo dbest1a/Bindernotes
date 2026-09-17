@@ -17,7 +17,10 @@ export function usePersonalNoteSearch(ownerId: string | undefined, query: string
     enabled: shouldSearch && settled === text,
     staleTime: 30_000,
   });
-  return { matches: shouldSearch && settled === text ? result.data : undefined,
+  return {
+    matches: shouldSearch && settled === text ? result.data : undefined,
     searching: shouldSearch && (settled !== text || result.isFetching),
-    error: shouldSearch && settled === text ? result.error : null, retry: result.refetch };
+    error: shouldSearch && settled === text ? result.error : null,
+    retry: result.refetch,
+  };
 }

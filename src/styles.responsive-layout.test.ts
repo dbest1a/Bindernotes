@@ -15,7 +15,9 @@ describe("phone and tablet responsive layout styles", () => {
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.marketing-page[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.beta-homepage[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.beta-pricing-page[\s\S]*overflow-x:\s*clip/s);
-    expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.admin-dashboard-makeover[\s\S]*overflow-x:\s*clip/s);
+    expect(css).toMatch(
+      /@media \(max-width: 1180px\)[\s\S]*\.admin-dashboard-makeover[\s\S]*overflow-x:\s*clip/s,
+    );
     expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.workspace-page[\s\S]*overflow-x:\s*clip/s);
     expect(css).toMatch(/@media \(max-width: 767px\)[\s\S]*\.app-page[\s\S]*padding-left:\s*0\.75rem/s);
   });
@@ -24,8 +26,12 @@ describe("phone and tablet responsive layout styles", () => {
     expect(css).toMatch(/\.responsive-mobile-tabs\s*{[\s\S]*overflow-x:\s*auto/s);
     expect(css).toMatch(/\.responsive-mobile-tabs\s*{[\s\S]*position:\s*sticky/s);
     expect(css).toMatch(/\.responsive-mobile-module\s*{[\s\S]*min-width:\s*0/s);
-    expect(css).toMatch(/\.responsive-mobile-module \.workspace-panel\s*{[\s\S]*min-height:\s*min\(74svh,\s*720px\) !important/s);
-    expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*\.workspace-canvas-shell[\s\S]*min-height:\s*min\(72svh,\s*720px\)/s);
+    expect(css).toMatch(
+      /\.responsive-mobile-module \.workspace-panel\s*{[\s\S]*min-height:\s*min\(74svh,\s*720px\) !important/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 1180px\)[\s\S]*\.workspace-canvas-shell[\s\S]*min-height:\s*min\(72svh,\s*720px\)/s,
+    );
   });
 
   it("keeps tablet landscape on the full canvas path while phone/tablet portrait use mobile modules", () => {

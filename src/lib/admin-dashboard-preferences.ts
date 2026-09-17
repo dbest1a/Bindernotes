@@ -35,9 +35,7 @@ export const dashboardViewModeOptions: DashboardViewModeOption[] = [
   },
 ];
 
-const viewModes = new Set<DashboardViewMode>(
-  dashboardViewModeOptions.map((option) => option.value),
-);
+const viewModes = new Set<DashboardViewMode>(dashboardViewModeOptions.map((option) => option.value));
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -78,7 +76,10 @@ export function saveAdminDashboardPreference(
   }
 
   try {
-    storage.setItem(adminDashboardViewStorageKey, JSON.stringify(sanitizeAdminDashboardPreference(preference)));
+    storage.setItem(
+      adminDashboardViewStorageKey,
+      JSON.stringify(sanitizeAdminDashboardPreference(preference)),
+    );
   } catch {
     // Cosmetic admin preferences should never block the app.
   }

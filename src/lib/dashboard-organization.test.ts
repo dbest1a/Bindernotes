@@ -58,7 +58,11 @@ function link(folderId: string, binderId: string, sortOrder?: number): FolderBin
 const data: DashboardData = {
   binders: [binder("binder-a", "Alpha"), binder("binder-b", "Beta"), binder("binder-c", "Gamma")],
   folders: [folder("folder-one", "One"), folder("folder-two", "Two")],
-  folderBinders: [link("folder-one", "binder-a"), link("folder-one", "binder-b"), link("folder-two", "binder-c")],
+  folderBinders: [
+    link("folder-one", "binder-a"),
+    link("folder-one", "binder-b"),
+    link("folder-two", "binder-c"),
+  ],
   lessons: [] as BinderLesson[],
   notes: [],
   recentLessons: [],

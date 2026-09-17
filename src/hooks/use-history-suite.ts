@@ -33,11 +33,7 @@ export function useHistorySuite(
   profile: Profile | null,
 ) {
   return useQuery({
-    queryKey: queryKeys.historySuite.detail(
-      binder?.id,
-      binder?.suite_template_id,
-      profile?.id,
-    ),
+    queryKey: queryKeys.historySuite.detail(binder?.id, binder?.suite_template_id, profile?.id),
     queryFn: () => getHistorySuiteData({ binder: binder!, lessons, profile }),
     enabled: Boolean(binder),
     staleTime: HISTORY_QUERY_STALE_TIME,
@@ -45,10 +41,7 @@ export function useHistorySuite(
   });
 }
 
-export function useHistoryMutations(
-  binder: Binder | undefined,
-  profile: Profile | null,
-) {
+export function useHistoryMutations(binder: Binder | undefined, profile: Profile | null) {
   const queryClient = useQueryClient();
   const invalidate = () => {
     if (!binder || !profile) {
@@ -74,8 +67,7 @@ export function useHistoryMutations(
     }),
     upsertEvidence: useMutation({
       mutationFn: (
-        input: Partial<HistoryEvidenceCard> &
-          Pick<HistoryEvidenceCard, "binder_id" | "evidence_strength">,
+        input: Partial<HistoryEvidenceCard> & Pick<HistoryEvidenceCard, "binder_id" | "evidence_strength">,
       ) => upsertEvidenceCard(profile!, input),
       onSuccess: invalidate,
     }),
@@ -88,7 +80,10 @@ export function useHistoryMutations(
       mutationFn: (input: {
         chainId: string;
         patch: Partial<
-          Omit<HistoryArgumentChain, "id" | "owner_id" | "binder_id" | "lesson_id" | "created_at" | "updated_at">
+          Omit<
+            HistoryArgumentChain,
+            "id" | "owner_id" | "binder_id" | "lesson_id" | "created_at" | "updated_at"
+          >
         >;
       }) => updateArgumentChain(profile!, input.chainId, input.patch),
       onSuccess: invalidate,

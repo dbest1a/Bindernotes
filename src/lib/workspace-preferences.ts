@@ -156,30 +156,97 @@ export const workspaceModules: {
   description: string;
   steady?: boolean;
 }[] = [
-  { id: "lesson", name: "Published lesson", description: "The source lesson you are studying.", steady: true },
-  { id: "private-notes", name: "Private notes", description: "Your own side-by-side working notes.", steady: true },
-  { id: "binder-notebook", name: "Binder notebook", description: "A combined view of your lesson notes across this binder.", steady: true },
-  { id: "history-timeline", name: "History timeline", description: "Chronology, event cards, and map-style context.", steady: true },
-  { id: "history-evidence", name: "Source evidence", description: "Evidence locker with primary and secondary sources.", steady: true },
-  { id: "history-argument", name: "Argument builder", description: "Cause-and-effect chains with evidence links.", steady: true },
-  { id: "history-myth-checks", name: "Myth vs history", description: "Evaluate claims against evidence and interpretation.", steady: true },
+  {
+    id: "lesson",
+    name: "Published lesson",
+    description: "The source lesson you are studying.",
+    steady: true,
+  },
+  {
+    id: "private-notes",
+    name: "Private notes",
+    description: "Your own side-by-side working notes.",
+    steady: true,
+  },
+  {
+    id: "binder-notebook",
+    name: "Binder notebook",
+    description: "A combined view of your lesson notes across this binder.",
+    steady: true,
+  },
+  {
+    id: "history-timeline",
+    name: "History timeline",
+    description: "Chronology, event cards, and map-style context.",
+    steady: true,
+  },
+  {
+    id: "history-evidence",
+    name: "Source evidence",
+    description: "Evidence locker with primary and secondary sources.",
+    steady: true,
+  },
+  {
+    id: "history-argument",
+    name: "Argument builder",
+    description: "Cause-and-effect chains with evidence links.",
+    steady: true,
+  },
+  {
+    id: "history-myth-checks",
+    name: "Myth vs history",
+    description: "Evaluate claims against evidence and interpretation.",
+    steady: true,
+  },
   { id: "comments", name: "Sticky notes", description: "Anchored and freeform study notes." },
   { id: "lesson-outline", name: "Lesson outline", description: "Fast lesson navigation." },
   { id: "search", name: "Search", description: "Search within the current binder." },
   { id: "formula-sheet", name: "Formula sheet", description: "Reusable equations from lessons and notes." },
   { id: "math-blocks", name: "Math blocks", description: "Structured equations saved in this lesson." },
   { id: "desmos-graph", name: "Desmos graph", description: "A live graphing calculator window." },
-  { id: "scientific-calculator", name: "Scientific calculator", description: "Desmos scientific calculator and fallback tools." },
+  {
+    id: "scientific-calculator",
+    name: "Scientific calculator",
+    description: "Desmos scientific calculator and fallback tools.",
+  },
   { id: "saved-graphs", name: "Saved graphs", description: "Named graph states and snapshots." },
-  { id: "whiteboard", name: "Whiteboard", description: "A graph-paper study board for drawing, templates, and live BinderNotes modules." },
-  { id: "chem-stoichiometry-coach", name: "Chemistry Stoichiometry Coach", description: "Balanced equations, mole bridges, and unit ladder checks.", steady: true },
-  { id: "chem-titration-lab", name: "Chemistry Titration Lab", description: "A deterministic acid-base titration lab with pH curve and data table.", steady: true },
-  { id: "chem-lab-notebook", name: "Chemistry Lab Notebook", description: "Structured hypothesis, data, calculations, and conclusion sections.", steady: true },
-  { id: "chem-reference-safety", name: "Chemistry Reference/Safety Card", description: "Safety reminders, conservation checks, and misconception tags.", steady: true },
+  {
+    id: "whiteboard",
+    name: "Whiteboard",
+    description: "A graph-paper study board for drawing, templates, and live BinderNotes modules.",
+  },
+  {
+    id: "chem-stoichiometry-coach",
+    name: "Chemistry Stoichiometry Coach",
+    description: "Balanced equations, mole bridges, and unit ladder checks.",
+    steady: true,
+  },
+  {
+    id: "chem-titration-lab",
+    name: "Chemistry Titration Lab",
+    description: "A deterministic acid-base titration lab with pH curve and data table.",
+    steady: true,
+  },
+  {
+    id: "chem-lab-notebook",
+    name: "Chemistry Lab Notebook",
+    description: "Structured hypothesis, data, calculations, and conclusion sections.",
+    steady: true,
+  },
+  {
+    id: "chem-reference-safety",
+    name: "Chemistry Reference/Safety Card",
+    description: "Safety reminders, conservation checks, and misconception tags.",
+    steady: true,
+  },
   { id: "recent-highlights", name: "Recent highlights", description: "Saved anchors and takeaways." },
   { id: "tasks", name: "Tasks/checklist", description: "A focused study checklist." },
   { id: "related-concepts", name: "Related concepts", description: "Connected concepts and references." },
-  { id: "flashcards", name: "Recall Lab", description: "Source-linked cards, draft review, and due practice." },
+  {
+    id: "flashcards",
+    name: "Recall Lab",
+    description: "Source-linked cards, draft review, and due practice.",
+  },
   { id: "mini-tools", name: "Mini tools", description: "Timer, focus, and utility actions." },
 ];
 
@@ -355,13 +422,7 @@ const paneLayout = (leftRail: number, centerLeft: number, centerRight: number, r
   rightRail,
 });
 
-const frame = (
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  z: number,
-): WorkspaceWindowFrame => ({
+const frame = (x: number, y: number, w: number, h: number, z: number): WorkspaceWindowFrame => ({
   x,
   y,
   w,
@@ -435,12 +496,14 @@ export const workspacePresets: WorkspacePreset[] = [
   {
     id: "split-study",
     name: "Split Study",
-    description: "A lesson-and-notes workspace that gives both surfaces room to matter without flattening them.",
+    description:
+      "A lesson-and-notes workspace that gives both surfaces room to matter without flattening them.",
   },
   {
     id: "math-study",
     name: "Math Study",
-    description: "A graph-first study preset with lesson context, notes, formula cards, and saved graph states in reach.",
+    description:
+      "A graph-first study preset with lesson context, notes, formula cards, and saved graph states in reach.",
   },
   {
     id: "math-simple-presentation",
@@ -470,7 +533,8 @@ export const workspacePresets: WorkspacePreset[] = [
   {
     id: "full-math-canvas",
     name: "Full Math Canvas",
-    description: "A full modular math canvas with graph, notes, formulas, calculator, saved states, and concept support.",
+    description:
+      "A full modular math canvas with graph, notes, formulas, calculator, saved states, and concept support.",
   },
   {
     id: "chem-guided-study",
@@ -525,7 +589,8 @@ export const workspacePresets: WorkspacePreset[] = [
   {
     id: "chemistry-lab",
     name: "Chemistry Lab",
-    description: "A lab-first chemistry workspace with lesson context, titration, stoichiometry, and structured notebook capture.",
+    description:
+      "A lab-first chemistry workspace with lesson context, titration, stoichiometry, and structured notebook capture.",
   },
   {
     id: "annotation-mode",
@@ -560,7 +625,8 @@ export const workspacePresets: WorkspacePreset[] = [
   {
     id: "recall-lab",
     name: "Recall Lab",
-    description: "A full-screen source-linked active recall preset with due cards, drafts, source context, and mistake review.",
+    description:
+      "A full-screen source-linked active recall preset with due cards, drafts, source context, and mistake review.",
   },
 ];
 
@@ -627,8 +693,7 @@ export function getVisibleWorkspacePresets(
     const modeMatches =
       (isFacelift
         ? visibility.modes.includes("canvas") || visibility.modes.includes("simple")
-        : visibility.modes.includes(effectiveMode)) ||
-      presetIsActive;
+        : visibility.modes.includes(effectiveMode)) || presetIsActive;
     const advancedMatches = options.includeAdvanced || !visibility.advanced || presetIsActive;
 
     return subjectMatches && modeMatches && advancedMatches;
@@ -654,11 +719,7 @@ export function getTopbarWorkspacePresetRecommendations(
     "math-proof-concept",
     "math-practice-mode",
   ];
-  const preferredChemistryPresetOrder: WorkspacePresetId[] = [
-    "split-study",
-    "chemistry-lab",
-    "notes-focus",
-  ];
+  const preferredChemistryPresetOrder: WorkspacePresetId[] = ["split-study", "chemistry-lab", "notes-focus"];
   const orderedVisiblePresets =
     activeSubject === "math"
       ? [
@@ -684,10 +745,7 @@ export function getTopbarWorkspacePresetRecommendations(
   return recommendations.slice(0, limit);
 }
 
-function resolvePresetSubject(
-  binderSubject?: string | null,
-  historyEnabled = false,
-): WorkspacePresetSubject {
+function resolvePresetSubject(binderSubject?: string | null, historyEnabled = false): WorkspacePresetSubject {
   const normalized = binderSubject?.trim().toLowerCase() ?? "";
   if (historyEnabled || normalized === "history") {
     return "history";
@@ -703,11 +761,7 @@ function resolvePresetSubject(
     return "math";
   }
 
-  if (
-    normalized.includes("chem") ||
-    normalized.includes("stoich") ||
-    normalized.includes("titration")
-  ) {
+  if (normalized.includes("chem") || normalized.includes("stoich") || normalized.includes("titration")) {
     return "chemistry";
   }
 
@@ -866,8 +920,20 @@ const workspacePresetLayouts: Partial<
   ),
   "math-study": presetStyles(
     {
-      enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet", "saved-graphs", "scientific-calculator"],
-      zones: zones(["lesson", "private-notes"], ["desmos-graph"], [], ["formula-sheet", "saved-graphs", "scientific-calculator"]),
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "formula-sheet",
+        "saved-graphs",
+        "scientific-calculator",
+      ],
+      zones: zones(
+        ["lesson", "private-notes"],
+        ["desmos-graph"],
+        [],
+        ["formula-sheet", "saved-graphs", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(27, 52, 0, 21),
       windowLayout: {
         lesson: frame(20, 20, 500, 420, 1),
@@ -887,8 +953,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "private-notes", "desmos-graph", "formula-sheet", "saved-graphs", "scientific-calculator", "math-blocks"],
-      zones: zones(["lesson", "formula-sheet", "saved-graphs"], ["desmos-graph", "scientific-calculator"], ["private-notes", "math-blocks"], []),
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "formula-sheet",
+        "saved-graphs",
+        "scientific-calculator",
+        "math-blocks",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet", "saved-graphs"],
+        ["desmos-graph", "scientific-calculator"],
+        ["private-notes", "math-blocks"],
+        [],
+      ),
       paneLayout: paneLayout(23, 56, 21, 0),
       windowLayout: {
         lesson: frame(20, 20, 420, 360, 1),
@@ -910,8 +989,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "private-notes", "desmos-graph", "scientific-calculator", "saved-graphs", "formula-sheet", "math-blocks"],
-      zones: zones(["lesson", "formula-sheet", "saved-graphs"], ["desmos-graph", "math-blocks"], ["private-notes", "scientific-calculator"], []),
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "scientific-calculator",
+        "saved-graphs",
+        "formula-sheet",
+        "math-blocks",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet", "saved-graphs"],
+        ["desmos-graph", "math-blocks"],
+        ["private-notes", "scientific-calculator"],
+        [],
+      ),
       paneLayout: paneLayout(20, 55, 25, 0),
       windowLayout: {
         lesson: frame(20, 20, 360, 420, 1),
@@ -971,8 +1063,20 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "private-notes", "formula-sheet", "desmos-graph", "math-blocks", "saved-graphs"],
-      zones: zones(["lesson"], ["desmos-graph", "math-blocks"], [], ["private-notes", "formula-sheet", "saved-graphs"]),
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "formula-sheet",
+        "desmos-graph",
+        "math-blocks",
+        "saved-graphs",
+      ],
+      zones: zones(
+        ["lesson"],
+        ["desmos-graph", "math-blocks"],
+        [],
+        ["private-notes", "formula-sheet", "saved-graphs"],
+      ),
       paneLayout: paneLayout(44, 34, 0, 22),
       windowLayout: {
         lesson: frame(20, 20, 840, 1360, 1),
@@ -1013,8 +1117,20 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "desmos-graph", "formula-sheet", "private-notes", "math-blocks", "saved-graphs"],
-      zones: zones(["lesson", "formula-sheet"], ["desmos-graph"], ["private-notes", "math-blocks"], ["saved-graphs"]),
+      enabledModules: [
+        "lesson",
+        "desmos-graph",
+        "formula-sheet",
+        "private-notes",
+        "math-blocks",
+        "saved-graphs",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet"],
+        ["desmos-graph"],
+        ["private-notes", "math-blocks"],
+        ["saved-graphs"],
+      ),
       paneLayout: paneLayout(24, 44, 24, 8),
       windowLayout: {
         lesson: frame(20, 20, 460, 520, 1),
@@ -1034,8 +1150,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "desmos-graph", "formula-sheet", "private-notes", "math-blocks", "saved-graphs", "scientific-calculator"],
-      zones: zones(["lesson", "formula-sheet"], ["desmos-graph"], ["private-notes", "math-blocks"], ["saved-graphs", "scientific-calculator"]),
+      enabledModules: [
+        "lesson",
+        "desmos-graph",
+        "formula-sheet",
+        "private-notes",
+        "math-blocks",
+        "saved-graphs",
+        "scientific-calculator",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet"],
+        ["desmos-graph"],
+        ["private-notes", "math-blocks"],
+        ["saved-graphs", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(22, 46, 22, 10),
       windowLayout: {
         lesson: frame(20, 20, 420, 520, 1),
@@ -1078,8 +1207,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["desmos-graph", "formula-sheet", "saved-graphs", "lesson", "private-notes", "math-blocks", "scientific-calculator"],
-      zones: zones(["lesson", "formula-sheet"], ["desmos-graph"], ["private-notes", "math-blocks"], ["saved-graphs", "scientific-calculator"]),
+      enabledModules: [
+        "desmos-graph",
+        "formula-sheet",
+        "saved-graphs",
+        "lesson",
+        "private-notes",
+        "math-blocks",
+        "scientific-calculator",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet"],
+        ["desmos-graph"],
+        ["private-notes", "math-blocks"],
+        ["saved-graphs", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(20, 55, 20, 5),
       windowLayout: {
         lesson: frame(20, 20, 380, 360, 1),
@@ -1101,8 +1243,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["desmos-graph", "formula-sheet", "saved-graphs", "lesson", "private-notes", "math-blocks", "scientific-calculator"],
-      zones: zones(["lesson", "formula-sheet", "saved-graphs"], ["desmos-graph"], ["private-notes", "math-blocks"], ["scientific-calculator"]),
+      enabledModules: [
+        "desmos-graph",
+        "formula-sheet",
+        "saved-graphs",
+        "lesson",
+        "private-notes",
+        "math-blocks",
+        "scientific-calculator",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet", "saved-graphs"],
+        ["desmos-graph"],
+        ["private-notes", "math-blocks"],
+        ["scientific-calculator"],
+      ),
       paneLayout: paneLayout(19, 56, 20, 5),
       windowLayout: {
         lesson: frame(20, 20, 360, 360, 1),
@@ -1145,8 +1300,20 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "formula-sheet", "related-concepts", "math-blocks", "private-notes", "comments"],
-      zones: zones(["lesson"], ["formula-sheet", "related-concepts"], ["math-blocks"], ["private-notes", "comments"]),
+      enabledModules: [
+        "lesson",
+        "formula-sheet",
+        "related-concepts",
+        "math-blocks",
+        "private-notes",
+        "comments",
+      ],
+      zones: zones(
+        ["lesson"],
+        ["formula-sheet", "related-concepts"],
+        ["math-blocks"],
+        ["private-notes", "comments"],
+      ),
       paneLayout: paneLayout(48, 23, 17, 12),
       windowLayout: {
         lesson: frame(20, 20, 920, 1160, 1),
@@ -1166,8 +1333,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson", "formula-sheet", "related-concepts", "math-blocks", "private-notes", "comments", "recent-highlights"],
-      zones: zones(["lesson"], ["formula-sheet", "related-concepts"], ["math-blocks"], ["private-notes", "comments", "recent-highlights"]),
+      enabledModules: [
+        "lesson",
+        "formula-sheet",
+        "related-concepts",
+        "math-blocks",
+        "private-notes",
+        "comments",
+        "recent-highlights",
+      ],
+      zones: zones(
+        ["lesson"],
+        ["formula-sheet", "related-concepts"],
+        ["math-blocks"],
+        ["private-notes", "comments", "recent-highlights"],
+      ),
       paneLayout: paneLayout(46, 23, 18, 13),
       windowLayout: {
         lesson: frame(20, 20, 880, 1200, 1),
@@ -1210,8 +1390,20 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["math-blocks", "formula-sheet", "lesson", "private-notes", "desmos-graph", "scientific-calculator"],
-      zones: zones(["formula-sheet", "lesson"], ["math-blocks"], ["private-notes"], ["desmos-graph", "scientific-calculator"]),
+      enabledModules: [
+        "math-blocks",
+        "formula-sheet",
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "scientific-calculator",
+      ],
+      zones: zones(
+        ["formula-sheet", "lesson"],
+        ["math-blocks"],
+        ["private-notes"],
+        ["desmos-graph", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(22, 50, 18, 10),
       windowLayout: {
         "formula-sheet": frame(20, 20, 420, 520, 1),
@@ -1231,8 +1423,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["math-blocks", "formula-sheet", "lesson", "private-notes", "desmos-graph", "scientific-calculator", "saved-graphs"],
-      zones: zones(["formula-sheet", "lesson", "saved-graphs"], ["math-blocks"], ["private-notes"], ["desmos-graph", "scientific-calculator"]),
+      enabledModules: [
+        "math-blocks",
+        "formula-sheet",
+        "lesson",
+        "private-notes",
+        "desmos-graph",
+        "scientific-calculator",
+        "saved-graphs",
+      ],
+      zones: zones(
+        ["formula-sheet", "lesson", "saved-graphs"],
+        ["math-blocks"],
+        ["private-notes"],
+        ["desmos-graph", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(20, 50, 20, 10),
       windowLayout: {
         "formula-sheet": frame(20, 20, 380, 420, 1),
@@ -1256,8 +1461,22 @@ const workspacePresetLayouts: Partial<
   ),
   "full-math-canvas": presetStyles(
     {
-      enabledModules: ["lesson", "desmos-graph", "formula-sheet", "math-blocks", "private-notes", "saved-graphs", "scientific-calculator", "related-concepts"],
-      zones: zones(["lesson", "formula-sheet"], ["desmos-graph", "math-blocks"], ["private-notes", "related-concepts"], ["saved-graphs", "scientific-calculator"]),
+      enabledModules: [
+        "lesson",
+        "desmos-graph",
+        "formula-sheet",
+        "math-blocks",
+        "private-notes",
+        "saved-graphs",
+        "scientific-calculator",
+        "related-concepts",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet"],
+        ["desmos-graph", "math-blocks"],
+        ["private-notes", "related-concepts"],
+        ["saved-graphs", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(20, 45, 23, 12),
       windowLayout: {
         lesson: frame(20, 20, 380, 420, 1),
@@ -1272,8 +1491,22 @@ const workspacePresetLayouts: Partial<
       moduleLayout: defaultModuleLayout,
     },
     {
-      enabledModules: ["lesson", "desmos-graph", "formula-sheet", "math-blocks", "private-notes", "saved-graphs", "scientific-calculator", "related-concepts"],
-      zones: zones(["lesson", "formula-sheet", "saved-graphs"], ["desmos-graph"], ["math-blocks", "private-notes"], ["related-concepts", "scientific-calculator"]),
+      enabledModules: [
+        "lesson",
+        "desmos-graph",
+        "formula-sheet",
+        "math-blocks",
+        "private-notes",
+        "saved-graphs",
+        "scientific-calculator",
+        "related-concepts",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet", "saved-graphs"],
+        ["desmos-graph"],
+        ["math-blocks", "private-notes"],
+        ["related-concepts", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(20, 48, 22, 10),
       windowLayout: {
         lesson: frame(20, 20, 380, 380, 1),
@@ -1288,8 +1521,22 @@ const workspacePresetLayouts: Partial<
       moduleLayout: defaultModuleLayout,
     },
     {
-      enabledModules: ["lesson", "desmos-graph", "formula-sheet", "math-blocks", "private-notes", "saved-graphs", "scientific-calculator", "related-concepts"],
-      zones: zones(["lesson", "formula-sheet", "saved-graphs"], ["desmos-graph"], ["math-blocks", "private-notes"], ["related-concepts", "scientific-calculator"]),
+      enabledModules: [
+        "lesson",
+        "desmos-graph",
+        "formula-sheet",
+        "math-blocks",
+        "private-notes",
+        "saved-graphs",
+        "scientific-calculator",
+        "related-concepts",
+      ],
+      zones: zones(
+        ["lesson", "formula-sheet", "saved-graphs"],
+        ["desmos-graph"],
+        ["math-blocks", "private-notes"],
+        ["related-concepts", "scientific-calculator"],
+      ),
       paneLayout: paneLayout(20, 50, 20, 10),
       windowLayout: {
         lesson: frame(20, 20, 380, 400, 1),
@@ -1342,8 +1589,20 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["flashcards", "lesson", "private-notes", "recent-highlights", "comments", "binder-notebook"],
-      zones: zones(["lesson", "binder-notebook"], ["flashcards"], ["private-notes"], ["recent-highlights", "comments"]),
+      enabledModules: [
+        "flashcards",
+        "lesson",
+        "private-notes",
+        "recent-highlights",
+        "comments",
+        "binder-notebook",
+      ],
+      zones: zones(
+        ["lesson", "binder-notebook"],
+        ["flashcards"],
+        ["private-notes"],
+        ["recent-highlights", "comments"],
+      ),
       paneLayout: paneLayout(14, 54, 22, 10),
       windowLayout: {
         flashcards: frame(300, 20, 1040, 1180, 1),
@@ -1389,7 +1648,13 @@ const workspacePresetLayouts: Partial<
         "chem-lab-notebook",
         "chem-reference-safety",
       ],
-      zones: zones(["lesson", "chem-reference-safety"], ["chem-titration-lab"], ["chem-lab-notebook"], [], ["chem-stoichiometry-coach"]),
+      zones: zones(
+        ["lesson", "chem-reference-safety"],
+        ["chem-titration-lab"],
+        ["chem-lab-notebook"],
+        [],
+        ["chem-stoichiometry-coach"],
+      ),
       paneLayout: paneLayout(24, 46, 30, 0),
       windowLayout: {
         lesson: frame(20, 20, 460, 460, 1),
@@ -1415,7 +1680,13 @@ const workspacePresetLayouts: Partial<
         "chem-reference-safety",
         "private-notes",
       ],
-      zones: zones(["lesson", "chem-reference-safety"], ["chem-titration-lab"], ["chem-lab-notebook", "private-notes"], [], ["chem-stoichiometry-coach"]),
+      zones: zones(
+        ["lesson", "chem-reference-safety"],
+        ["chem-titration-lab"],
+        ["chem-lab-notebook", "private-notes"],
+        [],
+        ["chem-stoichiometry-coach"],
+      ),
       paneLayout: paneLayout(22, 46, 32, 0),
       windowLayout: {
         lesson: frame(20, 20, 420, 420, 1),
@@ -1473,8 +1744,21 @@ const workspacePresetLayouts: Partial<
       },
     },
     {
-      enabledModules: ["lesson-outline", "lesson", "private-notes", "comments", "recent-highlights", "related-concepts", "search"],
-      zones: zones(["lesson-outline"], ["lesson"], ["private-notes", "related-concepts"], ["comments", "recent-highlights", "search"]),
+      enabledModules: [
+        "lesson-outline",
+        "lesson",
+        "private-notes",
+        "comments",
+        "recent-highlights",
+        "related-concepts",
+        "search",
+      ],
+      zones: zones(
+        ["lesson-outline"],
+        ["lesson"],
+        ["private-notes", "related-concepts"],
+        ["comments", "recent-highlights", "search"],
+      ),
       paneLayout: paneLayout(12, 50, 20, 18),
       windowLayout: {
         "lesson-outline": frame(20, 20, 220, 280, 1),
@@ -1684,19 +1968,12 @@ export const backgroundStyleOptions: WorkspaceBackgroundStyle[] = [
 export const animationLevelOptions: WorkspaceAnimationLevel[] = ["none", "subtle", "full"];
 export const graphAppearanceOptions: WorkspaceGraphAppearance[] = ["sync", "light", "dark"];
 export const graphChromeOptions: WorkspaceGraphChrome[] = ["standard", "focused"];
-export const verticalSpaceOptions: WorkspaceVerticalSpace[] = [
-  "fit",
-  "balanced",
-  "extended",
-  "infinite",
-];
+export const verticalSpaceOptions: WorkspaceVerticalSpace[] = ["fit", "balanced", "extended", "infinite"];
 
-const storageKey = (userId: string, binderId: string) =>
-  `binder-notes:workspace:v1:${userId}:${binderId}`;
+const storageKey = (userId: string, binderId: string) => `binder-notes:workspace:v1:${userId}:${binderId}`;
 const globalThemeStorageKey = "binder-notes:theme:v1";
 
-const defaultPreset =
-  workspacePresets.find((preset) => preset.id === "split-study") ?? workspacePresets[0];
+const defaultPreset = workspacePresets.find((preset) => preset.id === "split-study") ?? workspacePresets[0];
 const defaultTheme = workspaceThemes.find((theme) => theme.id === "paper-studio") ?? workspaceThemes[0];
 
 type HslColor = { h: number; s: number; l: number };
@@ -1728,9 +2005,7 @@ function normalizeSourceTheme(value: unknown, fallback: WorkspaceThemeId = "pape
     : fallback;
 }
 
-function normalizeCustomPalette(
-  palette?: Partial<AppearanceCustomPalette> | null,
-): AppearanceCustomPalette {
+function normalizeCustomPalette(palette?: Partial<AppearanceCustomPalette> | null): AppearanceCustomPalette {
   return {
     primary: normalizeHexColor(palette?.primary, defaultCustomPalette.primary),
     secondary: normalizeHexColor(palette?.secondary, defaultCustomPalette.secondary),
@@ -1753,8 +2028,7 @@ function hexToHsl(hex: string): HslColor {
   }
 
   const delta = max - min;
-  const saturation =
-    lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  const saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
   let hue =
     max === red
       ? (green - blue) / delta + (green < blue ? 6 : 0)
@@ -1805,16 +2079,14 @@ function hslToHex(color: HslColor) {
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
   const p = 2 * l - q;
   const channels =
-    s === 0
-      ? [l, l, l]
-      : [
-          hueToRgb(p, q, h + 1 / 3),
-          hueToRgb(p, q, h),
-          hueToRgb(p, q, h - 1 / 3),
-        ];
+    s === 0 ? [l, l, l] : [hueToRgb(p, q, h + 1 / 3), hueToRgb(p, q, h), hueToRgb(p, q, h - 1 / 3)];
 
   return `#${channels
-    .map((channel) => Math.round(channel * 255).toString(16).padStart(2, "0"))
+    .map((channel) =>
+      Math.round(channel * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
     .join("")}`;
 }
 
@@ -2023,16 +2295,11 @@ function normalizeAccentColor(value: unknown, fallback: AccentColor = "custom") 
 }
 
 function accentOptionById(accentColor: AccentColor) {
-  return accentColor === "custom"
-    ? undefined
-    : accentOptions.find((option) => option.id === accentColor);
+  return accentColor === "custom" ? undefined : accentOptions.find((option) => option.id === accentColor);
 }
 
 function findBuiltinSourceTheme(themeId?: WorkspaceThemeId) {
-  return (
-    workspaceThemes.find((theme) => theme.id === themeId && theme.id !== "custom") ??
-    defaultTheme
-  );
+  return workspaceThemes.find((theme) => theme.id === themeId && theme.id !== "custom") ?? defaultTheme;
 }
 
 function buildPaletteFromSourceTheme(
@@ -2061,9 +2328,7 @@ function repairLegacyAccentAsPrimaryPalette(
     return palette;
   }
 
-  const sourceTheme = findBuiltinSourceTheme(
-    normalizeSourceTheme(palette.sourceTheme, defaultTheme.id),
-  );
+  const sourceTheme = findBuiltinSourceTheme(normalizeSourceTheme(palette.sourceTheme, defaultTheme.id));
 
   return {
     ...palette,
@@ -2156,13 +2421,16 @@ export function resolveWorkspacePresetLayout(
 
     if (breakpointLayout) {
       const enabledModules = breakpointLayout.items.map((item) => item.panelId);
-      return applyPresetVisibilityProfile({
-        enabledModules,
-        zones: buildZonesFromGridLayout(enabledModules),
-        paneLayout: buildPaneLayoutFromGrid(enabledModules),
-        windowLayout: gridLayoutToWindowFrames(breakpointLayout),
-        moduleLayout: buildModuleLayoutFromGrid(enabledModules, breakpointLayout),
-      }, presetId);
+      return applyPresetVisibilityProfile(
+        {
+          enabledModules,
+          zones: buildZonesFromGridLayout(enabledModules),
+          paneLayout: buildPaneLayoutFromGrid(enabledModules),
+          windowLayout: gridLayoutToWindowFrames(breakpointLayout),
+          moduleLayout: buildModuleLayoutFromGrid(enabledModules, breakpointLayout),
+        },
+        presetId,
+      );
     }
   }
 
@@ -2175,10 +2443,7 @@ export function resolveWorkspacePresetLayout(
     throw new Error(`Workspace preset layout is missing for ${presetId}.`);
   }
 
-  return applyPresetVisibilityProfile(
-    packPresetWindowLayout(baseLayout, workspaceStyle),
-    presetId,
-  );
+  return applyPresetVisibilityProfile(packPresetWindowLayout(baseLayout, workspaceStyle), presetId);
 }
 
 function applyPresetVisibilityProfile(
@@ -2204,7 +2469,8 @@ function applyPresetVisibilityProfile(
   };
 
   enabledModules.forEach((moduleId) => {
-    const base = moduleLayout[moduleId] ?? defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
+    const base = moduleLayout[moduleId] ??
+      defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
     moduleLayout[moduleId] = {
       ...base,
       collapsed: !visibleModules.includes(moduleId),
@@ -2250,7 +2516,8 @@ function applyPresetVisibilityToPreferences(
 
   enabledModules.forEach((moduleId) => {
     const shouldCollapse = !visibleModules.includes(moduleId);
-    const current = moduleLayout[moduleId] ?? defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
+    const current = moduleLayout[moduleId] ??
+      defaultModuleLayout[moduleId] ?? { span: "auto" as WorkspaceModuleSpan };
     if (current.collapsed !== shouldCollapse) {
       changed = true;
     }
@@ -2362,16 +2629,15 @@ function buildModuleLayoutFromGrid(
   return Object.fromEntries(
     enabledModules.map((moduleId) => {
       const item = byPanel.get(moduleId);
-      const span =
-        !item
-          ? "auto"
-          : item.w >= Math.max(8, layout.columns * 0.6)
-            ? "full"
-            : item.w >= Math.max(6, layout.columns * 0.45)
-              ? "wide"
-              : item.w >= Math.max(4, layout.columns * 0.3)
-                ? "medium"
-                : "narrow";
+      const span = !item
+        ? "auto"
+        : item.w >= Math.max(8, layout.columns * 0.6)
+          ? "full"
+          : item.w >= Math.max(6, layout.columns * 0.45)
+            ? "wide"
+            : item.w >= Math.max(4, layout.columns * 0.3)
+              ? "medium"
+              : "narrow";
       return [
         moduleId,
         {
@@ -2497,9 +2763,7 @@ export function createDefaultAppearanceSettings(
   theme: WorkspaceThemeSettings = loadGlobalThemeSettings(),
 ): AppearanceSettings {
   const simple = createDefaultSimplePresentationSettings(binderId, suiteTemplateId);
-  const studySurface = isStudySurfaceTheme(theme.studySurface)
-    ? theme.studySurface
-    : simple.theme;
+  const studySurface = isStudySurfaceTheme(theme.studySurface) ? theme.studySurface : simple.theme;
 
   return {
     appTheme: theme.id,
@@ -2786,11 +3050,10 @@ export function fitCanvasReworkLayoutToViewport(
     return stampCanvasReworkExplicitToolResult(fitted, "fit", preferences.canvas.layoutSource);
   }
 
-  const fitted = fitWorkspaceToViewport(
-    withCanvasPanelPositionsFromWindowLayout(preferences),
-    viewport,
-    { force: true, preserveManualCanvasComposition: true },
-  );
+  const fitted = fitWorkspaceToViewport(withCanvasPanelPositionsFromWindowLayout(preferences), viewport, {
+    force: true,
+    preserveManualCanvasComposition: true,
+  });
   return stampCanvasReworkExplicitToolResult(fitted, "fit", preferences.canvas.layoutSource);
 }
 
@@ -2891,10 +3154,7 @@ function resolveCanvasReworkHeight(
   preferences: WorkspacePreferences,
   frames: WorkspacePreferences["windowLayout"] = preferences.windowLayout,
 ) {
-  const frameBottom = Math.max(
-    0,
-    ...Object.values(frames).map((frame) => (frame ? frame.y + frame.h : 0)),
-  );
+  const frameBottom = Math.max(0, ...Object.values(frames).map((frame) => (frame ? frame.y + frame.h : 0)));
 
   return clamp(
     Math.max(preferences.canvas.canvasHeight, frameBottom + 320, WINDOW_CANVAS_MIN_HEIGHT),
@@ -2909,9 +3169,7 @@ export function applyWorkspaceModeToViewport(
   viewport: { width: number; height: number },
 ): WorkspacePreferences {
   const next = applyWorkspaceMode(preferences, workspaceMode);
-  return next.activeMode === "simple"
-    ? next
-    : fitWorkspaceToViewport(next, viewport, { force: true });
+  return next.activeMode === "simple" ? next : fitWorkspaceToViewport(next, viewport, { force: true });
 }
 
 export function getEffectiveWorkspaceMode(preferences: WorkspacePreferences): WorkspaceMode {
@@ -3015,7 +3273,7 @@ export function applyFaceliftSurfaceModeToViewport(
           ...nextBase.windowLayout,
           ...faceliftPresetFrames,
         }
-    : nextBase.windowLayout;
+      : nextBase.windowLayout;
   const withFaceliftFrames: WorkspacePreferences = {
     ...nextBase,
     workspacePresentationMode: "facelift",
@@ -3026,7 +3284,9 @@ export function applyFaceliftSurfaceModeToViewport(
   const fitted =
     facelift.presetBehavior === "manual"
       ? ensureWindowFramesForEnabledModules(withFaceliftFrames)
-      : fitWorkspaceToViewport(withFaceliftFrames, viewport, { force: facelift.presetBehavior === "auto-fit" });
+      : fitWorkspaceToViewport(withFaceliftFrames, viewport, {
+          force: facelift.presetBehavior === "auto-fit",
+        });
 
   return {
     ...fitted,
@@ -3129,7 +3389,8 @@ export function updateWorkspaceAppearance(
 
   const nextAppearance = normalizeAppearanceSettings(
     {
-      ...(preferences.appearance ?? createDefaultAppearanceSettings(preferences.binderId, preferences.suiteTemplateId)),
+      ...(preferences.appearance ??
+        createDefaultAppearanceSettings(preferences.binderId, preferences.suiteTemplateId)),
       ...patch,
       appTheme: themeForAppearance.id,
       accent: themeForAppearance.accentColor,
@@ -3155,10 +3416,7 @@ export function updateWorkspaceAppearance(
     {
       ...preferences.simple,
       theme: nextAppearance.studySurface,
-      accentColor: accentForStudySurface(
-        nextAppearance.studySurface,
-        preferences.simple.accentColor,
-      ),
+      accentColor: accentForStudySurface(nextAppearance.studySurface, preferences.simple.accentColor),
       motion: simpleMotionFromAppearanceMotion(nextAppearance.motion),
     },
     preferences.binderId,
@@ -3259,11 +3517,7 @@ export function applyWorkspaceMode(
   return ensureWindowFramesForEnabledModules(nextBase);
 }
 
-export function loadWorkspacePreferences(
-  userId: string,
-  binderId: string,
-  suiteTemplateId?: string | null,
-) {
+export function loadWorkspacePreferences(userId: string, binderId: string, suiteTemplateId?: string | null) {
   try {
     const raw = window.localStorage.getItem(storageKey(userId, binderId));
     if (!raw) {
@@ -3292,10 +3546,7 @@ export function saveWorkspacePreferences(preferences: WorkspacePreferences) {
 }
 
 export function ensureMathWorkspaceModules(preferences: WorkspacePreferences) {
-  const requiredModules: WorkspaceModuleId[] = [
-    "desmos-graph",
-    "scientific-calculator",
-  ];
+  const requiredModules: WorkspaceModuleId[] = ["desmos-graph", "scientific-calculator"];
 
   const enabledModules = [
     ...preferences.enabledModules,
@@ -3303,9 +3554,7 @@ export function ensureMathWorkspaceModules(preferences: WorkspacePreferences) {
   ];
   const zones = {
     ...preferences.zones,
-    "right-rail": appendUnique(preferences.zones["right-rail"], [
-      "scientific-calculator",
-    ]),
+    "right-rail": appendUnique(preferences.zones["right-rail"], ["scientific-calculator"]),
     bottom: appendUnique(preferences.zones.bottom, ["desmos-graph"]),
   };
 
@@ -3317,16 +3566,11 @@ export function ensureMathWorkspaceModules(preferences: WorkspacePreferences) {
   });
 }
 
-export function ensureWindowFramesForEnabledModules(
-  preferences: WorkspacePreferences,
-): WorkspacePreferences {
+export function ensureWindowFramesForEnabledModules(preferences: WorkspacePreferences): WorkspacePreferences {
   const fallbackLayout = buildWindowLayoutFromZones(preferences);
   const currentLayout = preferences.windowLayout ?? {};
   const normalizedFallback = Object.fromEntries(
-    Object.entries(fallbackLayout).map(([moduleId, frame]) => [
-      moduleId,
-      normalizeWindowFrame(frame),
-    ]),
+    Object.entries(fallbackLayout).map(([moduleId, frame]) => [moduleId, normalizeWindowFrame(frame)]),
   ) as WorkspacePreferences["windowLayout"];
   let nextZ = Math.max(
     1,
@@ -3390,7 +3634,9 @@ export function createStickyNoteLayout(index: number): StickyNoteLayout {
 }
 
 function isFaceliftCanvasWorkspace(preferences: WorkspacePreferences) {
-  return preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas";
+  return (
+    preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas"
+  );
 }
 
 function hasStoredCanvasPanelPositions(preferences: WorkspacePreferences) {
@@ -3419,8 +3665,7 @@ export function fitWorkspaceToViewport(
   }
   const visibleModules = composedPreferences.enabledModules.filter(
     (moduleId) =>
-      composedPreferences.windowLayout[moduleId] &&
-      !composedPreferences.moduleLayout[moduleId]?.collapsed,
+      composedPreferences.windowLayout[moduleId] && !composedPreferences.moduleLayout[moduleId]?.collapsed,
   );
   if (visibleModules.length === 0) {
     return visibilityChanged ? composedPreferences : preferences;
@@ -3438,29 +3683,29 @@ export function fitWorkspaceToViewport(
   const force = options.force ?? false;
   const hasDesignedPreset = Boolean(getWorkspacePresetDesign(composedPreferences.preset));
   const hasCanvasReworkCustomLayout =
-    composedPreferences.activeMode === "canvas" &&
-    composedPreferences.canvas.layoutSource === "custom";
+    composedPreferences.activeMode === "canvas" && composedPreferences.canvas.layoutSource === "custom";
   const preserveManualCanvasComposition =
     (options.preserveManualCanvasComposition !== false || hasCanvasReworkCustomLayout) &&
     composedPreferences.activeMode === "canvas" &&
     (hasStoredCanvasPanelPositions(composedPreferences) || hasCanvasReworkCustomLayout);
-  const layoutResult = hasDesignedPreset && !preserveManualCanvasComposition
-    ? tidyWorkspaceFrames({
-        frames: composedPreferences.windowLayout,
-        moduleIds: visibleModules,
-        presetId: composedPreferences.preset,
-        safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
-        viewport: { width, height },
-      })
-    : fitWindowFramesToViewport({
-        force: force || viewportChanged,
-        frames: composedPreferences.windowLayout,
-        moduleIds: visibleModules,
-        presetId: composedPreferences.preset,
-        safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
-        usePresetDesign: !preserveManualCanvasComposition,
-        viewport: { width, height },
-      });
+  const layoutResult =
+    hasDesignedPreset && !preserveManualCanvasComposition
+      ? tidyWorkspaceFrames({
+          frames: composedPreferences.windowLayout,
+          moduleIds: visibleModules,
+          presetId: composedPreferences.preset,
+          safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+          viewport: { width, height },
+        })
+      : fitWindowFramesToViewport({
+          force: force || viewportChanged,
+          frames: composedPreferences.windowLayout,
+          moduleIds: visibleModules,
+          presetId: composedPreferences.preset,
+          safeEdgePadding: composedPreferences.canvas.safeEdgePadding,
+          usePresetDesign: !preserveManualCanvasComposition,
+          viewport: { width, height },
+        });
   const shouldFitSplitCanvasHeight =
     composedPreferences.activeMode === "canvas" &&
     composedPreferences.preset === "split-study" &&
@@ -3485,11 +3730,7 @@ export function fitWorkspaceToViewport(
   Object.entries(composedPreferences.stickyNotes).forEach(([commentId, sticky]) => {
     const nextSticky = {
       ...sticky,
-      x: clamp(
-        Math.round(sticky.x),
-        safePadding,
-        Math.max(safePadding, width - sticky.w - safePadding),
-      ),
+      x: clamp(Math.round(sticky.x), safePadding, Math.max(safePadding, width - sticky.w - safePadding)),
       y: clamp(
         Math.round(sticky.y),
         safePadding,
@@ -3525,24 +3766,23 @@ export function fitWorkspaceToViewport(
             : composedPreferences.canvas.panelPositions,
         }
       : composedPreferences.canvas;
-  const nextFacelift =
-    isFaceliftCanvasWorkspace(composedPreferences)
-      ? {
-          ...composedPreferences.facelift,
-          canvas: {
-            ...composedPreferences.facelift.canvas,
-            canvasHeight: shouldFitSplitCanvasHeight
-              ? height
-              : composedPreferences.facelift.canvas.canvasHeight,
-            panelPositions: preserveManualCanvasComposition
-              ? {
-                  ...composedPreferences.facelift.canvas.panelPositions,
-                  ...nextWindowLayout,
-                }
-              : composedPreferences.facelift.canvas.panelPositions,
-          },
-        }
-      : composedPreferences.facelift;
+  const nextFacelift = isFaceliftCanvasWorkspace(composedPreferences)
+    ? {
+        ...composedPreferences.facelift,
+        canvas: {
+          ...composedPreferences.facelift.canvas,
+          canvasHeight: shouldFitSplitCanvasHeight
+            ? height
+            : composedPreferences.facelift.canvas.canvasHeight,
+          panelPositions: preserveManualCanvasComposition
+            ? {
+                ...composedPreferences.facelift.canvas.panelPositions,
+                ...nextWindowLayout,
+              }
+            : composedPreferences.facelift.canvas.panelPositions,
+        },
+      }
+    : composedPreferences.facelift;
 
   return {
     ...composedPreferences,
@@ -3574,12 +3814,10 @@ export function tidyWorkspaceLayout(
   }
   const visibleModules = composedPreferences.enabledModules.filter(
     (moduleId) =>
-      composedPreferences.windowLayout[moduleId] &&
-      !composedPreferences.moduleLayout[moduleId]?.collapsed,
+      composedPreferences.windowLayout[moduleId] && !composedPreferences.moduleLayout[moduleId]?.collapsed,
   );
   const preserveManualCanvasComposition =
-    composedPreferences.activeMode === "canvas" &&
-    hasStoredCanvasPanelPositions(composedPreferences);
+    composedPreferences.activeMode === "canvas" && hasStoredCanvasPanelPositions(composedPreferences);
   const result = tidyWorkspaceFrames({
     frames: composedPreferences.windowLayout,
     moduleIds: visibleModules,
@@ -3617,24 +3855,23 @@ export function tidyWorkspaceLayout(
             : composedPreferences.canvas.panelPositions,
         }
       : composedPreferences.canvas;
-  const nextFacelift =
-    isFaceliftCanvasWorkspace(composedPreferences)
-      ? {
-          ...composedPreferences.facelift,
-          canvas: {
-            ...composedPreferences.facelift.canvas,
-            canvasHeight: shouldFitSplitCanvasHeight
-              ? height
-              : composedPreferences.facelift.canvas.canvasHeight,
-            panelPositions: preserveManualCanvasComposition
-              ? {
-                  ...composedPreferences.facelift.canvas.panelPositions,
-                  ...windowLayout,
-                }
-              : composedPreferences.facelift.canvas.panelPositions,
-          },
-        }
-      : composedPreferences.facelift;
+  const nextFacelift = isFaceliftCanvasWorkspace(composedPreferences)
+    ? {
+        ...composedPreferences.facelift,
+        canvas: {
+          ...composedPreferences.facelift.canvas,
+          canvasHeight: shouldFitSplitCanvasHeight
+            ? height
+            : composedPreferences.facelift.canvas.canvasHeight,
+          panelPositions: preserveManualCanvasComposition
+            ? {
+                ...composedPreferences.facelift.canvas.panelPositions,
+                ...windowLayout,
+              }
+            : composedPreferences.facelift.canvas.panelPositions,
+        },
+      }
+    : composedPreferences.facelift;
 
   return {
     ...composedPreferences,
@@ -3698,25 +3935,26 @@ export function saveGlobalThemeSettings(theme: WorkspaceThemeSettings) {
     return;
   }
 
-  window.localStorage.setItem(globalThemeStorageKey, JSON.stringify(normalizePersistedGlobalThemeSettings(theme)));
+  window.localStorage.setItem(
+    globalThemeStorageKey,
+    JSON.stringify(normalizePersistedGlobalThemeSettings(theme)),
+  );
 }
 
 export function applyThemeSettings(settings: WorkspaceThemeSettings) {
   const root = document.documentElement;
   const normalizedSettings = normalizeThemeSettings(settings);
-  const theme =
-    workspaceThemes.find((candidate) => candidate.id === normalizedSettings.id) ?? defaultTheme;
+  const theme = workspaceThemes.find((candidate) => candidate.id === normalizedSettings.id) ?? defaultTheme;
   const themeVars =
     normalizedSettings.id === "custom"
       ? buildCustomThemeVars(normalizedSettings.customPalette ?? defaultCustomPalette)
       : theme.vars;
   const appPrimary =
-    normalizedSettings.id === "custom"
-      ? themeVars.primary
-      : normalizedSettings.accent || themeVars.primary;
+    normalizedSettings.id === "custom" ? themeVars.primary : normalizedSettings.accent || themeVars.primary;
   const darkSurface = themeVars.background.match(/(\d+)%$/)?.[1];
-  const isDark =
-    darkSurface ? Number(darkSurface) < 20 : theme.id === "space" || theme.id === "midnight-scholar";
+  const isDark = darkSurface
+    ? Number(darkSurface) < 20
+    : theme.id === "space" || theme.id === "midnight-scholar";
   const vars = {
     "--background": themeVars.background,
     "--foreground": themeVars.foreground,
@@ -3734,8 +3972,7 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     "--input": themeVars.border,
     "--ring": appPrimary,
     "--primary": appPrimary,
-    "--primary-foreground":
-      isDark ? "220 16% 8%" : "0 0% 100%",
+    "--primary-foreground": isDark ? "220 16% 8%" : "0 0% 100%",
     "--bg-app": themeVars.background,
     "--bg-surface": themeVars.card,
     "--bg-panel": themeVars.card,
@@ -3749,7 +3986,8 @@ export function applyThemeSettings(settings: WorkspaceThemeSettings) {
     "--button-primary": appPrimary,
     "--button-secondary": themeVars.secondary,
     "--focus-ring": appPrimary,
-    "--shadow-strength": normalizedSettings.shadow === "glow" ? "0.18" : normalizedSettings.shadow === "lifted" ? "0.1" : "0.04",
+    "--shadow-strength":
+      normalizedSettings.shadow === "glow" ? "0.18" : normalizedSettings.shadow === "lifted" ? "0.1" : "0.04",
   };
   const studySurfaceVars = buildStudySurfaceVars(
     normalizedSettings.studySurface,
@@ -3844,10 +4082,7 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     {
       ...normalizedSimple,
       theme: normalizedAppearance.studySurface,
-      accentColor: accentForStudySurface(
-        normalizedAppearance.studySurface,
-        normalizedSimple.accentColor,
-      ),
+      accentColor: accentForStudySurface(normalizedAppearance.studySurface, normalizedSimple.accentColor),
       motion: simpleMotionFromAppearanceMotion(normalizedAppearance.motion),
     },
     preferences.binderId,
@@ -3886,10 +4121,9 @@ function normalizeWorkspacePreferences(preferences: WorkspacePreferences): Works
     theme: normalizedTheme,
   };
 
-  const shouldAutoAttachMathModules =
-    normalized.enabledModules.some((id) =>
-      ["formula-sheet", "math-blocks"].includes(id),
-    );
+  const shouldAutoAttachMathModules = normalized.enabledModules.some((id) =>
+    ["formula-sheet", "math-blocks"].includes(id),
+  );
 
   const withMath = shouldAutoAttachMathModules ? ensureMathWorkspaceModules(normalized) : normalized;
   const withFrames = ensureWindowFramesForEnabledModules(withMath);
@@ -3915,8 +4149,7 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
       ? (settings.id as WorkspaceThemeId)
       : defaultThemeSettings.id;
   const studySurface =
-    settings?.studySurface &&
-    isStudySurfaceTheme(settings.studySurface)
+    settings?.studySurface && isStudySurfaceTheme(settings.studySurface)
       ? settings.studySurface
       : defaultThemeSettings.studySurface;
   const density = densityOptions.includes(settings?.density as WorkspaceDensity)
@@ -3936,9 +4169,7 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
   )
     ? (settings?.backgroundStyle as WorkspaceBackgroundStyle)
     : defaultThemeSettings.backgroundStyle;
-  const animationLevel = animationLevelOptions.includes(
-    settings?.animationLevel as WorkspaceAnimationLevel,
-  )
+  const animationLevel = animationLevelOptions.includes(settings?.animationLevel as WorkspaceAnimationLevel)
     ? (settings?.animationLevel as WorkspaceAnimationLevel)
     : defaultThemeSettings.animationLevel;
   const graphAppearance = graphAppearanceOptions.includes(
@@ -3963,15 +4194,13 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
     settings?.accentColor,
     settings?.accent ? accentColorForValue(settings.accent, fallbackAccentColor) : fallbackAccentColor,
   );
-  const customPalette = repairLegacyAccentAsPrimaryPalette(
-    nextId,
-    accentColor,
-    rawCustomPalette,
-  );
+  const customPalette = repairLegacyAccentAsPrimaryPalette(nextId, accentColor, rawCustomPalette);
   const accent =
     nextId === "custom"
       ? hslParts(hexToHsl(customPalette.primary))
-      : settings?.accent || workspaceThemes.find((theme) => theme.id === nextId)?.vars.primary || defaultThemeSettings.accent;
+      : settings?.accent ||
+        workspaceThemes.find((theme) => theme.id === nextId)?.vars.primary ||
+        defaultThemeSettings.accent;
 
   return {
     ...defaultThemeSettings,
@@ -3986,21 +4215,11 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
     font,
     backgroundStyle,
     hoverMotion:
-      typeof settings?.hoverMotion === "boolean"
-        ? settings.hoverMotion
-        : defaultThemeSettings.hoverMotion,
-    snapMode:
-      typeof settings?.snapMode === "boolean"
-        ? settings.snapMode
-        : defaultThemeSettings.snapMode,
-    focusMode:
-      typeof settings?.focusMode === "boolean"
-        ? settings.focusMode
-        : defaultThemeSettings.focusMode,
+      typeof settings?.hoverMotion === "boolean" ? settings.hoverMotion : defaultThemeSettings.hoverMotion,
+    snapMode: typeof settings?.snapMode === "boolean" ? settings.snapMode : defaultThemeSettings.snapMode,
+    focusMode: typeof settings?.focusMode === "boolean" ? settings.focusMode : defaultThemeSettings.focusMode,
     compactMode:
-      typeof settings?.compactMode === "boolean"
-        ? settings.compactMode
-        : defaultThemeSettings.compactMode,
+      typeof settings?.compactMode === "boolean" ? settings.compactMode : defaultThemeSettings.compactMode,
     animationLevel,
     graphAppearance,
     graphChrome,
@@ -4018,7 +4237,9 @@ export function normalizeThemeSettings(settings?: Partial<WorkspaceThemeSettings
   };
 }
 
-function normalizePersistedGlobalThemeSettings(settings?: Partial<WorkspaceThemeSettings>): WorkspaceThemeSettings {
+function normalizePersistedGlobalThemeSettings(
+  settings?: Partial<WorkspaceThemeSettings>,
+): WorkspaceThemeSettings {
   return {
     ...normalizeThemeSettings(settings),
     focusMode: false,
@@ -4075,7 +4296,9 @@ function normalizeFaceliftModuleChrome(value?: string): FaceliftModuleChrome {
 }
 
 function normalizeFaceliftPresetBehavior(value?: string): FaceliftPresetBehavior {
-  return (["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).includes(value as FaceliftPresetBehavior)
+  return (["auto-fit", "preserve", "manual"] as FaceliftPresetBehavior[]).includes(
+    value as FaceliftPresetBehavior,
+  )
     ? (value as FaceliftPresetBehavior)
     : "auto-fit";
 }
@@ -4091,11 +4314,7 @@ function normalizeAppearanceSettings(
   binderId?: string | null,
   suiteTemplateId?: string | null,
 ): AppearanceSettings {
-  const fallback = createDefaultAppearanceSettings(
-    binderId,
-    suiteTemplateId,
-    normalizeThemeSettings(theme),
-  );
+  const fallback = createDefaultAppearanceSettings(binderId, suiteTemplateId, normalizeThemeSettings(theme));
   const appTheme =
     theme?.id && workspaceThemes.some((option) => option.id === theme.id)
       ? (theme.id as AppearanceSettings["appTheme"])
@@ -4103,11 +4322,9 @@ function normalizeAppearanceSettings(
         ? settings.appTheme
         : fallback.appTheme;
   const studySurface =
-    settings?.studySurface &&
-    isStudySurfaceTheme(settings.studySurface)
+    settings?.studySurface && isStudySurfaceTheme(settings.studySurface)
       ? settings.studySurface
-      : simple?.theme &&
-          isStudySurfaceTheme(simple.theme)
+      : simple?.theme && isStudySurfaceTheme(simple.theme)
         ? (simple.theme as AppearanceSettings["studySurface"])
         : fallback.studySurface;
   const accent = normalizeAccentColor(
@@ -4131,16 +4348,13 @@ function normalizeAppearanceSettings(
         ? (settings?.roundness as WorkspaceRoundness)
         : fallback.roundness;
   const motion =
-    theme?.animationLevel &&
-          animationLevelOptions.includes(theme.animationLevel as WorkspaceAnimationLevel)
-        ? appearanceMotionFromAnimationLevel(theme.animationLevel as WorkspaceAnimationLevel)
-        : settings?.motion && (["full", "reduced", "minimal"] as AppearanceMotion[]).includes(settings.motion)
-          ? settings.motion
-          : fallback.motion;
+    theme?.animationLevel && animationLevelOptions.includes(theme.animationLevel as WorkspaceAnimationLevel)
+      ? appearanceMotionFromAnimationLevel(theme.animationLevel as WorkspaceAnimationLevel)
+      : settings?.motion && (["full", "reduced", "minimal"] as AppearanceMotion[]).includes(settings.motion)
+        ? settings.motion
+        : fallback.motion;
   const saveLocalAppearance =
-    typeof settings?.saveLocalAppearance === "boolean"
-      ? settings.saveLocalAppearance
-      : false;
+    typeof settings?.saveLocalAppearance === "boolean" ? settings.saveLocalAppearance : false;
   const customPalette = repairLegacyAccentAsPrimaryPalette(
     appTheme,
     accent,
@@ -4171,7 +4385,9 @@ function normalizeSimplePresentationSettings(
   const fontSize = simplePresentationFontSizeOptions.some((option) => option.id === settings?.fontSize)
     ? (settings?.fontSize as SimplePresentationFontSize)
     : fallback.fontSize;
-  const readingWidth = simplePresentationReadingWidthOptions.some((option) => option.id === settings?.readingWidth)
+  const readingWidth = simplePresentationReadingWidthOptions.some(
+    (option) => option.id === settings?.readingWidth,
+  )
     ? (settings?.readingWidth as SimplePresentationReadingWidth)
     : fallback.readingWidth;
   const motion = simplePresentationMotionOptions.some((option) => option.id === settings?.motion)
@@ -4192,18 +4408,13 @@ function normalizeSimplePresentationSettings(
     showSideNotes:
       typeof settings?.showSideNotes === "boolean" ? settings.showSideNotes : fallback.showSideNotes,
     showProgressBar:
-      typeof settings?.showProgressBar === "boolean"
-        ? settings.showProgressBar
-        : fallback.showProgressBar,
+      typeof settings?.showProgressBar === "boolean" ? settings.showProgressBar : fallback.showProgressBar,
     showStudyDrawer:
-      typeof settings?.showStudyDrawer === "boolean"
-        ? settings.showStudyDrawer
-        : fallback.showStudyDrawer,
+      typeof settings?.showStudyDrawer === "boolean" ? settings.showStudyDrawer : fallback.showStudyDrawer,
     accentColor,
     motion,
     focusMode: typeof settings?.focusMode === "boolean" ? settings.focusMode : fallback.focusMode,
-    highContrast:
-      typeof settings?.highContrast === "boolean" ? settings.highContrast : fallback.highContrast,
+    highContrast: typeof settings?.highContrast === "boolean" ? settings.highContrast : fallback.highContrast,
   };
 }
 
@@ -4214,7 +4425,8 @@ function normalizeModularStudySettings(
   const fallback = createDefaultModularStudySettings(normalizePresetId(fallbackPresetId ?? defaultPreset.id));
   const selectedPreset = normalizePresetId(settings?.selectedPreset ?? fallback.selectedPreset);
   const panelDensity =
-    settings?.panelDensity && (["comfortable", "compact"] as ModularPanelDensity[]).includes(settings.panelDensity)
+    settings?.panelDensity &&
+    (["comfortable", "compact"] as ModularPanelDensity[]).includes(settings.panelDensity)
       ? settings.panelDensity
       : fallback.panelDensity;
   const sidePanelPosition =
@@ -4266,7 +4478,10 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
       : fallback.gridSize;
   const customModules = (settings?.customModules ?? [])
     .map((moduleId) => normalizeModuleId(moduleId))
-    .filter((moduleId, index, list): moduleId is WorkspaceModuleId => Boolean(moduleId) && list.indexOf(moduleId) === index);
+    .filter(
+      (moduleId, index, list): moduleId is WorkspaceModuleId =>
+        Boolean(moduleId) && list.indexOf(moduleId) === index,
+    );
   const canvasHeight =
     typeof settings?.canvasHeight === "number" && Number.isFinite(settings.canvasHeight)
       ? clamp(Math.round(settings.canvasHeight), WINDOW_CANVAS_MIN_HEIGHT, WORKSPACE_MAX_CANVAS_HEIGHT)
@@ -4291,14 +4506,10 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
     panelPositions: normalizeWindowLayout(settings?.panelPositions),
     customModules,
     safeEdgePadding:
-      typeof settings?.safeEdgePadding === "boolean"
-        ? settings.safeEdgePadding
-        : fallback.safeEdgePadding,
+      typeof settings?.safeEdgePadding === "boolean" ? settings.safeEdgePadding : fallback.safeEdgePadding,
     canvasHeight,
     showDiagnostics:
-      typeof settings?.showDiagnostics === "boolean"
-        ? settings.showDiagnostics
-        : fallback.showDiagnostics,
+      typeof settings?.showDiagnostics === "boolean" ? settings.showDiagnostics : fallback.showDiagnostics,
     layoutSource,
     activePresetId,
     layoutMode,
@@ -4310,14 +4521,9 @@ function normalizeFullCanvasSettings(settings?: Partial<FullCanvasSettings>): Fu
     committedFrames: normalizeWindowLayout(settings?.committedFrames),
     editDraftFrames: normalizeWindowLayout(settings?.editDraftFrames),
     lastExplicitLayoutAction,
-    gridEnabled:
-      typeof settings?.gridEnabled === "boolean"
-        ? settings.gridEnabled
-        : fallback.gridEnabled,
+    gridEnabled: typeof settings?.gridEnabled === "boolean" ? settings.gridEnabled : fallback.gridEnabled,
     guidesEnabled:
-      typeof settings?.guidesEnabled === "boolean"
-        ? settings.guidesEnabled
-        : fallback.guidesEnabled,
+      typeof settings?.guidesEnabled === "boolean" ? settings.guidesEnabled : fallback.guidesEnabled,
   };
 }
 
@@ -4343,9 +4549,7 @@ function normalizeCanvasViewportSnapshot(value: unknown): FullCanvasSettings["pr
   };
 }
 
-function normalizeCanvasLastExplicitLayoutAction(
-  value: unknown,
-): CanvasLastExplicitLayoutAction | null {
+function normalizeCanvasLastExplicitLayoutAction(value: unknown): CanvasLastExplicitLayoutAction | null {
   const actions: CanvasLastExplicitLayoutAction[] = [
     "select-preset",
     "fit",
@@ -4391,13 +4595,9 @@ export function normalizeFaceliftWorkspaceSettings(
     presetBehavior: normalizeFaceliftPresetBehavior(settings?.presetBehavior),
     mobileBehavior: normalizeFaceliftMobileBehavior(settings?.mobileBehavior),
     compactControls:
-      typeof settings?.compactControls === "boolean"
-        ? settings.compactControls
-        : fallback.compactControls,
+      typeof settings?.compactControls === "boolean" ? settings.compactControls : fallback.compactControls,
     expandedControls:
-      typeof settings?.expandedControls === "boolean"
-        ? settings.expandedControls
-        : fallback.expandedControls,
+      typeof settings?.expandedControls === "boolean" ? settings.expandedControls : fallback.expandedControls,
     canvas: normalizeFaceliftCanvasSettings(settings?.canvas),
   };
 }
@@ -4451,9 +4651,7 @@ export function resolveVerticalWorkspaceMetrics(
   }
 }
 
-function normalizePaneLayout(
-  layout: WorkspacePreferences["paneLayout"] | Record<string, number>,
-) {
+function normalizePaneLayout(layout: WorkspacePreferences["paneLayout"] | Record<string, number>) {
   const legacy = layout as Record<string, number | undefined>;
   const fallbackLayout = resolveWorkspacePresetLayout(defaultPreset.id, "guided").paneLayout;
   return {
@@ -4483,9 +4681,7 @@ function normalizeModuleLayout(layout?: WorkspacePreferences["moduleLayout"]) {
 }
 
 function normalizeWorkspaceStyle(style?: string): WorkspaceStyle {
-  return workspaceStyleOptions.some((option) => option.id === style)
-    ? (style as WorkspaceStyle)
-    : "guided";
+  return workspaceStyleOptions.some((option) => option.id === style) ? (style as WorkspaceStyle) : "guided";
 }
 
 function normalizeWindowLayout(layout?: WorkspacePreferences["windowLayout"]) {
@@ -4561,9 +4757,7 @@ function buildWindowLayoutFromZones(
   const bottomY = 820;
   const columnBottoms: number[] = [];
 
-  (
-    ["left-rail", "center-left", "center-right", "right-rail"] as const
-  ).forEach((zone) => {
+  (["left-rail", "center-left", "center-right", "right-rail"] as const).forEach((zone) => {
     const zoneModules = preferences.zones[zone].filter((moduleId) =>
       preferences.enabledModules.includes(moduleId),
     );
@@ -4571,7 +4765,14 @@ function buildWindowLayoutFromZones(
     let y = WINDOW_PADDING;
 
     zoneModules.forEach((moduleId) => {
-      const frame = placeModuleFrame(moduleId, zoneWidth, xMap.positions[zone], y, z, preferences.moduleLayout);
+      const frame = placeModuleFrame(
+        moduleId,
+        zoneWidth,
+        xMap.positions[zone],
+        y,
+        z,
+        preferences.moduleLayout,
+      );
       layout[moduleId] = frame;
       y = frame.y + frame.h + WINDOW_GAP;
       z += 1;
@@ -4585,13 +4786,7 @@ function buildWindowLayoutFromZones(
   preferences.zones.bottom
     .filter((moduleId) => preferences.enabledModules.includes(moduleId))
     .forEach((moduleId) => {
-      const frame = placeBottomFrame(
-        moduleId,
-        bottomX,
-        baselineBottomY,
-        z,
-        preferences.moduleLayout,
-      );
+      const frame = placeBottomFrame(moduleId, bottomX, baselineBottomY, z, preferences.moduleLayout);
       layout[moduleId] = frame;
       bottomX += frame.w + WINDOW_GAP;
       z += 1;
@@ -4613,14 +4808,9 @@ function computeZoneXPositions(layout: WorkspacePreferences["paneLayout"]) {
   const positions = {
     "left-rail": WINDOW_PADDING,
     "center-left": WINDOW_PADDING + widths["left-rail"] + WINDOW_GAP,
-    "center-right":
-      WINDOW_PADDING + widths["left-rail"] + widths["center-left"] + WINDOW_GAP * 2,
+    "center-right": WINDOW_PADDING + widths["left-rail"] + widths["center-left"] + WINDOW_GAP * 2,
     "right-rail":
-      WINDOW_PADDING +
-      widths["left-rail"] +
-      widths["center-left"] +
-      widths["center-right"] +
-      WINDOW_GAP * 3,
+      WINDOW_PADDING + widths["left-rail"] + widths["center-left"] + widths["center-right"] + WINDOW_GAP * 3,
     bottom: WINDOW_PADDING,
   } as const;
 
@@ -4646,19 +4836,9 @@ function packPresetWindowLayout(
   const targetWidth = WINDOW_CANVAS_WIDTH - paddingX * 2;
   const targetHeight = WINDOW_CANVAS_HEIGHT - paddingY * 2;
   const desiredWidth =
-    targetWidth *
-    (workspaceStyle === "guided"
-      ? 0.94
-      : workspaceStyle === "flexible"
-        ? 0.965
-        : 0.982);
+    targetWidth * (workspaceStyle === "guided" ? 0.94 : workspaceStyle === "flexible" ? 0.965 : 0.982);
   const desiredHeight =
-    targetHeight *
-    (workspaceStyle === "guided"
-      ? 0.86
-      : workspaceStyle === "flexible"
-        ? 0.91
-        : 0.95);
+    targetHeight * (workspaceStyle === "guided" ? 0.86 : workspaceStyle === "flexible" ? 0.91 : 0.95);
 
   const maxScale = Math.min(
     targetWidth / Math.max(bounds.width, 1),
@@ -4730,17 +4910,12 @@ function placeBottomFrame(
   moduleLayout: WorkspacePreferences["moduleLayout"],
 ): WorkspaceWindowFrame {
   const span = moduleLayout[moduleId]?.span ?? "medium";
-  const width =
-    span === "full" ? 960 : span === "wide" ? 620 : span === "medium" ? 460 : 340;
+  const width = span === "full" ? 960 : span === "wide" ? 620 : span === "medium" ? 460 : 340;
   const height = computeModuleHeight(moduleId, span);
   return normalizeWindowFrame({ x, y, w: width, h: height, z });
 }
 
-function computeModuleWidth(
-  moduleId: WorkspaceModuleId,
-  zoneWidth: number,
-  span: WorkspaceModuleSpan,
-) {
+function computeModuleWidth(moduleId: WorkspaceModuleId, zoneWidth: number, span: WorkspaceModuleSpan) {
   const majorModule =
     moduleId === "lesson" ||
     moduleId === "private-notes" ||
@@ -4809,15 +4984,15 @@ function createFloatingFallbackFrame(moduleId: WorkspaceModuleId, z: number): Wo
     x: 200 + (index % 4) * 48,
     y: 120 + (index % 4) * 44,
     w: moduleId === "lesson" || moduleId === "private-notes" ? 620 : 360,
-    h: computeModuleHeight(moduleId, moduleId === "lesson" || moduleId === "private-notes" ? "wide" : "medium"),
+    h: computeModuleHeight(
+      moduleId,
+      moduleId === "lesson" || moduleId === "private-notes" ? "wide" : "medium",
+    ),
     z,
   });
 }
 
-function getWindowBounds(
-  moduleIds: WorkspaceModuleId[],
-  layout: WorkspacePreferences["windowLayout"],
-) {
+function getWindowBounds(moduleIds: WorkspaceModuleId[], layout: WorkspacePreferences["windowLayout"]) {
   const frames = moduleIds
     .map((moduleId) => layout[moduleId])
     .filter((frame): frame is WorkspaceWindowFrame => Boolean(frame));
@@ -4851,11 +5026,8 @@ function normalizeWindowFrame(frame: WorkspaceWindowFrame): WorkspaceWindowFrame
 }
 
 function normalizeModuleId(id: string): WorkspaceModuleId | null {
-  const nextId =
-    id === "concept-map" ? "related-concepts" : id === "graph-panel" ? "desmos-graph" : id;
-  return workspaceModules.some((module) => module.id === nextId)
-    ? (nextId as WorkspaceModuleId)
-    : null;
+  const nextId = id === "concept-map" ? "related-concepts" : id === "graph-panel" ? "desmos-graph" : id;
+  return workspaceModules.some((module) => module.id === nextId) ? (nextId as WorkspaceModuleId) : null;
 }
 
 function appendUnique(current: WorkspaceModuleId[], additions: WorkspaceModuleId[]) {

@@ -35,7 +35,10 @@ export function WhiteboardTemplatePicker({
   }
 
   return (
-    <div className="whiteboard-template-picker grid gap-2" data-testid={compact ? "whiteboard-templates-panel" : undefined}>
+    <div
+      className="whiteboard-template-picker grid gap-2"
+      data-testid={compact ? "whiteboard-templates-panel" : undefined}
+    >
       <p className="whiteboard-sidebar-section-heading flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         <LayoutTemplate className="size-3.5" />
         <span>Math templates</span>
@@ -54,7 +57,11 @@ export function WhiteboardTemplatePicker({
         ))}
       </div>
       {!compact ? (
-        <Button onClick={() => onCreateFromTemplate(mathWhiteboardTemplates[0])} type="button" variant="outline">
+        <Button
+          onClick={() => onCreateFromTemplate(mathWhiteboardTemplates[0])}
+          type="button"
+          variant="outline"
+        >
           New blank board
         </Button>
       ) : null}

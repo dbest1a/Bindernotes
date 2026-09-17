@@ -9,12 +9,7 @@ import {
   saveGlobalThemeSettings,
 } from "@/lib/workspace-preferences";
 import { ThemeContext, type ThemeContextValue } from "@/lib/theme-context";
-import type {
-  AccentColor,
-  AppearanceCustomPalette,
-  WorkspaceThemeId,
-  WorkspaceThemeSettings,
-} from "@/types";
+import type { AccentColor, AppearanceCustomPalette, WorkspaceThemeId, WorkspaceThemeSettings } from "@/types";
 
 const appearanceChangeEvent = "binder-notes:appearance-change";
 
@@ -88,8 +83,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleMonochrome = useCallback(() => {
-    const nextId: WorkspaceThemeId =
-      globalTheme.id === "monochrome-pro" ? "space" : "monochrome-pro";
+    const nextId: WorkspaceThemeId = globalTheme.id === "monochrome-pro" ? "space" : "monochrome-pro";
     setThemeOverride(null);
     setGlobalThemeState((current) => createThemeFromAppTheme(current, nextId));
     notifyAppearanceChange({ id: nextId });

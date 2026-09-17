@@ -9,56 +9,55 @@ const {
   mockLearnerNoteSingle,
   mockLearnerNoteSelect,
   mockLearnerNoteUpsert,
-} =
-  vi.hoisted(() => {
-    const bindersMaybeSingle = vi.fn();
-    const bindersSelect = vi.fn(() => ({
-      eq: vi.fn(() => ({
-        maybeSingle: bindersMaybeSingle,
-      })),
-    }));
-    const bindersUpsert = vi.fn();
-    const binderLessonsSelectEq = vi.fn();
-    const binderLessonsSelect = vi.fn(() => ({
-      eq: binderLessonsSelectEq,
-    }));
-    const binderLessonsUpsert = vi.fn();
-    const single = vi.fn();
-    const select = vi.fn(() => ({ single }));
-    const upsert = vi.fn(() => ({ select }));
-    const from = vi.fn((table: string) => {
-      if (table === "binders") {
-        return {
-          select: bindersSelect,
-          upsert: bindersUpsert,
-        };
-      }
+} = vi.hoisted(() => {
+  const bindersMaybeSingle = vi.fn();
+  const bindersSelect = vi.fn(() => ({
+    eq: vi.fn(() => ({
+      maybeSingle: bindersMaybeSingle,
+    })),
+  }));
+  const bindersUpsert = vi.fn();
+  const binderLessonsSelectEq = vi.fn();
+  const binderLessonsSelect = vi.fn(() => ({
+    eq: binderLessonsSelectEq,
+  }));
+  const binderLessonsUpsert = vi.fn();
+  const single = vi.fn();
+  const select = vi.fn(() => ({ single }));
+  const upsert = vi.fn(() => ({ select }));
+  const from = vi.fn((table: string) => {
+    if (table === "binders") {
+      return {
+        select: bindersSelect,
+        upsert: bindersUpsert,
+      };
+    }
 
-      if (table === "binder_lessons") {
-        return {
-          select: binderLessonsSelect,
-          upsert: binderLessonsUpsert,
-        };
-      }
+    if (table === "binder_lessons") {
+      return {
+        select: binderLessonsSelect,
+        upsert: binderLessonsUpsert,
+      };
+    }
 
-      if (table === "learner_notes") {
-        return { upsert };
-      }
+    if (table === "learner_notes") {
+      return { upsert };
+    }
 
-      throw new Error(`Unexpected table access in test: ${table}`);
-    });
-
-    return {
-      mockBinderLessonsSelectEq: binderLessonsSelectEq,
-      mockBinderLessonsUpsert: binderLessonsUpsert,
-      mockBindersMaybeSingle: bindersMaybeSingle,
-      mockBindersUpsert: bindersUpsert,
-      mockFrom: from,
-      mockLearnerNoteSingle: single,
-      mockLearnerNoteSelect: select,
-      mockLearnerNoteUpsert: upsert,
-    };
+    throw new Error(`Unexpected table access in test: ${table}`);
   });
+
+  return {
+    mockBinderLessonsSelectEq: binderLessonsSelectEq,
+    mockBinderLessonsUpsert: binderLessonsUpsert,
+    mockBindersMaybeSingle: bindersMaybeSingle,
+    mockBindersUpsert: bindersUpsert,
+    mockFrom: from,
+    mockLearnerNoteSingle: single,
+    mockLearnerNoteSelect: select,
+    mockLearnerNoteUpsert: upsert,
+  };
+});
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -93,20 +92,58 @@ describe("binder-service learner note persistence", () => {
   });
 
   it("saves the captured original revision and stable operation identity through the atomic RPC", async () => {
-    mockLearnerNoteSingle.mockImplementationOnce(async (_name, args) => ({ data: { ...args.p_record, revision: 5, created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z" }, error: null }));
-    const saved = await upsertLearnerNote({ id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", folderId: "folder-math", title: "Limits notes", content: emptyDoc("saved"), mathBlocks: [], pinned: true, expectedRevision: 4, operationId: "stable-operation" });
+    mockLearnerNoteSingle.mockImplementationOnce(async (_name, args) => ({
+      data: {
+        ...args.p_record,
+        revision: 5,
+        created_at: "2026-09-17T00:00:00Z",
+        updated_at: "2026-09-17T00:00:00Z",
+      },
+      error: null,
+    }));
+    const saved = await upsertLearnerNote({
+      id: "note-1",
+      ownerId: "user-1",
+      binderId: "custom-binder",
+      lessonId: "lesson-1",
+      folderId: "folder-math",
+      title: "Limits notes",
+      content: emptyDoc("saved"),
+      mathBlocks: [],
+      pinned: true,
+      expectedRevision: 4,
+      operationId: "stable-operation",
+    });
     expect(saved.id).toBe("note-1");
-    expect(mockLearnerNoteSingle).toHaveBeenCalledWith("save_personal_content", expect.objectContaining({ p_kind: "learner-note", p_expected_revision: 4, p_operation_id: "stable-operation", p_record: expect.objectContaining({ id: "note-1", pinned: true, folder_id: "folder-math" }) }));
+    expect(mockLearnerNoteSingle).toHaveBeenCalledWith(
+      "save_personal_content",
+      expect.objectContaining({
+        p_kind: "learner-note",
+        p_expected_revision: 4,
+        p_operation_id: "stable-operation",
+        p_record: expect.objectContaining({ id: "note-1", pinned: true, folder_id: "folder-math" }),
+      }),
+    );
     expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
   });
 
   it("requires an original revision for updates and surfaces stale or concurrent creation conflicts", async () => {
-    const input = { id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", title: "Draft", content: emptyDoc("draft"), mathBlocks: [] };
+    const input = {
+      id: "note-1",
+      ownerId: "user-1",
+      binderId: "custom-binder",
+      lessonId: "lesson-1",
+      title: "Draft",
+      content: emptyDoc("draft"),
+      mathBlocks: [],
+    };
     await expect(upsertLearnerNote(input)).rejects.toThrow(/original saved revision/);
     expect(mockLearnerNoteSingle).not.toHaveBeenCalled();
     for (const code of ["40001", "23505"]) {
       mockLearnerNoteSingle.mockResolvedValueOnce({ data: null, error: { code, message: "Conflict" } });
-      await expect(upsertLearnerNote({ ...input, expectedRevision: 4, operationId: "same-operation" })).rejects.toThrow(/changed on another tab/);
+      await expect(
+        upsertLearnerNote({ ...input, expectedRevision: 4, operationId: "same-operation" }),
+      ).rejects.toThrow(/changed on another tab/);
     }
   });
 
@@ -139,9 +176,9 @@ describe("binder-service learner note persistence", () => {
   });
 
   it("materializes the account-visible Chemistry course in Supabase before saving its private notes", async () => {
-    const chemistryLesson = chemistryShowcaseLessons.find(
-      (lesson) => lesson.title === "Electrolysis and Faraday's Law",
-    ) ?? chemistryShowcaseLessons[0];
+    const chemistryLesson =
+      chemistryShowcaseLessons.find((lesson) => lesson.title === "Electrolysis and Faraday's Law") ??
+      chemistryShowcaseLessons[0];
 
     mockLearnerNoteSingle.mockResolvedValueOnce({
       data: {

@@ -15,7 +15,9 @@ import type {
 
 const now = "2026-04-23T00:00:00.000Z";
 
-function makeTemplateEvent(input: Partial<HistoryEventTemplate> & Pick<HistoryEventTemplate, "id" | "title" | "sort_year">): HistoryEventTemplate {
+function makeTemplateEvent(
+  input: Partial<HistoryEventTemplate> & Pick<HistoryEventTemplate, "id" | "title" | "sort_year">,
+): HistoryEventTemplate {
   return {
     id: input.id,
     suite_template_id: "suite-history-demo",
@@ -41,8 +43,7 @@ function makeTemplateEvent(input: Partial<HistoryEventTemplate> & Pick<HistoryEv
 }
 
 function makeUserEvent(
-  input: Partial<HistoryEvent> &
-    Pick<HistoryEvent, "id" | "title" | "sort_year">,
+  input: Partial<HistoryEvent> & Pick<HistoryEvent, "id" | "title" | "sort_year">,
 ): HistoryEvent {
   return {
     ...makeTemplateEvent(input),
@@ -53,8 +54,7 @@ function makeUserEvent(
 }
 
 function makeTemplateSource(
-  input: Partial<HistorySourceTemplate> &
-    Pick<HistorySourceTemplate, "id" | "title" | "source_type">,
+  input: Partial<HistorySourceTemplate> & Pick<HistorySourceTemplate, "id" | "title" | "source_type">,
 ): HistorySourceTemplate {
   return {
     id: input.id,
@@ -80,8 +80,7 @@ function makeTemplateSource(
 }
 
 function makeUserSource(
-  input: Partial<HistorySource> &
-    Pick<HistorySource, "id" | "title" | "source_type">,
+  input: Partial<HistorySource> & Pick<HistorySource, "id" | "title" | "source_type">,
 ): HistorySource {
   return {
     ...makeTemplateSource(input),
@@ -91,8 +90,7 @@ function makeUserSource(
 }
 
 function makeTemplateMyth(
-  input: Partial<HistoryMythCheckTemplate> &
-    Pick<HistoryMythCheckTemplate, "id" | "myth_text" | "status">,
+  input: Partial<HistoryMythCheckTemplate> & Pick<HistoryMythCheckTemplate, "id" | "myth_text" | "status">,
 ): HistoryMythCheckTemplate {
   return {
     id: input.id,
@@ -109,8 +107,7 @@ function makeTemplateMyth(
 }
 
 function makeUserMyth(
-  input: Partial<HistoryMythCheck> &
-    Pick<HistoryMythCheck, "id" | "myth_text" | "status">,
+  input: Partial<HistoryMythCheck> & Pick<HistoryMythCheck, "id" | "myth_text" | "status">,
 ): HistoryMythCheck {
   return {
     ...makeTemplateMyth(input),
@@ -240,4 +237,3 @@ describe("history-suite-modules merge helpers", () => {
     expect(merged[0].status).toBe("oversimplification");
   });
 });
-

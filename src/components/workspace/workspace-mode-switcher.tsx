@@ -16,7 +16,8 @@ export function WorkspaceModeSwitcher({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const activeOption = workspaceViewModeOptions.find((option) => option.id === currentMode) ?? workspaceViewModeOptions[0];
+  const activeOption =
+    workspaceViewModeOptions.find((option) => option.id === currentMode) ?? workspaceViewModeOptions[0];
   const closeMenu = () => {
     setOpen(false);
     focusTriggerAfterFrame(triggerRef.current);

@@ -42,8 +42,10 @@ const questions = [
 describe("MathStudyLoopPanel", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA);
-    cloud.from.mockImplementation(database.from); cloud.rpc.mockImplementation(database.rpc);
+    database = reviewCloudFixture();
+    saveQueue.setAccount(reviewOwnerA);
+    cloud.from.mockImplementation(database.from);
+    cloud.rpc.mockImplementation(database.rpc);
     vi.mocked(desmosLoader.hasDesmosApiKey).mockReturnValue(true);
   });
 
@@ -74,13 +76,17 @@ describe("MathStudyLoopPanel", () => {
     });
     renderPanel({ graphLinks: [graphLink] });
 
-    expect(screen.getByTestId("math-study-loop-panel").getAttribute("data-beta-revamp-math-study-loop")).toBe("true");
+    expect(screen.getByTestId("math-study-loop-panel").getAttribute("data-beta-revamp-math-study-loop")).toBe(
+      "true",
+    );
     fireEvent.change(screen.getByLabelText("Problem title"), { target: { value: "Chain rule warmup" } });
     fireEvent.change(screen.getByLabelText("Source"), { target: { value: "Jacob Math Notes" } });
     fireEvent.change(screen.getByLabelText("Concept tags"), { target: { value: "chain rule, derivatives" } });
     fireEvent.change(screen.getByLabelText("Graph link"), { target: { value: graphLink.id } });
     fireEvent.click(screen.getByLabelText("Link formula Power rule"));
-    fireEvent.change(screen.getByLabelText("Attempt"), { target: { value: "I differentiated the outside but missed the inside." } });
+    fireEvent.change(screen.getByLabelText("Attempt"), {
+      target: { value: "I differentiated the outside but missed the inside." },
+    });
     fireEvent.change(screen.getByLabelText("Final answer"), { target: { value: "8x(2x^2+1)^3" } });
     fireEvent.change(screen.getByLabelText("Mistake type"), { target: { value: "formula_misuse" } });
     fireEvent.change(screen.getByLabelText("Confidence"), { target: { value: "2" } });
@@ -190,9 +196,7 @@ describe("MathStudyLoopPanel", () => {
   });
 });
 
-function renderPanel(
-  overrides: Partial<ComponentProps<typeof MathStudyLoopPanel>> = {},
-) {
+function renderPanel(overrides: Partial<ComponentProps<typeof MathStudyLoopPanel>> = {}) {
   return render(
     <MathStudyLoopPanel
       activeExpressions={[{ latex: "y=x^2" }]}

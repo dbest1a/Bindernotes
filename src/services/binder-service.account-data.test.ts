@@ -42,7 +42,8 @@ const mocks = vi.hoisted(() => {
   function applyFilters<T extends Record<string, unknown>>(rows: T[], filters: QueryFilter[]) {
     return rows.filter((row) =>
       filters.every((filter) => {
-        if (filter.operator === "publishedOrOwner") return row.status === "published" || row.owner_id === filter.value;
+        if (filter.operator === "publishedOrOwner")
+          return row.status === "published" || row.owner_id === filter.value;
         if (filter.operator === "eq") {
           return row[filter.column] === filter.value;
         }
@@ -55,22 +56,37 @@ const mocks = vi.hoisted(() => {
   function resolveTable(table: string, query: QueryState) {
     switch (table) {
       case "binders":
-        return { data: applyFilters(state.binders as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.binders as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "folders":
-        return { data: applyFilters(state.folders as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.folders as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "folder_binders":
         return {
           data: applyFilters(state.folderBinders as unknown as Record<string, unknown>[], query.filters),
           error: null,
         };
       case "binder_lessons":
-        return { data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters), error: state.metadataError };
+        return {
+          data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters),
+          error: state.metadataError,
+        };
       case "dashboard_lesson_summaries":
         return { data: applyFilters(state.summaries, query.filters), error: null };
       case "learner_notes":
-        return { data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "comments":
-        return { data: applyFilters(state.comments as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.comments as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "highlights":
         return {
           data: applyFilters(state.highlights as unknown as Record<string, unknown>[], query.filters),
@@ -106,14 +122,32 @@ const mocks = vi.hoisted(() => {
         return builder;
       }),
       order: vi.fn(() => builder),
-      or: vi.fn((filter: string) => { query.filters.push({ column: "owner_id", operator: "publishedOrOwner", value: filter.split("owner_id.eq.")[1] }); return builder; }),
-      range: vi.fn((from: number, to: number) => { query.range = [from, to]; return builder; }),
+      or: vi.fn((filter: string) => {
+        query.filters.push({
+          column: "owner_id",
+          operator: "publishedOrOwner",
+          value: filter.split("owner_id.eq.")[1],
+        });
+        return builder;
+      }),
+      range: vi.fn((from: number, to: number) => {
+        query.range = [from, to];
+        return builder;
+      }),
       maybeSingle: vi.fn(() => {
         const rows = resolveTable(table, query).data;
         return Promise.resolve({ data: rows[0] ?? null, error: null });
       }),
       then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-        Promise.resolve((() => { const result = resolveTable(table, query); return { ...result, data: query.range ? result.data.slice(query.range[0], query.range[1] + 1) : result.data }; })()).then(resolve, reject),
+        Promise.resolve(
+          (() => {
+            const result = resolveTable(table, query);
+            return {
+              ...result,
+              data: query.range ? result.data.slice(query.range[0], query.range[1] + 1) : result.data,
+            };
+          })(),
+        ).then(resolve, reject),
     };
 
     return builder;
@@ -237,7 +271,15 @@ describe("binder-service account dashboard data", () => {
   });
 
   it("does not omit lessons when nonempty summaries are partial or stale", async () => {
-    mocks.state.summaries = [{ ...mocks.state.lessons[0], lesson_id: "lesson-demo", title: "Outdated title", updated_at: "2020-01-01", plain_text_excerpt: "Stale body" }];
+    mocks.state.summaries = [
+      {
+        ...mocks.state.lessons[0],
+        lesson_id: "lesson-demo",
+        title: "Outdated title",
+        updated_at: "2020-01-01",
+        plain_text_excerpt: "Stale body",
+      },
+    ];
     const dashboard = await getDashboard(profile, { includeSystemStatus: false });
     expect(dashboard.lessons.find((lesson) => lesson.id === "lesson-demo")?.title).toBe("Demo lesson");
     expect(dashboard.lessons.some((lesson) => lesson.id === "lesson-real")).toBe(true);
@@ -254,7 +296,9 @@ describe("binder-service account dashboard data", () => {
 
   it("surfaces authoritative metadata failure instead of accepting an unverified partial summary", async () => {
     mocks.state.metadataError = { message: "network failed" };
-    await expect(getDashboard(profile, { includeSystemStatus: false })).rejects.toThrow("complete lesson list");
+    await expect(getDashboard(profile, { includeSystemStatus: false })).rejects.toThrow(
+      "complete lesson list",
+    );
   });
 
   it("shows the bundled Chemistry 101 + AP Chemistry course in account Chemistry folders without a Supabase seed mirror", async () => {
@@ -289,7 +333,9 @@ describe("binder-service account dashboard data", () => {
 
     expect(workspace.binders.map((binder) => binder.id)).toContain(CHEMISTRY_SHOWCASE_BINDER_ID);
     expect(workspace.binders.map((binder) => binder.id)).toContain("binder-user-chemistry");
-    expect(workspace.lessons.filter((lesson) => lesson.binder_id === CHEMISTRY_SHOWCASE_BINDER_ID)).toHaveLength(77);
+    expect(
+      workspace.lessons.filter((lesson) => lesson.binder_id === CHEMISTRY_SHOWCASE_BINDER_ID),
+    ).toHaveLength(77);
   });
 
   it("opens the bundled Chemistry 101 + AP Chemistry course even when account Supabase rows are absent", async () => {

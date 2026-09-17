@@ -26,9 +26,12 @@ import type {
   Profile,
 } from "@/types";
 
-export const LEARNER_NOTE_METADATA_SELECT = "id,owner_id,binder_id,lesson_id,folder_id,title,pinned,revision,created_at,updated_at";
-export const PERSONAL_NOTE_METADATA_SELECT = "id,owner_id,title,folder_id,binder_id,document_id,tags,pinned,revision,archived_at,created_at,updated_at";
-export const PERSONAL_DOCUMENT_METADATA_SELECT = "id,owner_id,binder_id,title,tags,pinned,revision,archived_at,created_at,updated_at";
+export const LEARNER_NOTE_METADATA_SELECT =
+  "id,owner_id,binder_id,lesson_id,folder_id,title,pinned,revision,created_at,updated_at";
+export const PERSONAL_NOTE_METADATA_SELECT =
+  "id,owner_id,title,folder_id,binder_id,document_id,tags,pinned,revision,archived_at,created_at,updated_at";
+export const PERSONAL_DOCUMENT_METADATA_SELECT =
+  "id,owner_id,binder_id,title,tags,pinned,revision,archived_at,created_at,updated_at";
 const LESSON_METADATA_SELECT = "id,binder_id,title,order_index,is_preview,created_at,updated_at";
 function metadataContent<T>(row: T): T & { content: JSONContent; math_blocks: [] } {
   return { ...row, content: emptyDoc(""), math_blocks: [] };
@@ -109,17 +112,29 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
   }
 
   const learnerNotes = await getBinderLinkedLearnerNotes(profile);
-  const pageTable = (table: "personal_notes" | "personal_note_folders" | "personal_note_binders" | "personal_note_documents", select: string, active = false) => readMetadataPages((from, to) => {
-    let query = supabase!.from(table).select(select).eq("owner_id", profile.id);
-    if (active) query = query.is("archived_at", null);
-    return query.order("id").range(from, to);
-  });
-  const [personalNotesResult, personalFoldersResult, personalBindersResult, personalDocumentsResult] = await Promise.all([
-    readPersonalTable<PersonalNote>("personal_notes", pageTable("personal_notes", PERSONAL_NOTE_METADATA_SELECT, true)),
-    readPersonalTable<PersonalNoteFolder>("personal_note_folders", pageTable("personal_note_folders", "*")),
-    readPersonalTable<PersonalNoteBinder>("personal_note_binders", pageTable("personal_note_binders", "*")),
-    readPersonalTable<PersonalNoteDocument>("personal_note_documents", pageTable("personal_note_documents", PERSONAL_DOCUMENT_METADATA_SELECT, true)),
-  ]);
+  const pageTable = (
+    table: "personal_notes" | "personal_note_folders" | "personal_note_binders" | "personal_note_documents",
+    select: string,
+    active = false,
+  ) =>
+    readMetadataPages((from, to) => {
+      let query = supabase!.from(table).select(select).eq("owner_id", profile.id);
+      if (active) query = query.is("archived_at", null);
+      return query.order("id").range(from, to);
+    });
+  const [personalNotesResult, personalFoldersResult, personalBindersResult, personalDocumentsResult] =
+    await Promise.all([
+      readPersonalTable<PersonalNote>(
+        "personal_notes",
+        pageTable("personal_notes", PERSONAL_NOTE_METADATA_SELECT, true),
+      ),
+      readPersonalTable<PersonalNoteFolder>("personal_note_folders", pageTable("personal_note_folders", "*")),
+      readPersonalTable<PersonalNoteBinder>("personal_note_binders", pageTable("personal_note_binders", "*")),
+      readPersonalTable<PersonalNoteDocument>(
+        "personal_note_documents",
+        pageTable("personal_note_documents", PERSONAL_DOCUMENT_METADATA_SELECT, true),
+      ),
+    ]);
   personalNotesResult.data = personalNotesResult.data.map(metadataContent);
   personalDocumentsResult.data = personalDocumentsResult.data.map(metadataContent);
 
@@ -129,13 +144,24 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
 
   const [bindersResult, lessonsResult, foldersResult] = await Promise.all([
     binderIds.length
-      ? readMetadataForIds(binderIds, (ids, from, to) => supabase!.from("binders").select("*").in("id", ids).order("id").range(from, to))
+      ? readMetadataForIds(binderIds, (ids, from, to) =>
+          supabase!.from("binders").select("*").in("id", ids).order("id").range(from, to),
+        )
       : Promise.resolve({ data: [], error: null }),
     lessonIds.length
-      ? readMetadataForIds(lessonIds, (ids, from, to) => supabase!.from("binder_lessons").select(LESSON_METADATA_SELECT).in("id", ids).order("id").range(from, to))
+      ? readMetadataForIds(lessonIds, (ids, from, to) =>
+          supabase!
+            .from("binder_lessons")
+            .select(LESSON_METADATA_SELECT)
+            .in("id", ids)
+            .order("id")
+            .range(from, to),
+        )
       : Promise.resolve({ data: [], error: null }),
     folderIds.length
-      ? readMetadataForIds(folderIds, (ids, from, to) => supabase!.from("folders").select("*").in("id", ids).order("id").range(from, to))
+      ? readMetadataForIds(folderIds, (ids, from, to) =>
+          supabase!.from("folders").select("*").in("id", ids).order("id").range(from, to),
+        )
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -185,33 +211,64 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
       personalDocumentsResult.issue,
     ].filter(Boolean) as PersonalNotesLoadIssue[],
   });
-  return { ...workspace, entries: workspace.entries.map((entry) => ({ ...entry, contentLoaded: false, excerpt: "Open to load content" })) };
+  return {
+    ...workspace,
+    entries: workspace.entries.map((entry) => ({
+      ...entry,
+      contentLoaded: false,
+      excerpt: "Open to load content",
+    })),
+  };
 }
 
 export const getPersonalNotesData = getPersonalNotesWorkspace;
 
 export async function getBinderLinkedLearnerNotes(profile: Profile): Promise<LearnerNote[]> {
   const client = requireSupabase();
-  const { data, error } = await readMetadataPages((from, to) => client
-    .from("learner_notes").select(LEARNER_NOTE_METADATA_SELECT)
-    .eq("owner_id", profile.id).order("id").range(from, to));
+  const { data, error } = await readMetadataPages((from, to) =>
+    client
+      .from("learner_notes")
+      .select(LEARNER_NOTE_METADATA_SELECT)
+      .eq("owner_id", profile.id)
+      .order("id")
+      .range(from, to),
+  );
   if (error) throw error;
   return (data ?? []).map(metadataContent) as LearnerNote[];
 }
 
-export async function getPersonalNoteEntryContent(entry: PersonalNotesEntry, ownerId: string, signal?: AbortSignal): Promise<PersonalNotesEntry> {
+export async function getPersonalNoteEntryContent(
+  entry: PersonalNotesEntry,
+  ownerId: string,
+  signal?: AbortSignal,
+): Promise<PersonalNotesEntry> {
   if (entry.note.owner_id !== ownerId) throw new Error("This note belongs to a different account.");
-  const table = entry.kind === "binder-note" ? "learner_notes" : entry.kind === "personal-document" ? "personal_note_documents" : "personal_notes";
+  const table =
+    entry.kind === "binder-note"
+      ? "learner_notes"
+      : entry.kind === "personal-document"
+        ? "personal_note_documents"
+        : "personal_notes";
   let query = requireSupabase().from(table).select("*").eq("owner_id", ownerId).eq("id", entry.id);
   if (table !== "learner_notes") query = query.is("archived_at", null);
   if (signal) query = query.abortSignal(signal);
   const { data, error } = await query.single();
   if (error) throw error;
-  if (!data || data.id !== entry.id || data.owner_id !== ownerId) throw new Error("The selected note could not be loaded.");
+  if (!data || data.id !== entry.id || data.owner_id !== ownerId)
+    throw new Error("The selected note could not be loaded.");
   const content = editorDocumentSchema.parse(data.content);
   const mathBlocks = mathBlockSchema.array().parse(data.math_blocks ?? []);
-  return { ...entry, note: { ...data, content, math_blocks: mathBlocks }, title: data.title, content, math_blocks: mathBlocks,
-    pinned: data.pinned, tags: "tags" in data ? data.tags : [], updated_at: data.updated_at, contentLoaded: true };
+  return {
+    ...entry,
+    note: { ...data, content, math_blocks: mathBlocks },
+    title: data.title,
+    content,
+    math_blocks: mathBlocks,
+    pinned: data.pinned,
+    tags: "tags" in data ? data.tags : [],
+    updated_at: data.updated_at,
+    contentLoaded: true,
+  };
 }
 
 export async function createPersonalNoteFolder(input: {
@@ -270,10 +327,7 @@ export async function updatePersonalNoteFolder(input: {
   return data as PersonalNoteFolder;
 }
 
-export async function deletePersonalNoteFolder(input: {
-  id: string;
-  ownerId: string;
-}) {
+export async function deletePersonalNoteFolder(input: { id: string; ownerId: string }) {
   await setPersonalTrash("folder", input.id, "trash");
 }
 
@@ -356,16 +410,11 @@ export async function updatePersonalBinder(input: {
   return data as PersonalNoteBinder;
 }
 
-export async function deletePersonalBinder(input: {
-  id: string;
-  ownerId: string;
-}) {
+export async function deletePersonalBinder(input: { id: string; ownerId: string }) {
   await setPersonalTrash("binder", input.id, "trash");
 }
 
-export async function createPersonalDocument(
-  input: PersonalDocumentInput,
-): Promise<PersonalNoteDocument> {
+export async function createPersonalDocument(input: PersonalDocumentInput): Promise<PersonalNoteDocument> {
   const client = requireSupabase();
   const title = input.title.trim() || "Untitled document";
 
@@ -391,17 +440,12 @@ export async function createPersonalDocument(
   return personalDocumentRecordSchema.parse(data);
 }
 
-export async function updatePersonalDocument(
-  input: PersonalDocumentInput,
-): Promise<PersonalNoteDocument> {
+export async function updatePersonalDocument(input: PersonalDocumentInput): Promise<PersonalNoteDocument> {
   if (input.id) return savePersonalRecord("document", input) as Promise<PersonalNoteDocument>;
   return createPersonalDocument(input);
 }
 
-export async function deletePersonalDocument(input: {
-  id: string;
-  ownerId: string;
-}) {
+export async function deletePersonalDocument(input: { id: string; ownerId: string }) {
   await setPersonalTrash("document", input.id, "trash");
 }
 
@@ -414,33 +458,56 @@ export async function updateLoosePersonalNote(input: PersonalNoteInput): Promise
   return upsertPersonalNote(input);
 }
 
-async function savePersonalRecord(kind: "note" | "document", input: PersonalNoteInput | PersonalDocumentInput) {
-  if (!input.id || input.expectedRevision === undefined || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) throw new Error("The original saved revision is required before updating this note.");
+async function savePersonalRecord(
+  kind: "note" | "document",
+  input: PersonalNoteInput | PersonalDocumentInput,
+) {
+  if (
+    !input.id ||
+    input.expectedRevision === undefined ||
+    !Number.isSafeInteger(input.expectedRevision) ||
+    input.expectedRevision < 0
+  )
+    throw new Error("The original saved revision is required before updating this note.");
   const { data, error } = await requireSupabase().rpc("save_personal_content", {
     p_kind: kind,
     p_record: {
-      id: input.id, owner_id: input.ownerId, title: input.title.trim() || "Untitled note", content: input.content ?? emptyDoc(""),
-      math_blocks: input.mathBlocks ?? [], tags: normalizeTags(input.tags ?? []), pinned: input.pinned ?? false, binder_id: input.binderId ?? null,
-      ...(kind === "note" ? { folder_id: "folderId" in input ? input.folderId ?? null : null, document_id: "documentId" in input ? input.documentId ?? null : null } : {}),
+      id: input.id,
+      owner_id: input.ownerId,
+      title: input.title.trim() || "Untitled note",
+      content: input.content ?? emptyDoc(""),
+      math_blocks: input.mathBlocks ?? [],
+      tags: normalizeTags(input.tags ?? []),
+      pinned: input.pinned ?? false,
+      binder_id: input.binderId ?? null,
+      ...(kind === "note"
+        ? {
+            folder_id: "folderId" in input ? (input.folderId ?? null) : null,
+            document_id: "documentId" in input ? (input.documentId ?? null) : null,
+          }
+        : {}),
     },
     p_expected_revision: input.expectedRevision,
     p_operation_id: input.operationId ?? crypto.randomUUID(),
   });
-  if (error) { if (error.code === "40001") throw new ContentConflictError(); throw error; }
-  const saved = kind === "note" ? personalNoteRecordSchema.parse(data) : personalDocumentRecordSchema.parse(data);
-  if (saved.id !== input.id || saved.owner_id !== input.ownerId || saved.revision <= input.expectedRevision) throw new Error("The server did not confirm this note revision.");
+  if (error) {
+    if (error.code === "40001") throw new ContentConflictError();
+    throw error;
+  }
+  const saved =
+    kind === "note" ? personalNoteRecordSchema.parse(data) : personalDocumentRecordSchema.parse(data);
+  if (saved.id !== input.id || saved.owner_id !== input.ownerId || saved.revision <= input.expectedRevision)
+    throw new Error("The server did not confirm this note revision.");
   return saved;
 }
 
-export async function deleteLoosePersonalNote(input: {
-  id: string;
-  ownerId: string;
-}) {
+export async function deleteLoosePersonalNote(input: { id: string; ownerId: string }) {
   await setPersonalTrash("note", input.id, "trash");
 }
 
 export async function upsertPersonalNote(input: PersonalNoteInput): Promise<PersonalNote> {
-  if (input.id && input.expectedRevision !== undefined) return savePersonalRecord("note", input) as Promise<PersonalNote>;
+  if (input.id && input.expectedRevision !== undefined)
+    return savePersonalRecord("note", input) as Promise<PersonalNote>;
   const client = requireSupabase();
   const title = input.title.trim() || "Untitled note";
 
@@ -491,10 +558,7 @@ export async function setPersonalEntryPinned(input: {
   pinned: boolean;
 }) {
   const client = requireSupabase();
-  const table =
-    input.kind === "personal-document"
-      ? "personal_note_documents"
-      : "personal_notes";
+  const table = input.kind === "personal-document" ? "personal_note_documents" : "personal_notes";
   const { error } = await client
     .from(table)
     .update({ pinned: input.pinned })
@@ -575,12 +639,9 @@ async function readPersonalTable<T>(
 }
 
 function classifyPersonalTableError(table: string, error: SupabaseErrorLike): PersonalNotesLoadIssue {
-  const technicalReason = [
-    error.code ? `${error.code}:` : "",
-    error.message,
-    error.details,
-    error.hint,
-  ].filter(Boolean).join(" ");
+  const technicalReason = [error.code ? `${error.code}:` : "", error.message, error.details, error.hint]
+    .filter(Boolean)
+    .join(" ");
   const normalized = technicalReason.toLowerCase();
   const isMissingTable =
     error.code === "42P01" ||

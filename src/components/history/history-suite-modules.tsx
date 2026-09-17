@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowRight,
-  BookOpen,
-  Compass,
-  Landmark,
-  Link2,
-  Plus,
-  Quote,
-  Route,
-  Scale,
-} from "lucide-react";
+import { ArrowRight, BookOpen, Compass, Landmark, Link2, Plus, Quote, Route, Scale } from "lucide-react";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,10 +41,7 @@ const MYTH_STATUS_LABEL: Record<MythRecord["status"], string> = {
   evidence_supported: "Evidence-supported",
 };
 
-export function mergeTimelineEvents(
-  templateEvents: HistoryEventTemplate[],
-  events: HistoryEvent[],
-) {
+export function mergeTimelineEvents(templateEvents: HistoryEventTemplate[], events: HistoryEvent[]) {
   const merged = new Map<string, TimelineEventRecord>();
   const userEventsByTemplate = new Map<string, HistoryEvent>();
 
@@ -88,10 +75,7 @@ export function mergeTimelineEvents(
   return sortHistoryEvents([...merged.values()]);
 }
 
-export function mergeHistorySources(
-  templateSources: HistorySourceTemplate[],
-  sources: HistorySource[],
-) {
+export function mergeHistorySources(templateSources: HistorySourceTemplate[], sources: HistorySource[]) {
   const merged = new Map<string, SourceRecord>();
   const userSourcesByTemplate = new Map<string, HistorySource>();
 
@@ -130,10 +114,7 @@ export function mergeHistorySources(
   });
 }
 
-export function mergeMythChecks(
-  templateMyths: HistoryMythCheckTemplate[],
-  myths: HistoryMythCheck[],
-) {
+export function mergeMythChecks(templateMyths: HistoryMythCheckTemplate[], myths: HistoryMythCheck[]) {
   const merged = new Map<string, MythRecord>();
   const userByTemplate = new Map<string, HistoryMythCheck>();
 
@@ -221,15 +202,12 @@ export function HistoryTimelineModule({
 
       const resolvedEventId = eventIds.has(snapshotEventId)
         ? snapshotEventId
-        : templateToEventId.get(snapshotEventId) ?? null;
+        : (templateToEventId.get(snapshotEventId) ?? null);
       if (!resolvedEventId) {
         return;
       }
 
-      evidenceCountByEventId.set(
-        resolvedEventId,
-        (evidenceCountByEventId.get(resolvedEventId) ?? 0) + 1,
-      );
+      evidenceCountByEventId.set(resolvedEventId, (evidenceCountByEventId.get(resolvedEventId) ?? 0) + 1);
 
       const snapshotSourceToken =
         typeof snapshot.sourceId === "string"
@@ -254,8 +232,7 @@ export function HistoryTimelineModule({
     }));
   }, [evidenceCards, events, templateEvents]);
 
-  const activeEvent =
-    timelineEvents.find((event) => event.id === activeEventId) ?? timelineEvents[0] ?? null;
+  const activeEvent = timelineEvents.find((event) => event.id === activeEventId) ?? timelineEvents[0] ?? null;
 
   return (
     <WorkspacePanel
@@ -437,7 +414,12 @@ export function SourceEvidenceModule({
                 <FactRow label="Point of view" value={source.point_of_view ?? "Not specified"} />
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button onClick={() => onUseSourceInArgument(source.id)} size="sm" type="button" variant="outline">
+                <Button
+                  onClick={() => onUseSourceInArgument(source.id)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   <Link2 data-icon="inline-start" />
                   Use in argument
                 </Button>
@@ -714,7 +696,7 @@ export function ArgumentBuilderModule({
                       ? "Create a starter chain to seed the Rise of Rome cause sequence."
                       : starterTopic === "russian"
                         ? "Create a starter chain to seed the Russian Revolution cause sequence."
-                      : "Create a starter chain to seed the French Revolution cause sequence."
+                        : "Create a starter chain to seed the French Revolution cause sequence."
                   }
                   title="No chain nodes yet"
                 />
@@ -727,9 +709,7 @@ export function ArgumentBuilderModule({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 Active chain
               </p>
-              <p className="mt-2 text-sm font-semibold">
-                {activeChain.prompt || "Untitled argument chain"}
-              </p>
+              <p className="mt-2 text-sm font-semibold">{activeChain.prompt || "Untitled argument chain"}</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {activeChain.thesis || "Add a thesis to connect your evidence to a historical claim."}
               </p>
@@ -774,7 +754,10 @@ export function MythHistoryModule({
     >
       <div className="grid gap-4">
         {cards.map((card) => (
-          <article className="rounded-2xl border border-border/70 bg-background/76 p-4 shadow-sm" key={card.id}>
+          <article
+            className="rounded-2xl border border-border/70 bg-background/76 p-4 shadow-sm"
+            key={card.id}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -782,7 +765,10 @@ export function MythHistoryModule({
                 </p>
                 <h4 className="mt-2 text-base font-semibold">{card.myth_text}</h4>
               </div>
-              <Badge className="capitalize" variant={card.status === "evidence_supported" ? "default" : "outline"}>
+              <Badge
+                className="capitalize"
+                variant={card.status === "evidence_supported" ? "default" : "outline"}
+              >
                 {MYTH_STATUS_LABEL[card.status]}
               </Badge>
             </div>
@@ -824,8 +810,7 @@ const starterChainDrafts = {
     prompt: "What were the most important causes of the French Revolution?",
     thesis:
       "The French Revolution was caused not by one event, but by the combination of financial crisis, social inequality, and Enlightenment political ideas.",
-    context:
-      "Use chronology to show why structural problems became a political revolution in 1789.",
+    context: "Use chronology to show why structural problems became a political revolution in 1789.",
     counterargument:
       "Some explanations overstate one cause, such as bread prices, and miss the broader crisis.",
     conclusion:
@@ -882,9 +867,7 @@ function ChainFieldCard({
 }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/88 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <Textarea
         className="mt-2 min-h-[120px]"
         onBlur={(event) => onBlur(event.target.value)}
@@ -899,9 +882,7 @@ function ChainFieldCard({
 function FactRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border/60 bg-background/72 px-3 py-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm leading-6 text-foreground">{value}</p>
     </div>
   );

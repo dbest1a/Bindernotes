@@ -457,7 +457,14 @@ describe("WindowedWorkspace", () => {
   it("keeps the Jacob Geometry starter strip hidden in study mode so the canvas keeps the space", () => {
     const preferences: WorkspacePreferences = {
       ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-jacob-math-notes"), "canvas"),
-      enabledModules: ["lesson", "private-notes", "formula-sheet", "whiteboard", "desmos-graph", "math-blocks"],
+      enabledModules: [
+        "lesson",
+        "private-notes",
+        "formula-sheet",
+        "whiteboard",
+        "desmos-graph",
+        "math-blocks",
+      ],
     };
 
     const { container } = render(
@@ -876,7 +883,10 @@ describe("WindowedWorkspace", () => {
   });
 
   it("keeps the Canvas Rework surface stretched to the shell when custom frames are narrower", () => {
-    const basePreferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const basePreferences = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "canvas",
+    );
     const preferences: WorkspacePreferences = {
       ...basePreferences,
       locked: true,

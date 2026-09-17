@@ -49,7 +49,15 @@ describe("Rise of Rome demo binder", () => {
       .map((lesson) => extractRenderablePlainText(lesson.content).toLowerCase())
       .join("\n");
 
-    for (const banned of ["freecash", "domino", "subscribe", "in this video", "channel", "giveaway", "pizza"]) {
+    for (const banned of [
+      "freecash",
+      "domino",
+      "subscribe",
+      "in this video",
+      "channel",
+      "giveaway",
+      "pizza",
+    ]) {
       expect(romeText).not.toContain(banned);
     }
   });

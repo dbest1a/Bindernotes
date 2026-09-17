@@ -15,13 +15,20 @@ export async function readMetadataPages<T>(
     rows.push(...batch);
     if (batch.length < METADATA_PAGE_SIZE) return { data: rows, error: null };
   }
-  return { data: [], error: { message: "This collection is too large to load safely. Narrow the selection and retry." } };
+  return {
+    data: [],
+    error: { message: "This collection is too large to load safely. Narrow the selection and retry." },
+  };
 }
 
 /** Bound both the returned rows and the URL's IN filter for large course collections. */
 export async function readMetadataForIds<T>(
   ids: string[],
-  read: (ids: string[], from: number, to: number) => PromiseLike<{ data: T[] | null; error: PageError | null }>,
+  read: (
+    ids: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: PageError | null }>,
 ): Promise<{ data: T[]; error: PageError | null }> {
   const rows: T[] = [];
   const unique = [...new Set(ids)];

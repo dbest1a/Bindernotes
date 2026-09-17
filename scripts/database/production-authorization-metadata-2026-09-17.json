@@ -6,9 +6,7 @@
       {
         "name": "personal_note_binders delete own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_binders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "DELETE"
@@ -16,9 +14,7 @@
       {
         "name": "personal_note_binders insert own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_binders",
         "using": null,
         "command": "INSERT"
@@ -26,9 +22,7 @@
       {
         "name": "personal_note_binders select own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_binders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "SELECT"
@@ -36,9 +30,7 @@
       {
         "name": "personal_note_binders update own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_binders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"
@@ -46,9 +38,7 @@
       {
         "name": "personal_note_documents delete own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_documents",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "DELETE"
@@ -56,9 +46,7 @@
       {
         "name": "personal_note_documents insert own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_documents",
         "using": null,
         "command": "INSERT"
@@ -66,9 +54,7 @@
       {
         "name": "personal_note_documents select own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_documents",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "SELECT"
@@ -76,9 +62,7 @@
       {
         "name": "personal_note_documents update own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_documents",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"
@@ -86,9 +70,7 @@
       {
         "name": "personal_note_folders delete own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_folders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "DELETE"
@@ -96,9 +78,7 @@
       {
         "name": "personal_note_folders insert own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_folders",
         "using": null,
         "command": "INSERT"
@@ -106,9 +86,7 @@
       {
         "name": "personal_note_folders select own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_folders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "SELECT"
@@ -116,9 +94,7 @@
       {
         "name": "personal_note_folders update own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_note_folders",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"
@@ -126,9 +102,7 @@
       {
         "name": "personal_notes delete own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_notes",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "DELETE"
@@ -136,9 +110,7 @@
       {
         "name": "personal_notes insert own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_notes",
         "using": null,
         "command": "INSERT"
@@ -146,9 +118,7 @@
       {
         "name": "personal_notes select own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_notes",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "SELECT"
@@ -156,9 +126,7 @@
       {
         "name": "personal_notes update own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "personal_notes",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"
@@ -166,9 +134,7 @@
       {
         "name": "profiles insert own learner",
         "check": "((id = ( SELECT auth.uid() AS uid)) AND (role = 'learner'::app_role))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "profiles",
         "using": null,
         "command": "INSERT"
@@ -176,9 +142,7 @@
       {
         "name": "profiles read own or admin",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "profiles",
         "using": "((id = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
         "command": "SELECT"
@@ -186,9 +150,7 @@
       {
         "name": "profiles update own safe fields",
         "check": "(id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "profiles",
         "using": "(id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"
@@ -196,9 +158,7 @@
       {
         "name": "purchases read own or admin",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "purchases",
         "using": "((user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
         "command": "SELECT"
@@ -206,9 +166,7 @@
       {
         "name": "questions delete own drafts",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_bank",
         "using": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
         "command": "DELETE"
@@ -216,9 +174,7 @@
       {
         "name": "questions insert own drafts",
         "check": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_bank",
         "using": null,
         "command": "INSERT"
@@ -226,10 +182,7 @@
       {
         "name": "questions readable when published or owned",
         "check": null,
-        "roles": [
-          "anon",
-          "authenticated"
-        ],
+        "roles": ["anon", "authenticated"],
         "table": "question_bank",
         "using": "((status = 'published'::text) OR (created_by = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
         "command": "SELECT"
@@ -237,9 +190,7 @@
       {
         "name": "questions update own drafts",
         "check": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_bank",
         "using": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
         "command": "UPDATE"
@@ -247,9 +198,7 @@
       {
         "name": "choices delete through owned draft question",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_choices",
         "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
         "command": "DELETE"
@@ -257,9 +206,7 @@
       {
         "name": "choices insert through owned draft question",
         "check": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_choices",
         "using": null,
         "command": "INSERT"
@@ -267,10 +214,7 @@
       {
         "name": "choices readable through visible question",
         "check": null,
-        "roles": [
-          "anon",
-          "authenticated"
-        ],
+        "roles": ["anon", "authenticated"],
         "table": "question_choices",
         "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND ((q.status = 'published'::text) OR (q.created_by = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin)))))",
         "command": "SELECT"
@@ -278,9 +222,7 @@
       {
         "name": "choices update through owned draft question",
         "check": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "question_choices",
         "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
         "command": "UPDATE"
@@ -288,9 +230,7 @@
       {
         "name": "whiteboards insert own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "whiteboards",
         "using": null,
         "command": "INSERT"
@@ -298,9 +238,7 @@
       {
         "name": "whiteboards select own",
         "check": null,
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "whiteboards",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "SELECT"
@@ -308,9 +246,7 @@
       {
         "name": "whiteboards update own",
         "check": "(owner_id = ( SELECT auth.uid() AS uid))",
-        "roles": [
-          "authenticated"
-        ],
+        "roles": ["authenticated"],
         "table": "whiteboards",
         "using": "(owner_id = ( SELECT auth.uid() AS uid))",
         "command": "UPDATE"

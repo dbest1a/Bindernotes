@@ -90,9 +90,7 @@ export function GraphStateList({
                         {graph.sourceHeading}
                       </button>
                     ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Lesson graph reference
-                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Lesson graph reference</p>
                     )}
                   </div>
                   <Button onClick={() => onLoadLessonGraph(graph)} size="sm" type="button" variant="outline">
@@ -133,7 +131,12 @@ export function GraphStateList({
                   <Trash2 data-icon="inline-start" />
                 </Button>
               </div>
-              <Button className="mt-3 w-full" onClick={() => onLoad(graph.id)} type="button" variant="outline">
+              <Button
+                className="mt-3 w-full"
+                onClick={() => onLoad(graph.id)}
+                type="button"
+                variant="outline"
+              >
                 Load snapshot
               </Button>
             </div>
@@ -163,8 +166,8 @@ export function GraphStateList({
                 </div>
               ) : (
                 <>
-                  Save graph states as named snapshots so you can jump back into different algebra, precalculus,
-                  or calculus setups.
+                  Save graph states as named snapshots so you can jump back into different algebra,
+                  precalculus, or calculus setups.
                 </>
               )}
             </div>

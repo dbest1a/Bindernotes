@@ -10,10 +10,7 @@ const migration = readFileSync(
 const normalizedMigration = migration.replace(/\s+/g, " ").toLowerCase();
 
 function readScript(path: string) {
-  return readFileSync(join(repoRoot, path), "utf8")
-    .replace(/--.*$/gm, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+  return readFileSync(join(repoRoot, path), "utf8").replace(/--.*$/gm, "").replace(/\s+/g, " ").toLowerCase();
 }
 
 describe("P0 data-quality migration", () => {

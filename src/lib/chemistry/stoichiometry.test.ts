@@ -1,18 +1,27 @@
 import { describe, expect, it } from "vitest";
-import {
-  checkStoichiometryAttempt,
-  solveStoichiometryProblem,
-} from "@/lib/chemistry/stoichiometry";
+import { checkStoichiometryAttempt, solveStoichiometryProblem } from "@/lib/chemistry/stoichiometry";
 
 describe("chemistry stoichiometry engine", () => {
-  it.each([undefined, NaN, Infinity, -Infinity, -1])("marks invalid final answers %s explicitly and never saves non-finite numbers", (finalAnswer) => {
-    const result = checkStoichiometryAttempt({
-      expected: { equation: "N2 + H2 -> NH3", given: { formula: "H2", quantity: 6, unit: "mol" }, target: { formula: "NH3", unit: "mol" } },
-      submitted: { finalAnswer, balancedEquation: "N2 + 3 H2 -> 2 NH3", usedMoleBridge: true, cancelledUnits: true },
-    });
-    expect(result.mistakeTags).toContain("invalid_numeric_answer");
-    expect(result.savedSummary.submittedFinalAnswer).toBeNull();
-  });
+  it.each([undefined, NaN, Infinity, -Infinity, -1])(
+    "marks invalid final answers %s explicitly and never saves non-finite numbers",
+    (finalAnswer) => {
+      const result = checkStoichiometryAttempt({
+        expected: {
+          equation: "N2 + H2 -> NH3",
+          given: { formula: "H2", quantity: 6, unit: "mol" },
+          target: { formula: "NH3", unit: "mol" },
+        },
+        submitted: {
+          finalAnswer,
+          balancedEquation: "N2 + 3 H2 -> 2 NH3",
+          usedMoleBridge: true,
+          cancelledUnits: true,
+        },
+      });
+      expect(result.mistakeTags).toContain("invalid_numeric_answer");
+      expect(result.savedSummary.submittedFinalAnswer).toBeNull();
+    },
+  );
   it("builds a deterministic unit ladder for gram-to-gram stoichiometry", () => {
     const result = solveStoichiometryProblem({
       equation: "H2 + O2 -> H2O",

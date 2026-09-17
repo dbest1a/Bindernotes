@@ -1,10 +1,5 @@
 import { createContext } from "react";
-import type {
-  AppearanceCustomPalette,
-  AccentColor,
-  WorkspaceThemeId,
-  WorkspaceThemeSettings,
-} from "@/types";
+import type { AppearanceCustomPalette, AccentColor, WorkspaceThemeId, WorkspaceThemeSettings } from "@/types";
 
 export type ThemeContextValue = {
   theme: WorkspaceThemeSettings;

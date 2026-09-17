@@ -1,9 +1,4 @@
-import type {
-  CalculatorMode,
-  MathDifficulty,
-  MathModule,
-  QuestionBankItem,
-} from "@/types/math-learning";
+import type { CalculatorMode, MathDifficulty, MathModule, QuestionBankItem } from "@/types/math-learning";
 
 export const JACOB_MATH_COURSE_ID = "course-jacob-math-notes";
 
@@ -179,7 +174,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-01-rotation-90",
         label: "90 degree rotation",
         latex: "(x,y)\\mapsto(-y,x)",
-        explanation: "A counterclockwise quarter-turn around the origin swaps the coordinates and negates the new x-coordinate.",
+        explanation:
+          "A counterclockwise quarter-turn around the origin swaps the coordinates and negates the new x-coordinate.",
       },
       {
         id: "jacob-01-dilation",
@@ -193,7 +189,17 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-01-dilation-demo",
         label: "Rigid motion and dilation coordinates",
         description: "Move a triangle through rotation and dilation rules from Jacob's geometry opening.",
-        expressions: ["A=(1,1)", "B=(3,1)", "C=(2,3)", "A'=(-1,1)", "B'=(-1,3)", "C'=(-3,2)", "D=(2,2)", "E=(6,2)", "F=(4,6)"],
+        expressions: [
+          "A=(1,1)",
+          "B=(3,1)",
+          "C=(2,3)",
+          "A'=(-1,1)",
+          "B'=(-1,3)",
+          "C'=(-3,2)",
+          "D=(2,2)",
+          "E=(6,2)",
+          "F=(4,6)",
+        ],
         viewport: { xMin: -6, xMax: 8, yMin: -4, yMax: 8 },
       }),
     ],
@@ -252,7 +258,14 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-02-angle-bisector-demo",
         label: "Angle bisector ratio picture",
         description: "A triangle split by an angle bisector so students can connect side lengths to ratios.",
-        expressions: ["A=(0,0)", "B=(5,0)", "C=(1.5,3)", "D=(5\\sqrt{11.25}/(\\sqrt{11.25}+\\sqrt{21.25}),0)", "polygon(A,B,C)", "segment(C,D)"],
+        expressions: [
+          "A=(0,0)",
+          "B=(5,0)",
+          "C=(1.5,3)",
+          "D=(5\\sqrt{11.25}/(\\sqrt{11.25}+\\sqrt{21.25}),0)",
+          "polygon(A,B,C)",
+          "segment(C,D)",
+        ],
         viewport: { xMin: -1, xMax: 6, yMin: -1, yMax: 5 },
       }),
     ],
@@ -284,7 +297,12 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-right-triangle-trig",
     topicId: topicIds.geometry,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Sine/Cosine/Tangent", "Special Right Triangles", "Cute Tricks and Elevating/Depressing Angles", "Reciprocal Trig Ratios"],
+    sourceSubsections: [
+      "Sine/Cosine/Tangent",
+      "Special Right Triangles",
+      "Cute Tricks and Elevating/Depressing Angles",
+      "Reciprocal Trig Ratios",
+    ],
     overview:
       "Jacob builds trig from right-triangle side ratios, inverse trig, special triangles, and the Pythagorean identity.",
     contentBlocks: [
@@ -296,7 +314,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       {
         id: "jacob-03-sohcahtoa",
         label: "SOHCAHTOA",
-        latex: "\\sin\\theta=\\frac{opp}{hyp},\\quad \\cos\\theta=\\frac{adj}{hyp},\\quad \\tan\\theta=\\frac{opp}{adj}",
+        latex:
+          "\\sin\\theta=\\frac{opp}{hyp},\\quad \\cos\\theta=\\frac{adj}{hyp},\\quad \\tan\\theta=\\frac{opp}{adj}",
         explanation: "Jacob uses these as the basic bridge between a right-triangle angle and side lengths.",
       },
       {
@@ -316,8 +335,21 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("inverse-tangent", "Inverse tangent", "If opposite=3 and adjacent=4, tan(theta)=0.75. Approximate theta in degrees.", 36.87, "theta is arctan(3/4), about 36.87 degrees.", 0.05),
-      shortAnswer("special-45", "45-45-90 ratio", "What is the side ratio in a 45-45-90 triangle?", ["1:1:sqrt(2)", "1:1:√2", "x:x:x√2"], "The legs match and the hypotenuse is leg times sqrt(2)."),
+      numeric(
+        "inverse-tangent",
+        "Inverse tangent",
+        "If opposite=3 and adjacent=4, tan(theta)=0.75. Approximate theta in degrees.",
+        36.87,
+        "theta is arctan(3/4), about 36.87 degrees.",
+        0.05,
+      ),
+      shortAnswer(
+        "special-45",
+        "45-45-90 ratio",
+        "What is the side ratio in a 45-45-90 triangle?",
+        ["1:1:sqrt(2)", "1:1:√2", "x:x:x√2"],
+        "The legs match and the hypotenuse is leg times sqrt(2).",
+      ),
     ],
     relatedConcepts: ["similarity", "unit circle", "trig identities", "derivatives of trig"],
     presetRecommendation: "Math Graph Lab",
@@ -363,8 +395,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("segment-point", "Segment point", "Using Jacob's example, what point lies 3/5 of the way from (-1,4) to (4,-6)?", ["(2,-2)", "(2, -2)"], "Move 3/5 of the change (5,-10), giving (-1,4)+(3,-6)=(2,-2)."),
-      trueFalse("parabola-focus", "Parabola definition", "A parabola can be defined by equal distance to a focus and a directrix.", true, "That equal-distance condition is the geometric definition Jacob uses for the proof."),
+      shortAnswer(
+        "segment-point",
+        "Segment point",
+        "Using Jacob's example, what point lies 3/5 of the way from (-1,4) to (4,-6)?",
+        ["(2,-2)", "(2, -2)"],
+        "Move 3/5 of the change (5,-10), giving (-1,4)+(3,-6)=(2,-2).",
+      ),
+      trueFalse(
+        "parabola-focus",
+        "Parabola definition",
+        "A parabola can be defined by equal distance to a focus and a directrix.",
+        true,
+        "That equal-distance condition is the geometric definition Jacob uses for the proof.",
+      ),
     ],
     relatedConcepts: ["distance formula", "circles", "polar coordinates", "quadratic functions"],
     presetRecommendation: "Math Graph Lab",
@@ -378,7 +422,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-circles-laws",
     topicId: topicIds.geometry,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Circles", "Actual Radian measurements", "Sectors", "Law of Sines & Cosines", "Ellipses"],
+    sourceSubsections: [
+      "Circles",
+      "Actual Radian measurements",
+      "Sectors",
+      "Law of Sines & Cosines",
+      "Ellipses",
+    ],
     overview:
       "Jacob moves from circle vocabulary to radians, sector formulas, triangle laws, and ellipse/hyperbola standard forms.",
     contentBlocks: [
@@ -410,8 +460,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("arc-length", "Arc length", "If r=5 and theta=2 radians, what is the arc length?", 10, "Use s=r theta, so s=5*2=10."),
-      shortAnswer("law-sines-purpose", "Law of sines purpose", "What kind of triangle problem does the Law of Sines help solve?", ["non-right triangles", "general triangles", "triangles that are not right triangles"], "The Law of Sines works beyond right triangles when angle-side pairs are known."),
+      numeric(
+        "arc-length",
+        "Arc length",
+        "If r=5 and theta=2 radians, what is the arc length?",
+        10,
+        "Use s=r theta, so s=5*2=10.",
+      ),
+      shortAnswer(
+        "law-sines-purpose",
+        "Law of sines purpose",
+        "What kind of triangle problem does the Law of Sines help solve?",
+        ["non-right triangles", "general triangles", "triangles that are not right triangles"],
+        "The Law of Sines works beyond right triangles when angle-side pairs are known.",
+      ),
     ],
     relatedConcepts: ["right triangle trig", "unit circle", "polar coordinates", "conics"],
     presetRecommendation: "Math Graph Lab",
@@ -425,7 +487,12 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-polynomials-series",
     topicId: topicIds.algebra2,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Polynomial Operations", "Sum of and Difference of Cubes", "Polynomial Remainder Theorem", "I and Sum of Series"],
+    sourceSubsections: [
+      "Polynomial Operations",
+      "Sum of and Difference of Cubes",
+      "Polynomial Remainder Theorem",
+      "I and Sum of Series",
+    ],
     overview:
       "This lesson turns polynomial structure, special factoring, synthetic division, and finite series into reusable algebra tools.",
     contentBlocks: [
@@ -457,8 +524,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("cube-factor", "Cube factor pattern", "Factor a^3-b^3.", ["(a-b)(a^2+ab+b^2)", "(a - b)(a^2 + ab + b^2)"], "Use Jacob's difference of cubes pattern."),
-      numeric("finite-series", "Finite geometric sum", "Find 1+2+4+8.", 15, "This is a geometric series with four terms: 1+2+4+8=15."),
+      shortAnswer(
+        "cube-factor",
+        "Cube factor pattern",
+        "Factor a^3-b^3.",
+        ["(a-b)(a^2+ab+b^2)", "(a - b)(a^2 + ab + b^2)"],
+        "Use Jacob's difference of cubes pattern.",
+      ),
+      numeric(
+        "finite-series",
+        "Finite geometric sum",
+        "Find 1+2+4+8.",
+        15,
+        "This is a geometric series with four terms: 1+2+4+8=15.",
+      ),
     ],
     relatedConcepts: ["graphing polynomials", "rational functions", "series", "Taylor series"],
     presetRecommendation: "Math Guided Study",
@@ -491,7 +570,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-07-log-product",
         label: "Log product rule",
         latex: "\\log_b(MN)=\\log_b(M)+\\log_b(N)",
-        explanation: "Products inside a logarithm become sums because exponents add when like bases multiply.",
+        explanation:
+          "Products inside a logarithm become sums because exponents add when like bases multiply.",
       },
     ],
     graphs: [
@@ -504,8 +584,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("rational-exponent", "Rewrite exponent", "For real x >= 0, rewrite x^(3/2) using radicals.", ["sqrt(x^3)", "\\sqrt{x^3}", "x sqrt(x)", "x\\sqrt{x}"], "For x >= 0, x^(3/2) = sqrt(x^3) = x sqrt(x)."),
-      shortAnswer("log-product", "Log rule", "For x>0, y>0, b>0 and b!=1, expand log_b(xy).", ["log_b(x)+log_b(y)", "\\log_b(x)+\\log_b(y)"], "With positive arguments and a valid real logarithm base, the product rule gives log_b(x)+log_b(y)."),
+      shortAnswer(
+        "rational-exponent",
+        "Rewrite exponent",
+        "For real x >= 0, rewrite x^(3/2) using radicals.",
+        ["sqrt(x^3)", "\\sqrt{x^3}", "x sqrt(x)", "x\\sqrt{x}"],
+        "For x >= 0, x^(3/2) = sqrt(x^3) = x sqrt(x).",
+      ),
+      shortAnswer(
+        "log-product",
+        "Log rule",
+        "For x>0, y>0, b>0 and b!=1, expand log_b(xy).",
+        ["log_b(x)+log_b(y)", "\\log_b(x)+\\log_b(y)"],
+        "With positive arguments and a valid real logarithm base, the product rule gives log_b(x)+log_b(y).",
+      ),
     ],
     relatedConcepts: ["polynomial division", "parent functions", "limits", "exponential growth"],
     presetRecommendation: "Math Graph Lab",
@@ -519,7 +611,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-rational-matrices",
     topicId: topicIds.algebra2,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Parent Functions with Transformations of Functions", "Trigonometry-Unit Circle", "Rational Functions", "Binomial Expansion Theorem", "Matrices"],
+    sourceSubsections: [
+      "Parent Functions with Transformations of Functions",
+      "Trigonometry-Unit Circle",
+      "Rational Functions",
+      "Binomial Expansion Theorem",
+      "Matrices",
+    ],
     overview:
       "Jacob ties parent graph transformations, unit-circle coordinates, rational-function behavior, binomial expansion, and matrices into a pre-calculus toolkit.",
     contentBlocks: [
@@ -551,8 +649,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      freeResponse("transform-meaning", "Transformation meaning", "In g(x)=a f(b(x-h))+k, explain what h and k control.", "Mentions horizontal and vertical shifts.", "h shifts horizontally and k shifts vertically."),
-      shortAnswer("unit-circle-point", "Unit circle point", "What is the unit-circle point for angle theta?", ["(cos theta, sin theta)", "(cos(theta), sin(theta))"], "Cosine is the x-coordinate and sine is the y-coordinate."),
+      freeResponse(
+        "transform-meaning",
+        "Transformation meaning",
+        "In g(x)=a f(b(x-h))+k, explain what h and k control.",
+        "Mentions horizontal and vertical shifts.",
+        "h shifts horizontally and k shifts vertically.",
+      ),
+      shortAnswer(
+        "unit-circle-point",
+        "Unit circle point",
+        "What is the unit-circle point for angle theta?",
+        ["(cos theta, sin theta)", "(cos(theta), sin(theta))"],
+        "Cosine is the x-coordinate and sine is the y-coordinate.",
+      ),
     ],
     relatedConcepts: ["trig identities", "matrix transformations", "complex plane", "limits"],
     presetRecommendation: "Math Graph Lab",
@@ -598,8 +708,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("composition", "Composition notation", "Write the notation for f applied after g.", ["(f o g)(x)", "(f∘g)(x)", "f(g(x))", "(f\\circ g)(x)"], "Composition means f(g(x))."),
-      trueFalse("polar-rotation", "Complex polar meaning", "In polar form, the angle controls direction in the complex plane.", true, "The radius gives size and the angle gives direction."),
+      shortAnswer(
+        "composition",
+        "Composition notation",
+        "Write the notation for f applied after g.",
+        ["(f o g)(x)", "(f∘g)(x)", "f(g(x))", "(f\\circ g)(x)"],
+        "Composition means f(g(x)).",
+      ),
+      trueFalse(
+        "polar-rotation",
+        "Complex polar meaning",
+        "In polar form, the angle controls direction in the complex plane.",
+        true,
+        "The radius gives size and the angle gives direction.",
+      ),
     ],
     relatedConcepts: ["unit circle", "vectors", "matrix rotations", "Euler form"],
     presetRecommendation: "Math Graph Lab",
@@ -613,7 +735,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-complex-vectors",
     topicId: topicIds.precalculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Vectors", "Matrices Continued", "Probability", "Growth and decay", "Series and limits"],
+    sourceSubsections: [
+      "Vectors",
+      "Matrices Continued",
+      "Probability",
+      "Growth and decay",
+      "Series and limits",
+    ],
     overview:
       "Jacob closes precalculus by grouping vector magnitude, probability counting, exponential models, series, and informal limits.",
     contentBlocks: [
@@ -645,8 +773,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("vector-magnitude", "Vector magnitude", "Find the magnitude of vector <3,4>.", 5, "Use sqrt(3^2+4^2)=5."),
-      shortAnswer("combination", "Combination formula", "What formula counts combinations of n things taken r at a time?", ["n!/(r!(n-r)!)", "\\frac{n!}{r!(n-r)!}", "C(n,r)"], "Jacob uses n choose r for selection without order."),
+      numeric(
+        "vector-magnitude",
+        "Vector magnitude",
+        "Find the magnitude of vector <3,4>.",
+        5,
+        "Use sqrt(3^2+4^2)=5.",
+      ),
+      shortAnswer(
+        "combination",
+        "Combination formula",
+        "What formula counts combinations of n things taken r at a time?",
+        ["n!/(r!(n-r)!)", "\\frac{n!}{r!(n-r)!}", "C(n,r)"],
+        "Jacob uses n choose r for selection without order.",
+      ),
     ],
     relatedConcepts: ["complex numbers", "limits", "differential equations", "linear algebra"],
     presetRecommendation: "Math Guided Study",
@@ -687,13 +827,32 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-11-secant-to-tangent",
         label: "Secant line to tangent line",
         description: "Shrink h to see the derivative definition become tangent slope.",
-        expressions: ["f(x)=x^2", "a=1", "h=1", "A=(a,f(a))", "B=(a+h,f(a+h))", "y=\\frac{f(a+h)-f(a)}{h}(x-a)+f(a)"],
+        expressions: [
+          "f(x)=x^2",
+          "a=1",
+          "h=1",
+          "A=(a,f(a))",
+          "B=(a+h,f(a+h))",
+          "y=\\frac{f(a+h)-f(a)}{h}(x-a)+f(a)",
+        ],
         viewport: { xMin: -3, xMax: 5, yMin: -2, yMax: 10 },
       }),
     ],
     practice: [
-      freeResponse("limit-local", "Limit as local behavior", "Explain why a limit can exist even if f(a) is undefined.", "Mentions nearby behavior rather than value at the point.", "A limit tracks what values approach around a, not what happens exactly at a."),
-      stepOrdering("derivative-definition-steps", "Derivative definition steps", "Order the derivative-definition workflow at a.", ["compute f(a+h)-f(a)", "divide by h with h nonzero", "take the limit as h goes to 0"], "Form [f(a+h)-f(a)]/h once, then take its limit as h approaches zero, when that limit exists."),
+      freeResponse(
+        "limit-local",
+        "Limit as local behavior",
+        "Explain why a limit can exist even if f(a) is undefined.",
+        "Mentions nearby behavior rather than value at the point.",
+        "A limit tracks what values approach around a, not what happens exactly at a.",
+      ),
+      stepOrdering(
+        "derivative-definition-steps",
+        "Derivative definition steps",
+        "Order the derivative-definition workflow at a.",
+        ["compute f(a+h)-f(a)", "divide by h with h nonzero", "take the limit as h goes to 0"],
+        "Form [f(a+h)-f(a)]/h once, then take its limit as h approaches zero, when that limit exists.",
+      ),
     ],
     relatedConcepts: ["precalculus limits", "derivative rules", "tangent lines", "real analysis continuity"],
     presetRecommendation: "Math Graph Lab",
@@ -707,7 +866,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-calculus-derivatives",
     topicId: topicIds.calculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Power rule", "Product rule", "Quotient rule", "Chain rule", "Implicit differentiation"],
+    sourceSubsections: [
+      "Power rule",
+      "Product rule",
+      "Quotient rule",
+      "Chain rule",
+      "Implicit differentiation",
+    ],
     overview:
       "This lesson collects the core derivative rules so students can choose the right rule rather than memorize disconnected formulas.",
     contentBlocks: [
@@ -739,8 +904,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("power-rule", "Power rule", "Differentiate x^5.", ["5x^4", "5*x^4"], "The power rule gives 5x^4."),
-      shortAnswer("product-rule", "Product rule", "Write the product rule for (fg)'.", ["f'g+fg'", "f'g + fg'", "f' g + f g'"], "Differentiate one factor at a time and add the two products."),
+      shortAnswer(
+        "power-rule",
+        "Power rule",
+        "Differentiate x^5.",
+        ["5x^4", "5*x^4"],
+        "The power rule gives 5x^4.",
+      ),
+      shortAnswer(
+        "product-rule",
+        "Product rule",
+        "Write the product rule for (fg)'.",
+        ["f'g+fg'", "f'g + fg'", "f' g + f g'"],
+        "Differentiate one factor at a time and add the two products.",
+      ),
     ],
     relatedConcepts: ["derivative definition", "implicit differentiation", "optimization", "Taylor series"],
     presetRecommendation: "Math Practice Mode",
@@ -754,7 +931,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-diff-calc-applications",
     topicId: topicIds.calculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Implicit differentiation", "Linearization", "Mean Value Theorem", "Optimization", "Second derivatives"],
+    sourceSubsections: [
+      "Implicit differentiation",
+      "Linearization",
+      "Mean Value Theorem",
+      "Optimization",
+      "Second derivatives",
+    ],
     overview:
       "Jacob turns derivatives into tools for prediction, optimization, curve behavior, and theorem-based reasoning.",
     contentBlocks: [
@@ -786,8 +969,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      freeResponse("linearization-purpose", "Linearization purpose", "Why is linearization useful?", "Mentions tangent-line approximation near a point.", "Linearization gives a simple local model for nearby inputs."),
-      trueFalse("mvt-continuity", "MVT requirements", "The Mean Value Theorem requires continuity on the closed interval and differentiability inside.", true, "Those are the standard MVT hypotheses."),
+      freeResponse(
+        "linearization-purpose",
+        "Linearization purpose",
+        "Why is linearization useful?",
+        "Mentions tangent-line approximation near a point.",
+        "Linearization gives a simple local model for nearby inputs.",
+      ),
+      trueFalse(
+        "mvt-continuity",
+        "MVT requirements",
+        "The Mean Value Theorem requires continuity on the closed interval and differentiability inside.",
+        true,
+        "Those are the standard MVT hypotheses.",
+      ),
     ],
     relatedConcepts: ["derivative rules", "optimization", "integrals", "Taylor theory"],
     presetRecommendation: "Math Graph Lab",
@@ -801,7 +996,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-integrals-ftc",
     topicId: topicIds.calculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Antiderivatives", "Definite integrals", "Fundamental Theorem of Calculus", "Substitution", "Integration by parts"],
+    sourceSubsections: [
+      "Antiderivatives",
+      "Definite integrals",
+      "Fundamental Theorem of Calculus",
+      "Substitution",
+      "Integration by parts",
+    ],
     overview:
       "This section makes integration feel like accumulation and connects area, antiderivatives, and technique choices.",
     contentBlocks: [
@@ -833,10 +1034,27 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("ftc-simple", "FTC evaluation", "If F(x)=x^3 and f=F', compute integral from 1 to 2 of f(x) dx.", 7, "FTC gives F(2)-F(1)=8-1=7."),
-      shortAnswer("substitution-purpose", "Substitution purpose", "What derivative pattern does u-substitution look for?", ["inside function derivative", "derivative of the inside", "g'(x) next to g(x)"], "Substitution works when a function and its derivative structure appear together."),
+      numeric(
+        "ftc-simple",
+        "FTC evaluation",
+        "If F(x)=x^3 and f=F', compute integral from 1 to 2 of f(x) dx.",
+        7,
+        "FTC gives F(2)-F(1)=8-1=7.",
+      ),
+      shortAnswer(
+        "substitution-purpose",
+        "Substitution purpose",
+        "What derivative pattern does u-substitution look for?",
+        ["inside function derivative", "derivative of the inside", "g'(x) next to g(x)"],
+        "Substitution works when a function and its derivative structure appear together.",
+      ),
     ],
-    relatedConcepts: ["derivatives", "differential equations", "integral applications", "Riemann integration"],
+    relatedConcepts: [
+      "derivatives",
+      "differential equations",
+      "integral applications",
+      "Riemann integration",
+    ],
     presetRecommendation: "Math Graph Lab",
     remainingTodos: ["Add actual rectangle count slider for Riemann sums."],
     difficulty: "intermediate",
@@ -848,7 +1066,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-diffeq-integral-apps",
     topicId: topicIds.calculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Separable equations", "Logistic differential equation", "Average value", "Volumes", "Arc length"],
+    sourceSubsections: [
+      "Separable equations",
+      "Logistic differential equation",
+      "Average value",
+      "Volumes",
+      "Arc length",
+    ],
     overview:
       "Jacob links differential equations and integral applications through change, accumulation, volume, and length.",
     contentBlocks: [
@@ -880,8 +1104,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("logistic-capacity", "Carrying capacity", "For k>0 in dP/dt=kP(1-P/20), what is the carrying capacity?", 20, "The positive stable equilibrium is M=20 for k>0 and positive initial population."),
-      shortAnswer("average-value", "Average value formula", "For an integrable f on [a,b] with a<b, what is its average value?", ["1/(b-a) integral_a^b f(x) dx", "\\frac{1}{b-a}\\int_a^b f(x)dx"], "Average value divides the integral by the positive interval length b-a."),
+      numeric(
+        "logistic-capacity",
+        "Carrying capacity",
+        "For k>0 in dP/dt=kP(1-P/20), what is the carrying capacity?",
+        20,
+        "The positive stable equilibrium is M=20 for k>0 and positive initial population.",
+      ),
+      shortAnswer(
+        "average-value",
+        "Average value formula",
+        "For an integrable f on [a,b] with a<b, what is its average value?",
+        ["1/(b-a) integral_a^b f(x) dx", "\\frac{1}{b-a}\\int_a^b f(x)dx"],
+        "Average value divides the integral by the positive interval length b-a.",
+      ),
     ],
     relatedConcepts: ["integrals", "differential equations", "series", "applications of calculus"],
     presetRecommendation: "Math Graph Lab",
@@ -895,7 +1131,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-parametric-polar-series",
     topicId: topicIds.calculus,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Parametric equations", "Polar coordinates", "Infinite series", "Taylor series", "Maclaurin series"],
+    sourceSubsections: [
+      "Parametric equations",
+      "Polar coordinates",
+      "Infinite series",
+      "Taylor series",
+      "Maclaurin series",
+    ],
     overview:
       "This lesson moves beyond y=f(x): curves can be parameterized, polar, or approximated by infinite polynomial behavior.",
     contentBlocks: [
@@ -922,13 +1164,30 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-16-taylor-polar",
         label: "Taylor and polar explorer",
         description: "Compare sin(x) with Taylor polynomials and a polar curve.",
-        expressions: ["f(x)=\\sin(x)", "P_3(x)=x-\\frac{x^3}{6}", "P_5(x)=x-\\frac{x^3}{6}+\\frac{x^5}{120}", "r=1+\\sin(\\theta)"],
+        expressions: [
+          "f(x)=\\sin(x)",
+          "P_3(x)=x-\\frac{x^3}{6}",
+          "P_5(x)=x-\\frac{x^3}{6}+\\frac{x^5}{120}",
+          "r=1+\\sin(\\theta)",
+        ],
         viewport: { xMin: -8, xMax: 8, yMin: -4, yMax: 4 },
       }),
     ],
     practice: [
-      shortAnswer("parametric-derivative", "Parametric derivative", "For differentiable x(t), y(t) with dx/dt != 0, write dy/dx.", ["(dy/dt)/(dx/dt)", "\\frac{dy/dt}{dx/dt}"], "Divide dy/dt by dx/dt where dx/dt is nonzero."),
-      shortAnswer("maclaurin-sine", "Sine Maclaurin P3", "Write the degree 3 Maclaurin polynomial for sin x.", ["x-x^3/6", "x - x^3/6"], "The sine series begins x - x^3/6 + ..."),
+      shortAnswer(
+        "parametric-derivative",
+        "Parametric derivative",
+        "For differentiable x(t), y(t) with dx/dt != 0, write dy/dx.",
+        ["(dy/dt)/(dx/dt)", "\\frac{dy/dt}{dx/dt}"],
+        "Divide dy/dt by dx/dt where dx/dt is nonzero.",
+      ),
+      shortAnswer(
+        "maclaurin-sine",
+        "Sine Maclaurin P3",
+        "Write the degree 3 Maclaurin polynomial for sin x.",
+        ["x-x^3/6", "x - x^3/6"],
+        "The sine series begins x - x^3/6 + ...",
+      ),
     ],
     relatedConcepts: ["integrals", "polar conics", "power series", "real analysis series"],
     presetRecommendation: "Math Graph Lab",
@@ -943,8 +1202,7 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     topicId: topicIds.multivariable,
     sourceCoverageStatus: "starter; provenance pending",
     sourceSubsections: ["Vector algebra", "Dot product", "Cross product", "3D coordinates"],
-    overview:
-      "Multivariable calculus starts by extending vectors and coordinate reasoning into 3D space.",
+    overview: "Multivariable calculus starts by extending vectors and coordinate reasoning into 3D space.",
     contentBlocks: [
       "Dot products measure projection and angle information.",
       "Cross products create perpendicular vectors with area magnitude.",
@@ -974,7 +1232,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     ],
     practice: [
       numeric("dot-product", "Dot product", "Compute <1,2,3> dot <4,0,-1>.", 1, "1*4 + 2*0 + 3*(-1)=1."),
-      freeResponse("cross-meaning", "Cross product meaning", "For nonparallel, nonzero vectors u and v in R^3, what direction does u x v point?", "Mentions perpendicular to both vectors and the right-hand rule.", "It is perpendicular to both vectors, oriented by the right-hand rule. Parallel vectors have zero cross product, which has no direction."),
+      freeResponse(
+        "cross-meaning",
+        "Cross product meaning",
+        "For nonparallel, nonzero vectors u and v in R^3, what direction does u x v point?",
+        "Mentions perpendicular to both vectors and the right-hand rule.",
+        "It is perpendicular to both vectors, oriented by the right-hand rule. Parallel vectors have zero cross product, which has no direction.",
+      ),
     ],
     relatedConcepts: ["vectors", "partial derivatives", "linear algebra", "surface integrals"],
     presetRecommendation: "Math Graph Lab",
@@ -1019,8 +1283,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("gradient-components", "Gradient components", "What entries go inside the gradient of f(x,y,z)?", ["f_x, f_y, f_z", "partial derivatives", "<f_x,f_y,f_z>"], "The gradient stores all first partial derivatives."),
-      freeResponse("jacobian-purpose", "Jacobian purpose", "What does the Jacobian record for a multivariable map?", "Mentions first-order change/partial derivatives.", "The Jacobian matrix stores first partial derivatives of a vector-valued map."),
+      shortAnswer(
+        "gradient-components",
+        "Gradient components",
+        "What entries go inside the gradient of f(x,y,z)?",
+        ["f_x, f_y, f_z", "partial derivatives", "<f_x,f_y,f_z>"],
+        "The gradient stores all first partial derivatives.",
+      ),
+      freeResponse(
+        "jacobian-purpose",
+        "Jacobian purpose",
+        "What does the Jacobian record for a multivariable map?",
+        "Mentions first-order change/partial derivatives.",
+        "The Jacobian matrix stores first partial derivatives of a vector-valued map.",
+      ),
     ],
     relatedConcepts: ["tangent planes", "optimization", "Green's theorem", "linear transformations"],
     presetRecommendation: "Math Graph Lab",
@@ -1034,7 +1310,15 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-multivar-apps-integration",
     topicId: topicIds.multivariable,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Tangent planes", "Lagrange multipliers", "Multiple integrals", "Line integrals", "Green's theorem", "Stokes' theorem", "Divergence theorem"],
+    sourceSubsections: [
+      "Tangent planes",
+      "Lagrange multipliers",
+      "Multiple integrals",
+      "Line integrals",
+      "Green's theorem",
+      "Stokes' theorem",
+      "Divergence theorem",
+    ],
     overview:
       "This lesson uses multivariable derivatives and integrals to optimize, accumulate over regions, and translate boundaries into interiors.",
     contentBlocks: [
@@ -1052,7 +1336,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       {
         id: "jacob-19-stokes",
         label: "Stokes' theorem",
-        latex: "\\oint_{\\partial S}\\mathbf F\\cdot d\\mathbf r=\\iint_S(\\nabla\\times\\mathbf F)\\cdot d\\mathbf S",
+        latex:
+          "\\oint_{\\partial S}\\mathbf F\\cdot d\\mathbf r=\\iint_S(\\nabla\\times\\mathbf F)\\cdot d\\mathbf S",
         explanation: "Boundary circulation equals curl flux through the surface.",
       },
     ],
@@ -1065,8 +1350,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("lagrange-condition", "Lagrange condition", "At a local constrained optimum of differentiable f on g=c, with gradient g nonzero, write the Lagrange gradient condition.", ["nabla f = lambda nabla g", "\\nabla f=\\lambda\\nabla g"], "Under the regularity condition gradient g != 0, gradient f = lambda gradient g is necessary; it does not by itself prove an optimum."),
-      freeResponse("green-meaning", "Green's theorem meaning", "What kind of relationship does Green's theorem create?", "Mentions boundary integral and double integral over a region.", "Green's theorem converts a line integral around a boundary into a double integral over the region."),
+      shortAnswer(
+        "lagrange-condition",
+        "Lagrange condition",
+        "At a local constrained optimum of differentiable f on g=c, with gradient g nonzero, write the Lagrange gradient condition.",
+        ["nabla f = lambda nabla g", "\\nabla f=\\lambda\\nabla g"],
+        "Under the regularity condition gradient g != 0, gradient f = lambda gradient g is necessary; it does not by itself prove an optimum.",
+      ),
+      freeResponse(
+        "green-meaning",
+        "Green's theorem meaning",
+        "What kind of relationship does Green's theorem create?",
+        "Mentions boundary integral and double integral over a region.",
+        "Green's theorem converts a line integral around a boundary into a double integral over the region.",
+      ),
     ],
     relatedConcepts: ["gradient", "line integrals", "surface integrals", "differential equations heat flow"],
     presetRecommendation: "Math Graph Lab",
@@ -1080,7 +1377,14 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-linear-systems-determinants",
     topicId: topicIds.linearAlgebra,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Linear systems", "Row operations", "Matrix operations", "Inverses", "Determinants", "Cramer's rule"],
+    sourceSubsections: [
+      "Linear systems",
+      "Row operations",
+      "Matrix operations",
+      "Inverses",
+      "Determinants",
+      "Cramer's rule",
+    ],
     overview:
       "Jacob starts linear algebra with systems and matrices as tools for encoding and solving many equations at once.",
     contentBlocks: [
@@ -1107,13 +1411,29 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-20-matrix-transform",
         label: "Matrix transformation area",
         description: "A 2D transformation showing determinant as area scaling.",
-        expressions: ["A=(0,0)", "B=(1,0)", "C=(1,1)", "D=(0,1)", "polygon(A,B,C,D)", "E=(2,1)", "F=(3,3)", "G=(1,2)", "polygon(A,E,F,G)"],
+        expressions: [
+          "A=(0,0)",
+          "B=(1,0)",
+          "C=(1,1)",
+          "D=(0,1)",
+          "polygon(A,B,C,D)",
+          "E=(2,1)",
+          "F=(3,3)",
+          "G=(1,2)",
+          "polygon(A,E,F,G)",
+        ],
         viewport: { xMin: -2, xMax: 5, yMin: -2, yMax: 5 },
       }),
     ],
     practice: [
       numeric("det-2x2", "2x2 determinant", "Find det [[2,1],[3,4]].", 5, "2*4 - 1*3 = 5."),
-      trueFalse("inverse-det", "Inverse condition", "A square matrix with determinant 0 has an inverse.", false, "A determinant of zero means the matrix is singular."),
+      trueFalse(
+        "inverse-det",
+        "Inverse condition",
+        "A square matrix with determinant 0 has an inverse.",
+        false,
+        "A determinant of zero means the matrix is singular.",
+      ),
     ],
     relatedConcepts: ["matrix transformations", "vector spaces", "eigenvalues", "least squares"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1127,7 +1447,14 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-vector-spaces-eigenvalues",
     topicId: topicIds.linearAlgebra,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Vector spaces", "Bases", "Coordinate mappings", "Change of basis", "Eigenvalues", "Similarity"],
+    sourceSubsections: [
+      "Vector spaces",
+      "Bases",
+      "Coordinate mappings",
+      "Change of basis",
+      "Eigenvalues",
+      "Similarity",
+    ],
     overview:
       "This section shifts from computing with matrices to understanding spaces, coordinates, and invariant directions.",
     contentBlocks: [
@@ -1159,8 +1486,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("eigen-equation", "Eigen equation", "For a nonzero vector v, write the equation defining an eigenvector of A with eigenvalue lambda.", ["Av=lambda v", "A v = lambda v", "A\\mathbf v=\\lambda\\mathbf v"], "Av=lambda v with v nonzero. For real eigenvalues, a negative lambda reverses direction and lambda=0 sends v to zero; the span of v remains invariant."),
-      freeResponse("basis-purpose", "Basis purpose", "What does a basis let you do in a vector space?", "Mentions coordinates/spanning independent directions.", "A basis gives independent directions that span the whole space."),
+      shortAnswer(
+        "eigen-equation",
+        "Eigen equation",
+        "For a nonzero vector v, write the equation defining an eigenvector of A with eigenvalue lambda.",
+        ["Av=lambda v", "A v = lambda v", "A\\mathbf v=\\lambda\\mathbf v"],
+        "Av=lambda v with v nonzero. For real eigenvalues, a negative lambda reverses direction and lambda=0 sends v to zero; the span of v remains invariant.",
+      ),
+      freeResponse(
+        "basis-purpose",
+        "Basis purpose",
+        "What does a basis let you do in a vector space?",
+        "Mentions coordinates/spanning independent directions.",
+        "A basis gives independent directions that span the whole space.",
+      ),
     ],
     relatedConcepts: ["determinants", "orthogonality", "spectral theorem", "SVD"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1186,7 +1525,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       {
         id: "jacob-22-projection",
         label: "Projection formula",
-        latex: "\\operatorname{proj}_{\\mathbf u}\\mathbf v=\\frac{\\mathbf v\\cdot\\mathbf u}{\\mathbf u\\cdot\\mathbf u}\\mathbf u",
+        latex:
+          "\\operatorname{proj}_{\\mathbf u}\\mathbf v=\\frac{\\mathbf v\\cdot\\mathbf u}{\\mathbf u\\cdot\\mathbf u}\\mathbf u",
         explanation: "Projection measures the part of v that lies along u.",
       },
       {
@@ -1201,13 +1541,32 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
         id: "jacob-22-projection-demo",
         label: "Projection and least-squares geometry",
         description: "A vector projection picture for orthogonality and approximation.",
-        expressions: ["u=(3,1)", "v=(2,4)", "p=\\frac{v.xu.x+v.yu.y}{u.x^2+u.y^2}u", "segment((0,0),u)", "segment((0,0),v)", "segment((0,0),p)"],
+        expressions: [
+          "u=(3,1)",
+          "v=(2,4)",
+          "p=\\frac{v.xu.x+v.yu.y}{u.x^2+u.y^2}u",
+          "segment((0,0),u)",
+          "segment((0,0),v)",
+          "segment((0,0),p)",
+        ],
         viewport: { xMin: -1, xMax: 5, yMin: -1, yMax: 5 },
       }),
     ],
     practice: [
-      freeResponse("least-squares", "Least squares goal", "What does least squares minimize?", "Mentions squared residual/error distance.", "Least squares minimizes the squared residual error."),
-      shortAnswer("svd-form", "SVD form", "For a real matrix A, write its singular value decomposition.", ["A=U Sigma V^T", "A=U\\Sigma V^T", "U Sigma V^T"], "For real A, SVD writes A=U Sigma V^T. For complex A, the last factor is the conjugate transpose V*."),
+      freeResponse(
+        "least-squares",
+        "Least squares goal",
+        "What does least squares minimize?",
+        "Mentions squared residual/error distance.",
+        "Least squares minimizes the squared residual error.",
+      ),
+      shortAnswer(
+        "svd-form",
+        "SVD form",
+        "For a real matrix A, write its singular value decomposition.",
+        ["A=U Sigma V^T", "A=U\\Sigma V^T", "U Sigma V^T"],
+        "For real A, SVD writes A=U Sigma V^T. For complex A, the last factor is the conjugate transpose V*.",
+      ),
     ],
     relatedConcepts: ["eigenvalues", "projections", "optimization", "data approximation"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1221,7 +1580,14 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-differential-equations-fourier",
     topicId: topicIds.differentialEquations,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["First order equations", "Integrating factors", "Second order equations", "Systems", "Fourier series", "Heat equation"],
+    sourceSubsections: [
+      "First order equations",
+      "Integrating factors",
+      "Second order equations",
+      "Systems",
+      "Fourier series",
+      "Heat equation",
+    ],
     overview:
       "The differential equations chapter treats equations as descriptions of motion, solution families, oscillation, and heat flow.",
     contentBlocks: [
@@ -1253,8 +1619,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("integrating-factor", "Integrating factor", "For y'+p(x)y=q(x), what integrating factor does Jacob use?", ["e^(integral p(x) dx)", "e^{\\int p(x) dx}", "\\mu(x)=e^{\\int p(x)dx}"], "The integrating factor is exp(integral p(x) dx)."),
-      shortAnswer("heat-equation", "Heat equation", "With constant diffusivity k>0 and no heat source, write the one-dimensional heat equation.", ["u_t=ku_xx", "u_t = k u_xx", "u_t=ku_{xx}"], "For constant positive diffusivity and no source, u_t = k u_xx."),
+      shortAnswer(
+        "integrating-factor",
+        "Integrating factor",
+        "For y'+p(x)y=q(x), what integrating factor does Jacob use?",
+        ["e^(integral p(x) dx)", "e^{\\int p(x) dx}", "\\mu(x)=e^{\\int p(x)dx}"],
+        "The integrating factor is exp(integral p(x) dx).",
+      ),
+      shortAnswer(
+        "heat-equation",
+        "Heat equation",
+        "With constant diffusivity k>0 and no heat source, write the one-dimensional heat equation.",
+        ["u_t=ku_xx", "u_t = k u_xx", "u_t=ku_{xx}"],
+        "For constant positive diffusivity and no source, u_t = k u_xx.",
+      ),
     ],
     relatedConcepts: ["integrals", "linear algebra systems", "Fourier series", "partial derivatives"],
     presetRecommendation: "Math Graph Lab",
@@ -1268,7 +1646,15 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-analysis-foundations",
     topicId: topicIds.realAnalysis,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Sets", "Natural numbers", "Integers", "Rationals", "Real numbers", "Ordered fields", "Completeness"],
+    sourceSubsections: [
+      "Sets",
+      "Natural numbers",
+      "Integers",
+      "Rationals",
+      "Real numbers",
+      "Ordered fields",
+      "Completeness",
+    ],
     overview:
       "Real analysis begins by making the number system precise: sets, fields, order, bounds, and completeness.",
     contentBlocks: [
@@ -1300,8 +1686,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      shortAnswer("supremum", "Supremum meaning", "What does sup S mean?", ["least upper bound", "the least upper bound"], "The supremum is the smallest upper bound."),
-      freeResponse("completeness", "Completeness", "What does completeness guarantee for nonempty bounded-above sets of real numbers?", "Mentions existence of a least upper bound/supremum.", "Completeness guarantees a supremum in the real numbers."),
+      shortAnswer(
+        "supremum",
+        "Supremum meaning",
+        "What does sup S mean?",
+        ["least upper bound", "the least upper bound"],
+        "The supremum is the smallest upper bound.",
+      ),
+      freeResponse(
+        "completeness",
+        "Completeness",
+        "What does completeness guarantee for nonempty bounded-above sets of real numbers?",
+        "Mentions existence of a least upper bound/supremum.",
+        "Completeness guarantees a supremum in the real numbers.",
+      ),
     ],
     relatedConcepts: ["sequences", "metric spaces", "continuity", "Riemann integration"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1315,7 +1713,15 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-analysis-sequences-continuity",
     topicId: topicIds.realAnalysis,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Sequences", "Cauchy sequences", "Subsequences", "Metric spaces", "Compactness", "Continuity", "Uniform continuity"],
+    sourceSubsections: [
+      "Sequences",
+      "Cauchy sequences",
+      "Subsequences",
+      "Metric spaces",
+      "Compactness",
+      "Continuity",
+      "Uniform continuity",
+    ],
     overview:
       "This lesson makes limit behavior precise for sequences, spaces, compactness, and continuous functions.",
     contentBlocks: [
@@ -1333,7 +1739,8 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       {
         id: "jacob-25-continuity",
         label: "Epsilon-delta continuity",
-        latex: "\\forall\\varepsilon>0\\ \\exists\\delta>0: |x-a|<\\delta\\Rightarrow |f(x)-f(a)|<\\varepsilon",
+        latex:
+          "\\forall\\varepsilon>0\\ \\exists\\delta>0: |x-a|<\\delta\\Rightarrow |f(x)-f(a)|<\\varepsilon",
         explanation: "Inputs close to a force outputs close to f(a).",
       },
     ],
@@ -1347,8 +1754,25 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      numeric("sequence-limit", "Sequence limit", "What is the limit of a_n=1+1/n?", 1, "1/n tends to 0, so the sequence tends to 1."),
-      stepOrdering("continuity-proof", "Continuity proof order", "Order the skeleton of an epsilon-delta continuity proof.", ["start with epsilon greater than 0", "choose a delta", "assume |x-a|<delta", "prove |f(x)-f(a)|<epsilon"], "That is the standard epsilon-delta proof flow."),
+      numeric(
+        "sequence-limit",
+        "Sequence limit",
+        "What is the limit of a_n=1+1/n?",
+        1,
+        "1/n tends to 0, so the sequence tends to 1.",
+      ),
+      stepOrdering(
+        "continuity-proof",
+        "Continuity proof order",
+        "Order the skeleton of an epsilon-delta continuity proof.",
+        [
+          "start with epsilon greater than 0",
+          "choose a delta",
+          "assume |x-a|<delta",
+          "prove |f(x)-f(a)|<epsilon",
+        ],
+        "That is the standard epsilon-delta proof flow.",
+      ),
     ],
     relatedConcepts: ["completeness", "series", "uniform convergence", "derivatives"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1362,7 +1786,13 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-analysis-series-functions",
     topicId: topicIds.realAnalysis,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Series", "Power series", "Radius of convergence", "Uniform convergence", "Weierstrass M-test"],
+    sourceSubsections: [
+      "Series",
+      "Power series",
+      "Radius of convergence",
+      "Uniform convergence",
+      "Weierstrass M-test",
+    ],
     overview:
       "Jacob's series chapter connects infinite sums, power series, and when convergence behaves well across an interval.",
     contentBlocks: [
@@ -1388,14 +1818,31 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       graph2d({
         id: "jacob-26-uniform-convergence",
         label: "Uniform convergence bands",
-        description: "On [-5,5], |x/n| <= 5/n, so convergence to zero is uniform. On all of R, it is only pointwise.",
-        expressions: ["f_n(x)=x/n\\left\\{-5\\le x\\le 5\\right\\}", "g(x)=0\\left\\{-5\\le x\\le 5\\right\\}", "n=5"],
+        description:
+          "On [-5,5], |x/n| <= 5/n, so convergence to zero is uniform. On all of R, it is only pointwise.",
+        expressions: [
+          "f_n(x)=x/n\\left\\{-5\\le x\\le 5\\right\\}",
+          "g(x)=0\\left\\{-5\\le x\\le 5\\right\\}",
+          "n=5",
+        ],
         viewport: { xMin: -5, xMax: 5, yMin: -2, yMax: 2 },
       }),
     ],
     practice: [
-      freeResponse("uniform-vs-pointwise", "Uniform vs pointwise", "How is uniform convergence stronger than pointwise convergence?", "Mentions one N working across the whole domain.", "Uniform convergence controls the entire domain with one threshold."),
-      shortAnswer("m-test", "M-test condition", "What kind of numerical series must converge in the Weierstrass M-test?", ["sum M_n", "\\sum M_n", "the series of M_n"], "The bounding numerical series must converge."),
+      freeResponse(
+        "uniform-vs-pointwise",
+        "Uniform vs pointwise",
+        "How is uniform convergence stronger than pointwise convergence?",
+        "Mentions one N working across the whole domain.",
+        "Uniform convergence controls the entire domain with one threshold.",
+      ),
+      shortAnswer(
+        "m-test",
+        "M-test condition",
+        "What kind of numerical series must converge in the Weierstrass M-test?",
+        ["sum M_n", "\\sum M_n", "the series of M_n"],
+        "The bounding numerical series must converge.",
+      ),
     ],
     relatedConcepts: ["sequences", "Taylor series", "continuity", "integration"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1409,9 +1856,14 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
     lessonId: "lesson-jacob-analysis-derivatives-integration",
     topicId: topicIds.realAnalysis,
     sourceCoverageStatus: "starter; provenance pending",
-    sourceSubsections: ["Differentiation", "Taylor theory", "Riemann integration", "Riemann-Stieltjes", "Improper integrals"],
-    overview:
-      "The final Jacob section rebuilds calculus with analysis-level definitions and proof habits.",
+    sourceSubsections: [
+      "Differentiation",
+      "Taylor theory",
+      "Riemann integration",
+      "Riemann-Stieltjes",
+      "Improper integrals",
+    ],
+    overview: "The final Jacob section rebuilds calculus with analysis-level definitions and proof habits.",
     contentBlocks: [
       "Differentiability is a limit statement about local linear behavior.",
       "Taylor theory measures approximation plus remainder.",
@@ -1441,8 +1893,20 @@ export const jacobMathCoverage: JacobCoverageSection[] = [
       }),
     ],
     practice: [
-      stepOrdering("improper-integral", "Improper integral order", "Order the definition of an improper integral over [a,infinity).", ["integrate from a to b", "let b go to infinity", "evaluate the resulting limit"], "Improper integrals are limits of ordinary definite integrals."),
-      freeResponse("taylor-remainder", "Taylor remainder", "Why does Taylor theory keep a remainder term?", "Mentions measuring approximation error.", "The remainder tracks what the finite Taylor polynomial has not captured."),
+      stepOrdering(
+        "improper-integral",
+        "Improper integral order",
+        "Order the definition of an improper integral over [a,infinity).",
+        ["integrate from a to b", "let b go to infinity", "evaluate the resulting limit"],
+        "Improper integrals are limits of ordinary definite integrals.",
+      ),
+      freeResponse(
+        "taylor-remainder",
+        "Taylor remainder",
+        "Why does Taylor theory keep a remainder term?",
+        "Mentions measuring approximation error.",
+        "The remainder tracks what the finite Taylor polynomial has not captured.",
+      ),
     ],
     relatedConcepts: ["derivative definition", "Taylor series", "uniform convergence", "FTC"],
     presetRecommendation: "Math Proof / Concept Mode",
@@ -1533,7 +1997,8 @@ export function buildJacobPracticeQuestions(seedTime: string): QuestionBankItem[
       explanation_latex: null,
       difficulty: section.difficulty,
       calculator_allowed: section.graphs.length > 0,
-      estimated_time_seconds: practice.type === "free_response" || practice.type === "step_ordering" ? 150 : 90,
+      estimated_time_seconds:
+        practice.type === "free_response" || practice.type === "step_ordering" ? 150 : 90,
       source_type: "module_seed",
       status: "published",
       created_by: null,

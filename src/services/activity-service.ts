@@ -2,12 +2,7 @@ import { databaseJson } from "@/lib/database-client";
 import { supabase } from "@/lib/supabase";
 
 export type ActivityItemType =
-  | "folder"
-  | "binder"
-  | "lesson"
-  | "personal_note"
-  | "personal_document"
-  | "whiteboard";
+  "folder" | "binder" | "lesson" | "personal_note" | "personal_document" | "whiteboard";
 
 export type ActivityMetadata = Record<string, unknown>;
 
@@ -79,7 +74,10 @@ function sanitizeMetadataValue(value: unknown, depth: number): unknown {
   return null;
 }
 
-export function sanitizeActivityMetadata(metadata: ActivityMetadata | undefined, depth = 0): ActivityMetadata {
+export function sanitizeActivityMetadata(
+  metadata: ActivityMetadata | undefined,
+  depth = 0,
+): ActivityMetadata {
   if (!metadata) {
     return {};
   }
@@ -102,7 +100,7 @@ function isMissingRecentItemRpc(error: { code?: string; message?: string } | nul
   return (
     error?.code === "42883" ||
     error?.code === "PGRST202" ||
-    message.includes("record_user_recent_item") && message.includes("not")
+    (message.includes("record_user_recent_item") && message.includes("not"))
   );
 }
 

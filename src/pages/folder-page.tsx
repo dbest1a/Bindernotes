@@ -45,12 +45,8 @@ export function FolderPage() {
   const [draftBinderId, setDraftBinderId] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const showSystemDiagnostics =
-    (profile?.role === "admin" || import.meta.env.DEV) &&
-    searchParams.get("debug") === "system";
-  const runtimeDiagnostics =
-    error && showSystemDiagnostics
-      ? classifyRuntimeError("folders", error)
-      : [];
+    (profile?.role === "admin" || import.meta.env.DEV) && searchParams.get("debug") === "system";
+  const runtimeDiagnostics = error && showSystemDiagnostics ? classifyRuntimeError("folders", error) : [];
   const profileId = profile?.id ?? null;
   const canManageWorkspace = profile?.role === "admin";
   const firstBinderId = data?.binders[0]?.id ?? "";
@@ -205,9 +201,21 @@ export function FolderPage() {
         </div>
         <aside className="hero-aside">
           <div className="grid gap-3">
-            <Stat label="Binders" value={String(data.binders.length)} icon={<LibraryBig className="size-4" />} />
-            <Stat label="Documents" value={String(data.lessons.length)} icon={<BookCopy className="size-4" />} />
-            <Stat label="Private notes" value={String(data.notes.length)} icon={<FolderOpen className="size-4" />} />
+            <Stat
+              label="Binders"
+              value={String(data.binders.length)}
+              icon={<LibraryBig className="size-4" />}
+            />
+            <Stat
+              label="Documents"
+              value={String(data.lessons.length)}
+              icon={<BookCopy className="size-4" />}
+            />
+            <Stat
+              label="Private notes"
+              value={String(data.notes.length)}
+              icon={<FolderOpen className="size-4" />}
+            />
           </div>
           {showSystemDiagnostics && data.seedHealth ? (
             <div className="mt-4">
@@ -224,7 +232,10 @@ export function FolderPage() {
       </section>
 
       {createKind ? (
-        <form className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={submitCreate}>
+        <form
+          className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+          onSubmit={submitCreate}
+        >
           <label>
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               {createKind === "binder" ? "Binder name" : "Document title"}
@@ -239,7 +250,9 @@ export function FolderPage() {
           </label>
           {createKind === "document" ? (
             <label>
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Binder</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Binder
+              </span>
               <select
                 aria-label="Binder"
                 className="appearance-select mt-2"
@@ -266,7 +279,10 @@ export function FolderPage() {
       ) : null}
 
       {notice ? (
-        <div className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground" role="status">
+        <div
+          className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground"
+          role="status"
+        >
           {notice}
         </div>
       ) : null}
@@ -329,26 +345,28 @@ export function FolderPage() {
         </div>
         <div className="page-shell p-4">
           <div className="grid gap-3 md:grid-cols-2">
-            {data.binders.flatMap((binder) =>
-              getBinderDocumentSummaries(
-                data.lessons.filter((lesson) => lesson.binder_id === binder.id),
-                data.notes.filter((note) => note.binder_id === binder.id),
-              ).slice(0, 2),
-            ).map((document) => (
-              <Link
-                className="ui-click-tile rounded-lg border border-border/75 bg-background/88 p-4 transition hover:bg-secondary/80"
-                key={document.lesson.id}
-                to={`/binders/${document.lesson.binder_id}/documents/${document.lesson.id}`}
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Document
-                </p>
-                <p className="mt-2 font-medium">{document.lesson.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {document.hasPrivateNote ? "Has private notes" : "No private note yet"}
-                </p>
-              </Link>
-            ))}
+            {data.binders
+              .flatMap((binder) =>
+                getBinderDocumentSummaries(
+                  data.lessons.filter((lesson) => lesson.binder_id === binder.id),
+                  data.notes.filter((note) => note.binder_id === binder.id),
+                ).slice(0, 2),
+              )
+              .map((document) => (
+                <Link
+                  className="ui-click-tile rounded-lg border border-border/75 bg-background/88 p-4 transition hover:bg-secondary/80"
+                  key={document.lesson.id}
+                  to={`/binders/${document.lesson.binder_id}/documents/${document.lesson.id}`}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Document
+                  </p>
+                  <p className="mt-2 font-medium">{document.lesson.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {document.hasPrivateNote ? "Has private notes" : "No private note yet"}
+                  </p>
+                </Link>
+              ))}
           </div>
         </div>
       </section>
@@ -356,15 +374,7 @@ export function FolderPage() {
   );
 }
 
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
+function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/75 bg-background/72 p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">

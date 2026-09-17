@@ -41,7 +41,10 @@ const mocks = vi.hoisted(() => {
       canvasReworkEnabled?: boolean;
       mode: "study" | "setup";
       onFitViewport: (viewport: { width: number; height: number }) => void;
-      onCommitFrame: (moduleId: "lesson" | "private-notes", frame: { x: number; y: number; w: number; h: number; z: number }) => void;
+      onCommitFrame: (
+        moduleId: "lesson" | "private-notes",
+        frame: { x: number; y: number; w: number; h: number; z: number },
+      ) => void;
       preferences: WorkspacePreferences;
     } | null,
     noteMutation: {
@@ -145,7 +148,10 @@ vi.mock("@/components/workspace/windowed-workspace", () => ({
     canvasReworkEnabled?: boolean;
     mode: "study" | "setup";
     onFitViewport: (viewport: { width: number; height: number }) => void;
-    onCommitFrame: (moduleId: "lesson" | "private-notes", frame: { x: number; y: number; w: number; h: number; z: number }) => void;
+    onCommitFrame: (
+      moduleId: "lesson" | "private-notes",
+      frame: { x: number; y: number; w: number; h: number; z: number },
+    ) => void;
     preferences: WorkspacePreferences;
   }) => {
     mocks.windowedWorkspaceProps = props;

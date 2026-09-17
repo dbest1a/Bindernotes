@@ -6,8 +6,7 @@ export type AccidentalNotePrefixDetection = {
   reason: "accidental-prefix";
 };
 
-const ACCIDENTAL_PREFIX_PATTERN =
-  /^([;:'"`.,/\\|~!?()[\]{}_\-\s\u2018\u2019\u201C\u201D]{3,}[a-z]{0,3}\s+)/i;
+const ACCIDENTAL_PREFIX_PATTERN = /^([;:'"`.,/\\|~!?()[\]{}_\-\s\u2018\u2019\u201C\u201D]{3,}[a-z]{0,3}\s+)/i;
 const ACCIDENTAL_PUNCTUATION_PATTERN = /[;:'"`.,/\\|~!?()[\]{}_\-\u2018\u2019\u201C\u201D]/;
 
 export function detectAccidentalNotePrefix(content: JSONContent): AccidentalNotePrefixDetection | null {
@@ -19,7 +18,9 @@ export function detectAccidentalNotePrefix(content: JSONContent): AccidentalNote
   }
 
   const prefix = match[1];
-  const punctuationCount = [...prefix].filter((character) => ACCIDENTAL_PUNCTUATION_PATTERN.test(character)).length;
+  const punctuationCount = [...prefix].filter((character) =>
+    ACCIDENTAL_PUNCTUATION_PATTERN.test(character),
+  ).length;
   if (punctuationCount < 3) {
     return null;
   }

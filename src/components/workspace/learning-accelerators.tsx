@@ -100,9 +100,7 @@ export function LearningAcceleratorsModule({
       learnerNote,
     ],
   );
-  const [activeCardId, setActiveCardId] = useState<LearningAcceleratorFeatureId | null>(
-    cards[0]?.id ?? null,
-  );
+  const [activeCardId, setActiveCardId] = useState<LearningAcceleratorFeatureId | null>(cards[0]?.id ?? null);
   const activeCard = cards.find((card) => card.id === activeCardId) ?? cards[0] ?? null;
 
   return (
@@ -138,7 +136,9 @@ export function LearningAcceleratorsModule({
                     <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold">{card.title}</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{card.tagline}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {card.tagline}
+                      </span>
                     </span>
                   </span>
                 </button>
@@ -189,10 +189,19 @@ export function LearningAcceleratorsModule({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button onClick={() => context.onOpenWorkspaceTool?.("private-notes")} size="sm" type="button">
+                <Button
+                  onClick={() => context.onOpenWorkspaceTool?.("private-notes")}
+                  size="sm"
+                  type="button"
+                >
                   Open notes
                 </Button>
-                <Button onClick={() => context.onOpenWorkspaceTool?.("lesson")} size="sm" type="button" variant="outline">
+                <Button
+                  onClick={() => context.onOpenWorkspaceTool?.("lesson")}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   Open source
                 </Button>
               </div>

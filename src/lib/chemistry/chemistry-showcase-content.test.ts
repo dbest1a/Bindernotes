@@ -47,7 +47,9 @@ describe("chemistry showcase content", () => {
     expect(chemistryShowcaseBinder.description.toLowerCase()).toContain("interactive study binder workspace");
     expect(chemistryShowcaseBinder.description.toLowerCase()).not.toContain("demo");
     expect(chemistryShowcaseBinder.description.toLowerCase()).not.toContain("showcase");
-    expect(chemistryShowcaseBinder.description.toLowerCase()).not.toContain("ai textbooks replacing human authors");
+    expect(chemistryShowcaseBinder.description.toLowerCase()).not.toContain(
+      "ai textbooks replacing human authors",
+    );
     expect(chemistryShowcaseFolderLink.folder_id).toBe(CHEMISTRY_SHOWCASE_FOLDER_ID);
     expect(chemistryShowcaseFolderLink.binder_id).toBe(CHEMISTRY_SHOWCASE_BINDER_ID);
   });
@@ -59,9 +61,7 @@ describe("chemistry showcase content", () => {
 
     const unitTitles = [
       ...new Set(
-        chemistryShowcaseLessonMetadata.map(
-          (metadata) => (metadata as { unitTitle?: string }).unitTitle,
-        ),
+        chemistryShowcaseLessonMetadata.map((metadata) => (metadata as { unitTitle?: string }).unitTitle),
       ),
     ];
 
@@ -74,7 +74,8 @@ describe("chemistry showcase content", () => {
   });
 
   it("gives every lesson the required student-facing modules and original-practice sections", () => {
-    const prohibited = /\b(todo|placeholder|coming soon|copied from|excerpt from|sample content|demo binder)\b/i;
+    const prohibited =
+      /\b(todo|placeholder|coming soon|copied from|excerpt from|sample content|demo binder)\b/i;
 
     chemistryShowcaseLessons.forEach((lesson) => {
       const text = extractText(lesson.content);
@@ -103,7 +104,9 @@ describe("chemistry showcase content", () => {
       expect(text, lesson.title).toContain("Related Concept Links");
       expect(text, lesson.title).toContain("Mastery Checklist");
       expect(text, lesson.title).toContain("Copyright Hygiene Check");
-      expect(text, lesson.title).toContain("No copied textbook phrasing, copied problems, official AP question text, copied figures, copied tables, or copied labs are intentionally included.");
+      expect(text, lesson.title).toContain(
+        "No copied textbook phrasing, copied problems, official AP question text, copied figures, copied tables, or copied labs are intentionally included.",
+      );
       expect(text.length, lesson.title).toBeGreaterThan(3200);
       expect(lesson.math_blocks.length, lesson.title).toBeGreaterThanOrEqual(1);
       expect(text, lesson.title).not.toMatch(prohibited);

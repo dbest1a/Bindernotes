@@ -141,7 +141,9 @@ describe("study panels sizing styles", () => {
     expect(css).not.toContain('html[data-workspace-focus-mode="on"] .workspace-page > nav');
     expect(css).not.toContain('html[data-workspace-focus-mode="on"] .workspace-topbar__meta');
     expect(css).not.toContain('html[data-workspace-focus-mode="on"] .workspace-topbar__presets');
-    expect(css).not.toContain('.workspace-page[data-workspace-active-focus="true"] .workspace-topbar__summary');
+    expect(css).not.toContain(
+      '.workspace-page[data-workspace-active-focus="true"] .workspace-topbar__summary',
+    );
   });
 
   it("contains desktop workspace routes so module panes scroll instead of hiding command bars", () => {

@@ -246,7 +246,10 @@ export function balanceEquation(equation: string): BalanceEquationResult {
     return chemistryError("UNBALANCEABLE_EQUATION", error.message);
   }
   if (!coefficients) {
-    return chemistryError("UNBALANCEABLE_EQUATION", "This equation could not be balanced with positive integers.");
+    return chemistryError(
+      "UNBALANCEABLE_EQUATION",
+      "This equation could not be balanced with positive integers.",
+    );
   }
 
   const result: BalancedEquation = {

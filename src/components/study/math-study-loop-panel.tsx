@@ -19,7 +19,13 @@ import {
   type MathStudyGraphLink,
 } from "@/services/math-study-loop-service";
 import { createCloudStudyItem } from "@/services/canonical-review-service";
-import type { CalculatorMode, MathGraphState, MathModuleJson, ModuleExpression, QuestionBankItem } from "@/types/math-learning";
+import type {
+  CalculatorMode,
+  MathGraphState,
+  MathModuleJson,
+  ModuleExpression,
+  QuestionBankItem,
+} from "@/types/math-learning";
 
 const LazyDesmosGraph = lazy(async () => {
   const module = await import("@/components/math/desmos-graph");
@@ -156,21 +162,24 @@ export function MathStudyLoopPanel({
       setMessage("Turn on Beta Revamp - Review Queue before adding formula cards to review.");
       return;
     }
-    try { await createCloudStudyItem({
-      answer: formula.explanation?.trim() || formula.latex,
-      betaEnabled: reviewQueueBetaEnabled,
-      courseId,
-      courseTitle,
-      ownerId,
-      prompt: `Explain ${formula.label} and name one common mistake.`,
-      sourceExcerpt: formula.latex,
-      sourceId: formula.id,
-      sourceKind: "formula",
-      sourceTitle: formula.label,
-      type: "formula_card",
-    });
-    setMessage(`${formula.label} added to Review Queue.`);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
+    try {
+      await createCloudStudyItem({
+        answer: formula.explanation?.trim() || formula.latex,
+        betaEnabled: reviewQueueBetaEnabled,
+        courseId,
+        courseTitle,
+        ownerId,
+        prompt: `Explain ${formula.label} and name one common mistake.`,
+        sourceExcerpt: formula.latex,
+        sourceId: formula.id,
+        sourceKind: "formula",
+        sourceTitle: formula.label,
+        type: "formula_card",
+      });
+      setMessage(`${formula.label} added to Review Queue.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+    }
   };
 
   const addMistakeToReview = async (problemLog: MathProblemLogEntry) => {
@@ -178,15 +187,18 @@ export function MathStudyLoopPanel({
       setMessage("Turn on Beta Revamp - Review Queue before reviewing mistakes.");
       return;
     }
-    try { await addProblemMistakeToCloudReview({
-      betaEnabled,
-      ownerId,
-      problemLog,
-      reviewQueueBetaEnabled,
-    });
-    setProblemLogs(listProblemLogEntries(ownerId));
-    setMessage("Mistake review item added.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Mistake review could not be saved."); }
+    try {
+      await addProblemMistakeToCloudReview({
+        betaEnabled,
+        ownerId,
+        problemLog,
+        reviewQueueBetaEnabled,
+      });
+      setProblemLogs(listProblemLogEntries(ownerId));
+      setMessage("Mistake review item added.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Mistake review could not be saved.");
+    }
   };
 
   const activeGraphLink: MathStudyGraphLink | null = activeGraphState
@@ -218,25 +230,36 @@ export function MathStudyLoopPanel({
           <Badge variant="secondary">Beta Revamp</Badge>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight">Math Study Loop</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Connect problem attempts, formulas, graph context, mistakes, notes, and review without turning BinderNotes into a calculator clone.
+            Connect problem attempts, formulas, graph context, mistakes, notes, and review without turning
+            BinderNotes into a calculator clone.
           </p>
         </div>
         <Badge variant="outline">{moduleTitle}</Badge>
       </div>
 
-      {message ? <p className="rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-sm" role="status">{message}</p> : null}
+      {message ? (
+        <p className="rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-sm" role="status">
+          {message}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.7fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Math Problem Log</CardTitle>
-            <CardDescription>Capture the attempt, mistake pattern, graph/formula context, and review target.</CardDescription>
+            <CardDescription>
+              Capture the attempt, mistake pattern, graph/formula context, and review target.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="grid gap-3" onSubmit={createProblemLog}>
               <label className="grid gap-1.5 text-sm font-medium">
                 Problem title
-                <Input onChange={(event) => setProblemTitle(event.target.value)} required value={problemTitle} />
+                <Input
+                  onChange={(event) => setProblemTitle(event.target.value)}
+                  required
+                  value={problemTitle}
+                />
               </label>
               <label className="grid gap-1.5 text-sm font-medium">
                 Source
@@ -244,7 +267,11 @@ export function MathStudyLoopPanel({
               </label>
               <label className="grid gap-1.5 text-sm font-medium">
                 Concept tags
-                <Input onChange={(event) => setConceptTags(event.target.value)} placeholder="limits, derivatives" value={conceptTags} />
+                <Input
+                  onChange={(event) => setConceptTags(event.target.value)}
+                  placeholder="limits, derivatives"
+                  value={conceptTags}
+                />
               </label>
               {combinedGraphLinks.length ? (
                 <label className="grid gap-1.5 text-sm font-medium">
@@ -307,7 +334,13 @@ export function MathStudyLoopPanel({
                 </label>
                 <label className="grid gap-1.5 text-sm font-medium">
                   Confidence
-                  <Input max={5} min={1} onChange={(event) => setConfidence(event.target.value)} type="number" value={confidence} />
+                  <Input
+                    max={5}
+                    min={1}
+                    onChange={(event) => setConfidence(event.target.value)}
+                    type="number"
+                    value={confidence}
+                  />
                 </label>
               </div>
               <Button className="justify-self-start" type="submit">
@@ -321,7 +354,9 @@ export function MathStudyLoopPanel({
         <Card>
           <CardHeader>
             <CardTitle>Saved graph states</CardTitle>
-            <CardDescription>Save graph context with a reflection, then restore it from study cards.</CardDescription>
+            <CardDescription>
+              Save graph context with a reflection, then restore it from study cards.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             <label className="grid gap-1.5 text-sm font-medium">
@@ -330,7 +365,10 @@ export function MathStudyLoopPanel({
             </label>
             <label className="grid gap-1.5 text-sm font-medium">
               What this graph shows
-              <Textarea onChange={(event) => setGraphReflection(event.target.value)} value={graphReflection} />
+              <Textarea
+                onChange={(event) => setGraphReflection(event.target.value)}
+                value={graphReflection}
+              />
             </label>
             <Button onClick={saveCurrentGraph} type="button" variant="outline">
               <FunctionSquare data-icon="inline-start" />
@@ -339,7 +377,10 @@ export function MathStudyLoopPanel({
             {activeGraphLink ? (
               <GraphStudyCard graphLink={activeGraphLink} onRestoreGraphState={onRestoreGraphState} />
             ) : (
-              <EmptyState description="Open or edit a graph to save it with a reflection." title="No active graph state" />
+              <EmptyState
+                description="Open or edit a graph to save it with a reflection."
+                title="No active graph state"
+              />
             )}
           </CardContent>
         </Card>
@@ -348,7 +389,10 @@ export function MathStudyLoopPanel({
       <Card>
         <CardHeader>
           <CardTitle>Formula and theorem cards</CardTitle>
-          <CardDescription>Math references stay useful when they carry meaning, examples, mistakes, proof ideas, and graph links.</CardDescription>
+          <CardDescription>
+            Math references stay useful when they carry meaning, examples, mistakes, proof ideas, and graph
+            links.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           {formulaCards.length ? (
@@ -363,7 +407,10 @@ export function MathStudyLoopPanel({
               />
             ))
           ) : (
-            <EmptyState description="Create formula or theorem cards from math notes first." title="No formula cards yet" />
+            <EmptyState
+              description="Create formula or theorem cards from math notes first."
+              title="No formula cards yet"
+            />
           )}
         </CardContent>
       </Card>
@@ -372,15 +419,23 @@ export function MathStudyLoopPanel({
         <Card>
           <CardHeader>
             <CardTitle>Problem links and mistakes</CardTitle>
-          <CardDescription>Problem to formula to graph to mistake to review item.</CardDescription>
+            <CardDescription>Problem to formula to graph to mistake to review item.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             {problemLogs.length ? (
               problemLogs.map((entry) => (
-                <ProblemLogCard entry={entry} key={entry.id} onAddMistakeToReview={addMistakeToReview} reviewQueueBetaEnabled={reviewQueueBetaEnabled} />
+                <ProblemLogCard
+                  entry={entry}
+                  key={entry.id}
+                  onAddMistakeToReview={addMistakeToReview}
+                  reviewQueueBetaEnabled={reviewQueueBetaEnabled}
+                />
               ))
             ) : (
-              <EmptyState description="Create a problem log to start a mistake pattern." title="No problem logs yet" />
+              <EmptyState
+                description="Create a problem log to start a mistake pattern."
+                title="No problem logs yet"
+              />
             )}
           </CardContent>
         </Card>
@@ -392,7 +447,10 @@ export function MathStudyLoopPanel({
           </CardHeader>
           <CardContent className="grid gap-3 text-sm leading-6 text-muted-foreground">
             <p>{questions.length} linked practice questions are available for this module.</p>
-            <p>Completed attempts will surface here by question, concept, and mistake pattern when the scored quiz history is available.</p>
+            <p>
+              Completed attempts will surface here by question, concept, and mistake pattern when the scored
+              quiz history is available.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -401,7 +459,9 @@ export function MathStudyLoopPanel({
         <Card>
           <CardHeader>
             <CardTitle>Graph study cards</CardTitle>
-            <CardDescription>Read-only graph context stays compact until a student chooses to restore it.</CardDescription>
+            <CardDescription>
+              Read-only graph context stays compact until a student chooses to restore it.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             {combinedGraphLinks.map((link) => (
@@ -435,7 +495,10 @@ function FormulaStudyCard({
     : "Write the proof idea beside the formula before review.";
 
   return (
-    <article className="rounded-lg border border-border/70 bg-background/82 p-4" data-testid={`math-formula-card-${formula.id}`}>
+    <article
+      className="rounded-lg border border-border/70 bg-background/82 p-4"
+      data-testid={`math-formula-card-${formula.id}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <Badge variant="secondary">Formula/theorem</Badge>
@@ -452,7 +515,9 @@ function FormulaStudyCard({
       <dl className="mt-3 grid gap-2 text-sm leading-6">
         <div>
           <dt className="font-semibold">Plain-English meaning</dt>
-          <dd className="text-muted-foreground">{formula.explanation ?? "Explain what this statement does in your own words."}</dd>
+          <dd className="text-muted-foreground">
+            {formula.explanation ?? "Explain what this statement does in your own words."}
+          </dd>
         </div>
         <div>
           <dt className="font-semibold">Example problem</dt>
@@ -460,7 +525,9 @@ function FormulaStudyCard({
         </div>
         <div>
           <dt className="font-semibold">Common mistake</dt>
-          <dd className="text-muted-foreground">Formula misuse: applying the shortcut before checking the setup.</dd>
+          <dd className="text-muted-foreground">
+            Formula misuse: applying the shortcut before checking the setup.
+          </dd>
         </div>
         <div>
           <dt className="font-semibold">Proof idea</dt>
@@ -494,7 +561,12 @@ export function GraphStudyCard({
           <Badge variant="outline">Compact graph preview</Badge>
           <h3 className="mt-2 font-semibold">{graphLink.title}</h3>
         </div>
-        <Button onClick={() => onRestoreGraphState(graphLink.desmos_state)} size="sm" type="button" variant="outline">
+        <Button
+          onClick={() => onRestoreGraphState(graphLink.desmos_state)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           <RotateCcw data-icon="inline-start" />
           Restore graph
         </Button>
@@ -512,14 +584,22 @@ export function GraphStudyCard({
           Desmos key is missing, so BinderNotes keeps this as a compact saved graph preview.
         </p>
       ) : (
-        <Button className="mt-3" onClick={() => setExpanded((current) => !current)} size="sm" type="button" variant="ghost">
+        <Button
+          className="mt-3"
+          onClick={() => setExpanded((current) => !current)}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
           <Link2 data-icon="inline-start" />
           {expanded ? "Collapse read-only graph" : "Open read-only graph"}
         </Button>
       )}
       {expanded && desmosAvailable ? (
         <div className="mt-3 overflow-hidden rounded-lg border border-border/70">
-          <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading graph preview...</div>}>
+          <Suspense
+            fallback={<div className="p-4 text-sm text-muted-foreground">Loading graph preview...</div>}
+          >
             {graphLink.mode === "3d" ? (
               <LazyDesmos3DGraph height="320px" state={graphLink.desmos_state} />
             ) : (
@@ -561,7 +641,13 @@ function ProblemLogCard({
         {entry.formula_card_ids.length ? <Badge variant="outline">formula linked</Badge> : null}
       </div>
       {reviewQueueBetaEnabled ? (
-        <Button className="mt-3" onClick={() => onAddMistakeToReview(entry)} size="sm" type="button" variant="outline">
+        <Button
+          className="mt-3"
+          onClick={() => onAddMistakeToReview(entry)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           <BookOpenCheck data-icon="inline-start" />
           Review mistake
         </Button>
@@ -578,7 +664,9 @@ function NarrowAiPlaceholder() {
           <BrainCircuit className="size-5 text-primary" />
           Source-grounded AI study helpers
         </CardTitle>
-        <CardDescription>Placeholders only: each helper must work from selected notes, attempts, formulas, or source links.</CardDescription>
+        <CardDescription>
+          Placeholders only: each helper must work from selected notes, attempts, formulas, or source links.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
         <p>Generate 5 recall questions from selected notes or sources</p>

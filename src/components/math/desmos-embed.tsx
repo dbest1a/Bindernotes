@@ -192,7 +192,12 @@ export const DesmosSurface = memo(function DesmosSurface({
     const observer = new MutationObserver(syncTheme);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ["class", "data-workspace-theme", "data-workspace-graph-appearance", "data-workspace-graph-chrome"],
+      attributeFilter: [
+        "class",
+        "data-workspace-theme",
+        "data-workspace-graph-appearance",
+        "data-workspace-graph-chrome",
+      ],
     });
     syncTheme();
     return () => observer.disconnect();
@@ -292,8 +297,7 @@ export const DesmosSurface = memo(function DesmosSurface({
         setStatus("ready");
       } catch (error) {
         if (!cancelled) {
-          const message =
-            error instanceof Error ? error.message : "Desmos could not initialize.";
+          const message = error instanceof Error ? error.message : "Desmos could not initialize.";
           setErrorMessage(message);
           if (message === "missing-key") {
             setStatus("missing-key");
@@ -451,26 +455,14 @@ export const DesmosSurface = memo(function DesmosSurface({
 
   return (
     <div
-      className={cn(
-        "relative overflow-hidden rounded-lg border border-border/70 bg-card",
-        className,
-      )}
+      className={cn("relative overflow-hidden rounded-lg border border-border/70 bg-card", className)}
       data-desmos-status={status}
       data-desmos-instance-id={instanceIdRef.current}
       style={{ height }}
     >
-      <div
-        className="h-full min-h-0 w-full"
-        data-desmos-canvas={kind}
-        ref={containerRef}
-      />
+      <div className="h-full min-h-0 w-full" data-desmos-canvas={kind} ref={containerRef} />
       {status !== "ready" ? (
-        <StatusOverlay
-          errorMessage={errorMessage}
-          fallback={fallback}
-          kind={kind}
-          status={status}
-        />
+        <StatusOverlay errorMessage={errorMessage} fallback={fallback} kind={kind} status={status} />
       ) : null}
     </div>
   );
@@ -488,10 +480,7 @@ function createDesmosCalculator(
 ) {
   if (kind === "graphing") {
     const graphingCalculator = getDesmosGraphingConstructor(api);
-    if (
-      !isDesmosFeatureEnabled(api, "GraphingCalculator") ||
-      !graphingCalculator
-    ) {
+    if (!isDesmosFeatureEnabled(api, "GraphingCalculator") || !graphingCalculator) {
       throw new Error("unsupported");
     }
 
@@ -602,14 +591,14 @@ function StatusOverlay({
             <AlertCircle className="mx-auto mb-3 size-8 text-primary" />
             <h3 className="text-lg font-semibold tracking-tight">
               {kind === "scientific"
-              ? "Scientific calculator is not enabled"
-              : kind === "graphing-3d"
-                ? "Desmos 3D is not enabled"
-                : "This Desmos tool is not enabled"}
+                ? "Scientific calculator is not enabled"
+                : kind === "graphing-3d"
+                  ? "Desmos 3D is not enabled"
+                  : "This Desmos tool is not enabled"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This API key does not currently allow the requested Desmos calculator. Binder Notes
-              can fall back to a local numeric tool instead.
+              This API key does not currently allow the requested Desmos calculator. Binder Notes can fall
+              back to a local numeric tool instead.
             </p>
           </div>
           {fallback}
@@ -649,10 +638,7 @@ function StatusOverlay({
   );
 }
 
-function waitForRenderableLayout(
-  element: HTMLElement,
-  isCancelled: () => boolean,
-) {
+function waitForRenderableLayout(element: HTMLElement, isCancelled: () => boolean) {
   if (hasRenderableLayout(element)) {
     return Promise.resolve();
   }
@@ -709,10 +695,7 @@ function isGraphingCalculator(
   calculator: DesmosBaseCalculator | null,
 ): calculator is DesmosGraphingCalculator {
   return Boolean(
-    calculator &&
-      "getState" in calculator &&
-      "setBlank" in calculator &&
-      "setExpression" in calculator,
+    calculator && "getState" in calculator && "setBlank" in calculator && "setExpression" in calculator,
   );
 }
 

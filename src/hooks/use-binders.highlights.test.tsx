@@ -16,9 +16,8 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@/services/binder-service", async () => {
-  const actual = await vi.importActual<typeof import("@/services/binder-service")>(
-    "@/services/binder-service",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/services/binder-service")>("@/services/binder-service");
 
   return {
     ...actual,
@@ -170,9 +169,7 @@ describe("useAnnotationMutations", () => {
       created_at: string;
     }>();
 
-    mocks.createHighlight
-      .mockReturnValueOnce(first.promise)
-      .mockReturnValueOnce(second.promise);
+    mocks.createHighlight.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -201,7 +198,9 @@ describe("useAnnotationMutations", () => {
       });
     });
 
-    expect(queryClient.getQueryData<BinderBundle>(["binder", "binder-1", profile.id])?.highlights).toHaveLength(2);
+    expect(
+      queryClient.getQueryData<BinderBundle>(["binder", "binder-1", profile.id])?.highlights,
+    ).toHaveLength(2);
 
     first.reject(new Error("Network failed"));
 

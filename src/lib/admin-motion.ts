@@ -36,18 +36,21 @@ export function sanitizeAdminMotionSettings(value: unknown): AdminMotionSettings
     return defaultAdminMotionSettings;
   }
 
-  const intensity = typeof value.intensity === "string" && intensities.has(value.intensity as AdminMotionIntensity)
-    ? (value.intensity as AdminMotionIntensity)
-    : defaultAdminMotionSettings.intensity;
-  const speed = typeof value.speed === "string" && speeds.has(value.speed as AdminMotionSpeed)
-    ? (value.speed as AdminMotionSpeed)
-    : defaultAdminMotionSettings.speed;
+  const intensity =
+    typeof value.intensity === "string" && intensities.has(value.intensity as AdminMotionIntensity)
+      ? (value.intensity as AdminMotionIntensity)
+      : defaultAdminMotionSettings.intensity;
+  const speed =
+    typeof value.speed === "string" && speeds.has(value.speed as AdminMotionSpeed)
+      ? (value.speed as AdminMotionSpeed)
+      : defaultAdminMotionSettings.speed;
   const colorMode =
     typeof value.colorMode === "string" && colorModes.has(value.colorMode as PremiumColorMode)
       ? (value.colorMode as PremiumColorMode)
       : defaultAdminMotionSettings.colorMode;
   const pageTransition =
-    typeof value.pageTransition === "string" && pageTransitions.has(value.pageTransition as PageTransitionStyle)
+    typeof value.pageTransition === "string" &&
+    pageTransitions.has(value.pageTransition as PageTransitionStyle)
       ? (value.pageTransition as PageTransitionStyle)
       : defaultAdminMotionSettings.pageTransition;
 

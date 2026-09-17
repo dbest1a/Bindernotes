@@ -81,14 +81,26 @@ describe("whiteboard Supabase storage", () => {
   });
 
   it("saves sanitized scene data and board-pinned module placements to Supabase", async () => {
-    mocks.rpc.mockImplementation(async (name: string, args: { p_board: Record<string, unknown>; p_expected_revision: number; p_operation_id: string }) => {
-      expect(name).toBe("save_whiteboard_snapshot");
-      expect(args.p_expected_revision).toBe(0);
-      expect(args.p_operation_id).toMatch(/^[0-9a-f-]{36}$/);
-      mocks.capturedRecord = args.p_board;
-      return { data: { ...args.p_board, revision: 1,
-        created_at: "2026-04-26T00:00:00.000Z", updated_at: "2026-04-26T00:01:00.000Z" }, error: null };
-    });
+    mocks.rpc.mockImplementation(
+      async (
+        name: string,
+        args: { p_board: Record<string, unknown>; p_expected_revision: number; p_operation_id: string },
+      ) => {
+        expect(name).toBe("save_whiteboard_snapshot");
+        expect(args.p_expected_revision).toBe(0);
+        expect(args.p_operation_id).toMatch(/^[0-9a-f-]{36}$/);
+        mocks.capturedRecord = args.p_board;
+        return {
+          data: {
+            ...args.p_board,
+            revision: 1,
+            created_at: "2026-04-26T00:00:00.000Z",
+            updated_at: "2026-04-26T00:01:00.000Z",
+          },
+          error: null,
+        };
+      },
+    );
 
     const result = await saveWhiteboard(board(), { backend: "supabase" });
 
@@ -123,7 +135,10 @@ describe("whiteboard Supabase storage", () => {
   });
 
   it("reports Supabase unavailable instead of fake saved when the whiteboards table is missing", async () => {
-    mocks.rpc.mockResolvedValue({ data: null, error: { code: "42P01", message: "relation whiteboards does not exist" } });
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { code: "42P01", message: "relation whiteboards does not exist" },
+    });
 
     const result = await saveWhiteboard(board(), { backend: "supabase" });
 

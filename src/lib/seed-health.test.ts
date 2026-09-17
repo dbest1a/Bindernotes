@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MissingSeedError, createLegacySeedHealth, createMissingSeedError, isMissingSeedError } from "@/lib/seed-health";
+import {
+  MissingSeedError,
+  createLegacySeedHealth,
+  createMissingSeedError,
+  isMissingSeedError,
+} from "@/lib/seed-health";
 import { systemSuiteTemplates } from "@/lib/history-suite-seeds";
 
 describe("seed health", () => {

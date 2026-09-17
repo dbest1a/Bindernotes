@@ -227,64 +227,68 @@ export async function getHistorySuiteData(input: {
 
   if (!input.profile) {
     return {
-      ...createEmptyHistorySuiteData(
-        suiteData as SuiteTemplate,
-        {
-          ...createHealthySeedHealth(suiteData as SuiteTemplate),
-          actualVersion: (seedVersionResult.data?.version as string | null | undefined) ?? null,
-        },
-      ),
+      ...createEmptyHistorySuiteData(suiteData as SuiteTemplate, {
+        ...createHealthySeedHealth(suiteData as SuiteTemplate),
+        actualVersion: (seedVersionResult.data?.version as string | null | undefined) ?? null,
+      }),
       templateEvents: (templateEventsResult.data ?? []) as HistoryEventTemplate[],
       templateSources: (templateSourcesResult.data ?? []) as HistorySourceTemplate[],
       templateMythChecks: (templateMythsResult.data ?? []) as HistoryMythCheckTemplate[],
     };
   }
 
-  const [eventsResult, sourcesResult, evidenceCardsResult, argumentChainsResult, argumentNodesResult, argumentEdgesResult, mythChecksResult] =
-    await Promise.all([
-      supabase
-        .from("history_events")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .eq("binder_id", input.binder.id)
-        .order("sort_year", { ascending: true })
-        .order("sort_month", { ascending: true })
-        .order("sort_day", { ascending: true }),
-      supabase
-        .from("history_sources")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .eq("binder_id", input.binder.id)
-        .order("updated_at", { ascending: false }),
-      supabase
-        .from("history_evidence_cards")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .eq("binder_id", input.binder.id)
-        .order("updated_at", { ascending: false }),
-      supabase
-        .from("history_argument_chains")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .eq("binder_id", input.binder.id)
-        .order("updated_at", { ascending: false }),
-      supabase
-        .from("history_argument_nodes")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("history_argument_edges")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("history_myth_checks")
-        .select("*")
-        .eq("owner_id", input.profile.id)
-        .eq("binder_id", input.binder.id)
-        .order("updated_at", { ascending: false }),
-    ]);
+  const [
+    eventsResult,
+    sourcesResult,
+    evidenceCardsResult,
+    argumentChainsResult,
+    argumentNodesResult,
+    argumentEdgesResult,
+    mythChecksResult,
+  ] = await Promise.all([
+    supabase
+      .from("history_events")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .eq("binder_id", input.binder.id)
+      .order("sort_year", { ascending: true })
+      .order("sort_month", { ascending: true })
+      .order("sort_day", { ascending: true }),
+    supabase
+      .from("history_sources")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .eq("binder_id", input.binder.id)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("history_evidence_cards")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .eq("binder_id", input.binder.id)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("history_argument_chains")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .eq("binder_id", input.binder.id)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("history_argument_nodes")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("history_argument_edges")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("history_myth_checks")
+      .select("*")
+      .eq("owner_id", input.profile.id)
+      .eq("binder_id", input.binder.id)
+      .order("updated_at", { ascending: false }),
+  ]);
 
   const userError =
     eventsResult.error ||
@@ -388,8 +392,8 @@ export async function createHistoryEvent(
 
 export async function getHistoryEvents(profile: Profile, binderId: string) {
   if (!supabase) {
-    return loadLocalHistoryState().events
-      .filter((event) => event.owner_id === profile.id && event.binder_id === binderId)
+    return loadLocalHistoryState()
+      .events.filter((event) => event.owner_id === profile.id && event.binder_id === binderId)
       .sort((left, right) => {
         if (left.sort_year !== right.sort_year) {
           return left.sort_year - right.sort_year;
@@ -522,8 +526,7 @@ export async function updateHistorySource(
 
 export async function upsertEvidenceCard(
   profile: Profile,
-  input: Partial<HistoryEvidenceCard> &
-    Pick<HistoryEvidenceCard, "binder_id" | "evidence_strength">,
+  input: Partial<HistoryEvidenceCard> & Pick<HistoryEvidenceCard, "binder_id" | "evidence_strength">,
 ) {
   const next: HistoryEvidenceCard = {
     id: input.id ?? crypto.randomUUID(),
@@ -595,11 +598,7 @@ export async function createArgumentChain(
     return upsertLocalHistoryEntity("argumentChains", next);
   }
 
-  const { data, error } = await supabase
-    .from("history_argument_chains")
-    .insert(next)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("history_argument_chains").insert(next).select("*").single();
 
   if (error) {
     throw error;
@@ -656,11 +655,7 @@ export async function createArgumentNode(
     return upsertLocalHistoryEntity("argumentNodes", next);
   }
 
-  const { data, error } = await supabase
-    .from("history_argument_nodes")
-    .insert(next)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("history_argument_nodes").insert(next).select("*").single();
 
   if (error) {
     throw error;
@@ -684,11 +679,7 @@ export async function createArgumentEdge(
     return upsertLocalHistoryEntity("argumentEdges", next);
   }
 
-  const { data, error } = await supabase
-    .from("history_argument_edges")
-    .insert(next)
-    .select("*")
-    .single();
+  const { data, error } = await supabase.from("history_argument_edges").insert(next).select("*").single();
 
   if (error) {
     throw error;
@@ -792,16 +783,24 @@ function buildLocalHistorySuiteData(input: {
 }) {
   const local = loadLocalHistoryState();
   const localEvents = input.profile
-    ? local.events.filter((event) => event.owner_id === input.profile!.id && event.binder_id === input.binder.id)
+    ? local.events.filter(
+        (event) => event.owner_id === input.profile!.id && event.binder_id === input.binder.id,
+      )
     : [];
   const localSources = input.profile
-    ? local.sources.filter((source) => source.owner_id === input.profile!.id && source.binder_id === input.binder.id)
+    ? local.sources.filter(
+        (source) => source.owner_id === input.profile!.id && source.binder_id === input.binder.id,
+      )
     : [];
   const localEvidence = input.profile
-    ? local.evidenceCards.filter((card) => card.owner_id === input.profile!.id && card.binder_id === input.binder.id)
+    ? local.evidenceCards.filter(
+        (card) => card.owner_id === input.profile!.id && card.binder_id === input.binder.id,
+      )
     : [];
   const localChains = input.profile
-    ? local.argumentChains.filter((chain) => chain.owner_id === input.profile!.id && chain.binder_id === input.binder.id)
+    ? local.argumentChains.filter(
+        (chain) => chain.owner_id === input.profile!.id && chain.binder_id === input.binder.id,
+      )
     : [];
   const localNodes = input.profile
     ? local.argumentNodes.filter((node) => node.owner_id === input.profile!.id)
@@ -810,7 +809,9 @@ function buildLocalHistorySuiteData(input: {
     ? local.argumentEdges.filter((edge) => edge.owner_id === input.profile!.id)
     : [];
   const localMyths = input.profile
-    ? local.mythChecks.filter((item) => item.owner_id === input.profile!.id && item.binder_id === input.binder.id)
+    ? local.mythChecks.filter(
+        (item) => item.owner_id === input.profile!.id && item.binder_id === input.binder.id,
+      )
     : [];
 
   if (input.binder.id === SYSTEM_BINDER_IDS.frenchRevolution) {
@@ -930,12 +931,9 @@ function saveLocalHistoryState(state: LocalHistoryState) {
 function upsertLocalHistoryEntity<
   T extends { id: string; owner_id: string; updated_at?: string; created_at?: string },
   K extends keyof LocalHistoryState,
->(
-  key: K,
-  entity: T,
-) {
+>(key: K, entity: T) {
   const state = loadLocalHistoryState();
-  const collection = [...((state[key] as unknown) as T[])];
+  const collection = [...(state[key] as unknown as T[])];
   const index = collection.findIndex((item) => item.id === entity.id && item.owner_id === entity.owner_id);
   if (index >= 0) {
     collection[index] = {
@@ -946,16 +944,12 @@ function upsertLocalHistoryEntity<
     collection.unshift(entity);
   }
 
-  state[key] = (collection as unknown) as LocalHistoryState[K];
+  state[key] = collection as unknown as LocalHistoryState[K];
   saveLocalHistoryState(state);
   return index >= 0 ? collection[index] : entity;
 }
 
-function findLocalHistoryEntity<K extends keyof LocalHistoryState>(
-  key: K,
-  id: string,
-  ownerId: string,
-) {
+function findLocalHistoryEntity<K extends keyof LocalHistoryState>(key: K, id: string, ownerId: string) {
   return (loadLocalHistoryState()[key] as Array<{ id: string; owner_id: string }>).find(
     (item) => item.id === id && item.owner_id === ownerId,
   );

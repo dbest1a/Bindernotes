@@ -98,16 +98,28 @@ describe("whiteboard module layout", () => {
   it("defaults each module family to the right anchor mode", () => {
     const normalized = normalizeWhiteboardLabModules([
       moduleElement({ id: "graph", moduleId: "desmos-graph", pinned: undefined, anchorMode: undefined }),
-      moduleElement({ id: "calculator", moduleId: "scientific-calculator", pinned: undefined, anchorMode: undefined }),
+      moduleElement({
+        id: "calculator",
+        moduleId: "scientific-calculator",
+        pinned: undefined,
+        anchorMode: undefined,
+      }),
       moduleElement({ id: "lesson", moduleId: "lesson", pinned: undefined, anchorMode: undefined }),
       moduleElement({ id: "notes", moduleId: "private-notes", pinned: undefined, anchorMode: undefined }),
       moduleElement({ id: "formulas", moduleId: "formula-sheet", pinned: undefined, anchorMode: undefined }),
       moduleElement({ id: "graphs", moduleId: "saved-graphs", pinned: undefined, anchorMode: undefined }),
       moduleElement({ id: "blocks", moduleId: "math-blocks", pinned: undefined, anchorMode: undefined }),
-      moduleElement({ id: "concepts", moduleId: "related-concepts", pinned: undefined, anchorMode: undefined }),
+      moduleElement({
+        id: "concepts",
+        moduleId: "related-concepts",
+        pinned: undefined,
+        anchorMode: undefined,
+      }),
     ]);
 
-    expect(normalized.map((module) => ({ id: module.id, anchorMode: module.anchorMode, pinned: module.pinned }))).toEqual([
+    expect(
+      normalized.map((module) => ({ id: module.id, anchorMode: module.anchorMode, pinned: module.pinned })),
+    ).toEqual([
       { id: "graph", anchorMode: "board-fixed-size", pinned: true },
       { id: "calculator", anchorMode: "viewport", pinned: false },
       { id: "lesson", anchorMode: "board-fixed-size", pinned: true },
@@ -152,7 +164,9 @@ describe("whiteboard module layout", () => {
       { id: "lesson", x: 240, y: 180 },
       { id: "graph", x: 260, y: 200 },
     ]);
-    expect(normalized.map((module) => ({ id: module.id, width: module.width, height: module.height }))).toEqual([
+    expect(
+      normalized.map((module) => ({ id: module.id, width: module.width, height: module.height })),
+    ).toEqual([
       { id: "lesson", width: 560, height: 420 },
       { id: "graph", width: 720, height: 560 },
     ]);

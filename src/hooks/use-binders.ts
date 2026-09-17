@@ -381,7 +381,9 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
 
         return {
           ...previous,
-          deletedHighlight: previous.previous?.highlights.find((highlight) => highlight.id === input.highlightId),
+          deletedHighlight: previous.previous?.highlights.find(
+            (highlight) => highlight.id === input.highlightId,
+          ),
         };
       },
       onError: (_error, _input, context) => restoreBinderBundle(queryClient, binderId, profile, context),
@@ -433,12 +435,7 @@ export function useAnnotationMutations(profile: Profile | null, binderId?: strin
       },
     }),
     comment: useMutation({
-      mutationFn: (input: {
-        binderId: string;
-        lessonId: string;
-        body: string;
-        anchorText?: string | null;
-      }) =>
+      mutationFn: (input: { binderId: string; lessonId: string; body: string; anchorText?: string | null }) =>
         createComment({
           ...input,
           ownerId: profile!.id,
@@ -736,8 +733,7 @@ export function useAdminMutations(profile: Profile | null) {
         invalidate();
         queryClient.invalidateQueries({
           predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            SYSTEM_SUITE_QUERY_ROOTS.has(String(query.queryKey[0] ?? "")),
+            Array.isArray(query.queryKey) && SYSTEM_SUITE_QUERY_ROOTS.has(String(query.queryKey[0] ?? "")),
         });
       },
     }),

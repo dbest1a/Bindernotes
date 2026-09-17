@@ -98,7 +98,8 @@ export function TutorialPage() {
               Learn BinderNotes with quick video walkthroughs
             </h1>
             <p className="mt-4 max-w-3xl page-copy">
-              Search every page and major tool, watch the tutorial, then jump straight back to the matching feature.
+              Search every page and major tool, watch the tutorial, then jump straight back to the matching
+              feature.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button asChild type="button">
@@ -130,7 +131,8 @@ export function TutorialPage() {
               First-time help
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              BinderNotes can prompt a new user once per page. Skipping a tutorial stores that choice on this browser only.
+              BinderNotes can prompt a new user once per page. Skipping a tutorial stores that choice on this
+              browser only.
             </p>
           </aside>
         </div>
@@ -381,16 +383,15 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
       await queryClient.invalidateQueries({ queryKey: queryKeys.tutorials.all });
     },
   });
-  const submitLabel =
-    createMutation.isPending
-      ? "Uploading..."
-      : form.status === "published"
-        ? editingTutorial
-          ? "Save and publish"
-          : "Upload and publish"
-        : editingTutorial
-          ? "Save draft"
-          : "Upload as draft";
+  const submitLabel = createMutation.isPending
+    ? "Uploading..."
+    : form.status === "published"
+      ? editingTutorial
+        ? "Save and publish"
+        : "Upload and publish"
+      : editingTutorial
+        ? "Save draft"
+        : "Upload as draft";
 
   const updateField =
     <Key extends keyof TutorialCreatorForm>(field: Key) =>
@@ -485,7 +486,8 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
             {editingTutorial ? "Edit tutorial video" : "Upload a tutorial video"}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Create tutorials from the live site. Draft shells stay private until a real video is uploaded and the entry is published.
+            Create tutorials from the live site. Draft shells stay private until a real video is uploaded and
+            the entry is published.
           </p>
         </div>
         <Badge variant="outline">Admin only</Badge>
@@ -496,7 +498,8 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
           <CardHeader>
             <CardTitle>Draft upload shells</CardTitle>
             <CardDescription>
-              These are templates only. Pick one, upload the real video, then publish it into the global tutorial library.
+              These are templates only. Pick one, upload the real video, then publish it into the global
+              tutorial library.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -549,9 +552,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
                 </button>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No real tutorial videos have been uploaded yet.
-              </p>
+              <p className="text-sm text-muted-foreground">No real tutorial videos have been uploaded yet.</p>
             )}
             {hasMoreUploadedTutorials ? (
               <Button
@@ -651,12 +652,17 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
             <span className="text-xs text-muted-foreground">
               {detectedDuration
                 ? `Detected duration: ${detectedDuration}`
-                : metadataError || "Upload MP4, M4V, MOV, or WebM. Published uploads save to the global tutorial library."}
+                : metadataError ||
+                  "Upload MP4, M4V, MOV, or WebM. Published uploads save to the global tutorial library."}
             </span>
           </label>
           <label className="grid gap-2 text-sm font-medium">
             Poster image
-            <Input accept="image/jpeg,image/png,image/webp" onChange={(event) => setPosterFile(event.target.files?.[0] ?? null)} type="file" />
+            <Input
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => setPosterFile(event.target.files?.[0] ?? null)}
+              type="file"
+            />
             <span className="text-xs text-muted-foreground">
               Optional. BinderNotes uses the default tutorial poster if this is empty.
             </span>
@@ -722,7 +728,9 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
 
         {createMutation.error ? (
           <p className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {createMutation.error instanceof Error ? createMutation.error.message : "Could not create tutorial."}
+            {createMutation.error instanceof Error
+              ? createMutation.error.message
+              : "Could not create tutorial."}
           </p>
         ) : null}
         {createMutation.isSuccess ? (
@@ -736,11 +744,7 @@ function AdminTutorialCreator({ draftShells, uploadedTutorials }: AdminTutorialC
             <Upload data-icon="inline-start" />
             {submitLabel}
           </Button>
-          <Button
-            onClick={clearForm}
-            type="button"
-            variant="outline"
-          >
+          <Button onClick={clearForm} type="button" variant="outline">
             <Plus data-icon="inline-start" />
             Clear form
           </Button>

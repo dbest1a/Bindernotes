@@ -19,7 +19,8 @@ const profile: Profile = {
 };
 
 const mocks = vi.hoisted(() => ({
-  from: vi.fn(), rpc: vi.fn(),
+  from: vi.fn(),
+  rpc: vi.fn(),
   mathStudyLoopEnabled: false,
   reviewQueueEnabled: false,
 }));
@@ -27,7 +28,12 @@ vi.mock("@/lib/supabase", () => ({ supabase: mocks }));
 let database: ReturnType<typeof reviewCloudFixture>;
 function createStudyItem(input: Parameters<typeof buildStudyItem>[0]) {
   const item = buildStudyItem({ ...input, ownerId: reviewOwnerA });
-  database.tables.review_items.push({ id: item.id, owner_id: reviewOwnerA, payload: canonicalFromStudy(item), revision: 1 });
+  database.tables.review_items.push({
+    id: item.id,
+    owner_id: reviewOwnerA,
+    payload: canonicalFromStudy(item),
+    revision: 1,
+  });
   return item;
 }
 
@@ -48,8 +54,10 @@ import { ReviewPage } from "@/pages/review-page";
 describe("ReviewPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA);
-    mocks.from.mockImplementation(database.from); mocks.rpc.mockImplementation(database.rpc);
+    database = reviewCloudFixture();
+    saveQueue.setAccount(reviewOwnerA);
+    mocks.from.mockImplementation(database.from);
+    mocks.rpc.mockImplementation(database.rpc);
     mocks.mathStudyLoopEnabled = false;
     mocks.reviewQueueEnabled = false;
   });
@@ -77,7 +85,9 @@ describe("ReviewPage", () => {
     for (const label of ["Due today", "Upcoming", "Difficult", "Mastered", "By binder/course"]) {
       expect(screen.getByRole("button", { name: label })).toBeTruthy();
     }
-    fireEvent.change(screen.getByLabelText("Filter by binder or course"), { target: { value: "binder-calc" } });
+    fireEvent.change(screen.getByLabelText("Filter by binder or course"), {
+      target: { value: "binder-calc" },
+    });
     const itemList = within(screen.getByTestId("review-items-list"));
     expect(itemList.getByText("Derivative formula")).toBeTruthy();
     expect(itemList.queryByText("History highlight")).toBeNull();

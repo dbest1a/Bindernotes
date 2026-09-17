@@ -16,11 +16,7 @@ export function RichTextEditor(props: RichTextEditorProps) {
   return (
     <Suspense
       fallback={
-        <div
-          aria-live="polite"
-          className={`rich-text-editor-loading ${props.className ?? ""}`}
-          role="status"
-        >
+        <div aria-live="polite" className={`rich-text-editor-loading ${props.className ?? ""}`} role="status">
           Loading editor...
         </div>
       }

@@ -3,9 +3,7 @@ import { currency, emptyDoc, slugify } from "@/lib/utils";
 
 describe("utils", () => {
   it("creates stable binder slugs", () => {
-    expect(slugify("Calculus I: Patterns Before Procedures")).toBe(
-      "calculus-i-patterns-before-procedures",
-    );
+    expect(slugify("Calculus I: Patterns Before Procedures")).toBe("calculus-i-patterns-before-procedures");
   });
 
   it("formats free and paid prices", () => {

@@ -283,14 +283,21 @@ export const workspacePresetDesigns = {
     defaultVisible: ["lesson", "private-notes", "formula-sheet"],
     compactVisible: ["lesson", "private-notes"],
     smallScreenVisible: ["lesson", "private-notes"],
-    collapsedByDefault: ["desmos-graph", "math-blocks", "saved-graphs", "scientific-calculator", "whiteboard"],
+    collapsedByDefault: [
+      "desmos-graph",
+      "math-blocks",
+      "saved-graphs",
+      "scientific-calculator",
+      "whiteboard",
+    ],
     desktopRecipe: "lesson-primary-rail",
     smallScreenRecipe: "lesson-primary-rail",
     fitStrategy: "preserve-composition",
   },
   "math-guided-study": {
     id: "math-guided-study",
-    purpose: "Study a math lesson with notes, worked blocks, and graph support arranged by learning priority.",
+    purpose:
+      "Study a math lesson with notes, worked blocks, and graph support arranged by learning priority.",
     primary: ["lesson"],
     secondary: ["private-notes", "math-blocks", "desmos-graph"],
     optional: ["formula-sheet", "saved-graphs", "scientific-calculator", "whiteboard"],
@@ -348,7 +355,8 @@ export const workspacePresetDesigns = {
   },
   "math-practice-mode": {
     id: "math-practice-mode",
-    purpose: "Solve problems with a large scratch board, notes, formula reference, and source context nearby.",
+    purpose:
+      "Solve problems with a large scratch board, notes, formula reference, and source context nearby.",
     primary: ["whiteboard", "math-blocks"],
     secondary: ["private-notes", "formula-sheet", "lesson"],
     optional: ["desmos-graph", "scientific-calculator", "saved-graphs"],
@@ -384,7 +392,8 @@ export const workspacePresetDesigns = {
   },
   "recall-lab": {
     id: "recall-lab",
-    purpose: "Make source-linked active recall the whole study surface while keeping source, notes, and highlights available as drawers.",
+    purpose:
+      "Make source-linked active recall the whole study surface while keeping source, notes, and highlights available as drawers.",
     primary: ["flashcards"],
     secondary: ["lesson", "private-notes", "recent-highlights"],
     optional: ["comments", "binder-notebook", "related-concepts"],
@@ -401,18 +410,29 @@ export const workspacePresetDesigns = {
     purpose: "Study chemistry with a readable source, private notes, concept cards, and compact quick tools.",
     primary: ["lesson"],
     secondary: ["private-notes", "chem-concept-cards", "chem-quick-tools"],
-    optional: ["chem-periodic-table", "chem-desmos-titration-curve", "chem-titration-lab", "chem-reaction-balancer"],
+    optional: [
+      "chem-periodic-table",
+      "chem-desmos-titration-curve",
+      "chem-titration-lab",
+      "chem-reaction-balancer",
+    ],
     defaultVisible: ["lesson", "private-notes", "chem-concept-cards", "chem-quick-tools"],
     compactVisible: ["lesson", "private-notes", "chem-concept-cards"],
     smallScreenVisible: ["lesson", "private-notes", "chem-quick-tools"],
-    collapsedByDefault: ["chem-periodic-table", "chem-desmos-titration-curve", "chem-titration-lab", "chem-reaction-balancer"],
+    collapsedByDefault: [
+      "chem-periodic-table",
+      "chem-desmos-titration-curve",
+      "chem-titration-lab",
+      "chem-reaction-balancer",
+    ],
     desktopRecipe: "lesson-primary-rail",
     smallScreenRecipe: "lesson-primary-rail",
     fitStrategy: "preserve-composition",
   },
   "chem-element-explorer": {
     id: "chem-element-explorer",
-    purpose: "Explore atoms, ions, isotopes, electron configuration, and periodic trends from one flagship table.",
+    purpose:
+      "Explore atoms, ions, isotopes, electron configuration, and periodic trends from one flagship table.",
     primary: ["chem-periodic-table"],
     secondary: ["chem-element-builder", "chem-periodic-trends-graph", "lesson"],
     optional: ["private-notes", "chem-electron-config-builder", "chem-molecule-builder"],
@@ -472,7 +492,12 @@ export const workspacePresetDesigns = {
     primary: ["chem-solution-mixer"],
     secondary: ["chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
     optional: ["lesson", "chem-safety-cards", "chem-reference-safety"],
-    defaultVisible: ["chem-solution-mixer", "chem-molarity-calculator", "chem-desmos-concentration-graph", "chem-lab-notebook"],
+    defaultVisible: [
+      "chem-solution-mixer",
+      "chem-molarity-calculator",
+      "chem-desmos-concentration-graph",
+      "chem-lab-notebook",
+    ],
     compactVisible: ["chem-solution-mixer", "chem-desmos-concentration-graph", "chem-lab-notebook"],
     smallScreenVisible: ["chem-solution-mixer", "chem-lab-notebook"],
     collapsedByDefault: ["lesson", "chem-safety-cards", "chem-reference-safety"],
@@ -486,7 +511,12 @@ export const workspacePresetDesigns = {
     primary: ["chem-titration-lab"],
     secondary: ["chem-desmos-titration-curve", "chem-ph-calculator", "chem-lab-notebook"],
     optional: ["lesson", "chem-safety-cards", "chem-reference-safety"],
-    defaultVisible: ["chem-titration-lab", "chem-desmos-titration-curve", "chem-ph-calculator", "chem-lab-notebook"],
+    defaultVisible: [
+      "chem-titration-lab",
+      "chem-desmos-titration-curve",
+      "chem-ph-calculator",
+      "chem-lab-notebook",
+    ],
     compactVisible: ["chem-titration-lab", "chem-desmos-titration-curve", "chem-lab-notebook"],
     smallScreenVisible: ["chem-titration-lab", "chem-desmos-titration-curve"],
     collapsedByDefault: ["lesson", "chem-safety-cards", "chem-reference-safety"],
@@ -514,7 +544,12 @@ export const workspacePresetDesigns = {
     primary: ["chem-calorimetry-lab"],
     secondary: ["chem-energy-diagram", "chem-calculation-sheet", "chem-lab-notebook"],
     optional: ["lesson", "chem-desmos-concentration-graph", "chem-safety-cards"],
-    defaultVisible: ["chem-calorimetry-lab", "chem-energy-diagram", "chem-calculation-sheet", "chem-lab-notebook"],
+    defaultVisible: [
+      "chem-calorimetry-lab",
+      "chem-energy-diagram",
+      "chem-calculation-sheet",
+      "chem-lab-notebook",
+    ],
     compactVisible: ["chem-calorimetry-lab", "chem-calculation-sheet", "chem-lab-notebook"],
     smallScreenVisible: ["chem-calorimetry-lab", "chem-lab-notebook"],
     collapsedByDefault: ["lesson", "chem-desmos-concentration-graph", "chem-safety-cards"],
@@ -527,25 +562,52 @@ export const workspacePresetDesigns = {
     purpose: "Offer an advanced chemistry studio while keeping visible modules readable instead of smashed.",
     primary: ["chem-periodic-table", "chem-reaction-balancer"],
     secondary: ["lesson", "private-notes", "chem-desmos-titration-curve", "chem-lab-notebook"],
-    optional: ["chem-element-builder", "chem-molecule-builder", "chem-stoichiometry-coach", "chem-ph-calculator", "chem-safety-cards", "chem-review-queue"],
-    defaultVisible: ["lesson", "private-notes", "chem-periodic-table", "chem-reaction-balancer", "chem-desmos-titration-curve", "chem-lab-notebook"],
+    optional: [
+      "chem-element-builder",
+      "chem-molecule-builder",
+      "chem-stoichiometry-coach",
+      "chem-ph-calculator",
+      "chem-safety-cards",
+      "chem-review-queue",
+    ],
+    defaultVisible: [
+      "lesson",
+      "private-notes",
+      "chem-periodic-table",
+      "chem-reaction-balancer",
+      "chem-desmos-titration-curve",
+      "chem-lab-notebook",
+    ],
     compactVisible: ["chem-periodic-table", "chem-reaction-balancer", "lesson", "private-notes"],
     smallScreenVisible: ["chem-periodic-table", "lesson", "private-notes"],
-    collapsedByDefault: ["chem-element-builder", "chem-molecule-builder", "chem-stoichiometry-coach", "chem-ph-calculator", "chem-safety-cards", "chem-review-queue"],
+    collapsedByDefault: [
+      "chem-element-builder",
+      "chem-molecule-builder",
+      "chem-stoichiometry-coach",
+      "chem-ph-calculator",
+      "chem-safety-cards",
+      "chem-review-queue",
+    ],
     desktopRecipe: "chemistry-lab-zones",
     smallScreenRecipe: "chemistry-lab-zones",
     fitStrategy: "preserve-composition",
   },
   "chemistry-lab": {
     id: "chemistry-lab",
-    purpose: "Run a chemistry lab or stoichiometry check with source context and structured notebook capture.",
+    purpose:
+      "Run a chemistry lab or stoichiometry check with source context and structured notebook capture.",
     primary: ["chem-titration-lab"],
     secondary: ["lesson", "chem-lab-notebook", "chem-stoichiometry-coach"],
     optional: ["chem-reference-safety", "private-notes", "recent-highlights"],
     defaultVisible: ["lesson", "chem-titration-lab", "chem-lab-notebook"],
     compactVisible: ["chem-titration-lab", "chem-lab-notebook", "lesson"],
     smallScreenVisible: ["chem-titration-lab"],
-    collapsedByDefault: ["chem-stoichiometry-coach", "chem-reference-safety", "private-notes", "recent-highlights"],
+    collapsedByDefault: [
+      "chem-stoichiometry-coach",
+      "chem-reference-safety",
+      "private-notes",
+      "recent-highlights",
+    ],
     desktopRecipe: "chemistry-lab-zones",
     smallScreenRecipe: "chemistry-lab-zones",
     fitStrategy: "preserve-composition",
@@ -627,37 +689,68 @@ export function getWorkspacePresetDesign(presetId: WorkspacePresetId) {
 }
 
 const faceliftPresetReasoning: Record<WorkspacePresetId, string> = {
-  "focused-reading": "Reading stays primary while outline, notes, highlights, and tools stay reachable without crowding the source.",
-  "split-study": "Source and private notes are equal partners, so the facelift recipe keeps both as full-height half panes.",
-  "notes-focus": "Writing gets the dominant surface while the source remains a compact reference for citations and examples.",
-  "annotation-mode": "Markup and close reading stay centered, with comments and highlights supporting the source instead of burying it.",
-  "math-study": "General math study needs lesson, notes, formulas, and graph access without loading every math utility at once.",
-  "math-simple-presentation": "Math presentation starts with lesson and notes, while formulas and graph tools stay secondary.",
-  "math-guided-study": "Guided math learning starts from content and notes, then brings math blocks and graphing in as support.",
-  "math-graph-lab": "Graph work needs the largest usable surface, with formulas, source, and notes close enough for interpretation.",
-  "math-proof-concept": "Concept and proof work needs reasoning space, related ideas, and notes more than calculator clutter.",
-  "math-practice-mode": "Problem solving gets the primary working area, with formula and lesson references opening when useful.",
-  "full-math-canvas": "The full math canvas can expose more power, but optional tools stay collapsed before panels become tiny.",
-  "recall-lab": "Recall Lab should dominate the workspace, with source, notes, and highlights available without cramming the practice card.",
-  "chem-guided-study": "Chemistry guided study keeps the lesson and notes central while concept cards and quick tools stay compact.",
-  "chem-element-explorer": "Element exploration should make the periodic table the flagship surface with builder and trend tools supporting it.",
-  "chem-bonding-studio": "Bonding work needs the molecule builder dominant while source, geometry, and notes stay readable.",
-  "chem-reaction-studio": "Reaction study connects symbolic balancing to particle-level and observable evidence without clutter.",
-  "chem-stoichiometry-lab": "Stoichiometry needs the unit ladder primary, with molar mass, source context, and notes close by.",
-  "chem-solutions-molarity-lab": "Solution work needs a virtual bench, concentration graph, and notebook checkpoint surface.",
-  "chem-acid-base-titration-lab": "Titration work needs the bench and curve visible together with pH and notebook support.",
-  "chem-kinetics-graph-lab": "Kinetics study centers graph and data interpretation while simulator controls stay nearby.",
-  "chem-thermochemistry-studio": "Thermochemistry pairs calorimetry calculation with energy diagrams and lab reasoning.",
-  "chem-full-studio": "The full chemistry studio exposes major tools while preserving readable zones and collapsing optional tools first.",
-  "chemistry-lab": "Chemistry work needs a live lab or stoichiometry surface, a readable source, and structured notebook capture without saving every small interaction.",
-  "history-guided": "History study works best as source, chronology, evidence, and notes in one readable loop.",
-  "history-timeline-focus": "Timeline is the anchor, while source and notes explain chronology without competing for the main surface.",
-  "history-source-evidence": "Close reading and evidence collection stay primary, with timeline and argument tools available on demand.",
-  "history-argument-builder": "Argument writing gets the largest surface, with source and evidence positioned nearby for support.",
-  "history-full-studio": "The full history studio exposes source, timeline, evidence, and argument without turning the workspace chaotic.",
+  "focused-reading":
+    "Reading stays primary while outline, notes, highlights, and tools stay reachable without crowding the source.",
+  "split-study":
+    "Source and private notes are equal partners, so the facelift recipe keeps both as full-height half panes.",
+  "notes-focus":
+    "Writing gets the dominant surface while the source remains a compact reference for citations and examples.",
+  "annotation-mode":
+    "Markup and close reading stay centered, with comments and highlights supporting the source instead of burying it.",
+  "math-study":
+    "General math study needs lesson, notes, formulas, and graph access without loading every math utility at once.",
+  "math-simple-presentation":
+    "Math presentation starts with lesson and notes, while formulas and graph tools stay secondary.",
+  "math-guided-study":
+    "Guided math learning starts from content and notes, then brings math blocks and graphing in as support.",
+  "math-graph-lab":
+    "Graph work needs the largest usable surface, with formulas, source, and notes close enough for interpretation.",
+  "math-proof-concept":
+    "Concept and proof work needs reasoning space, related ideas, and notes more than calculator clutter.",
+  "math-practice-mode":
+    "Problem solving gets the primary working area, with formula and lesson references opening when useful.",
+  "full-math-canvas":
+    "The full math canvas can expose more power, but optional tools stay collapsed before panels become tiny.",
+  "recall-lab":
+    "Recall Lab should dominate the workspace, with source, notes, and highlights available without cramming the practice card.",
+  "chem-guided-study":
+    "Chemistry guided study keeps the lesson and notes central while concept cards and quick tools stay compact.",
+  "chem-element-explorer":
+    "Element exploration should make the periodic table the flagship surface with builder and trend tools supporting it.",
+  "chem-bonding-studio":
+    "Bonding work needs the molecule builder dominant while source, geometry, and notes stay readable.",
+  "chem-reaction-studio":
+    "Reaction study connects symbolic balancing to particle-level and observable evidence without clutter.",
+  "chem-stoichiometry-lab":
+    "Stoichiometry needs the unit ladder primary, with molar mass, source context, and notes close by.",
+  "chem-solutions-molarity-lab":
+    "Solution work needs a virtual bench, concentration graph, and notebook checkpoint surface.",
+  "chem-acid-base-titration-lab":
+    "Titration work needs the bench and curve visible together with pH and notebook support.",
+  "chem-kinetics-graph-lab":
+    "Kinetics study centers graph and data interpretation while simulator controls stay nearby.",
+  "chem-thermochemistry-studio":
+    "Thermochemistry pairs calorimetry calculation with energy diagrams and lab reasoning.",
+  "chem-full-studio":
+    "The full chemistry studio exposes major tools while preserving readable zones and collapsing optional tools first.",
+  "chemistry-lab":
+    "Chemistry work needs a live lab or stoichiometry surface, a readable source, and structured notebook capture without saving every small interaction.",
+  "history-guided":
+    "History study works best as source, chronology, evidence, and notes in one readable loop.",
+  "history-timeline-focus":
+    "Timeline is the anchor, while source and notes explain chronology without competing for the main surface.",
+  "history-source-evidence":
+    "Close reading and evidence collection stay primary, with timeline and argument tools available on demand.",
+  "history-argument-builder":
+    "Argument writing gets the largest surface, with source and evidence positioned nearby for support.",
+  "history-full-studio":
+    "The full history studio exposes source, timeline, evidence, and argument without turning the workspace chaotic.",
 };
 
-const faceliftRecipeLabels: Record<WorkspacePresetLayoutRecipe, FaceliftWorkspacePresetDesign["layoutRecipe"]> = {
+const faceliftRecipeLabels: Record<
+  WorkspacePresetLayoutRecipe,
+  FaceliftWorkspacePresetDesign["layoutRecipe"]
+> = {
   "reading-with-outline": {
     desktop: "Wide source column with a slim hierarchy and outline rail.",
     laptop: "Source remains wide while outline compresses into a quiet side rail.",
@@ -766,7 +859,8 @@ type FaceliftPresetDesignOverride = {
 
 const defaultFaceliftPlacement: FaceliftWorkspacePresetDesign["placement"] = {
   desktopPriority: ["lesson", "private-notes"],
-  canvasRecipe: "Place the primary study surface first, then keep support modules close enough to use without clutter.",
+  canvasRecipe:
+    "Place the primary study surface first, then keep support modules close enough to use without clutter.",
   collapseFirst: ["search", "tasks", "flashcards", "mini-tools"],
 };
 
@@ -1013,7 +1107,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["private-notes", "lesson"],
-      canvasRecipe: "Notes get the largest writing surface; lesson stays as a compact citation/reference panel.",
+      canvasRecipe:
+        "Notes get the largest writing surface; lesson stays as a compact citation/reference panel.",
       collapseFirst: ["binder-notebook", "comments", "recent-highlights", "tasks"],
     },
   },
@@ -1025,7 +1120,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["lesson", "comments", "recent-highlights", "private-notes"],
-      canvasRecipe: "Source remains the markup surface while comments/highlights form a right-side annotation lane.",
+      canvasRecipe:
+        "Source remains the markup surface while comments/highlights form a right-side annotation lane.",
       collapseFirst: ["search", "related-concepts", "lesson-outline", "tasks"],
     },
   },
@@ -1040,13 +1136,15 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["desmos-graph", "lesson", "private-notes", "formula-sheet"],
-      canvasRecipe: "Desmos anchors the middle of the workspace with lesson and notes on opposite study rails.",
+      canvasRecipe:
+        "Desmos anchors the middle of the workspace with lesson and notes on opposite study rails.",
       collapseFirst: graphToolCollapseOrder,
     },
     graphIntegration: {
       module: "desmos-graph",
       companionModules: ["formula-sheet", "lesson", "private-notes"],
-      placement: "Keep graph large enough for interaction; formulas and notes stay beside it, not below as thin strips.",
+      placement:
+        "Keep graph large enough for interaction; formulas and notes stay beside it, not below as thin strips.",
       collapsedWhenUnavailable: ["saved-graphs", "scientific-calculator"],
     },
     reasoning:
@@ -1062,7 +1160,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["lesson", "private-notes", "formula-sheet", "desmos-graph"],
-      canvasRecipe: "Lesson remains calm and primary; Desmos is a visible reference panel instead of a hidden surprise.",
+      canvasRecipe:
+        "Lesson remains calm and primary; Desmos is a visible reference panel instead of a hidden surprise.",
       collapseFirst: ["saved-graphs", "scientific-calculator", "math-blocks", "whiteboard"],
     },
     graphIntegration: {
@@ -1082,7 +1181,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["lesson", "desmos-graph", "private-notes", "math-blocks"],
-      canvasRecipe: "Lesson and graph sit side-by-side so examples can move directly into visual exploration.",
+      canvasRecipe:
+        "Lesson and graph sit side-by-side so examples can move directly into visual exploration.",
       collapseFirst: ["saved-graphs", "scientific-calculator", "formula-sheet", "whiteboard"],
     },
     graphIntegration: {
@@ -1106,7 +1206,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     collapsedModules: ["lesson", "saved-graphs", "scientific-calculator", "math-blocks", "whiteboard"],
     placement: {
       desktopPriority: ["desmos-graph", "formula-sheet", "private-notes", "lesson", "saved-graphs"],
-      canvasRecipe: "Desmos takes the center as the lab bench; formulas sit left and notes sit right for observations.",
+      canvasRecipe:
+        "Desmos takes the center as the lab bench; formulas sit left and notes sit right for observations.",
       collapseFirst: ["scientific-calculator", "saved-graphs", "lesson", "math-blocks", "whiteboard"],
     },
     graphIntegration: {
@@ -1126,7 +1227,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["lesson", "math-blocks", "related-concepts", "private-notes"],
-      canvasRecipe: "Proof reasoning gets the wide lane; graphing stays available but collapsed until a concept needs it.",
+      canvasRecipe:
+        "Proof reasoning gets the wide lane; graphing stays available but collapsed until a concept needs it.",
       collapseFirst: ["desmos-graph", "scientific-calculator", "saved-graphs", "whiteboard"],
     },
     graphIntegration: {
@@ -1148,13 +1250,15 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     collapsedModules: ["desmos-graph", "scientific-calculator", "saved-graphs", "lesson"],
     placement: {
       desktopPriority: ["whiteboard", "math-blocks", "private-notes", "formula-sheet"],
-      canvasRecipe: "Whiteboard is the scratch surface; math blocks, notes, and formulas frame it without covering the top tools.",
+      canvasRecipe:
+        "Whiteboard is the scratch surface; math blocks, notes, and formulas frame it without covering the top tools.",
       collapseFirst: ["desmos-graph", "scientific-calculator", "saved-graphs", "lesson"],
     },
     graphIntegration: {
       module: "desmos-graph",
       companionModules: ["whiteboard", "math-blocks", "formula-sheet"],
-      placement: "Keep graphing available as an optional verification station, not a default overlay on the board.",
+      placement:
+        "Keep graphing available as an optional verification station, not a default overlay on the board.",
       collapsedWhenUnavailable: ["saved-graphs", "scientific-calculator"],
     },
   },
@@ -1167,11 +1271,24 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
       compact: ["desmos-graph", "math-blocks", "private-notes"],
       focus: ["desmos-graph", "math-blocks"],
     },
-    collapsedModules: ["saved-graphs", "scientific-calculator", "related-concepts", "comments", "recent-highlights"],
+    collapsedModules: [
+      "saved-graphs",
+      "scientific-calculator",
+      "related-concepts",
+      "comments",
+      "recent-highlights",
+    ],
     placement: {
       desktopPriority: ["desmos-graph", "math-blocks", "private-notes", "lesson", "formula-sheet"],
-      canvasRecipe: "Desmos and math work share the primary canvas; notes, lesson, and formulas stay readable around them.",
-      collapseFirst: ["saved-graphs", "scientific-calculator", "related-concepts", "comments", "recent-highlights"],
+      canvasRecipe:
+        "Desmos and math work share the primary canvas; notes, lesson, and formulas stay readable around them.",
+      collapseFirst: [
+        "saved-graphs",
+        "scientific-calculator",
+        "related-concepts",
+        "comments",
+        "recent-highlights",
+      ],
     },
     graphIntegration: {
       module: "desmos-graph",
@@ -1235,7 +1352,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["history-evidence", "lesson", "private-notes", "history-timeline"],
-      canvasRecipe: "Evidence locker and source reading share the main area; notes capture claim-ready observations.",
+      canvasRecipe:
+        "Evidence locker and source reading share the main area; notes capture claim-ready observations.",
       collapseFirst: ["history-timeline", "history-argument", "history-myth-checks", "comments"],
     },
     historyWorkflow: {
@@ -1257,13 +1375,15 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["history-argument", "history-evidence", "lesson", "history-timeline"],
-      canvasRecipe: "Argument builder gets the widest lane; evidence and source are staged as citation support.",
+      canvasRecipe:
+        "Argument builder gets the widest lane; evidence and source are staged as citation support.",
       collapseFirst: ["history-timeline", "private-notes", "history-myth-checks", "comments"],
     },
     historyWorkflow: {
       leadModule: "history-argument",
       sequence: ["history-argument", "history-evidence", "lesson", "history-timeline"],
-      studentGoal: "Draft the claim, pull evidence, check the source, and use chronology to keep the argument honest.",
+      studentGoal:
+        "Draft the claim, pull evidence, check the source, and use chronology to keep the argument honest.",
     },
   },
   "history-full-studio": {
@@ -1277,7 +1397,8 @@ const faceliftPresetOverrides: Partial<Record<WorkspacePresetId, FaceliftPresetD
     },
     placement: {
       desktopPriority: ["history-timeline", "lesson", "history-evidence", "history-argument"],
-      canvasRecipe: "Timeline runs as the organizing spine with source, evidence, and argument in readable quadrants.",
+      canvasRecipe:
+        "Timeline runs as the organizing spine with source, evidence, and argument in readable quadrants.",
       collapseFirst: ["private-notes", "history-myth-checks", "comments", "recent-highlights"],
     },
     historyWorkflow: {
@@ -1333,9 +1454,10 @@ function buildFaceliftPresetDesign(presetId: WorkspacePresetId): FaceliftWorkspa
       getWorkspaceModuleMinimumSize(moduleId, moduleId === resolvedPrimaryModule ? "primary" : "secondary"),
     ]),
   ) as Partial<Record<WorkspaceModuleId, MinimumSize>>;
-  const mobilePrimaryModule = getMobileModuleOrder(presetId).find((moduleId) =>
-    appendUnique([...visibleModules, ...collapsedModules]).includes(moduleId),
-  ) ?? resolvedPrimaryModule;
+  const mobilePrimaryModule =
+    getMobileModuleOrder(presetId).find((moduleId) =>
+      appendUnique([...visibleModules, ...collapsedModules]).includes(moduleId),
+    ) ?? resolvedPrimaryModule;
   const defaultPerformanceBudget: FaceliftWorkspacePresetDesign["performanceBudget"] = {
     maxComfortableModules: presetId === "full-math-canvas" || presetId === "history-full-studio" ? 5 : 4,
     maxCompactModules: 3,
@@ -1401,7 +1523,9 @@ export function selectFaceliftSurfaceModules(
     return visible;
   }
 
-  return design.visibleModules.filter((moduleId) => !enabled || enabled.has(moduleId) || moduleId === "lesson");
+  return design.visibleModules.filter(
+    (moduleId) => !enabled || enabled.has(moduleId) || moduleId === "lesson",
+  );
 }
 
 export function buildFaceliftPresetFrames(
@@ -1513,14 +1637,14 @@ function compactCoreVisibleModules(
 ) {
   return appendUnique(
     [primaryModule],
-    [
-      ...modules.filter((moduleId) => moduleId === "lesson" || moduleId === "private-notes"),
-      ...modules,
-    ],
+    [...modules.filter((moduleId) => moduleId === "lesson" || moduleId === "private-notes"), ...modules],
   ).slice(0, limit);
 }
 
-function buildGraphLabFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildGraphLabFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const leftWidth = Math.max(320, Math.round(width * 0.2));
   const rightWidth = Math.max(480, Math.round(width * 0.29));
@@ -1535,7 +1659,10 @@ function buildGraphLabFrames(width: number, height: number): Partial<Record<Work
   };
 }
 
-function buildMathStudyFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildMathStudyFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const graphHeight = Math.max(480, Math.round(height * 0.58));
   const supportHeight = Math.max(320, height - graphHeight - gap);
@@ -1547,7 +1674,13 @@ function buildMathStudyFrames(width: number, height: number): Partial<Record<Wor
     "desmos-graph": faceliftFrame(0, 0, width, graphHeight, 1),
     lesson: faceliftFrame(0, graphHeight + gap, lessonWidth, supportHeight, 2),
     "private-notes": faceliftFrame(lessonWidth + gap, graphHeight + gap, notesWidth, supportHeight, 3),
-    "formula-sheet": faceliftFrame(lessonWidth + notesWidth + gap * 2, graphHeight + gap, formulaWidth, supportHeight, 4),
+    "formula-sheet": faceliftFrame(
+      lessonWidth + notesWidth + gap * 2,
+      graphHeight + gap,
+      formulaWidth,
+      supportHeight,
+      4,
+    ),
   };
 }
 
@@ -1566,11 +1699,20 @@ function buildMathPresentationFrames(
     lesson: faceliftFrame(0, 0, lessonWidth, height, 1),
     "private-notes": faceliftFrame(lessonWidth + gap, 0, rightWidth, notesHeight, 2),
     "formula-sheet": faceliftFrame(lessonWidth + gap, notesHeight + gap, rightWidth, formulaHeight, 3),
-    "desmos-graph": faceliftFrame(lessonWidth + gap, notesHeight + formulaHeight + gap * 2, rightWidth, graphHeight, 4),
+    "desmos-graph": faceliftFrame(
+      lessonWidth + gap,
+      notesHeight + formulaHeight + gap * 2,
+      rightWidth,
+      graphHeight,
+      4,
+    ),
   };
 }
 
-function buildMathGuidedFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildMathGuidedFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const topHeight = Math.max(420, Math.round(height * 0.58));
   const bottomHeight = height - topHeight - gap;
@@ -1585,7 +1727,10 @@ function buildMathGuidedFrames(width: number, height: number): Partial<Record<Wo
   };
 }
 
-function buildMathPracticeFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildMathPracticeFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const compact = width < 1280;
   const leftWidth = compact ? 240 : Math.min(380, Math.max(300, Math.round(width * 0.2)));
@@ -1616,7 +1761,10 @@ function buildMathPracticeFrames(width: number, height: number): Partial<Record<
   };
 }
 
-function buildFullMathCanvasFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildFullMathCanvasFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const leftWidth = Math.max(360, Math.round(width * 0.24));
   const centerWidth = Math.max(620, Math.round(width * 0.42));
@@ -1625,10 +1773,28 @@ function buildFullMathCanvasFrames(width: number, height: number): Partial<Recor
 
   return {
     lesson: faceliftFrame(0, 0, leftWidth, Math.round(height * 0.48), 1),
-    "formula-sheet": faceliftFrame(0, Math.round(height * 0.48) + gap, leftWidth, Math.round(height * 0.3), 2),
+    "formula-sheet": faceliftFrame(
+      0,
+      Math.round(height * 0.48) + gap,
+      leftWidth,
+      Math.round(height * 0.3),
+      2,
+    ),
     "desmos-graph": faceliftFrame(leftWidth + gap, 0, centerWidth, graphHeight, 3),
-    "math-blocks": faceliftFrame(leftWidth + gap, graphHeight + gap, centerWidth, height - graphHeight - gap, 4),
-    "private-notes": faceliftFrame(leftWidth + centerWidth + gap * 2, 0, rightWidth, Math.round(height * 0.52), 5),
+    "math-blocks": faceliftFrame(
+      leftWidth + gap,
+      graphHeight + gap,
+      centerWidth,
+      height - graphHeight - gap,
+      4,
+    ),
+    "private-notes": faceliftFrame(
+      leftWidth + centerWidth + gap * 2,
+      0,
+      rightWidth,
+      Math.round(height * 0.52),
+      5,
+    ),
     "related-concepts": faceliftFrame(
       leftWidth + centerWidth + gap * 2,
       Math.round(height * 0.52) + gap,
@@ -1654,7 +1820,9 @@ function buildChemistryShowcaseFrames(
     const tableHeight = Math.max(600, Math.round(height * 0.68));
     const supportModules = visible.filter((moduleId) => moduleId !== primary).slice(0, 3);
     const supportHeight = Math.max(260, height - tableHeight - gap);
-    const supportWidth = Math.floor((width - gap * Math.max(0, supportModules.length - 1)) / Math.max(1, supportModules.length));
+    const supportWidth = Math.floor(
+      (width - gap * Math.max(0, supportModules.length - 1)) / Math.max(1, supportModules.length),
+    );
 
     frames[primary] = faceliftFrame(0, 0, width, tableHeight, 4);
     supportModules.forEach((moduleId, index) => {
@@ -1674,7 +1842,9 @@ function buildChemistryShowcaseFrames(
   const rightWidth = Math.max(360, Math.round(width * 0.28));
   const centerWidth = Math.max(520, width - leftWidth - rightWidth - gap * 2);
   const leftModules = visible.filter((moduleId) => moduleId !== primary).slice(0, 2);
-  const rightModules = visible.filter((moduleId) => moduleId !== primary && !leftModules.includes(moduleId)).slice(0, 3);
+  const rightModules = visible
+    .filter((moduleId) => moduleId !== primary && !leftModules.includes(moduleId))
+    .slice(0, 3);
 
   frames[primary] = faceliftFrame(leftWidth + gap, 0, centerWidth, height, 3);
 
@@ -1689,7 +1859,10 @@ function buildChemistryShowcaseFrames(
   });
 
   rightModules.forEach((moduleId, index) => {
-    const slotHeight = Math.max(220, Math.floor((height - gap * (rightModules.length - 1)) / Math.max(rightModules.length, 1)));
+    const slotHeight = Math.max(
+      220,
+      Math.floor((height - gap * (rightModules.length - 1)) / Math.max(rightModules.length, 1)),
+    );
     frames[moduleId] = faceliftFrame(
       leftWidth + centerWidth + gap * 2,
       index * (slotHeight + gap),
@@ -1702,11 +1875,18 @@ function buildChemistryShowcaseFrames(
   return frames;
 }
 
-function buildChemistryLabFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildChemistryLabFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const compact = width < 1280;
-  const sourceWidth = compact ? Math.max(360, Math.round(width * 0.28)) : Math.max(420, Math.round(width * 0.26));
-  const notebookWidth = compact ? Math.max(360, Math.round(width * 0.28)) : Math.max(460, Math.round(width * 0.28));
+  const sourceWidth = compact
+    ? Math.max(360, Math.round(width * 0.28))
+    : Math.max(420, Math.round(width * 0.26));
+  const notebookWidth = compact
+    ? Math.max(360, Math.round(width * 0.28))
+    : Math.max(460, Math.round(width * 0.28));
   const labWidth = Math.max(520, width - sourceWidth - notebookWidth - gap * 2);
   const notebookX = sourceWidth + labWidth + gap * 2;
   const sourceHeight = Math.max(320, Math.round(height * 0.58));
@@ -1732,7 +1912,10 @@ function buildChemistryLabFrames(width: number, height: number): Partial<Record<
   };
 }
 
-function buildHistoryGuidedFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildHistoryGuidedFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const columnWidth = Math.floor((width - gap) / 2);
   const rowHeight = Math.floor((height - gap) / 2);
@@ -1747,7 +1930,10 @@ function buildHistoryGuidedFrames(width: number, height: number): Partial<Record
   };
 }
 
-function buildHistoryTimelineFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildHistoryTimelineFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const timelineHeight = Math.max(340, Math.round(height * 0.52));
   const supportHeight = height - timelineHeight - gap;
@@ -1756,7 +1942,13 @@ function buildHistoryTimelineFrames(width: number, height: number): Partial<Reco
   return {
     "history-timeline": faceliftFrame(0, 0, width, timelineHeight, 1),
     lesson: faceliftFrame(0, timelineHeight + gap, leftWidth, supportHeight, 2),
-    "private-notes": faceliftFrame(leftWidth + gap, timelineHeight + gap, width - leftWidth - gap, supportHeight, 3),
+    "private-notes": faceliftFrame(
+      leftWidth + gap,
+      timelineHeight + gap,
+      width - leftWidth - gap,
+      supportHeight,
+      3,
+    ),
   };
 }
 
@@ -1776,7 +1968,10 @@ function buildHistorySourceEvidenceFrames(
   };
 }
 
-function buildHistoryArgumentFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildHistoryArgumentFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const leftWidth = Math.max(620, Math.round(width * 0.54));
   const rightWidth = width - leftWidth - gap;
@@ -1789,7 +1984,10 @@ function buildHistoryArgumentFrames(width: number, height: number): Partial<Reco
   };
 }
 
-function buildHistoryFullStudioFrames(width: number, height: number): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
+function buildHistoryFullStudioFrames(
+  width: number,
+  height: number,
+): Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>> {
   const gap = 16;
   const timelineHeight = Math.max(360, Math.round(height * 0.42));
   const lowerHeight = height - timelineHeight - gap;
@@ -1823,7 +2021,13 @@ function buildGeneralFaceliftFrames(
       lesson: faceliftFrame(0, 0, leftWidth, height, 1),
       flashcards: faceliftFrame(centerX, 0, centerWidth, height, 2),
       "private-notes": faceliftFrame(rightX, 0, rightWidth, Math.round(height * 0.58), 3),
-      "recent-highlights": faceliftFrame(rightX, Math.round(height * 0.58) + gap, rightWidth, Math.round(height * 0.42) - gap, 4),
+      "recent-highlights": faceliftFrame(
+        rightX,
+        Math.round(height * 0.58) + gap,
+        rightWidth,
+        Math.round(height * 0.42) - gap,
+        4,
+      ),
     };
   }
 
@@ -1841,7 +2045,13 @@ function buildGeneralFaceliftFrames(
     return {
       lesson: faceliftFrame(0, 0, lessonWidth, height, 1),
       "private-notes": faceliftFrame(lessonWidth + gap, 0, sideWidth, Math.round(height * 0.38), 2),
-      comments: faceliftFrame(lessonWidth + gap, Math.round(height * 0.38) + gap, sideWidth, Math.round(height * 0.3), 3),
+      comments: faceliftFrame(
+        lessonWidth + gap,
+        Math.round(height * 0.38) + gap,
+        sideWidth,
+        Math.round(height * 0.3),
+        3,
+      ),
       "recent-highlights": faceliftFrame(
         lessonWidth + gap,
         Math.round(height * 0.68) + gap * 2,
@@ -1920,18 +2130,16 @@ export function selectWorkspacePresetVisibleModules(
   );
   const usePhoneScreen = Boolean(options.viewport && options.viewport.width <= 760);
   const useSmallScreen =
-    options.viewport &&
-    (options.viewport.width <= 1100 || options.viewport.height <= 720);
+    options.viewport && (options.viewport.width <= 1100 || options.viewport.height <= 720);
   const useCompactScreen =
-    options.viewport &&
-    (options.viewport.width < 1320 || options.viewport.height < 960);
+    options.viewport && (options.viewport.width < 1320 || options.viewport.height < 960);
   const preferred = usePhoneScreen
     ? design.smallScreenVisible.slice(0, 1)
     : useSmallScreen
-    ? design.smallScreenVisible
-    : useCompactScreen
-      ? design.compactVisible ?? design.smallScreenVisible
-      : design.defaultVisible;
+      ? design.smallScreenVisible
+      : useCompactScreen
+        ? (design.compactVisible ?? design.smallScreenVisible)
+        : design.defaultVisible;
   const visible = preferred.filter((moduleId) => design.defaultVisible.includes(moduleId));
 
   if (visible.length > 0) {
@@ -1964,10 +2172,12 @@ export function getWorkspaceMobileModuleTabs(
     }));
 }
 
-export function getWorkspaceStarterChoices(options: {
-  binderSubject?: string | null;
-  historyEnabled?: boolean;
-} = {}): WorkspaceStarterChoice[] {
+export function getWorkspaceStarterChoices(
+  options: {
+    binderSubject?: string | null;
+    historyEnabled?: boolean;
+  } = {},
+): WorkspaceStarterChoice[] {
   const subject = options.binderSubject?.toLowerCase() ?? "";
   const isMath = subject.includes("math") || subject.includes("algebra") || subject.includes("geometry");
   const isChemistry = subject.includes("chem") || subject.includes("stoich") || subject.includes("titration");
@@ -2028,7 +2238,13 @@ export function getWorkspaceStarterChoices(options: {
     id: "canvas",
     label: "Use canvas",
     description: "Open the redesigned movable workspace when you want full layout power.",
-    presetId: isMath ? "math-graph-lab" : isChemistry ? "chem-full-studio" : isHistory ? "history-full-studio" : "split-study",
+    presetId: isMath
+      ? "math-graph-lab"
+      : isChemistry
+        ? "chem-full-studio"
+        : isHistory
+          ? "history-full-studio"
+          : "split-study",
     presentation: "facelift-canvas",
     recommendedFor: "all",
   });
@@ -2216,7 +2432,12 @@ export function validateDesignedLayout({
         `${moduleId} is too small: ${frame.w}x${frame.h}, needs at least ${minimum.width}x${minimum.height}.`,
       );
     }
-    if (frame.x < 0 || frame.y < 0 || frame.x + frame.w > viewport.width || frame.y + frame.h > viewport.height) {
+    if (
+      frame.x < 0 ||
+      frame.y < 0 ||
+      frame.x + frame.w > viewport.width ||
+      frame.y + frame.h > viewport.height
+    ) {
       errors.push(`${moduleId} is offscreen.`);
     }
   });
@@ -2229,7 +2450,12 @@ export function validateDesignedLayout({
     });
   });
 
-  if (hasBottomStrip(visibleFrames.map((entry) => entry.frame), viewport)) {
+  if (
+    hasBottomStrip(
+      visibleFrames.map((entry) => entry.frame),
+      viewport,
+    )
+  ) {
     errors.push("Layout created a bottom strip of unreadable helper modules.");
   }
 

@@ -11,8 +11,7 @@ export type MathSuggestion = {
 
 const graphPattern =
   /\b(?:y\s*=|f\s*\(\s*x\s*\)\s*=|sin\s*\(\s*x\s*\)|cos\s*\(\s*x\s*\)|tan\s*\(\s*x\s*\)|x\s*\^|\bsqrt\s*\(\s*x)/i;
-const latexPattern =
-  /(\\(?:frac|sqrt|int|sum|lim|theta|pi|alpha|beta)|\b(?:int|lim|sum|theta|pi)\b|[_^]\{)/i;
+const latexPattern = /(\\(?:frac|sqrt|int|sum|lim|theta|pi|alpha|beta)|\b(?:int|lim|sum|theta|pi)\b|[_^]\{)/i;
 
 export function detectMathSuggestions(
   content: JSONContent,
@@ -93,9 +92,7 @@ function normalizeKey(value: string) {
 function extractGraphExpression(line: string) {
   const explicitEquation = line.match(/(?:y\s*=|f\s*\(\s*x\s*\)\s*=)[^,.;]+/i)?.[0];
   if (explicitEquation) {
-    return explicitEquation
-      .split(/\s+(?:and|for|in|with|when|then|because)\b/i)[0]
-      .trim();
+    return explicitEquation.split(/\s+(?:and|for|in|with|when|then|because)\b/i)[0].trim();
   }
 
   if (graphPattern.test(line)) {

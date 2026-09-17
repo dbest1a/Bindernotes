@@ -19,7 +19,11 @@ function findCoefficient(formula: string, formulas: string[], coefficients: numb
 
 export function solveStoichiometryProblem(input: StoichiometryProblemInput): StoichiometrySolution {
   if (!Number.isFinite(input.given.quantity) || input.given.quantity <= 0) {
-    return { ok: false, code: "INVALID_QUANTITY", message: "Given quantity must be finite and greater than zero." };
+    return {
+      ok: false,
+      code: "INVALID_QUANTITY",
+      message: "Given quantity must be finite and greater than zero.",
+    };
   }
   const significantFigures = input.significantFigures ?? 4;
   if (!Number.isInteger(significantFigures) || significantFigures < 1 || significantFigures > 15) {
@@ -54,14 +58,21 @@ export function solveStoichiometryProblem(input: StoichiometryProblemInput): Sto
   const givenMoles =
     input.given.unit === "mol" ? input.given.quantity : input.given.quantity / givenMolarMass.gramsPerMole;
   const targetMoles = givenMoles * (targetCoefficient / givenCoefficient);
-  const targetValue =
-    input.target.unit === "mol" ? targetMoles : targetMoles * targetMolarMass.gramsPerMole;
+  const targetValue = input.target.unit === "mol" ? targetMoles : targetMoles * targetMolarMass.gramsPerMole;
   if (![givenMoles, targetMoles, targetValue].every((value) => Number.isFinite(value) && value > 0)) {
-    return { ok: false, code: "INVALID_QUANTITY", message: "The calculated quantity is outside the supported numeric range." };
+    return {
+      ok: false,
+      code: "INVALID_QUANTITY",
+      message: "The calculated quantity is outside the supported numeric range.",
+    };
   }
   const roundedValue = roundToSigFigs(targetValue, significantFigures);
   if (!Number.isFinite(roundedValue) || roundedValue <= 0) {
-    return { ok: false, code: "INVALID_QUANTITY", message: "The rounded quantity is outside the supported numeric range." };
+    return {
+      ok: false,
+      code: "INVALID_QUANTITY",
+      message: "The rounded quantity is outside the supported numeric range.",
+    };
   }
 
   const steps: StoichiometryStepSummary[] = [
@@ -154,10 +165,14 @@ export function checkStoichiometryAttempt(input: {
     mistakeTags.push("sig_fig_error");
   }
 
-  const validFinalAnswer = typeof input.submitted.finalAnswer === "number" && Number.isFinite(input.submitted.finalAnswer) && input.submitted.finalAnswer >= 0;
+  const validFinalAnswer =
+    typeof input.submitted.finalAnswer === "number" &&
+    Number.isFinite(input.submitted.finalAnswer) &&
+    input.submitted.finalAnswer >= 0;
   if (!validFinalAnswer) mistakeTags.push("invalid_numeric_answer");
   if (solution.ok && validFinalAnswer && input.submitted.finalAnswer !== undefined) {
-    const relativeError = Math.abs(input.submitted.finalAnswer - solution.finalAnswer.value) / solution.finalAnswer.value;
+    const relativeError =
+      Math.abs(input.submitted.finalAnswer - solution.finalAnswer.value) / solution.finalAnswer.value;
     if (relativeError > 0.05 && !mistakeTags.includes("molar_mass_error")) {
       mistakeTags.push("molar_mass_error");
     }

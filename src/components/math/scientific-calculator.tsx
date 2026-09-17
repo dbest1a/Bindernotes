@@ -94,7 +94,8 @@ export function ScientificCalculator({
           value={expression}
         />
         <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          Function notation is supported for graphing and saved reusable functions like <code>f(x)=x^2+1</code>.
+          Function notation is supported for graphing and saved reusable functions like{" "}
+          <code>f(x)=x^2+1</code>.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
           <div>
@@ -191,7 +192,8 @@ export function ScientificCalculator({
           ))}
           {savedFunctions.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/70 bg-secondary/40 p-4 text-sm leading-6 text-muted-foreground">
-              Save reusable functions by evaluating entries like <code>f(x)=x^2+1</code> or <code>g(x)=sin(x)</code>.
+              Save reusable functions by evaluating entries like <code>f(x)=x^2+1</code> or{" "}
+              <code>g(x)=sin(x)</code>.
             </div>
           ) : null}
         </div>
@@ -220,11 +222,21 @@ export function ScientificCalculator({
                 <p className="mt-1 text-lg font-semibold tracking-tight">{item.result}</p>
               </button>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button onClick={() => onReuseExpression(item.expression)} size="sm" type="button" variant="outline">
+                <Button
+                  onClick={() => onReuseExpression(item.expression)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   Reuse
                 </Button>
                 {item.kind === "value" ? (
-                  <Button onClick={() => onSendFunctionToGraph(item.expression)} size="sm" type="button" variant="outline">
+                  <Button
+                    onClick={() => onSendFunctionToGraph(item.expression)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <FunctionSquare data-icon="inline-start" />
                     Graph
                   </Button>
@@ -249,11 +261,7 @@ export function ScientificCalculator({
     return <div>{content}</div>;
   }
 
-  return (
-    <section className="page-shell p-5">
-      {content}
-    </section>
-  );
+  return <section className="page-shell p-5">{content}</section>;
 }
 
 function handleKey(
@@ -288,15 +296,7 @@ function handleKey(
   controls.onAppendToken(value);
 }
 
-function Toggle({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function Toggle({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
       className={cn(

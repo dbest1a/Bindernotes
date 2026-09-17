@@ -53,36 +53,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const captured = sessionRef.current;
     if (!captured || !isSupabaseConfigured) return;
     const generation = ++validationGenerationRef.current;
-    const isCurrent = () => mountedRef.current && validationGenerationRef.current === generation &&
-      sessionRef.current?.user.id === captured.user.id && sessionRef.current?.access_token === captured.access_token;
+    const isCurrent = () =>
+      mountedRef.current &&
+      validationGenerationRef.current === generation &&
+      sessionRef.current?.user.id === captured.user.id &&
+      sessionRef.current?.access_token === captured.access_token;
     try {
-      const supabase = await loadSupabaseClient(); if (!supabase || !isCurrent()) return;
+      const supabase = await loadSupabaseClient();
+      if (!supabase || !isCurrent()) return;
       const { data, error } = await supabase.rpc("get_account_session_status");
       if (!isCurrent()) return;
-      if (error || !["active", "deleting", "revoked"].includes(String(data))) throw new Error("Session status unavailable");
+      if (error || !["active", "deleting", "revoked"].includes(String(data)))
+        throw new Error("Session status unavailable");
       if (data === "revoked") {
         // Retire the captured UI identity only. A background SDK signOut could
         // otherwise race a new account sign-in and clear that newer session.
         // The revoked credential cannot read/write; refresh will reject it too.
         revokedTokenRef.current = captured.access_token;
         hydrationGenerationRef.current += 1;
-        sessionRef.current = null; profileRef.current = null;
-        saveQueue.setAccount(null); setSession(null); setProfile(null); setIsLoading(false);
-        setSessionCheckMessage("Your session ended. Sign in again. Unsaved drafts are retained on this device.");
+        sessionRef.current = null;
+        profileRef.current = null;
+        saveQueue.setAccount(null);
+        setSession(null);
+        setProfile(null);
+        setIsLoading(false);
+        setSessionCheckMessage(
+          "Your session ended. Sign in again. Unsaved drafts are retained on this device.",
+        );
       } else if (data === "deleting") {
-        hydrationGenerationRef.current += 1; profileRef.current = null; setProfile(null); setIsLoading(false);
-        setSessionCheckMessage("Your account deletion is pending. Open Account to retry removing the remaining data.");
+        hydrationGenerationRef.current += 1;
+        profileRef.current = null;
+        setProfile(null);
+        setIsLoading(false);
+        setSessionCheckMessage(
+          "Your account deletion is pending. Open Account to retry removing the remaining data.",
+        );
       } else setSessionCheckMessage(null);
     } catch {
-      if (isCurrent()) setSessionCheckMessage("Your session could not be checked. Reconnect and retry; your drafts are retained.");
+      if (isCurrent())
+        setSessionCheckMessage(
+          "Your session could not be checked. Reconnect and retry; your drafts are retained.",
+        );
     }
   }, []);
   useEffect(() => {
     mountedRef.current = true;
-    const focus = () => { void validateSession(); };
-    const visibility = () => { if (document.visibilityState === "visible") void validateSession(); };
-    window.addEventListener("focus", focus); window.addEventListener(AUTH_SESSION_VALIDATION_EVENT, focus); document.addEventListener("visibilitychange", visibility);
-    return () => { mountedRef.current = false; validationGenerationRef.current += 1; window.removeEventListener("focus", focus); window.removeEventListener(AUTH_SESSION_VALIDATION_EVENT, focus); document.removeEventListener("visibilitychange", visibility); };
+    const focus = () => {
+      void validateSession();
+    };
+    const visibility = () => {
+      if (document.visibilityState === "visible") void validateSession();
+    };
+    window.addEventListener("focus", focus);
+    window.addEventListener(AUTH_SESSION_VALIDATION_EVENT, focus);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      mountedRef.current = false;
+      validationGenerationRef.current += 1;
+      window.removeEventListener("focus", focus);
+      window.removeEventListener(AUTH_SESSION_VALIDATION_EVENT, focus);
+      document.removeEventListener("visibilitychange", visibility);
+    };
   }, [validateSession]);
 
   useEffect(() => {
@@ -116,7 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          if (nextSession?.access_token && nextSession.access_token === revokedTokenRef.current) nextSession = null;
+          if (nextSession?.access_token && nextSession.access_token === revokedTokenRef.current)
+            nextSession = null;
           const currentUserId = sessionRef.current?.user?.id ?? null;
           const nextUserId = nextSession?.user?.id ?? null;
           const userChanged = currentUserId !== nextUserId;
@@ -124,7 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const shouldBlock = userChanged || !hasCurrentProfile || options?.foreground;
           const generation = ++hydrationGenerationRef.current;
           const isCurrent = () =>
-            active && generation === hydrationGenerationRef.current &&
+            active &&
+            generation === hydrationGenerationRef.current &&
             sessionRef.current?.user?.id === nextUserId;
 
           saveQueue.setAccount(nextUserId);
@@ -266,7 +299,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile: profile?.id === session?.user.id ? profile : null,
       isConfigured: isSupabaseConfigured,
       isLoading,
-      validateSession, sessionCheckMessage,
+      validateSession,
+      sessionCheckMessage,
       signIn: async (email, password) => {
         const supabase = await loadSupabaseClient();
         if (!supabase) {
@@ -369,7 +403,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
           signingOutRef.current = false;
           const currentUserId = sessionRef.current?.user.id ?? null;
-          if (!currentUserId || currentUserId === departingUserId || profileRef.current?.id === currentUserId) {
+          if (
+            !currentUserId ||
+            currentUserId === departingUserId ||
+            profileRef.current?.id === currentUserId
+          ) {
             setIsLoading(false);
           }
         }

@@ -16,7 +16,13 @@ import type {
   PersonalNotesViewMode,
   PersonalNotesVisualStyle,
 } from "@/types";
-import { deriveBinderTitle, deriveLessonTitle, extractPlainText, getWorkspaceContainerFolder, getWorkspaceFolderIdForBinder } from "@/lib/workspace-records";
+import {
+  deriveBinderTitle,
+  deriveLessonTitle,
+  extractPlainText,
+  getWorkspaceContainerFolder,
+  getWorkspaceFolderIdForBinder,
+} from "@/lib/workspace-records";
 import { emptyDoc } from "@/lib/utils";
 
 const UNFILED_FOLDER = {
@@ -75,18 +81,83 @@ export type PersonalNotesFilterOptions = {
 
 export const personalNoteTemplates: PersonalNoteTemplate[] = [
   template("blank", "Blank note", "A clean page for quick thinking.", ""),
-  template("class-notes", "Class notes", "Topic, examples, questions, and next steps.", "Topic\n\nKey ideas\n\nExamples\n\nQuestions"),
-  template("math-notes", "Math notes", "Definitions, worked steps, and checks.", "Definition\n\nWorked example\n\nCommon mistake\n\nCheck"),
-  template("formula-sheet", "Formula sheet", "Formula, variables, when to use it, and a sample.", "Formula\n\nVariables\n\nUse when\n\nExample", ["math"]),
-  template("proof-outline", "Proof outline", "Claim, givens, strategy, and proof steps.", "Claim\n\nGiven\n\nStrategy\n\nSteps"),
-  template("problem-solving-log", "Problem-solving log", "Problem, setup, attempts, and reflection.", "Problem\n\nSetup\n\nAttempts\n\nReflection"),
-  template("history-evidence", "History evidence note", "Claim, evidence, source context, and reliability.", "Claim\n\nEvidence\n\nSource context\n\nReliability", ["history"]),
-  template("essay-argument", "Essay argument plan", "Thesis, reasons, evidence, and counterpoint.", "Thesis\n\nReason 1\n\nReason 2\n\nCounterpoint"),
-  template("reading-summary", "Reading summary", "Main idea, supporting points, and questions.", "Main idea\n\nSupporting points\n\nQuestions"),
-  template("research-note", "Research note", "Question, source, useful details, and follow-up.", "Question\n\nSource\n\nUseful details\n\nFollow-up", ["research"]),
-  template("review-checklist", "Review checklist", "Items to revisit before a quiz, paper, or study session.", "Review later\n\n- Key idea\n- Example\n- Question", ["review-later"]),
-  template("class-recap", "Meeting/class recap", "People, decisions, questions, and next actions.", "Context\n\nWhat changed\n\nQuestions\n\nNext actions"),
-  template("flashcard-seed", "Flashcard seed note", "Seed facts, terms, and prompts for later review.", "Terms\n\nPrompts\n\nAnswers\n\nReview later", ["review-later"]),
+  template(
+    "class-notes",
+    "Class notes",
+    "Topic, examples, questions, and next steps.",
+    "Topic\n\nKey ideas\n\nExamples\n\nQuestions",
+  ),
+  template(
+    "math-notes",
+    "Math notes",
+    "Definitions, worked steps, and checks.",
+    "Definition\n\nWorked example\n\nCommon mistake\n\nCheck",
+  ),
+  template(
+    "formula-sheet",
+    "Formula sheet",
+    "Formula, variables, when to use it, and a sample.",
+    "Formula\n\nVariables\n\nUse when\n\nExample",
+    ["math"],
+  ),
+  template(
+    "proof-outline",
+    "Proof outline",
+    "Claim, givens, strategy, and proof steps.",
+    "Claim\n\nGiven\n\nStrategy\n\nSteps",
+  ),
+  template(
+    "problem-solving-log",
+    "Problem-solving log",
+    "Problem, setup, attempts, and reflection.",
+    "Problem\n\nSetup\n\nAttempts\n\nReflection",
+  ),
+  template(
+    "history-evidence",
+    "History evidence note",
+    "Claim, evidence, source context, and reliability.",
+    "Claim\n\nEvidence\n\nSource context\n\nReliability",
+    ["history"],
+  ),
+  template(
+    "essay-argument",
+    "Essay argument plan",
+    "Thesis, reasons, evidence, and counterpoint.",
+    "Thesis\n\nReason 1\n\nReason 2\n\nCounterpoint",
+  ),
+  template(
+    "reading-summary",
+    "Reading summary",
+    "Main idea, supporting points, and questions.",
+    "Main idea\n\nSupporting points\n\nQuestions",
+  ),
+  template(
+    "research-note",
+    "Research note",
+    "Question, source, useful details, and follow-up.",
+    "Question\n\nSource\n\nUseful details\n\nFollow-up",
+    ["research"],
+  ),
+  template(
+    "review-checklist",
+    "Review checklist",
+    "Items to revisit before a quiz, paper, or study session.",
+    "Review later\n\n- Key idea\n- Example\n- Question",
+    ["review-later"],
+  ),
+  template(
+    "class-recap",
+    "Meeting/class recap",
+    "People, decisions, questions, and next actions.",
+    "Context\n\nWhat changed\n\nQuestions\n\nNext actions",
+  ),
+  template(
+    "flashcard-seed",
+    "Flashcard seed note",
+    "Seed facts, terms, and prompts for later review.",
+    "Terms\n\nPrompts\n\nAnswers\n\nReview later",
+    ["review-later"],
+  ),
 ];
 
 export const defaultPersonalNotesPreferences: PersonalNotesPreferences = {
@@ -143,8 +214,10 @@ export function buildPersonalNotesEntries(input: {
   const binderLinked = input.learnerNotes.map((note): PersonalNotesEntry => {
     const binder = bindersById.get(note.binder_id) ?? null;
     const lesson = lessonsById.get(note.lesson_id) ?? null;
-    const explicitFolder = note.folder_id ? foldersById.get(note.folder_id) ?? null : null;
-    const derivedFolder = binder ? getWorkspaceContainerFolder(getWorkspaceFolderIdForBinder(binder), note.owner_id) : null;
+    const explicitFolder = note.folder_id ? (foldersById.get(note.folder_id) ?? null) : null;
+    const derivedFolder = binder
+      ? getWorkspaceContainerFolder(getWorkspaceFolderIdForBinder(binder), note.owner_id)
+      : null;
     const folder = explicitFolder ?? derivedFolder ?? UNFILED_FOLDER;
     const binderTitle = binder
       ? deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])
@@ -192,7 +265,7 @@ export function buildPersonalNotesEntries(input: {
   const looseNotes = input.personalNotes
     .filter((note) => !note.archived_at)
     .map((note): PersonalNotesEntry => {
-      const notebookBinder = note.binder_id ? personalBindersById.get(note.binder_id) ?? null : null;
+      const notebookBinder = note.binder_id ? (personalBindersById.get(note.binder_id) ?? null) : null;
       const folder = resolvePersonalFolder(note.folder_id, notebookBinder, foldersById);
       const excerpt = buildExcerpt(note.content);
 
@@ -350,7 +423,11 @@ export function getPersonalNoteHealth(
     signals.push({ id: "unsaved", label: "Unsaved changes", tone: "warning" });
   }
 
-  signals.push({ id: "saved-at", label: `Last saved ${formatRelativeDate(entry.updated_at)}`, tone: "neutral" });
+  signals.push({
+    id: "saved-at",
+    label: `Last saved ${formatRelativeDate(entry.updated_at)}`,
+    tone: "neutral",
+  });
   return signals;
 }
 
@@ -461,17 +538,16 @@ export function savePersonalNotesPreferences(
   }
 
   const normalized = normalizePersonalNotesPreferences(preferences);
-  window.localStorage.setItem(
-    preferencesStorageKey(userId),
-    JSON.stringify(normalized),
-  );
+  window.localStorage.setItem(preferencesStorageKey(userId), JSON.stringify(normalized));
   window.queueMicrotask(() => {
-    window.dispatchEvent(new CustomEvent(personalNotesPreferencesUpdatedEvent, {
-      detail: {
-        preferences: normalized,
-        userId,
-      },
-    }));
+    window.dispatchEvent(
+      new CustomEvent(personalNotesPreferencesUpdatedEvent, {
+        detail: {
+          preferences: normalized,
+          userId,
+        },
+      }),
+    );
   });
 }
 
@@ -514,10 +590,9 @@ export function normalizePersonalNotesPreferences(
       typeof value?.showSideMonitorTags === "boolean"
         ? value.showSideMonitorTags
         : defaultPersonalNotesPreferences.showSideMonitorTags,
-    organizeCardOrder:
-      Array.isArray(value?.organizeCardOrder)
-        ? value.organizeCardOrder.filter((id): id is string => typeof id === "string")
-        : defaultPersonalNotesPreferences.organizeCardOrder,
+    organizeCardOrder: Array.isArray(value?.organizeCardOrder)
+      ? value.organizeCardOrder.filter((id): id is string => typeof id === "string")
+      : defaultPersonalNotesPreferences.organizeCardOrder,
     sidebarNavigationMode: normalizeSidebarNavigationMode(value?.sidebarNavigationMode),
     rememberNotebookContext:
       typeof value?.rememberNotebookContext === "boolean"
@@ -531,8 +606,7 @@ export function normalizePersonalNotesPreferences(
       typeof value?.fullscreenFocusEnabled === "boolean"
         ? value.fullscreenFocusEnabled
         : defaultPersonalNotesPreferences.fullscreenFocusEnabled,
-    defaultFocusBehavior:
-      value?.defaultFocusBehavior === "fullscreen" ? "fullscreen" : "focus",
+    defaultFocusBehavior: value?.defaultFocusBehavior === "fullscreen" ? "fullscreen" : "focus",
     annotatorTools: normalizeAnnotatorTools(value?.annotatorTools),
     showAnnotationColorFilter:
       typeof value?.showAnnotationColorFilter === "boolean"
@@ -549,11 +623,8 @@ export function normalizePersonalNotesPreferences(
     canvasSafeEdgePadding:
       typeof value?.canvasSafeEdgePadding === "boolean" ? value.canvasSafeEdgePadding : true,
     canvasSnapMode:
-      value?.canvasSnapMode === "off" || value?.canvasSnapMode === "modules"
-        ? value.canvasSnapMode
-        : "edges",
-    mobileCanvasBehavior:
-      value?.mobileCanvasBehavior === "simplified" ? "simplified" : "module-switcher",
+      value?.canvasSnapMode === "off" || value?.canvasSnapMode === "modules" ? value.canvasSnapMode : "edges",
+    mobileCanvasBehavior: value?.mobileCanvasBehavior === "simplified" ? "simplified" : "module-switcher",
     focusMode: Boolean(value?.focusMode),
   };
 }
@@ -634,7 +705,9 @@ function buildSearchText(parts: Array<string | undefined | null>) {
   return normalize(parts.filter(Boolean).join(" "));
 }
 
-function extractSourceMarkerReferences(content: PersonalNotesEntry["content"]): PersonalNoteSourceReference[] {
+function extractSourceMarkerReferences(
+  content: PersonalNotesEntry["content"],
+): PersonalNoteSourceReference[] {
   const references: PersonalNoteSourceReference[] = [];
   const visit = (node: unknown) => {
     if (!isRecord(node)) {

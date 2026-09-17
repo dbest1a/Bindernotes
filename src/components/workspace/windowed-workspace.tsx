@@ -25,10 +25,18 @@ import {
   getWorkspaceModuleMinimumSize,
   type WorkspaceSnapGuide,
 } from "@/lib/workspace-layout-engine";
-import { recordWhiteboardPerformanceDiagnostic, setWorkspaceMovementActive } from "@/lib/whiteboard-performance-diagnostics";
+import {
+  recordWhiteboardPerformanceDiagnostic,
+  setWorkspaceMovementActive,
+} from "@/lib/whiteboard-performance-diagnostics";
 import { resolveVerticalWorkspaceMetrics } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
-import type { WorkspaceModuleId, WorkspacePreferences, WorkspacePresetId, WorkspaceWindowFrame } from "@/types";
+import type {
+  WorkspaceModuleId,
+  WorkspacePreferences,
+  WorkspacePresetId,
+  WorkspaceWindowFrame,
+} from "@/types";
 
 const EDIT_LAYOUT_HINT_DURATION_MS = 30_000;
 
@@ -87,8 +95,7 @@ export function WindowedWorkspace({
   const pendingSnapGuidesRef = useRef<WorkspaceSnapGuide[] | null>(null);
   const snapGuidesRafRef = useRef<number | null>(null);
   const isFaceliftCanvas =
-    preferences.workspacePresentationMode === "facelift" &&
-    preferences.facelift.surfaceMode === "canvas";
+    preferences.workspacePresentationMode === "facelift" && preferences.facelift.surfaceMode === "canvas";
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [draftCanvasHeight, setDraftCanvasHeight] = useState(preferences.canvas.canvasHeight);
   const [snapGuides, setSnapGuides] = useState<WorkspaceSnapGuide[]>([]);
@@ -154,8 +161,7 @@ export function WindowedWorkspace({
     return () => window.clearTimeout(timeoutId);
   }, [isFaceliftCanvas, mode]);
 
-  const isCanvasReworkCustomLayout =
-    canvasReworkEnabled && preferences.canvas.layoutSource === "custom";
+  const isCanvasReworkCustomLayout = canvasReworkEnabled && preferences.canvas.layoutSource === "custom";
   const shouldLockSplitCanvasToViewport =
     mode === "study" &&
     preferences.locked &&
@@ -170,8 +176,7 @@ export function WindowedWorkspace({
   );
   const getRenderFrame = useCallback(
     (moduleId: WorkspaceModuleId) =>
-      splitStudyViewportLayout?.[moduleId] ??
-      preferences.windowLayout[moduleId],
+      splitStudyViewportLayout?.[moduleId] ?? preferences.windowLayout[moduleId],
     [preferences.windowLayout, splitStudyViewportLayout],
   );
 
@@ -191,10 +196,7 @@ export function WindowedWorkspace({
     () => preferences.enabledModules.filter((moduleId) => preferences.moduleLayout[moduleId]?.collapsed),
     [preferences.enabledModules, preferences.moduleLayout],
   );
-  const allModuleIds = useMemo(
-    () => Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[],
-    [],
-  );
+  const allModuleIds = useMemo(() => Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[], []);
   const isJacobMathCanvasContext = useMemo(
     () => canvasStarterLayouts && isJacobMathContext(context),
     [canvasStarterLayouts, context],
@@ -218,9 +220,7 @@ export function WindowedWorkspace({
   );
   const frames = useMemo(
     () =>
-      Array.from(frameByModuleId.values()).filter(
-        (frame): frame is WorkspaceWindowFrame => Boolean(frame),
-      ),
+      Array.from(frameByModuleId.values()).filter((frame): frame is WorkspaceWindowFrame => Boolean(frame)),
     [frameByModuleId],
   );
   const peerFramesByModuleId = useMemo(() => {
@@ -253,10 +253,7 @@ export function WindowedWorkspace({
   const shouldLockCanvasToViewport = shouldLockSplitCanvasToViewport;
   const canvasWidth = shouldLockCanvasToViewport
     ? Math.max(viewportSize.width > 0 ? viewportSize.width : 0, frameBounds.maxX)
-    : Math.max(
-        viewportSize.width > 0 ? viewportSize.width : 0,
-        frameBounds.maxX + 8,
-      );
+    : Math.max(viewportSize.width > 0 ? viewportSize.width : 0, frameBounds.maxX + 8);
   const canvasHeight = shouldLockCanvasToViewport
     ? Math.max(viewportSize.height > 0 ? viewportSize.height : 0, frameBounds.maxY)
     : Math.max(
@@ -265,16 +262,14 @@ export function WindowedWorkspace({
         viewportSize.height > 0 ? verticalMetrics.canvasFloor : 0,
         frameBounds.maxY + verticalMetrics.canvasPadding,
       );
-  const canvasWidthStyle = shouldLockCanvasToViewport
-    ? `${canvasWidth}px`
-    : "100%";
+  const canvasWidthStyle = shouldLockCanvasToViewport ? `${canvasWidth}px` : "100%";
   const topZ = Math.max(1, ...frames.map((frame) => frame?.z ?? 1));
   const selectedFrame = selectedModuleId ? preferences.windowLayout[selectedModuleId] : null;
   const selectedModule = selectedModuleId ? workspaceModuleRegistry[selectedModuleId] : null;
   const activeMobileModule =
     activeMobileModuleId && visibleModules.includes(activeMobileModuleId)
       ? activeMobileModuleId
-      : visibleModules[0] ?? null;
+      : (visibleModules[0] ?? null);
   const isMobileCanvasRework = canvasReworkEnabled && viewportSize.width > 0 && viewportSize.width < 700;
   const snapBehavior =
     preferences.canvas.snapBehavior !== "off"
@@ -311,7 +306,9 @@ export function WindowedWorkspace({
       snapGuidesRafRef.current = null;
       const nextGuides = pendingSnapGuidesRef.current ?? [];
       pendingSnapGuidesRef.current = null;
-      setSnapGuides((currentGuides) => (snapGuidesEqual(currentGuides, nextGuides) ? currentGuides : nextGuides));
+      setSnapGuides((currentGuides) =>
+        snapGuidesEqual(currentGuides, nextGuides) ? currentGuides : nextGuides,
+      );
     });
   }, []);
 
@@ -319,10 +316,13 @@ export function WindowedWorkspace({
     (state: { active: boolean; mode: "move" | "resize"; moduleId: WorkspaceModuleId }) => {
       setMovingModuleId(state.active ? state.moduleId : null);
       setWorkspaceMovementActive(state.active);
-      recordWhiteboardPerformanceDiagnostic(state.active ? "whiteboard-drag-start" : "whiteboard-drag-commit", {
-        mode: state.mode,
-        moduleId: state.moduleId,
-      });
+      recordWhiteboardPerformanceDiagnostic(
+        state.active ? "whiteboard-drag-start" : "whiteboard-drag-commit",
+        {
+          mode: state.mode,
+          moduleId: state.moduleId,
+        },
+      );
     },
     [],
   );
@@ -376,7 +376,10 @@ export function WindowedWorkspace({
     commitSelectedFrame((currentFrame) => ({
       ...currentFrame,
       w: Math.max(minimum.width, selectedModuleId === "desmos-graph" ? 720 : minimum.width + 160),
-      h: Math.max(minimum.height, selectedModuleId === "lesson" || selectedModuleId === "private-notes" ? 640 : minimum.height + 120),
+      h: Math.max(
+        minimum.height,
+        selectedModuleId === "lesson" || selectedModuleId === "private-notes" ? 640 : minimum.height + 120,
+      ),
       z: topZ + 1,
     }));
   }, [commitSelectedFrame, selectedModuleId, topZ]);
@@ -396,11 +399,7 @@ export function WindowedWorkspace({
     const collapsed = collapsedModules.includes(moduleId);
     const visible = visibleModules.includes(moduleId);
     const title = module?.title ?? moduleId;
-    const actionLabel = collapsed
-      ? `Restore ${title}`
-      : visible
-        ? `Select ${title}`
-        : `Add ${title}`;
+    const actionLabel = collapsed ? `Restore ${title}` : visible ? `Select ${title}` : `Add ${title}`;
 
     return (
       <Button
@@ -481,11 +480,15 @@ export function WindowedWorkspace({
     <section
       className="flex min-h-0 w-full flex-1 flex-col gap-4"
       data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
-      data-facelift-density={preferences.workspacePresentationMode === "facelift" ? preferences.facelift.density : undefined}
+      data-facelift-density={
+        preferences.workspacePresentationMode === "facelift" ? preferences.facelift.density : undefined
+      }
       data-facelift-module-chrome={
         preferences.workspacePresentationMode === "facelift" ? preferences.facelift.moduleChrome : undefined
       }
-      data-facelift-surface={preferences.workspacePresentationMode === "facelift" ? preferences.facelift.surfaceMode : undefined}
+      data-facelift-surface={
+        preferences.workspacePresentationMode === "facelift" ? preferences.facelift.surfaceMode : undefined
+      }
       data-workspace-mode={mode}
       data-workspace-preset={preferences.preset}
       data-workspace-presentation={preferences.workspacePresentationMode}
@@ -499,7 +502,9 @@ export function WindowedWorkspace({
       data-beta-canvas-rework={canvasReworkEnabled ? "true" : "false"}
       data-beta-compact-excalidraw-tools={compactExcalidrawToolsEnabled ? "true" : "false"}
       data-beta-desmos-v2={desmosV2Enabled ? "true" : "false"}
-      data-beta-whiteboard-performance-diagnostics={whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"}
+      data-beta-whiteboard-performance-diagnostics={
+        whiteboardPerformanceDiagnosticsEnabled ? "true" : "false"
+      }
       data-beta-whiteboard-smooth-move={whiteboardSmoothMoveEnabled ? "true" : "false"}
       data-canvas-layout-source={preferences.canvas.layoutSource}
       data-canvas-layout-scope={layoutScope}
@@ -628,17 +633,20 @@ export function WindowedWorkspace({
                   </p>
                   <p className="mt-1 text-sm font-semibold text-foreground">{selectedModule.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    x {Math.round(selectedFrame.x)} / y {Math.round(selectedFrame.y)} / w {Math.round(selectedFrame.w)} / h {Math.round(selectedFrame.h)}
+                    x {Math.round(selectedFrame.x)} / y {Math.round(selectedFrame.y)} / w{" "}
+                    {Math.round(selectedFrame.w)} / h {Math.round(selectedFrame.h)}
                   </p>
                 </div>
                 {canvasReworkEnabled ? (
                   <div className="canvas-rework-inspector-grid">
-                    {([
-                      ["x", "Selected module X"],
-                      ["y", "Selected module Y"],
-                      ["w", "Selected module width"],
-                      ["h", "Selected module height"],
-                    ] as const).map(([key, label]) => (
+                    {(
+                      [
+                        ["x", "Selected module X"],
+                        ["y", "Selected module Y"],
+                        ["w", "Selected module width"],
+                        ["h", "Selected module height"],
+                      ] as const
+                    ).map(([key, label]) => (
                       <label key={key}>
                         <span>{key.toUpperCase()}</span>
                         <input
@@ -753,13 +761,15 @@ export function WindowedWorkspace({
                   title="Build your study workspace"
                 />
                 <div className="canvas-rework-empty-state__actions">
-                  {([
-                    ["split-study", "Start with Source + Notes"],
-                    ["math-study", "Start with Math workspace"],
-                    ["math-graph-lab", "Start with Graph Lab"],
-                    ["math-practice-mode", "Start with Whiteboard"],
-                    ["history-source-evidence", "Start with History Evidence"],
-                  ] as Array<[WorkspacePresetId, string]>).map(([presetId, label]) => (
+                  {(
+                    [
+                      ["split-study", "Start with Source + Notes"],
+                      ["math-study", "Start with Math workspace"],
+                      ["math-graph-lab", "Start with Graph Lab"],
+                      ["math-practice-mode", "Start with Whiteboard"],
+                      ["history-source-evidence", "Start with History Evidence"],
+                    ] as Array<[WorkspacePresetId, string]>
+                  ).map(([presetId, label]) => (
                     <Button
                       key={presetId}
                       onClick={() => onApplyStarterPreset?.(presetId)}
@@ -808,7 +818,10 @@ export function WindowedWorkspace({
               "workspace-canvas relative",
               `workspace-canvas--${preferences.theme.backgroundStyle}`,
               mode === "setup" && "workspace-canvas--setup",
-              canvasReworkEnabled && mode === "setup" && preferences.canvas.gridEnabled && "workspace-canvas--grid-enabled",
+              canvasReworkEnabled &&
+                mode === "setup" &&
+                preferences.canvas.gridEnabled &&
+                "workspace-canvas--grid-enabled",
             )}
             style={{
               height: canvasHeight,

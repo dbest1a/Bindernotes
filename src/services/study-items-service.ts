@@ -1,7 +1,4 @@
-import {
-  scheduleStudyItemReview,
-  type StudyReviewRating,
-} from "@/lib/study-scheduler";
+import { scheduleStudyItemReview, type StudyReviewRating } from "@/lib/study-scheduler";
 import { readJsonArray, writeJsonArray } from "@/lib/safe-json-storage";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -17,7 +14,8 @@ export type StudyItemType =
   | "numeric_problem"
   | "multiple_choice";
 
-export type StudyItemSourceKind = "note" | "highlight" | "formula" | "theorem" | "problem" | "mistake" | "graph" | "manual";
+export type StudyItemSourceKind =
+  "note" | "highlight" | "formula" | "theorem" | "problem" | "mistake" | "graph" | "manual";
 
 export type StudyItemStatus = "due" | "upcoming" | "difficult" | "mastered";
 
@@ -139,7 +137,10 @@ export function buildStudyItem(input: CreateStudyItemInput): StudyItem {
 /** Legacy browser format, retained for explicit migration and existing device backups. */
 export function createStudyItem(input: CreateStudyItemInput, storage = defaultStorage()): StudyItem {
   const item = buildStudyItem(input);
-  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), [item, ...listStudyItems(input.ownerId, storage)]);
+  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), [
+    item,
+    ...listStudyItems(input.ownerId, storage),
+  ]);
   return item;
 }
 
@@ -147,7 +148,9 @@ export function recordStudyReviewEvent(input: RecordStudyReviewInput, storage = 
   assertReviewQueueBetaEnabled(input.betaEnabled);
   const now = input.now ?? new Date();
   const items = listStudyItems(input.ownerId, storage);
-  const item = items.find((candidate) => candidate.id === input.itemId && candidate.owner_id === input.ownerId);
+  const item = items.find(
+    (candidate) => candidate.id === input.itemId && candidate.owner_id === input.ownerId,
+  );
   if (!item) {
     throw new Error("Study item was not found for this account.");
   }
@@ -165,10 +168,11 @@ export function recordStudyReviewEvent(input: RecordStudyReviewInput, storage = 
   };
   const nextItems = items.map((candidate) => (candidate.id === updatedItem.id ? updatedItem : candidate));
   writeJsonArray(storage, studyItemsStorageKey(input.ownerId), nextItems);
-  writeJsonArray(storage, studyReviewEventsStorageKey(input.ownerId), [
-    event,
-    ...listStudyReviewEvents(input.ownerId, storage),
-  ].slice(0, 500));
+  writeJsonArray(
+    storage,
+    studyReviewEventsStorageKey(input.ownerId),
+    [event, ...listStudyReviewEvents(input.ownerId, storage)].slice(0, 500),
+  );
 
   return { event, item: updatedItem };
 }

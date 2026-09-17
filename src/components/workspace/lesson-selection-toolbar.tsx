@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpenText, Eraser, MessageSquareText, Quote, Scale, Send, Sparkles, StickyNote } from "lucide-react";
+import {
+  BookOpenText,
+  Eraser,
+  MessageSquareText,
+  Quote,
+  Scale,
+  Send,
+  Sparkles,
+  StickyNote,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -161,9 +170,7 @@ export function LessonSelectionToolbar({
   }
 
   const toolbarTransform =
-    selection.anchor.placement === "above"
-      ? "translate(-50%, calc(-100% - 12px))"
-      : "translate(-50%, 12px)";
+    selection.anchor.placement === "above" ? "translate(-50%, calc(-100% - 12px))" : "translate(-50%, 12px)";
 
   const runSelectionAction = (action: (currentSelection: LessonTextSelection) => void) => {
     const currentSelection = selectionRef.current?.selection ?? selection.selection;
@@ -228,10 +235,7 @@ export function LessonSelectionToolbar({
             onPointerDown={preserveSelection}
             onClick={() => {
               runSelectionAction((currentSelection) =>
-                onRemoveHighlight(
-                  currentSelection,
-                  selectionHighlightIds,
-                ),
+                onRemoveHighlight(currentSelection, selectionHighlightIds),
               );
             }}
             size="sm"
@@ -353,12 +357,7 @@ export function LessonSelectionToolbar({
               placeholder="Write a comment..."
               value={commentDraft}
             />
-            <Button
-              disabled={!commentDraft.trim()}
-              onClick={submitComment}
-              size="sm"
-              type="button"
-            >
+            <Button disabled={!commentDraft.trim()} onClick={submitComment} size="sm" type="button">
               Save comment
             </Button>
           </div>
@@ -455,9 +454,7 @@ function isRangeInsideRoot(range: Range, root: Element) {
 }
 
 function measureSelectionAnchor(range: Range): SelectionAnchor | null {
-  const clientRects = Array.from(range.getClientRects()).filter(
-    (rect) => rect.width > 0 || rect.height > 0,
-  );
+  const clientRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 || rect.height > 0);
   const primaryRect = clientRects
     .slice()
     .sort((left, right) => left.top - right.top || left.left - right.left)[0];
@@ -615,21 +612,20 @@ function getIntersectingHighlightIds(range: Range, containerSelector: string) {
     return [];
   }
 
-  return Array.from(root.querySelectorAll<HTMLElement>("[data-highlight-id]"))
-    .flatMap((element) => {
-      const highlightId = element.dataset.highlightId;
-      if (!highlightId) {
-        return [];
-      }
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-highlight-id]")).flatMap((element) => {
+    const highlightId = element.dataset.highlightId;
+    if (!highlightId) {
+      return [];
+    }
 
-      try {
-        return range.intersectsNode(element) ? [highlightId] : [];
-      } catch {
-        const elementRange = document.createRange();
-        elementRange.selectNodeContents(element);
-        return rangesIntersect(range, elementRange) ? [highlightId] : [];
-      }
-    });
+    try {
+      return range.intersectsNode(element) ? [highlightId] : [];
+    } catch {
+      const elementRange = document.createRange();
+      elementRange.selectNodeContents(element);
+      return rangesIntersect(range, elementRange) ? [highlightId] : [];
+    }
+  });
 }
 
 function rangesIntersect(left: Range, right: Range) {

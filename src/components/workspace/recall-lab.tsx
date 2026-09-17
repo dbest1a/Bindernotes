@@ -153,7 +153,9 @@ function updateCard(cards: RecallCard[], card: RecallCard) {
 }
 
 export function RecallLab(props: RecallLabProps) {
-  return <AccountRecallLab key={JSON.stringify([props.userId, props.binder.id, props.lesson.id])} {...props} />;
+  return (
+    <AccountRecallLab key={JSON.stringify([props.userId, props.binder.id, props.lesson.id])} {...props} />
+  );
 }
 
 function AccountRecallLab({
@@ -206,7 +208,11 @@ function AccountRecallLab({
     [acceptedCards, scope],
   );
   const activeCard =
-    cards.find((card) => card.id === activeCardId) ?? dueQueue[0] ?? acceptedCards[0] ?? draftCards[0] ?? null;
+    cards.find((card) => card.id === activeCardId) ??
+    dueQueue[0] ??
+    acceptedCards[0] ??
+    draftCards[0] ??
+    null;
   const health = useMemo(
     () => summarizeRecallHealth(cards, { lessonId: lesson.id, sessions }),
     [cards, lesson.id, sessions],
@@ -219,8 +225,15 @@ function AccountRecallLab({
   }, [binder.subject, subject]);
 
   const saveCards = (nextCards: RecallCard[]) => {
-    try { cloud.updateCards(nextCards); return true; }
-    catch (error) { setMessage(error instanceof Error ? error.message : "The draft could not be saved. Keep your source text."); return false; }
+    try {
+      cloud.updateCards(nextCards);
+      return true;
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "The draft could not be saved. Keep your source text.",
+      );
+      return false;
+    }
   };
 
   const addDrafts = (drafts: RecallCard[], success: string) => {
@@ -261,7 +274,8 @@ function AccountRecallLab({
   };
 
   const createHighlightDraft = () => {
-    const selectedHighlight = highlights.find((highlight) => highlight.id === selectedHighlightId) ?? highlights[0];
+    const selectedHighlight =
+      highlights.find((highlight) => highlight.id === selectedHighlightId) ?? highlights[0];
     const source: RecallSourceSeed | undefined = selectedHighlight
       ? {
           id: selectedHighlight.id,
@@ -362,8 +376,12 @@ function AccountRecallLab({
   const rateCard = (rating: RecallReviewRating) => {
     if (!activeCard || activeCard.draftStatus !== "accepted") return;
     let updated: RecallCard;
-    try { updated = cloud.rateCard(activeCard, rating); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Review could not be recorded."); return; }
+    try {
+      updated = cloud.rateCard(activeCard, rating);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Review could not be recorded.");
+      return;
+    }
     setActiveCardId(updated.id);
     setShowBack(false);
     setTypedAnswer("");
@@ -376,7 +394,10 @@ function AccountRecallLab({
     const now = new Date().toISOString();
     const updated: RecallCard = {
       ...activeCard,
-      missReasons: [...(activeCard.missReasons ?? []), { reason: missReason, note: missNote, createdAt: now }],
+      missReasons: [
+        ...(activeCard.missReasons ?? []),
+        { reason: missReason, note: missNote, createdAt: now },
+      ],
       status: missReason === "Did not understand source" ? "Source gap" : "Weak",
       updatedAt: now,
     };
@@ -424,7 +445,15 @@ function AccountRecallLab({
     );
   }
 
-  if (!userId) return <WorkspacePanel description="Source-linked active recall" title="Recall Lab"><EmptyState title="Sign in to use Recall Lab" description="Review cards and history belong to your account." /></WorkspacePanel>;
+  if (!userId)
+    return (
+      <WorkspacePanel description="Source-linked active recall" title="Recall Lab">
+        <EmptyState
+          title="Sign in to use Recall Lab"
+          description="Review cards and history belong to your account."
+        />
+      </WorkspacePanel>
+    );
 
   return (
     <WorkspacePanel description="Source-linked active recall" title="Recall Lab">
@@ -440,7 +469,12 @@ function AccountRecallLab({
             <p>Turn this lesson's highlights, notes, and source passages into source-linked recall cards.</p>
           </div>
           <div className="recall-lab__hero-actions">
-            <Button onClick={() => setFullSurface((current) => !current)} size="sm" type="button" variant="outline">
+            <Button
+              onClick={() => setFullSurface((current) => !current)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               <Eye className="size-4" />
               {fullSurface ? "Exit full surface" : "Full surface"}
             </Button>
@@ -453,10 +487,60 @@ function AccountRecallLab({
           </div>
         </header>
         <section className="grid gap-2 rounded-xl border p-3" aria-label="Recall account saving">
-          <p role="status">{cloud.loading ? "Loading account recall…" : cloud.error || cloud.states.some((state) => state.error) ? "Recall saving needs attention." : cloud.states.some((state) => state.dirty) ? "Review changes pending. Keep the device draft until account saving is confirmed." : "Recall work is saved to your account."}</p>
+          <p role="status">
+            {cloud.loading
+              ? "Loading account recall…"
+              : cloud.error || cloud.states.some((state) => state.error)
+                ? "Recall saving needs attention."
+                : cloud.states.some((state) => state.dirty)
+                  ? "Review changes pending. Keep the device draft until account saving is confirmed."
+                  : "Recall work is saved to your account."}
+          </p>
           {cloud.error && <p role="alert">{cloud.error}</p>}
-          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => void cloud.save()}>Save / retry recall</Button><Button type="button" variant="outline" onClick={cloud.refresh}>Refresh saved recall</Button></div>
-          {cloud.states.filter((state) => state.error).map((state) => <div key={state.cardId} className="grid gap-2" role="alert"><p>{state.error}</p>{state.state === "conflict" && <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => { void cloud.preserveCopy(state.cardId).catch((error) => setMessage(error instanceof Error ? error.message : "Recovery failed.")); }}>Save draft as new card</Button><Button type="button" variant="outline" onClick={() => { void cloud.useRemote(state.cardId).catch((error) => setMessage(error instanceof Error ? error.message : "Recovery failed.")); }}>Replace draft with saved card</Button></div>}</div>)}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => void cloud.save()}>
+              Save / retry recall
+            </Button>
+            <Button type="button" variant="outline" onClick={cloud.refresh}>
+              Refresh saved recall
+            </Button>
+          </div>
+          {cloud.states
+            .filter((state) => state.error)
+            .map((state) => (
+              <div key={state.cardId} className="grid gap-2" role="alert">
+                <p>{state.error}</p>
+                {state.state === "conflict" && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        void cloud
+                          .preserveCopy(state.cardId)
+                          .catch((error) =>
+                            setMessage(error instanceof Error ? error.message : "Recovery failed."),
+                          );
+                      }}
+                    >
+                      Save draft as new card
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        void cloud
+                          .useRemote(state.cardId)
+                          .catch((error) =>
+                            setMessage(error instanceof Error ? error.message : "Recovery failed."),
+                          );
+                      }}
+                    >
+                      Replace draft with saved card
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
           <ReviewMigrationPanel key={scopeKey} ownerId={userId} onImported={cloud.refresh} />
         </section>
 
@@ -476,7 +560,11 @@ function AccountRecallLab({
           ))}
         </div>
 
-        {message ? <div className="recall-lab__message" role="status">{message}</div> : null}
+        {message ? (
+          <div className="recall-lab__message" role="status">
+            {message}
+          </div>
+        ) : null}
 
         <div className="recall-lab__grid">
           <aside className="recall-lab__rail" aria-label="Source deck selector">
@@ -573,7 +661,9 @@ function AccountRecallLab({
                   Front
                   <Input
                     value={manualForm.front}
-                    onChange={(event) => setManualForm((current) => ({ ...current, front: event.target.value }))}
+                    onChange={(event) =>
+                      setManualForm((current) => ({ ...current, front: event.target.value }))
+                    }
                     placeholder="Question or prompt"
                   />
                 </label>
@@ -581,7 +671,9 @@ function AccountRecallLab({
                   Back
                   <Input
                     value={manualForm.back}
-                    onChange={(event) => setManualForm((current) => ({ ...current, back: event.target.value }))}
+                    onChange={(event) =>
+                      setManualForm((current) => ({ ...current, back: event.target.value }))
+                    }
                     placeholder="Answer or explanation"
                   />
                 </label>
@@ -607,7 +699,9 @@ function AccountRecallLab({
                   Tags
                   <Input
                     value={manualForm.tags}
-                    onChange={(event) => setManualForm((current) => ({ ...current, tags: event.target.value }))}
+                    onChange={(event) =>
+                      setManualForm((current) => ({ ...current, tags: event.target.value }))
+                    }
                     placeholder="comma, separated, tags"
                   />
                 </label>
@@ -687,7 +781,9 @@ function AccountRecallLab({
                 <Textarea
                   value={selectedNoteExcerpt}
                   onChange={(event) => setSelectedNoteExcerpt(event.target.value)}
-                  placeholder={noteText ? noteText.slice(0, 140) : "Choose a note excerpt to turn into a draft."}
+                  placeholder={
+                    noteText ? noteText.slice(0, 140) : "Choose a note excerpt to turn into a draft."
+                  }
                 />
               </label>
               <Button onClick={createNoteDraft} size="sm" type="button" variant="outline">
@@ -701,16 +797,18 @@ function AccountRecallLab({
                 <Badge variant="secondary">Review required</Badge>
               </div>
               {draftCards.length ? (
-                draftCards.slice(0, 8).map((card) => (
-                  <DraftReviewCard
-                    card={card}
-                    key={card.id}
-                    onAccept={() => acceptDraft(card)}
-                    onEdit={(patch) => editCard(card, patch)}
-                    onReject={() => setCardStatus(card, "Wrong")}
-                    onStatus={(status) => setCardStatus(card, status)}
-                  />
-                ))
+                draftCards
+                  .slice(0, 8)
+                  .map((card) => (
+                    <DraftReviewCard
+                      card={card}
+                      key={card.id}
+                      onAccept={() => acceptDraft(card)}
+                      onEdit={(patch) => editCard(card, patch)}
+                      onReject={() => setCardStatus(card, "Wrong")}
+                      onStatus={(status) => setCardStatus(card, status)}
+                    />
+                  ))
               ) : (
                 <p className="recall-lab__quiet">Drafts appear here before final cards are saved.</p>
               )}
@@ -837,7 +935,11 @@ function CurrentRecallCard({
             <Input value={typedAnswer} onChange={(event) => onTypedAnswerChange(event.target.value)} />
           </label>
           <p data-answer-match={answerIsCorrect ? "true" : "false"}>
-            {typedAnswer ? (answerIsCorrect ? "Text matches after trimming whitespace. Choose your own rating." : "Text differs. An equivalent answer may still be valid; compare it with the source.") : "Type your answer to compare text; this does not check mathematical equivalence."}
+            {typedAnswer
+              ? answerIsCorrect
+                ? "Text matches after trimming whitespace. Choose your own rating."
+                : "Text differs. An equivalent answer may still be valid; compare it with the source."
+              : "Type your answer to compare text; this does not check mathematical equivalence."}
           </p>
           <div className="recall-lab__button-row">
             <Button onClick={() => onRate("Good")} size="sm" type="button" variant="outline">
@@ -852,13 +954,21 @@ function CurrentRecallCard({
 
       {practiceMode === "Cloze" ? (
         <div className="recall-lab__practice-block">
-          <p>{activeCard.front.includes("{{") ? activeCard.front.replace(/\{\{.*?\}\}/g, "_____") : `${activeCard.front} _____`}</p>
+          <p>
+            {activeCard.front.includes("{{")
+              ? activeCard.front.replace(/\{\{.*?\}\}/g, "_____")
+              : `${activeCard.front} _____`}
+          </p>
           <label>
             Fill the blank
             <Input value={clozeAnswer} onChange={(event) => onClozeAnswerChange(event.target.value)} />
           </label>
           <p data-answer-match={clozeIsCorrect ? "true" : "false"}>
-            {clozeAnswer ? (clozeIsCorrect ? "Close match." : "Keep checking your source.") : "Write the hidden term or idea."}
+            {clozeAnswer
+              ? clozeIsCorrect
+                ? "Close match."
+                : "Keep checking your source."
+              : "Write the hidden term or idea."}
           </p>
         </div>
       ) : null}
@@ -869,7 +979,11 @@ function CurrentRecallCard({
             <p>Add more cards to use this mode.</p>
           ) : (
             multipleChoiceOptions.map((choice) => (
-              <button key={choice} onClick={() => onRate(choice === activeCard.back ? "Good" : "Again")} type="button">
+              <button
+                key={choice}
+                onClick={() => onRate(choice === activeCard.back ? "Good" : "Again")}
+                type="button"
+              >
                 {choice}
               </button>
             ))
@@ -972,17 +1086,32 @@ function DraftReviewCard({
       </div>
       <label>
         Front
-        <Input value={front} onChange={(event) => { setFront(event.target.value); onEdit({ front: event.target.value }); }} />
+        <Input
+          value={front}
+          onChange={(event) => {
+            setFront(event.target.value);
+            onEdit({ front: event.target.value });
+          }}
+        />
       </label>
       <label>
         Back
-        <Input value={back} onChange={(event) => { setBack(event.target.value); onEdit({ back: event.target.value }); }} />
+        <Input
+          value={back}
+          onChange={(event) => {
+            setBack(event.target.value);
+            onEdit({ back: event.target.value });
+          }}
+        />
       </label>
       <label>
         Explanation
         <Textarea
           value={explanation}
-          onChange={(event) => { setExplanation(event.target.value); onEdit({ explanation: event.target.value }); }}
+          onChange={(event) => {
+            setExplanation(event.target.value);
+            onEdit({ explanation: event.target.value });
+          }}
         />
       </label>
       <div className="recall-lab__button-row">

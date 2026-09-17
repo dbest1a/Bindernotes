@@ -31,10 +31,7 @@ import {
 } from "@/components/history/history-suite-modules";
 import { formatHistoricalDateLabel } from "@/lib/history-dates";
 import { extractPlainText } from "@/lib/math-detection";
-import {
-  simplePresentationThemeOptions,
-  updateWorkspaceAppearance,
-} from "@/lib/workspace-preferences";
+import { simplePresentationThemeOptions, updateWorkspaceAppearance } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
 import type { MathBlock, SimplePresentationTheme, WorkspacePreferences } from "@/types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
@@ -63,12 +60,11 @@ export function SimplePresentationShell({
   );
   const previousLesson = lessonIndex > 0 ? context.lessons[lessonIndex - 1] : null;
   const nextLesson =
-    lessonIndex >= 0 && lessonIndex < context.lessons.length - 1
-      ? context.lessons[lessonIndex + 1]
-      : null;
-  const readingStats = useMemo(() => createReadingStats(context.selectedLesson.content), [
-    context.selectedLesson.content,
-  ]);
+    lessonIndex >= 0 && lessonIndex < context.lessons.length - 1 ? context.lessons[lessonIndex + 1] : null;
+  const readingStats = useMemo(
+    () => createReadingStats(context.selectedLesson.content),
+    [context.selectedLesson.content],
+  );
   const timelineEvents = useMemo(
     () => mergeTimelineEvents(context.history.templateEvents, context.history.events),
     [context.history.events, context.history.templateEvents],
@@ -89,16 +85,12 @@ export function SimplePresentationShell({
   const mathBlocks = context.selectedLesson.math_blocks;
   const formulaBlocks = useMemo(
     () =>
-      mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> =>
-        block.type === "latex",
-      ),
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> => block.type === "latex"),
     [mathBlocks],
   );
   const graphBlocks = useMemo(
     () =>
-      mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> =>
-        block.type === "graph",
-      ),
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> => block.type === "graph"),
     [mathBlocks],
   );
 
@@ -299,10 +291,7 @@ export function SimplePresentationShell({
                   value={context.noteContent}
                 />
                 <p
-                  className={cn(
-                    "simple-save-note",
-                    context.autosaveStatus === "error" && "text-destructive",
-                  )}
+                  className={cn("simple-save-note", context.autosaveStatus === "error" && "text-destructive")}
                 >
                   {context.noteSaveError ?? context.noteSaveDetail}
                 </p>
@@ -320,12 +309,12 @@ export function SimplePresentationShell({
                     timelineEvents={timelineEvents}
                   />
                 ) : (
-          <MathStudyDrawer
-            context={context}
-            formulaBlocks={formulaBlocks}
-            graphBlocks={graphBlocks}
-            studentCalmMode={studentCalmMode}
-          />
+                  <MathStudyDrawer
+                    context={context}
+                    formulaBlocks={formulaBlocks}
+                    graphBlocks={graphBlocks}
+                    studentCalmMode={studentCalmMode}
+                  />
                 )}
               </section>
             ) : null}
@@ -399,12 +388,7 @@ function HistoryStudyDrawer({
             <Badge variant="outline">{formatHistoricalDateLabel(activeEvent)}</Badge>
           </div>
           <p>{activeEvent.significance || activeEvent.summary}</p>
-          <Button
-            onClick={context.onReplayHistoryTimeline}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
+          <Button onClick={context.onReplayHistoryTimeline} size="sm" type="button" variant="outline">
             <Route data-icon="inline-start" />
             Start timeline
           </Button>
@@ -457,7 +441,9 @@ function MathStudyDrawer({
         <Badge variant="secondary">{formulaBlocks.length + graphBlocks.length} blocks</Badge>
       </div>
       {formulaBlocks.length > 0 ? (
-        <div className={cn("simple-reference-card", studentCalmMode && "simple-reference-card--calm-formulas")}>
+        <div
+          className={cn("simple-reference-card", studentCalmMode && "simple-reference-card--calm-formulas")}
+        >
           <p className="simple-presentation-kicker">Formula cards</p>
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading formula cards...</p>}>
             <LazyMathBlocks
@@ -523,9 +509,7 @@ function SimpleStat({ label, value }: { label: string; value: string }) {
 }
 
 function createReadingStats(content: JSONContent) {
-  const words = extractPlainText(content)
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const words = extractPlainText(content).split(/\s+/).filter(Boolean).length;
 
   return {
     words,

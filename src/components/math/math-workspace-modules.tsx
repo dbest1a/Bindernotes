@@ -57,9 +57,17 @@ export function DesmosGraphModule({
   surface?: "workspace" | "whiteboard";
   title?: string;
 }) {
-  const { controller, onExpressionApplied, onGraphLoadApplied, pendingExpression, pendingGraphLoad = null } = bindings;
+  const {
+    controller,
+    onExpressionApplied,
+    onGraphLoadApplied,
+    pendingExpression,
+    pendingGraphLoad = null,
+  } = bindings;
   const [graphActivated, setGraphActivated] = useState(
-    () => !mathPerformanceLazyLoading || Boolean(pendingExpression || pendingGraphLoad || controller.state.currentGraphState),
+    () =>
+      !mathPerformanceLazyLoading ||
+      Boolean(pendingExpression || pendingGraphLoad || controller.state.currentGraphState),
   );
   const [keypadOpen, setKeypadOpen] = useState(() => !mathPerformanceLazyLoading && showKeypad);
   const [graphExpression, setGraphExpression] = useState("y=x^2");
@@ -84,7 +92,8 @@ export function DesmosGraphModule({
         ? "clamp(620px, 78vh, 860px)"
         : "clamp(540px, 70vh, 760px)";
   const activeModeLabel = controller.state.graphMode === "3d" ? "3D Graph" : "2D Graph";
-  const graphRuntimeVisible = controller.state.graphVisible && (!mathPerformanceLazyLoading || graphActivated);
+  const graphRuntimeVisible =
+    controller.state.graphVisible && (!mathPerformanceLazyLoading || graphActivated);
   const effectiveShowKeypad = showKeypad && (!mathPerformanceLazyLoading || keypadOpen);
   const canUseDesmos = hasDesmosApiKey();
   const activateGraph = (mode = controller.state.graphMode) => {
@@ -112,7 +121,10 @@ export function DesmosGraphModule({
         plotGraphExpression();
       }}
     >
-      <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground" htmlFor="binder-notes-graph-expression">
+      <label
+        className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
+        htmlFor="binder-notes-graph-expression"
+      >
         Graph expression
       </label>
       <div className="mt-2 flex flex-wrap gap-2">
@@ -178,7 +190,12 @@ export function DesmosGraphModule({
                 3D
               </Button>
             </div>
-            <Button onClick={() => controller.setGraphVisible(false)} size="sm" type="button" variant="outline">
+            <Button
+              onClick={() => controller.setGraphVisible(false)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               Hide
             </Button>
             <Button onClick={controller.clearCurrentGraph} size="sm" type="button" variant="ghost">
@@ -281,7 +298,10 @@ function CompactDesmosFallback() {
       </div>
       <div>
         <h4>Graph preview</h4>
-        <p>Desmos is unavailable in this environment. The graph slot stays compact instead of loading a broken tool.</p>
+        <p>
+          Desmos is unavailable in this environment. The graph slot stays compact instead of loading a broken
+          tool.
+        </p>
       </div>
     </div>
   );
@@ -330,7 +350,11 @@ export function ScientificCalculatorModule({
   );
 
   return (
-    <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"} description={description} title={title}>
+    <WorkspacePanel
+      className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[520px]"}
+      description={description}
+      title={title}
+    >
       <div className={surface === "whiteboard" ? "h-full min-h-0" : "min-h-[460px]"}>
         {surface === "whiteboard" || mathPerformanceLazyLoading ? (
           localCalculator
@@ -365,7 +389,11 @@ export function SavedGraphsModule({
   } = bindings;
 
   return (
-    <WorkspacePanel className={surface === "whiteboard" ? "h-full min-h-0" : undefined} description={description} title={title}>
+    <WorkspacePanel
+      className={surface === "whiteboard" ? "h-full min-h-0" : undefined}
+      description={description}
+      title={title}
+    >
       <GraphStateList
         canSave={Boolean(controller.state.currentGraphState)}
         embedded

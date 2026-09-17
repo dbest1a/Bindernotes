@@ -7,15 +7,10 @@ type AppearanceProfileRecord = {
 };
 
 function isMissingAppearanceColumn(error: { code?: string; message?: string }) {
-  return (
-    error.code === "42703" ||
-    error.message?.toLowerCase().includes("appearance_settings") === true
-  );
+  return error.code === "42703" || error.message?.toLowerCase().includes("appearance_settings") === true;
 }
 
-export async function getUserAppearanceSettings(
-  userId: string,
-): Promise<WorkspaceThemeSettings | null> {
+export async function getUserAppearanceSettings(userId: string): Promise<WorkspaceThemeSettings | null> {
   if (!supabase) {
     return null;
   }
@@ -34,15 +29,10 @@ export async function getUserAppearanceSettings(
     throw error;
   }
 
-  return data?.appearance_settings
-    ? normalizeThemeSettings(data.appearance_settings)
-    : null;
+  return data?.appearance_settings ? normalizeThemeSettings(data.appearance_settings) : null;
 }
 
-export async function saveUserAppearanceSettings(
-  userId: string,
-  theme: WorkspaceThemeSettings,
-) {
+export async function saveUserAppearanceSettings(userId: string, theme: WorkspaceThemeSettings) {
   if (!supabase) {
     return;
   }

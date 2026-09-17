@@ -1,17 +1,83 @@
-import {describe,it,expect,vi} from "vitest";
-import {createAccountHandlers,type AccountStore} from "./handlers";
-function fixture(){
- const store:AccountStore={authenticate:vi.fn(async()=>({id:"owner",recentlyAuthenticated:true})),operator:vi.fn(async()=>false),customer:vi.fn(async()=>null),deleting:vi.fn(async()=>false),claim:vi.fn(async()=>"claimed"),release:vi.fn(async()=>{}),begin:vi.fn(async()=>{}),assets:vi.fn(async()=>[{bucket:"private-assets",path:"owner/file.pdf"}]),removeAssets:vi.fn(async()=>{}),deleteUser:vi.fn(async()=>{})};
- const billing={ensureNoRecurringCharges:vi.fn(async()=>true)};
- const handler=createAccountHandlers({store,billing,origin:"https://app.test"}).delete;
- const request=()=>new Request("https://app.test/api/account/delete",{method:"POST",headers:{origin:"https://app.test",authorization:"Bearer verified"},body:JSON.stringify({confirmation:"DELETE",operationId:"10000000-0000-4000-8000-000000000001"})});
- return{store,billing,handler,request};
+import { describe, it, expect, vi } from "vitest";
+import { createAccountHandlers, type AccountStore } from "./handlers";
+function fixture() {
+  const store: AccountStore = {
+    authenticate: vi.fn(async () => ({ id: "owner", recentlyAuthenticated: true })),
+    operator: vi.fn(async () => false),
+    customer: vi.fn(async () => null),
+    deleting: vi.fn(async () => false),
+    claim: vi.fn(async () => "claimed"),
+    release: vi.fn(async () => {}),
+    begin: vi.fn(async () => {}),
+    assets: vi.fn(async () => [{ bucket: "private-assets", path: "owner/file.pdf" }]),
+    removeAssets: vi.fn(async () => {}),
+    deleteUser: vi.fn(async () => {}),
+  };
+  const billing = { ensureNoRecurringCharges: vi.fn(async () => true) };
+  const handler = createAccountHandlers({ store, billing, origin: "https://app.test" }).delete;
+  const request = () =>
+    new Request("https://app.test/api/account/delete", {
+      method: "POST",
+      headers: { origin: "https://app.test", authorization: "Bearer verified" },
+      body: JSON.stringify({ confirmation: "DELETE", operationId: "10000000-0000-4000-8000-000000000001" }),
+    });
+  return { store, billing, handler, request };
 }
-describe("trusted account deletion",()=>{
- it("marks before enumerating files and removes bytes before Auth deletion",async()=>{const f=fixture();expect((await f.handler(f.request())).status).toBe(200);expect(f.store.begin).toHaveBeenCalledWith("owner",expect.any(String),null,null);expect(vi.mocked(f.store.begin).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.store.assets).mock.invocationCallOrder[0]);expect(vi.mocked(f.store.removeAssets).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.store.deleteUser).mock.invocationCallOrder[0]);});
- it("rejects active recurring charges before touching account data and releases its lease",async()=>{const f=fixture();vi.mocked(f.store.customer).mockResolvedValue("cus_test");f.billing.ensureNoRecurringCharges.mockResolvedValue(false);expect((await f.handler(f.request())).status).toBe(409);expect(f.store.begin).not.toHaveBeenCalled();expect(f.store.removeAssets).not.toHaveBeenCalled();expect(f.store.release).toHaveBeenCalled();});
- it("fails closed on uncertain Stripe verification",async()=>{const f=fixture();vi.mocked(f.store.customer).mockResolvedValue("cus_test");f.billing.ensureNoRecurringCharges.mockRejectedValue(new Error("timeout"));expect((await f.handler(f.request())).status).toBe(503);expect(f.store.deleteUser).not.toHaveBeenCalled();});
- it("cannot cross another checkout lease",async()=>{const f=fixture();vi.mocked(f.store.customer).mockResolvedValue("cus_test");vi.mocked(f.store.claim).mockResolvedValue("busy");expect((await f.handler(f.request())).status).toBe(409);expect(f.billing.ensureNoRecurringCharges).not.toHaveBeenCalled();expect(f.store.begin).not.toHaveBeenCalled();});
- it("leaves a marked account retryable on Storage failure, never deleting Auth first",async()=>{const f=fixture();vi.mocked(f.store.removeAssets).mockRejectedValue(new Error("Storage unavailable"));expect((await f.handler(f.request())).status).toBe(503);expect(f.store.deleteUser).not.toHaveBeenCalled();vi.mocked(f.store.deleting).mockResolvedValue(true);vi.mocked(f.store.removeAssets).mockResolvedValue();expect((await f.handler(f.request())).status).toBe(200);expect(f.store.begin).toHaveBeenCalledTimes(1);});
- it("requires recent authentication, same-origin intent and blocks operator accounts",async()=>{const f=fixture();vi.mocked(f.store.authenticate).mockResolvedValue({id:"owner",recentlyAuthenticated:false});expect((await f.handler(f.request())).status).toBe(401);vi.mocked(f.store.authenticate).mockResolvedValue({id:"owner",recentlyAuthenticated:true});vi.mocked(f.store.operator).mockResolvedValue(true);expect((await f.handler(f.request())).status).toBe(409);const foreign=new Request(f.request(),{headers:{origin:"https://foreign.test"}});expect((await f.handler(foreign)).status).toBe(403);expect(f.store.begin).not.toHaveBeenCalled();});
+describe("trusted account deletion", () => {
+  it("marks before enumerating files and removes bytes before Auth deletion", async () => {
+    const f = fixture();
+    expect((await f.handler(f.request())).status).toBe(200);
+    expect(f.store.begin).toHaveBeenCalledWith("owner", expect.any(String), null, null);
+    expect(vi.mocked(f.store.begin).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(f.store.assets).mock.invocationCallOrder[0],
+    );
+    expect(vi.mocked(f.store.removeAssets).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(f.store.deleteUser).mock.invocationCallOrder[0],
+    );
+  });
+  it("rejects active recurring charges before touching account data and releases its lease", async () => {
+    const f = fixture();
+    vi.mocked(f.store.customer).mockResolvedValue("cus_test");
+    f.billing.ensureNoRecurringCharges.mockResolvedValue(false);
+    expect((await f.handler(f.request())).status).toBe(409);
+    expect(f.store.begin).not.toHaveBeenCalled();
+    expect(f.store.removeAssets).not.toHaveBeenCalled();
+    expect(f.store.release).toHaveBeenCalled();
+  });
+  it("fails closed on uncertain Stripe verification", async () => {
+    const f = fixture();
+    vi.mocked(f.store.customer).mockResolvedValue("cus_test");
+    f.billing.ensureNoRecurringCharges.mockRejectedValue(new Error("timeout"));
+    expect((await f.handler(f.request())).status).toBe(503);
+    expect(f.store.deleteUser).not.toHaveBeenCalled();
+  });
+  it("cannot cross another checkout lease", async () => {
+    const f = fixture();
+    vi.mocked(f.store.customer).mockResolvedValue("cus_test");
+    vi.mocked(f.store.claim).mockResolvedValue("busy");
+    expect((await f.handler(f.request())).status).toBe(409);
+    expect(f.billing.ensureNoRecurringCharges).not.toHaveBeenCalled();
+    expect(f.store.begin).not.toHaveBeenCalled();
+  });
+  it("leaves a marked account retryable on Storage failure, never deleting Auth first", async () => {
+    const f = fixture();
+    vi.mocked(f.store.removeAssets).mockRejectedValue(new Error("Storage unavailable"));
+    expect((await f.handler(f.request())).status).toBe(503);
+    expect(f.store.deleteUser).not.toHaveBeenCalled();
+    vi.mocked(f.store.deleting).mockResolvedValue(true);
+    vi.mocked(f.store.removeAssets).mockResolvedValue();
+    expect((await f.handler(f.request())).status).toBe(200);
+    expect(f.store.begin).toHaveBeenCalledTimes(1);
+  });
+  it("requires recent authentication, same-origin intent and blocks operator accounts", async () => {
+    const f = fixture();
+    vi.mocked(f.store.authenticate).mockResolvedValue({ id: "owner", recentlyAuthenticated: false });
+    expect((await f.handler(f.request())).status).toBe(401);
+    vi.mocked(f.store.authenticate).mockResolvedValue({ id: "owner", recentlyAuthenticated: true });
+    vi.mocked(f.store.operator).mockResolvedValue(true);
+    expect((await f.handler(f.request())).status).toBe(409);
+    const foreign = new Request(f.request(), { headers: { origin: "https://foreign.test" } });
+    expect((await f.handler(foreign)).status).toBe(403);
+    expect(f.store.begin).not.toHaveBeenCalled();
+  });
 });

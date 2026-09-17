@@ -82,14 +82,7 @@ export type WhiteboardTemplate = {
 };
 
 export type WhiteboardSaveStatus =
-  | "saved"
-  | "saving"
-  | "offline-draft"
-  | "error"
-  | "limit"
-  | "storage-limit"
-  | "conflict"
-  | "unavailable";
+  "saved" | "saving" | "offline-draft" | "error" | "limit" | "storage-limit" | "conflict" | "unavailable";
 
 export type WhiteboardSaveResult = {
   board: BinderWhiteboard;

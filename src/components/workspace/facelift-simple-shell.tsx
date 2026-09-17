@@ -26,10 +26,7 @@ import {
   type WorkspaceModuleContext,
 } from "@/components/workspace/workspace-modules";
 import { WorkspaceModeSwitcher } from "@/components/workspace/workspace-mode-switcher";
-import {
-  getVisibleWorkspacePresets,
-  workspacePresets,
-} from "@/lib/workspace-preferences";
+import { getVisibleWorkspacePresets, workspacePresets } from "@/lib/workspace-preferences";
 import {
   getFaceliftWorkspacePresetDesign,
   getWorkspaceMobileModuleTabs,
@@ -84,7 +81,8 @@ const nextBestStepByPreset: Record<WorkspacePresetId, string> = {
   "math-practice-mode": "Solve one problem, check the formula, then write the step that made it work.",
   "full-math-canvas": "Use the big work surface first; open extra tools only when they answer a question.",
   "recall-lab": "Review due cards, clean up drafts, then open the source for anything that feels weak.",
-  "chem-guided-study": "Read the chemistry idea, use one concept card, then write the rule in your own words.",
+  "chem-guided-study":
+    "Read the chemistry idea, use one concept card, then write the rule in your own words.",
   "chem-element-explorer": "Pick an element, inspect the trend, then build the matching atom or ion.",
   "chem-bonding-studio": "Build the Lewis structure, then check geometry and formal charge.",
   "chem-reaction-studio": "Balance the equation, then explain it in particle and observation views.",
@@ -99,7 +97,8 @@ const nextBestStepByPreset: Record<WorkspacePresetId, string> = {
   "history-source-evidence": "Collect one strong source detail, then explain what it proves.",
   "history-argument-builder": "Write the claim first, then attach the evidence that actually supports it.",
   "history-full-studio": "Move from timeline to source to evidence, then shape the argument.",
-  "chemistry-lab": "Run the lab, record the measurements that matter, then write the conclusion from the data.",
+  "chemistry-lab":
+    "Run the lab, record the measurements that matter, then write the conclusion from the data.",
 };
 
 const modeSummaryByPreset: Record<WorkspacePresetId, string> = {
@@ -256,13 +255,28 @@ export function FaceliftSimpleShell({
         ? [{ label: "Graph" as StudyShortcutLabel, presetId: graphPresetId }]
         : []),
       ...(visiblePresetById.has("history-timeline-focus")
-        ? [{ label: "Timeline" as StudyShortcutLabel, presetId: "history-timeline-focus" as WorkspacePresetId }]
+        ? [
+            {
+              label: "Timeline" as StudyShortcutLabel,
+              presetId: "history-timeline-focus" as WorkspacePresetId,
+            },
+          ]
         : []),
       ...(visiblePresetById.has("history-source-evidence")
-        ? [{ label: "Evidence" as StudyShortcutLabel, presetId: "history-source-evidence" as WorkspacePresetId }]
+        ? [
+            {
+              label: "Evidence" as StudyShortcutLabel,
+              presetId: "history-source-evidence" as WorkspacePresetId,
+            },
+          ]
         : []),
       ...(visiblePresetById.has("history-argument-builder")
-        ? [{ label: "Argument" as StudyShortcutLabel, presetId: "history-argument-builder" as WorkspacePresetId }]
+        ? [
+            {
+              label: "Argument" as StudyShortcutLabel,
+              presetId: "history-argument-builder" as WorkspacePresetId,
+            },
+          ]
         : []),
     ];
     const unique = new Map<WorkspacePresetId, { label: StudyShortcutLabel; presetId: WorkspacePresetId }>();
@@ -289,9 +303,7 @@ export function FaceliftSimpleShell({
   const toolLaunchers = useMemo(() => {
     const toolModuleIds = Array.from(new Set([...collapsedModules, ...preferences.enabledModules])).filter(
       (moduleId) =>
-        workspaceModuleRegistry[moduleId] &&
-        moduleId !== "lesson" &&
-        moduleId !== "private-notes",
+        workspaceModuleRegistry[moduleId] && moduleId !== "lesson" && moduleId !== "private-notes",
     );
 
     return toolModuleIds.slice(0, 10).map((moduleId) => {
@@ -316,7 +328,13 @@ export function FaceliftSimpleShell({
         title: workspaceModuleRegistry[moduleId].title,
       };
     });
-  }, [collapsedModules, preferences.enabledModules, preferences.facelift.density, preferences.preset, visiblePresets]);
+  }, [
+    collapsedModules,
+    preferences.enabledModules,
+    preferences.facelift.density,
+    preferences.preset,
+    visiblePresets,
+  ]);
   const selectedOrder = context.selectedLesson.order_index ?? 0;
   const nextLesson = context.lessons.find((lesson) => (lesson.order_index ?? 0) > selectedOrder);
   const primaryModuleTitle = workspaceModuleRegistry[design.primaryModule]?.title ?? "Study surface";
@@ -324,33 +342,32 @@ export function FaceliftSimpleShell({
   const modeSummary = modeSummaryByPreset[preferences.preset] ?? design.purpose;
   const visiblePanelCountLabel = `${visibleModules.length} panel${visibleModules.length === 1 ? "" : "s"} live`;
   const studentCommand = design.studentCommand;
-  const mobileTabs = useMemo(
-    () => {
-      const mobileVisibleModules = new Set([
-        ...visibleModules,
-        ...design.collapsedModules,
-        ...design.optionalModules,
-      ]);
-      return getWorkspaceMobileModuleTabs(
-        preferences.preset,
-        preferences.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
-      ).filter((tab) => (isCompact ? mobileVisibleModules.has(tab.moduleId) : visibleModules.includes(tab.moduleId)));
-    },
-    [
-      design.collapsedModules,
-      design.optionalModules,
-      isCompact,
-      preferences.enabledModules,
+  const mobileTabs = useMemo(() => {
+    const mobileVisibleModules = new Set([
+      ...visibleModules,
+      ...design.collapsedModules,
+      ...design.optionalModules,
+    ]);
+    return getWorkspaceMobileModuleTabs(
       preferences.preset,
-      visibleModuleKey,
-      visibleModules,
-    ],
-  );
+      preferences.enabledModules.filter((moduleId) => Boolean(workspaceModuleRegistry[moduleId])),
+    ).filter((tab) =>
+      isCompact ? mobileVisibleModules.has(tab.moduleId) : visibleModules.includes(tab.moduleId),
+    );
+  }, [
+    design.collapsedModules,
+    design.optionalModules,
+    isCompact,
+    preferences.enabledModules,
+    preferences.preset,
+    visibleModuleKey,
+    visibleModules,
+  ]);
   const [activeMobileModuleId, setActiveMobileModuleId] = useState<WorkspaceModuleId | null>(null);
   const firstVisibleModuleId = visibleModules[0] ?? null;
   const mobileActiveModuleId = mobileTabs.some((tab) => tab.moduleId === activeMobileModuleId)
     ? activeMobileModuleId
-    : mobileTabs[0]?.moduleId ?? firstVisibleModuleId;
+    : (mobileTabs[0]?.moduleId ?? firstVisibleModuleId);
   const renderedModules =
     isCompact && mobileActiveModuleId && workspaceModuleRegistry[mobileActiveModuleId]
       ? [mobileActiveModuleId]
@@ -360,7 +377,7 @@ export function FaceliftSimpleShell({
     setActiveMobileModuleId((current) =>
       current && mobileTabs.some((tab) => tab.moduleId === current)
         ? current
-        : mobileTabs[0]?.moduleId ?? firstVisibleModuleId,
+        : (mobileTabs[0]?.moduleId ?? firstVisibleModuleId),
     );
   }, [firstVisibleModuleId, mobileTabs]);
 
@@ -433,8 +450,7 @@ export function FaceliftSimpleShell({
           <div>
             <h1>{context.selectedLesson.title}</h1>
             <p className="facelift-simple-shell__subtitle">
-              {context.binder.subject || "Study"} - {preset?.name ?? "Split Study"} -{" "}
-              {primaryModuleTitle}
+              {context.binder.subject || "Study"} - {preset?.name ?? "Split Study"} - {primaryModuleTitle}
             </p>
           </div>
           <div className="facelift-next-step">
@@ -527,12 +543,23 @@ export function FaceliftSimpleShell({
             />
           ) : null}
           {studentCalmMode && onChangeWorkspaceViewMode && workspaceViewMode !== "simple" ? (
-            <Button onClick={() => onChangeWorkspaceViewMode("simple")} size="sm" type="button" variant="outline">
+            <Button
+              onClick={() => onChangeWorkspaceViewMode("simple")}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               Back to Simple
             </Button>
           ) : null}
           {onToggleFocus ? (
-            <Button className="facelift-primary-action" onClick={onToggleFocus} size="sm" type="button" variant="outline">
+            <Button
+              className="facelift-primary-action"
+              onClick={onToggleFocus}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               {focusModeActive ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
               {focusModeActive ? "Exit focus" : "Enter focus"}
             </Button>
@@ -600,7 +627,11 @@ export function FaceliftSimpleShell({
                       <Save className="size-4" />
                       Save now
                     </button>
-                    <button className="facelift-menu-item" onClick={context.onEnterNotebookFocus} type="button">
+                    <button
+                      className="facelift-menu-item"
+                      onClick={context.onEnterNotebookFocus}
+                      type="button"
+                    >
                       <NotebookPen className="size-4" />
                       Notebook focus
                     </button>
@@ -763,7 +794,10 @@ export function FaceliftSimpleShell({
         ) : null}
 
         {openPanel === "recent" ? (
-          <section className="facelift-guide-panel facelift-guide-panel--recent" aria-label="Recent in binder">
+          <section
+            className="facelift-guide-panel facelift-guide-panel--recent"
+            aria-label="Recent in binder"
+          >
             {context.lessons.slice(0, 6).map((lesson, index) => (
               <button
                 className={cn(
@@ -782,10 +816,7 @@ export function FaceliftSimpleShell({
         ) : null}
 
         <main
-          className={cn(
-            "facelift-simple-shell__main",
-            `facelift-simple-shell__main--${preferences.preset}`,
-          )}
+          className={cn("facelift-simple-shell__main", `facelift-simple-shell__main--${preferences.preset}`)}
           data-facelift-preset={preferences.preset}
         >
           {isCompact && mobileTabs.length > 1 ? (

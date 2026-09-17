@@ -119,9 +119,7 @@ export function SimpleSettingsPanel({
                 type="button"
               >
                 <span className="block text-sm font-medium">{mode.name}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {mode.description}
-                </span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{mode.description}</span>
               </button>
             ))}
           </div>
@@ -157,7 +155,9 @@ export function SimpleSettingsPanel({
                   active={preferences.appearance.appTheme === theme.id}
                   key={theme.id}
                   onClick={() =>
-                    setNext(updateWorkspaceAppearance(preferences, { appTheme: theme.id as WorkspaceThemeId }))
+                    setNext(
+                      updateWorkspaceAppearance(preferences, { appTheme: theme.id as WorkspaceThemeId }),
+                    )
                   }
                 >
                   <span className="block text-sm font-medium">{theme.name}</span>

@@ -60,7 +60,10 @@ import {
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 }
 
@@ -89,9 +92,7 @@ describe("useWorkspacePreferences", () => {
       ["standard", { activeMode: "simple", workspacePresentationMode: "simple" }],
     ] as const) {
       window.localStorage.setItem("bindernotes.workspace.view-mode", storedMode);
-      const { result, unmount } = renderHook(() =>
-        useWorkspacePreferences("user-1", "binder-1", null),
-      );
+      const { result, unmount } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
       expect(result.current.active).toEqual(expect.objectContaining(expected));
       unmount();
@@ -107,9 +108,7 @@ describe("useWorkspacePreferences", () => {
 
     mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(legacy);
 
-    const { result } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active?.simple.focusMode).toBe(false);
@@ -142,9 +141,7 @@ describe("useWorkspacePreferences", () => {
 
     mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(local);
 
-    const { result } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active?.appearance.saveLocalAppearance).toBe(true);
@@ -159,57 +156,81 @@ describe("useWorkspacePreferences", () => {
     );
   });
 
-  it.each(["resolve", "reject"] as const)("ignores old account saves that %s after a scope change", async (outcome) => {
-    mocks.getWorkspacePreferencesRecord.mockImplementation(async (userId, binderId) =>
-      createDefaultWorkspacePreferences(userId, binderId));
-    const pending = deferred<WorkspacePreferences>();
-    mocks.upsertWorkspacePreferencesRecord.mockReturnValue(pending.promise);
-    const { result, rerender } = renderHook(
-      ({ userId }) => useWorkspacePreferences(userId, "binder-1", null),
-      { initialProps: { userId: "user-1" } },
-    );
-    await waitFor(() => expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalledTimes(1));
-    let oldSave!: WorkspacePreferences;
-    act(() => { oldSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas")); });
-    rerender({ userId: "user-2" });
-    await waitFor(() => expect(result.current.active?.userId).toBe("user-2"));
-    const viewModeBeforeCompletion = window.localStorage.getItem("bindernotes.workspace.view-mode");
-    await act(async () => {
-      if (outcome === "resolve") pending.resolve(oldSave);
-      else pending.reject(new Error("obsolete save error"));
-    });
-    expect(result.current.saved?.userId).toBe("user-2");
-    expect(result.current.saveError).toBeNull();
-    expect(window.localStorage.getItem("bindernotes.workspace.view-mode")).toBe(viewModeBeforeCompletion);
-  });
+  it.each(["resolve", "reject"] as const)(
+    "ignores old account saves that %s after a scope change",
+    async (outcome) => {
+      mocks.getWorkspacePreferencesRecord.mockImplementation(async (userId, binderId) =>
+        createDefaultWorkspacePreferences(userId, binderId),
+      );
+      const pending = deferred<WorkspacePreferences>();
+      mocks.upsertWorkspacePreferencesRecord.mockReturnValue(pending.promise);
+      const { result, rerender } = renderHook(
+        ({ userId }) => useWorkspacePreferences(userId, "binder-1", null),
+        { initialProps: { userId: "user-1" } },
+      );
+      await waitFor(() => expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalledTimes(1));
+      let oldSave!: WorkspacePreferences;
+      act(() => {
+        oldSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas"));
+      });
+      rerender({ userId: "user-2" });
+      await waitFor(() => expect(result.current.active?.userId).toBe("user-2"));
+      const viewModeBeforeCompletion = window.localStorage.getItem("bindernotes.workspace.view-mode");
+      await act(async () => {
+        if (outcome === "resolve") pending.resolve(oldSave);
+        else pending.reject(new Error("obsolete save error"));
+      });
+      expect(result.current.saved?.userId).toBe("user-2");
+      expect(result.current.saveError).toBeNull();
+      expect(window.localStorage.getItem("bindernotes.workspace.view-mode")).toBe(viewModeBeforeCompletion);
+    },
+  );
 
   it("ignores preference side effects after unmount", async () => {
-    mocks.getWorkspacePreferencesRecord.mockResolvedValue(createDefaultWorkspacePreferences("user-1", "binder-1"));
+    mocks.getWorkspacePreferencesRecord.mockResolvedValue(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+    );
     const pending = deferred<WorkspacePreferences>();
     mocks.upsertWorkspacePreferencesRecord.mockReturnValue(pending.promise);
     const { result, unmount } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
     await waitFor(() => expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalled());
     let oldSave!: WorkspacePreferences;
-    act(() => { oldSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas")); });
+    act(() => {
+      oldSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas"));
+    });
     unmount();
     window.localStorage.setItem("bindernotes.workspace.view-mode", "modular");
-    await act(async () => { pending.resolve(oldSave); });
+    await act(async () => {
+      pending.resolve(oldSave);
+    });
     expect(window.localStorage.getItem("bindernotes.workspace.view-mode")).toBe("modular");
   });
 
   it("keeps the newest save authoritative when older saves finish last", async () => {
-    mocks.getWorkspacePreferencesRecord.mockResolvedValue(createDefaultWorkspacePreferences("user-1", "binder-1"));
+    mocks.getWorkspacePreferencesRecord.mockResolvedValue(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+    );
     const older = deferred<WorkspacePreferences>();
     const newer = deferred<WorkspacePreferences>();
-    mocks.upsertWorkspacePreferencesRecord.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    mocks.upsertWorkspacePreferencesRecord
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
     const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
     await waitFor(() => expect(mocks.getWorkspacePreferencesRecord).toHaveBeenCalled());
     let olderSave!: WorkspacePreferences;
     let newerSave!: WorkspacePreferences;
-    act(() => { olderSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas")); });
-    act(() => { newerSave = result.current.commit(applyWorkspaceMode(result.current.active!, "modular")); });
-    await act(async () => { newer.resolve(newerSave); });
-    await act(async () => { older.resolve(olderSave); });
+    act(() => {
+      olderSave = result.current.commit(applyWorkspaceMode(result.current.active!, "canvas"));
+    });
+    act(() => {
+      newerSave = result.current.commit(applyWorkspaceMode(result.current.active!, "modular"));
+    });
+    await act(async () => {
+      newer.resolve(newerSave);
+    });
+    await act(async () => {
+      older.resolve(olderSave);
+    });
     expect(result.current.saved?.activeMode).toBe("modular");
     expect(window.localStorage.getItem("bindernotes.workspace.view-mode")).toBe("modular");
   });
@@ -218,9 +239,7 @@ describe("useWorkspacePreferences", () => {
     const saved = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.getWorkspacePreferencesRecord.mockResolvedValue(saved);
 
-    const { result, rerender } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result, rerender } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active).not.toBeNull();
@@ -254,9 +273,7 @@ describe("useWorkspacePreferences", () => {
     };
     mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
 
-    const { result } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active?.windowLayout.lesson).toEqual(customFrame);
@@ -292,9 +309,7 @@ describe("useWorkspacePreferences", () => {
     mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
     mocks.upsertWorkspacePreferencesRecord.mockImplementation(async (next) => next);
 
-    const { result } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active?.windowLayout.lesson).toEqual(savedFrame);
@@ -346,9 +361,7 @@ describe("useWorkspacePreferences", () => {
     mocks.getWorkspacePreferencesRecord.mockResolvedValueOnce(saved);
     mocks.upsertWorkspacePreferencesRecord.mockRejectedValueOnce(new Error("RLS rejected"));
 
-    const { result } = renderHook(() =>
-      useWorkspacePreferences("user-1", "binder-1", null),
-    );
+    const { result } = renderHook(() => useWorkspacePreferences("user-1", "binder-1", null));
 
     await waitFor(() => {
       expect(result.current.active).toBeTruthy();

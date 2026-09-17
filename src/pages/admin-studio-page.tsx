@@ -107,7 +107,11 @@ export function AdminStudioPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
-  const { data: dashboard, isLoading, error } = useDashboard(profile, {
+  const {
+    data: dashboard,
+    isLoading,
+    error,
+  } = useDashboard(profile, {
     includeSystemStatus: false,
   });
   const diagnosticsQuery = useDashboard(profile, {
@@ -117,12 +121,7 @@ export function AdminStudioPage() {
   const rawMutations = useAdminMutations(profile);
   const mutations = useMemo(
     () => rawMutations,
-    [
-      rawMutations.binder,
-      rawMutations.deleteLesson,
-      rawMutations.lesson,
-      rawMutations.seedSystemSuites,
-    ],
+    [rawMutations.binder, rawMutations.deleteLesson, rawMutations.lesson, rawMutations.seedSystemSuites],
   );
 
   if (profile?.role !== "admin") {
@@ -131,8 +130,10 @@ export function AdminStudioPage() {
 
   const binders = dashboard?.binders ?? [];
   const subjects = useMemo(
-    () =>
-      ["all", ...new Set(binders.map((binder) => binder.subject).filter((subject) => subject.trim().length > 0))],
+    () => [
+      "all",
+      ...new Set(binders.map((binder) => binder.subject).filter((subject) => subject.trim().length > 0)),
+    ],
     [binders],
   );
 
@@ -153,9 +154,7 @@ export function AdminStudioPage() {
         if (!normalized) {
           return true;
         }
-        return `${binder.title} ${binder.description} ${binder.subject}`
-          .toLowerCase()
-          .includes(normalized);
+        return `${binder.title} ${binder.description} ${binder.subject}`.toLowerCase().includes(normalized);
       })
       .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
   }, [binders, deferredSearch, recentOnly, statusFilter, subjectFilter]);
@@ -181,11 +180,12 @@ export function AdminStudioPage() {
   );
   const { data: bundle } = useBinderBundle(selectedBinder?.id, profile);
 
-  const saveStatus = mutations.binder.isPending || mutations.lesson.isPending || mutations.deleteLesson.isPending
-    ? "Saving..."
-    : lastSavedAt
-      ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-      : "All changes saved";
+  const saveStatus =
+    mutations.binder.isPending || mutations.lesson.isPending || mutations.deleteLesson.isPending
+      ? "Saving..."
+      : lastSavedAt
+        ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+        : "All changes saved";
 
   const openCreateDraft = useCallback(() => {
     setCreateDraftOpen(true);
@@ -233,12 +233,9 @@ export function AdminStudioPage() {
         return;
       } catch (error) {
         lastError = error;
-        const message =
-          error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
         const duplicateSlug =
-          message.includes("duplicate") ||
-          message.includes("unique") ||
-          message.includes("slug");
+          message.includes("duplicate") || message.includes("unique") || message.includes("slug");
         if (!duplicateSlug || attempt === 3) {
           break;
         }
@@ -429,7 +426,9 @@ export function AdminStudioPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium">{getDisplayTitle(binder.title, "Recovered Binder")}</span>
-                  <Badge variant={binder.status === "published" ? "secondary" : "outline"}>{binder.status}</Badge>
+                  <Badge variant={binder.status === "published" ? "secondary" : "outline"}>
+                    {binder.status}
+                  </Badge>
                 </div>
                 <span className="mt-1 block text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {binder.subject}
@@ -576,9 +575,7 @@ function StudioWorkspace({
   const overviewSummary = useMemo(() => {
     const lessonCount = orderedLessons.length;
     const words = orderedLessons.reduce((total, lesson) => {
-      const wordCount = extractPlainText(lesson.content)
-        .split(/\s+/)
-        .filter(Boolean).length;
+      const wordCount = extractPlainText(lesson.content).split(/\s+/).filter(Boolean).length;
       return total + wordCount;
     }, 0);
     const avgMinutes = lessonCount === 0 ? 0 : Math.max(1, Math.round(words / 220));
@@ -715,12 +712,14 @@ function StudioWorkspace({
     if (!selectedLesson) {
       return;
     }
-    const nextTitle = lessonTitle.trim() || deriveLessonTitle({
-      ...selectedLesson,
-      title: lessonTitle,
-      content: lessonContent,
-      math_blocks: lessonMathBlocks,
-    });
+    const nextTitle =
+      lessonTitle.trim() ||
+      deriveLessonTitle({
+        ...selectedLesson,
+        title: lessonTitle,
+        content: lessonContent,
+        math_blocks: lessonMathBlocks,
+      });
     await mutations.lesson.mutateAsync({
       id: selectedLesson.id,
       binder_id: selectedLesson.binder_id,
@@ -834,7 +833,11 @@ function StudioWorkspace({
             <section className="grid gap-4">
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Title
-                <Input aria-label="Binder title" onChange={(event) => setTitle(event.target.value)} value={title} />
+                <Input
+                  aria-label="Binder title"
+                  onChange={(event) => setTitle(event.target.value)}
+                  value={title}
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Description
@@ -847,11 +850,19 @@ function StudioWorkspace({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Subject
-                  <Input aria-label="Binder subject" onChange={(event) => setSubject(event.target.value)} value={subject} />
+                  <Input
+                    aria-label="Binder subject"
+                    onChange={(event) => setSubject(event.target.value)}
+                    value={subject}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Level
-                  <Input aria-label="Binder level" onChange={(event) => setLevel(event.target.value)} value={level} />
+                  <Input
+                    aria-label="Binder level"
+                    onChange={(event) => setLevel(event.target.value)}
+                    value={level}
+                  />
                 </label>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -917,10 +928,20 @@ function StudioWorkspace({
                   <FilePlus2 data-icon="inline-start" />
                   Add lesson
                 </Button>
-                <Button disabled={!selectedLesson} onClick={() => void duplicateLesson()} type="button" variant="outline">
+                <Button
+                  disabled={!selectedLesson}
+                  onClick={() => void duplicateLesson()}
+                  type="button"
+                  variant="outline"
+                >
                   Duplicate lesson
                 </Button>
-                <Button disabled={!selectedLesson} onClick={() => void archiveLesson()} type="button" variant="outline">
+                <Button
+                  disabled={!selectedLesson}
+                  onClick={() => void archiveLesson()}
+                  type="button"
+                  variant="outline"
+                >
                   Archive lesson
                 </Button>
               </div>
@@ -976,14 +997,14 @@ function StudioWorkspace({
               {selectedLesson ? (
                 <>
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_190px]">
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  Lesson title
-                  <Input
-                    aria-label="Lesson title"
-                    onChange={(event) => setLessonTitle(event.target.value)}
-                    value={lessonTitle}
-                  />
-                </label>
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Lesson title
+                      <Input
+                        aria-label="Lesson title"
+                        onChange={(event) => setLessonTitle(event.target.value)}
+                        value={lessonTitle}
+                      />
+                    </label>
                     <Button
                       onClick={() => void setLessonPreviewIncluded(!selectedLesson.is_preview)}
                       type="button"
@@ -1157,10 +1178,16 @@ function StudioWorkspace({
           {activeTab === "lessons" ? (
             <ContextFacts
               entries={[
-                { label: "Selected lesson", value: selectedLesson ? deriveLessonTitle(selectedLesson) : "None" },
+                {
+                  label: "Selected lesson",
+                  value: selectedLesson ? deriveLessonTitle(selectedLesson) : "None",
+                },
                 { label: "Order", value: selectedLesson ? String(selectedLesson.order_index) : "-" },
                 { label: "Preview", value: selectedLesson?.is_preview ? "Included" : "Not included" },
-                { label: "Est. read", value: selectedLesson ? `${estimateReadingMinutes(selectedLesson)} min` : "-" },
+                {
+                  label: "Est. read",
+                  value: selectedLesson ? `${estimateReadingMinutes(selectedLesson)} min` : "-",
+                },
               ]}
               title="Lesson metadata"
             />
@@ -1229,8 +1256,13 @@ function StudioWorkspace({
         {diagnosticsOpen ? (
           <div className="grid gap-4 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm text-muted-foreground">Catalog updates are applied by the trusted deployment process. This panel shows their current status.</p>
-              {diagnosticsLoading ? <span className="text-sm text-muted-foreground">Loading diagnostics…</span> : null}
+              <p className="text-sm text-muted-foreground">
+                Catalog updates are applied by the trusted deployment process. This panel shows their current
+                status.
+              </p>
+              {diagnosticsLoading ? (
+                <span className="text-sm text-muted-foreground">Loading diagnostics…</span>
+              ) : null}
             </div>
 
             <Suspense fallback={<AdminDiagnosticsFallback />}>
@@ -1247,7 +1279,10 @@ function StudioWorkspace({
                 />
               ) : null}
             </Suspense>
-            {!diagnostics.length && !diagnosticsRuntime.length && !seedHealth.length && !diagnosticsLoading ? (
+            {!diagnostics.length &&
+            !diagnosticsRuntime.length &&
+            !seedHealth.length &&
+            !diagnosticsLoading ? (
               <p className="text-sm text-muted-foreground">No diagnostics to report right now.</p>
             ) : null}
           </div>
@@ -1381,15 +1416,10 @@ function AdminPanelFallback({
     <section
       aria-busy="true"
       aria-label={`${title} loading`}
-      className={cn(
-        "rounded-lg border border-border/70 bg-card/88 p-4 shadow-sm",
-        minHeightClassName,
-      )}
+      className={cn("rounded-lg border border-border/70 bg-card/88 p-4 shadow-sm", minHeightClassName)}
       data-testid={testId}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {title}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       <div className="mt-4 grid gap-3">
         {lineHeights.map((height, index) => (

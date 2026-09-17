@@ -7,12 +7,7 @@ export type DashboardSummaryHealthRow = {
   summary_status?: string | null;
 };
 
-const validStatuses = new Set<DashboardSummaryHealthStatus>([
-  "fresh",
-  "stale",
-  "refreshing",
-  "failed",
-]);
+const validStatuses = new Set<DashboardSummaryHealthStatus>(["fresh", "stale", "refreshing", "failed"]);
 
 function isPastTimestamp(value: string | null | undefined, now: Date) {
   if (!value) {

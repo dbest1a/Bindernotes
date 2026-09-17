@@ -171,9 +171,7 @@ export const alwaysLiveWhiteboardModules = new Set<WorkspaceModuleId>([
   "scientific-calculator",
 ]);
 
-export const viewportFloatingWhiteboardModules = new Set<WorkspaceModuleId>([
-  "desmos-graph",
-]);
+export const viewportFloatingWhiteboardModules = new Set<WorkspaceModuleId>(["desmos-graph"]);
 
 export function isAlwaysLiveWhiteboardModule(moduleId: WorkspaceModuleId) {
   return alwaysLiveWhiteboardModules.has(moduleId);
@@ -203,6 +201,8 @@ export function isHeavyWhiteboardModule(moduleId: WorkspaceModuleId) {
   return getWhiteboardModuleDefinition(moduleId)?.heavy ?? false;
 }
 
-export function getDefaultWhiteboardModuleAnchorMode(moduleId: WorkspaceModuleId): WhiteboardModuleAnchorMode {
+export function getDefaultWhiteboardModuleAnchorMode(
+  moduleId: WorkspaceModuleId,
+): WhiteboardModuleAnchorMode {
   return getWhiteboardModuleDefinition(moduleId)?.defaultAnchorMode ?? "board";
 }

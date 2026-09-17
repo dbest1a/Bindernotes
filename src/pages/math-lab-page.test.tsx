@@ -63,9 +63,7 @@ vi.mock("@/hooks/use-math-workspace", () => ({
 }));
 
 vi.mock("@/components/math/math-workspace-modules", () => ({
-  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => (
-    <section>{title}</section>
-  ),
+  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => <section>{title}</section>,
   ScientificCalculatorModule: () => <section>Scientific calculator</section>,
   SavedGraphsModule: () => <section>Saved graphs</section>,
 }));

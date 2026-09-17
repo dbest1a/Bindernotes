@@ -136,7 +136,9 @@ describe("whiteboard coordinate utilities", () => {
     expect(getEmbeddedModulePresentation(lesson, { ...baseTransform, zoom: 0.7 }, true)).toBe("live");
     expect(getEmbeddedModulePresentation(lesson, { ...baseTransform, zoom: 0.45 }, true)).toBe("preview");
     expect(getEmbeddedModulePresentation(lesson, { ...baseTransform, zoom: 0.2 }, true)).toBe("chip");
-    expect(getEmbeddedModulePresentation(moduleElement({ mode: "collapsed" }), baseTransform, true)).toBe("chip");
+    expect(getEmbeddedModulePresentation(moduleElement({ mode: "collapsed" }), baseTransform, true)).toBe(
+      "chip",
+    );
   });
 
   it("keeps the scientific calculator live when zoom would otherwise make it too small", () => {
@@ -216,7 +218,9 @@ describe("whiteboard coordinate utilities", () => {
       mode: "live",
       updatedAt: "2026-04-26T13:00:00.000Z",
     });
-    expect(boardToScreenFrame(converted, { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 })).toMatchObject({
+    expect(
+      boardToScreenFrame(converted, { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 }),
+    ).toMatchObject({
       x: 240,
       y: 120,
     });
@@ -256,7 +260,12 @@ describe("whiteboard coordinate utilities", () => {
       width: 420,
       height: 320,
     });
-    const screenFrame = boardToScreenFrame(converted, { ...baseTransform, scrollX: 100, scrollY: -80, zoom: 2 });
+    const screenFrame = boardToScreenFrame(converted, {
+      ...baseTransform,
+      scrollX: 100,
+      scrollY: -80,
+      zoom: 2,
+    });
     expect(screenFrame).toMatchObject({
       x: 180,
       y: 80,
