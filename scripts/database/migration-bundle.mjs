@@ -34,9 +34,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   await mkdir(destination, { recursive: false });
   const bundle = await readMigrationBundle();
   for (const migration of bundle) await writeFile(path.join(destination, migration.name), migration.sql);
-  await writeFile(path.join(destination, 'manifest.json'), JSON.stringify(bundle.map(({ sql, sources, ...item }) => ({
-    ...item, sources: sources.map(({ sql: sourceSql, ...source }) => source),
+  await writeFile(path.join(destination, 'manifest.json'), JSON.stringify(bundle.map(({ version, name, sources }) => ({
+    version, name, sources: sources.map(({ name: sourceName, sha256 }) => ({ name: sourceName, sha256 })),
   })), null, 2) + '\n');
   console.log(`Prepared ${bundle.length} distinct versions; both historical 0016 sources are preserved.`);
 }
-

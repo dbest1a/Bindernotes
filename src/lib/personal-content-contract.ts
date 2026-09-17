@@ -16,7 +16,7 @@ function validEditorDocument(value: unknown): value is JSONContent {
     for (const [key, field] of Object.entries(item)) {
       if (["__proto__", "constructor", "prototype", "innerHTML", "outerHTML", "srcdoc"].includes(key) || /^on[a-z]/i.test(key)) return false;
       if (["href", "src", "url"].includes(key.toLowerCase()) && typeof field === "string") {
-        const url = field.trim().replace(/[\u0000-\u0020]/g, "");
+        const url = Array.from(field.trim()).filter((character) => character.charCodeAt(0) > 32).join("");
         if (/^(?:javascript|vbscript|data):/i.test(url)) return false;
       }
       pending.push(field);
@@ -52,6 +52,6 @@ export function personalContentFromEntry(entry: PersonalNotesEntry, ownerId: str
 }
 
 export function contentRevision(value: object) {
-  if (!("revision" in value)) return 0; // historical rows start at zero in migration 0028
+  if (!("revision" in value)) return 0; // historical rows start at zero in migration 0027
   return z.number().int().nonnegative().parse(value.revision);
 }

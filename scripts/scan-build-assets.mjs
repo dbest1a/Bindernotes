@@ -115,10 +115,6 @@ function collectFiles(dir) {
   });
 }
 
-function findLargest(pattern) {
-  return files.filter((file) => pattern.test(file.name)).sort((a, b) => b.bytes - a.bytes)[0] ?? null;
-}
-
 function findLargestJs(pattern) {
   return files
     .filter((file) => file.name.endsWith(".js") && pattern.test(file.name))

@@ -567,7 +567,6 @@ export function OgreDungeonRunnerPage() {
                 <div className="ogre-game-clues" aria-label={`${run.clues} route clues`}>
                   {Array.from({ length: requiredClues }).map((_, index) => (
                     <span
-                      // eslint-disable-next-line react/no-array-index-key
                       key={index}
                       className={cn(index < run.clues && "is-found")}
                     />
@@ -627,7 +626,6 @@ export function OgreDungeonRunnerPage() {
             <h2>Dungeon Log</h2>
             <ol aria-live="polite">
               {run.log.map((entry, index) => (
-                // eslint-disable-next-line react/no-array-index-key
                 <li key={`${entry}-${index}`}>{entry}</li>
               ))}
             </ol>

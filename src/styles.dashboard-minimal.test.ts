@@ -39,7 +39,7 @@ describe("minimal dashboard appearance styles", () => {
   });
 
   it("keeps the Minimal New button visually quiet instead of loud and heavy", () => {
-    const newButtonBlock = css.match(/\.minimal-dashboard-new-button\s*{(?<body>[\s\S]*?)\n  \}/)?.groups?.body ?? "";
+    const newButtonBlock = css.match(/\.minimal-dashboard-new-button\s*{(?<body>[\s\S]*?)\n {2}\}/)?.groups?.body ?? "";
 
     expect(newButtonBlock).toMatch(/background-color:\s*hsl\(var\(--background\) \/ 0\.94\)/);
     expect(newButtonBlock).toMatch(/font-size:\s*0\.82rem/);

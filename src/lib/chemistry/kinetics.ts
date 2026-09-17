@@ -24,7 +24,7 @@ export function generateKineticsDataset(input: {
   return Array.from({ length: count }, (_, index) => {
     const timeS = (duration / (count - 1)) * index;
     const decay = finite(k * timeS, "Rate-time product");
-    let concentrationM = initial;
+    let concentrationM: number;
     if (input.order === 0) {
       concentrationM = Math.max(0, initial - decay);
     } else if (input.order === 1) {

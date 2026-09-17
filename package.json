@@ -21,7 +21,12 @@
     "cleanup:placeholders": "tsx scripts/cleanup-workspace-placeholders.ts",
     "verify:supabase-grants": "node scripts/check-supabase-data-api-grants.mjs",
     "verify:auth:live": "node scripts/verify-live-auth.mjs --url https://www.bindernotes.com/auth",
-    "verify:client-env": "node scripts/client-env-guard.mjs --mode production --check-output dist"
+    "verify:client-env": "node scripts/client-env-guard.mjs --mode production --check-output dist",
+    "lint": "eslint src server api e2e scripts/database scripts/ci scripts/build-client.mjs scripts/client-env-guard.mjs scripts/scan-build-assets.mjs eslint.config.mjs",
+    "format:check": "node scripts/ci/quality-files.mjs",
+    "format": "node scripts/ci/quality-files.mjs --write",
+    "test:e2e": "playwright test",
+    "test:db": "node scripts/database/run-runtime-tests.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -52,16 +57,22 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/katex": "^0.16.8",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "autoprefixer": "^10.5.0",
+    "eslint": "10.10.0",
+    "globals": "17.12.0",
     "jsdom": "^29.0.2",
     "postcss": "^8.5.10",
+    "prettier": "3.9.7",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
+    "typescript-eslint": "8.70.0",
     "vitest": "^4.1.4"
   },
   "overrides": {

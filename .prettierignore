@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.tmp/
+.vercel/
+artifacts/
+output/
+tutorial-videos/
+.agents/
+package-lock.json
+src/types/database.generated.ts

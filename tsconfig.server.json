@@ -4,5 +4,5 @@
     "moduleResolution": "Bundler", "strict": true, "noEmit": true,
     "skipLibCheck": true, "esModuleInterop": true, "types": ["node"]
   },
-  "include": ["server", "api"]
+  "include": ["server", "api", "e2e", "playwright.config.ts"]
 }
