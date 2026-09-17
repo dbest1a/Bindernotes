@@ -30,6 +30,8 @@ const authMock = vi.hoisted(() => ({
 const themeMock = vi.hoisted(() => ({
   setThemeId: vi.fn(),
 }));
+const creatorMock = vi.hoisted(() => ({ allowed: false }));
+vi.mock("@/hooks/use-creator-access", () => ({ useCreatorAccess: () => ({ access: { allowed: creatorMock.allowed }, loading: false, error: "" }) }));
 
 const betaRevampFlagKeys = [
   "betaRevampCalmStudyHomepage",
@@ -81,7 +83,15 @@ function renderShell() {
 }
 
 describe("AppShell profile settings", () => {
+  it("shows creator navigation for an eligible learner without exposing Admin Studio", () => {
+    authMock.profile = { ...authMock.profile!, role: "learner" };
+    creatorMock.allowed = true;
+    renderShell();
+    expect(screen.getByRole("link", { name: "Creator workspace" }).getAttribute("href")).toBe("/creator");
+    expect(screen.queryByRole("link", { name: "Admin studio" })).toBeNull();
+  });
   afterEach(() => {
+    creatorMock.allowed = false;
     cleanup();
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-admin-motion");

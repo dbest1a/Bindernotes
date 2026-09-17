@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { useCreatorAccess } from "@/hooks/use-creator-access";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
 import { usePerformanceMode } from "@/hooks/use-performance-mode";
@@ -42,6 +43,7 @@ import type { PersonalNotesPreferences } from "@/types";
 
 export function AppShell() {
   const { profile, signOut } = useAuth();
+  const creator = useCreatorAccess(profile);
   const { globalTheme, setThemeId } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -356,6 +358,7 @@ export function AppShell() {
                 Admin studio
               </NavItem>
             ) : null}
+            {creator.access?.allowed && !studentPreviewAdminChromeGuard ? <NavItem to="/creator" icon={<PenTool data-icon="inline-start" />}>Creator workspace</NavItem> : null}
             <NavItem to="/pricing" icon={<GraduationCap data-icon="inline-start" />}>
               Pricing
             </NavItem>
@@ -661,10 +664,13 @@ export function AppShell() {
                         {profile?.role ?? "learner"}
                       </span>
                     </div>
+                    <Link className="text-sm underline" to="/account" onClick={closeSettingsWindow}>Password, sessions and account deletion</Link>
+                    {creator.access?.allowed ? <Link className="block text-sm underline" to="/creator" onClick={closeSettingsWindow}>Open creator workspace</Link> : null}
                     <Button className="justify-self-start" onClick={logout} size="sm" type="button" variant="outline">
                       <LogOut data-icon="inline-start" />
                       Log out
                     </Button>
+                    <Link className="text-sm underline underline-offset-4" onClick={closeSettingsWindow} to="/account/data">Data &amp; backups</Link>
                   </SettingsPanel>
                 ) : null}
 

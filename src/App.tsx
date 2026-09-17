@@ -39,15 +39,19 @@ const OgreDungeonRunnerPage = lazy(() =>
 const AuthPage = lazy(() =>
   import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })),
 );
+const AccountPage = lazy(() => import("@/pages/account-page").then(module => ({ default: module.AccountPage })));
+const PasswordRecoveryPage = lazy(() => import("@/pages/password-recovery-page").then(module => ({ default: module.PasswordRecoveryPage })));
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })),
 );
 const PersonalNotesPage = lazy(() =>
   import("@/pages/personal-notes-page").then((module) => ({ default: module.PersonalNotesPage })),
 );
+const AccountDataPage = lazy(() => import("@/pages/account-data-page").then((module) => ({ default: module.AccountDataPage })));
 const ReviewPage = lazy(() =>
   import("@/pages/review-page").then((module) => ({ default: module.ReviewPage })),
 );
+const CreatorWorkspacePage = lazy(() => import("@/pages/creator-workspace-page").then((module) => ({ default: module.CreatorWorkspacePage })));
 const FolderPage = lazy(() =>
   import("@/pages/folder-page").then((module) => ({ default: module.FolderPage })),
 );
@@ -124,12 +128,15 @@ function AppRoutes() {
           <Route path="/homepage-beta" element={<HomepageBetaPage />} />
           <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth/recovery" element={<PasswordRecoveryPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/pricing-beta" element={<PricingBetaPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
             <Route element={<LazyAppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/account/data" element={<AccountDataPage />} />
+              <Route path="/account" element={<AccountPage />} />
               <Route path="/notes" element={<PersonalNotesPage />} />
               <Route path="/notes/:noteId" element={<PersonalNotesPage />} />
               <Route path="/notes/n/:noteId" element={<PersonalNotesPage />} />
@@ -139,6 +146,7 @@ function AppRoutes() {
                 element={<PersonalNotesPage />}
               />
               <Route path="/review" element={<ReviewPage />} />
+              <Route path="/creator" element={<CreatorWorkspacePage />} />
               <Route path="/folders/:folderId" element={<FolderPage />} />
               <Route path="/binders/:binderId" element={<BinderPage />} />
               <Route path="/math" element={<MathLandingPage />} />
