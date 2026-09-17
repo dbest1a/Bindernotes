@@ -46,7 +46,7 @@ describe("RichTextEditor", () => {
     render(<RichTextEditor showToolbar={false} value={value} />);
 
     await waitFor(() => {
-      expect(document.querySelector(".ProseMirror")).not.toBeNull();
+      expect(screen.getByRole("textbox", { name: "Note content" })).not.toBeNull();
     });
 
     expect(screen.queryByRole("button", { name: "Bold" })).toBeNull();

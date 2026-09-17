@@ -180,7 +180,7 @@ export type RichTextEditorProps = {
 };
 
 export function RichTextEditor({
-  ariaLabel,
+  ariaLabel = "Note content",
   value,
   onChange,
   editable = true,
@@ -232,6 +232,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: "focus:outline-none",
+        role: "textbox",
         tabindex: editable ? "0" : "-1",
         ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
         "aria-multiline": "true",
