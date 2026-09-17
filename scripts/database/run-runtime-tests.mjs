@@ -58,7 +58,21 @@ try {
   const preservationQuery = `select jsonb_build_object('profile',(select to_jsonb(p) from public.profiles p where id='${sentinelId}'),
     'note',(select to_jsonb(n)-'revision' from public.learner_notes n where id='upgrade-note'))::text;`;
   for (const migration of migrations) {
+    if (migration.version === '0032') {
+      sql(`insert into auth.users(id,email) values('90000000-0000-4000-8000-000000000006','history@disposable.invalid');
+        insert into public.whiteboards(id,owner_id,title,module_context,scene_json,scene,module_elements,modules)
+          values('upgrade-history','90000000-0000-4000-8000-000000000006','Keep current','math-lab','{"elements":[],"marker":"original current"}','{"elements":[],"marker":"original current"}','[]','[]');
+        insert into public.whiteboard_versions(whiteboard_id,owner_id,version,version_kind,scene_json,scene,module_elements,modules)
+          values('upgrade-history','90000000-0000-4000-8000-000000000006',1,'manual','{"elements":[],"marker":"original retained"}','{"elements":[],"marker":"original retained"}','[]','[]');`);
+      assert.throws(()=>sql(`begin;update public.whiteboards set scene='{"elements":[],"marker":"conflicting copy"}' where id='upgrade-history';${migration.sql}\ncommit;`),/WHITEBOARD_LEGACY_PAYLOAD_CONFLICT/);
+      console.log('PASS: unequal legacy scene migration fails safely and rolls back');
+    }
     sql(`begin;\n${nativeMigration(migration)}\ninsert into supabase_migrations.schema_migrations(version,name) values('${migration.version}','${migration.name}');\ncommit;`);
+    if(migration.version==='0032') {
+      assert.equal(sql("select scene_json->>'marker' from public.whiteboards where id='upgrade-history';"),'original current');
+      assert.equal(sql("select scene_json->>'marker' from public.whiteboard_versions where whiteboard_id='upgrade-history';"),'original retained');
+      console.log('PASS: canonical migration preserves current and explicitly retained legacy content');
+    }
     console.log(`Applied ${migration.version}`);
     if (upgradeFrom === 'production-observed' && migration.version === '0018') {
       // Read-only production metadata shows unrecorded later helpers/policies,

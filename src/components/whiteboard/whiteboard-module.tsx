@@ -1,3 +1,4 @@
+import { WhiteboardVersionHistory } from "@/components/whiteboard/whiteboard-version-history";
 import {
   useCallback,
   useEffect,
@@ -1386,6 +1387,12 @@ function WhiteboardModuleContent({ context, onBack, renderModule, variant = "mod
     ? draftState.state === "conflict" ? "Choose which version to keep" : draftState.state === "error" ? "Save needs attention" : draftState.state === "offline" ? "Offline draft" : isScratchWhiteboard(draftState.snapshot) ? "Scratch board - not saved yet" : "Saving..."
     : storedSaveMessage;
   const warning = draftState?.error ?? storedWarning;
+  const versionHistory = activeBoard && activeDraft && !isScratchWhiteboard(activeBoard) ? (
+    <div className={labMode ? "pointer-events-auto fixed bottom-4 left-4 z-[1200]" : "flex justify-end"}>
+      <WhiteboardVersionHistory key={activeBoard.id} board={activeBoard} expectedRevision={activeDraft.getServerRevision()}
+        disabled={Boolean(draftState?.dirty) || saveStatus === "saving"} onRestored={loadSavedVersion} />
+    </div>
+  ) : null;
   const recoveryControls = activeDraft && (saveStatus === "conflict" || saveStatus === "error" || saveStatus === "offline-draft") ? (
     <div className={labMode ? "pointer-events-auto fixed bottom-20 left-4 right-4 z-[1200] flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3 shadow-lg" : "flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3"} role="status" data-testid="whiteboard-recovery-controls">
       {saveStatus === "conflict" ? <span>This board changed elsewhere. Your draft is preserved.</span> : null}
@@ -1429,6 +1436,7 @@ function WhiteboardModuleContent({ context, onBack, renderModule, variant = "mod
       >
         {recoveryControls}
         {backupChoices}
+        {versionHistory}
         {activeBoard ? (
           <>
             {exitWhiteboardFocus ? (
@@ -1646,6 +1654,7 @@ function WhiteboardModuleContent({ context, onBack, renderModule, variant = "mod
     >
       {recoveryControls}
       {backupChoices}
+      {versionHistory}
       <div
         className={`whiteboard-module-layout grid h-full min-h-0 gap-3 ${sidebarCollapsed ? "whiteboard-module-layout--sidebar-collapsed" : ""}`}
         data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}

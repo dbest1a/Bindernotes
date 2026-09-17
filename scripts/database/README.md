@@ -33,6 +33,14 @@ The client and migration0027 require a coordinated deployment: old direct-conten
 
 Mutation receipts contain hashes, identity and revision, not document payloads. Define an offline-retry retention horizon before a future service maintenance job prunes receipts; this migration never deletes student data or old versions.
 
+## Trash and whiteboard retention
+
+Migration0031 gives personal folders/courses/documents/notes one trash model: parent archive hides the tree without rewriting child archive flags or relationships. Items remain indefinitely until their owner explicitly confirms permanent deletion from trash. Restore the parent first; independently trashed children stay trashed. Direct authenticated DELETE is revoked. `set_personal_trash(kind,id,action,confirmation)` authorizes each owner and requires the literal `DELETE` for permanent subtree deletion. The UI disables destructive actions while the current editor has unsaved changes. Account-wide disposal is a separate trusted operation.
+
+Migration0032 stores scenes only in `scene_json` and modules only in `module_elements`. Before dropping compatibility copies, it verifies that every current and historical pair is equal; a mismatch fails and rolls the migration back for manual reconciliation. The runtime upgrade test proves this failure path and preservation of meaningful equal current/manual version payloads.
+
+Whiteboards retain the newest **50 automatic/draft versions** plus all explicit manual/checkpoint/snapshot versions. Pruning occurs transactionally on snapshot insertion; the current scene is never pruned. This bounds automatic growth while respecting explicitly retained checkpoints. Version history in the UI lists the latest100 retained versions. `restore_whiteboard_version(board_id,version_id,expected_revision,operation_id)` validates ownership, uses CAS, creates a new snapshot and promotes the chosen recovery point to a retained manual checkpoint. Recovering never mutates the old version's payload. Tests cover56 generated snapshots, pruning, current/retained preservation, retry, stale conflict and cross-owner denial. Coordinated deployment is required because old clients selecting the removed alias columns will fail.
+
 ## Native Auth and PostgREST browser environment
 
 `start-local-api-stack.mjs` creates a separate random database in the loopback PostgreSQL runtime, runs **real GoTrue auth migrations**, applies the application migration bundle, and starts real GoTrue and PostgREST behind a tiny route-only HTTP proxy. It creates four disposable Auth accounts and seeds the actual catalog transactionally. It never loads `.env` or contacts the hosted database. Existing occupied API ports cause it to refuse startup.

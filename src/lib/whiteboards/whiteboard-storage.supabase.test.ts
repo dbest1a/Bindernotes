@@ -21,17 +21,21 @@ function matchesFilter(row: WhiteboardRecord, filter: { column: string; value: u
 }
 
 function createQuery(table: "whiteboards" | "whiteboard_versions") {
+  let selected = "*";
+  let bounds: [number, number] | null = null;
   const filters: Array<{ column: string; value: unknown; type: "eq" | "is" }> = [];
   let selectOptions: { count?: "exact"; head?: boolean } | undefined;
   let mutation: { type: "insert" | "update" | "upsert"; values: WhiteboardRecord | WhiteboardRecord[] } | null = null;
 
   const rows = () => (table === "whiteboards" ? mockDb.whiteboards : mockDb.versions);
   const executeSelect = () => {
-    const filtered = rows().filter((row) => filters.every((filter) => matchesFilter(row, filter)));
+    let filtered = rows().filter((row) => filters.every((filter) => matchesFilter(row, filter)));
     if (selectOptions?.head) {
       return { data: null, error: null, count: filtered.length };
     }
 
+    if (bounds) filtered = filtered.slice(bounds[0], bounds[1] + 1);
+    if (selected !== "*") filtered = filtered.map((row) => Object.fromEntries(selected.split(",").map((key) => [key.trim(), row[key.trim()]])));
     return { data: filtered, error: null, count: selectOptions?.count ? filtered.length : null };
   };
   const executeMutation = () => {
@@ -73,6 +77,7 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
 
   const builder = {
     select(_columns: string, options?: { count?: "exact"; head?: boolean }) {
+      selected = _columns;
       selectOptions = options;
       return builder;
     },
@@ -87,6 +92,7 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
     order() {
       return builder;
     },
+    range(from: number, to: number) { bounds = [from, to]; return builder; },
     upsert(values: WhiteboardRecord) {
       mutation = { type: "upsert", values };
       return builder;
@@ -247,6 +253,17 @@ describe("whiteboard Supabase storage", () => {
     expect(mockDb.versions[0]).toMatchObject({ owner_id: scope.ownerId, whiteboard_id: "board-1" });
     expect(mockDb.rpcCalls).toHaveLength(1);
     expect(mockDb.rpcCalls[0]).toMatchObject({ name: "save_whiteboard_snapshot", args: { p_expected_revision: 0, p_create_version: true } });
+  });
+  it("keeps list payloads bounded and cannot save an unhydrated metadata row", async () => {
+    await saveWhiteboard(board({ id: "metadata-a" }), { backend: "supabase" });
+    await saveWhiteboard(board({ id: "metadata-b" }), { backend: "supabase" });
+    const list = await listWhiteboards(scope, { metadataOnly: true, offset: 0, limit: 1 });
+    expect(list.backend).toBe("supabase"); expect(list.boards).toHaveLength(1);
+    expect(list.boards[0].metadataOnly).toBe(true); expect(list.boards[0].scene.elements).toEqual([]);
+    await expect(saveWhiteboard(list.boards[0], { backend: "supabase" })).rejects.toThrow("Load the full whiteboard");
+    const loaded = await loadWhiteboard(scope, list.boards[0].id);
+    expect(loaded.boards[0].metadataOnly).not.toBe(true);
+    expect(loaded.boards[0].scene.elements).toHaveLength(1);
   });
 
   it("preserves a stale draft and reports an explicit revision conflict", async () => {

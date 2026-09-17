@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { runBillingCases } from './billing-cases.mjs';
+import { runReviewCases } from './review-cases.mjs';
 
 const users = {
   a: '10000000-0000-4000-8000-000000000001', b: '10000000-0000-4000-8000-000000000002',
@@ -129,6 +131,30 @@ export async function run({ sql, concurrentSql }) {
     assert.equal(JSON.parse(as(users.a,`select public.save_personal_content('learner-note',${json(learner)},0,'${randomUUID()}');`)).revision,1);
     denied(users.b,`select public.save_personal_content('learner-note',${json({...learner,owner_id:users.b})},1,'${randomUUID()}');`);
   });
+  check('trash restores a whole course without losing children or relationships', () => {
+    const folder=randomUUID(),binder=randomUUID(),document=randomUUID(),loose=randomUUID();
+    as(users.a,`insert into public.personal_note_folders(id,owner_id,name) values('${folder}','${users.a}','Course folder');
+      insert into public.personal_note_binders(id,owner_id,folder_id,title) values('${binder}','${users.a}','${folder}','Course');
+      insert into public.personal_note_documents(id,owner_id,binder_id,title,content) values('${document}','${users.a}','${binder}','Document','{"type":"doc","content":[{"type":"text","text":"Keep this content"}]}');
+      insert into public.personal_notes(id,owner_id,binder_id,document_id,title) values('${loose}','${users.a}','${binder}','${document}','Linked note');`);
+    denied(users.a,`delete from public.personal_note_binders where id='${binder}';`);
+    denied(users.b,`select public.set_personal_trash('binder','${binder}','trash');`,/TRASH_ITEM_NOT_FOUND/);
+    denied(users.a,`select public.set_personal_trash('binder','${binder}','delete','DELETE');`,/TRASH_FIRST_REQUIRED/);
+    as(users.a,`select public.set_personal_trash('binder','${binder}','trash');`);
+    assert(JSON.parse(as(users.a,'select public.list_personal_trash();')).some(item=>item.id===binder));
+    assert(!JSON.parse(as(users.b,'select public.list_personal_trash();')).some(item=>item.id===binder));
+    as(users.a,`select public.set_personal_trash('document','${document}','trash');`);
+    denied(users.a,`select public.set_personal_trash('document','${document}','restore');`,/TRASH_PARENT_ARCHIVED/);
+    as(users.a,`select public.set_personal_trash('binder','${binder}','restore');`);
+    assert.equal(as(users.a,`select (binder_id='${binder}' and archived_at is not null)::text from public.personal_note_documents where id='${document}';`),'true');
+    as(users.a,`select public.set_personal_trash('document','${document}','restore');`);
+    assert.equal(as(users.a,`select content->'content'->0->>'text' from public.personal_note_documents where id='${document}';`),'Keep this content');
+    assert.equal(as(users.a,`select (document_id='${document}' and binder_id='${binder}')::text from public.personal_notes where id='${loose}';`),'true');
+    as(users.a,`select public.set_personal_trash('folder','${folder}','trash');`);
+    denied(users.a,`select public.set_personal_trash('folder','${folder}','delete','yes');`,/EXPLICIT_DELETE_CONFIRMATION_REQUIRED/);
+    as(users.a,`select public.set_personal_trash('folder','${folder}','delete','DELETE');`);
+    assert.equal(sql(`select (select count(*) from public.personal_note_documents where id='${document}')+(select count(*) from public.personal_notes where id='${loose}')+(select count(*) from public.personal_note_binders where id='${binder}');`),'0');
+  });
   const board=(owner,id) => ({id,owner_id:owner,title:'Board',module_context:'math-lab',scene_json:{elements:[]},module_elements:[],asset_size_bytes:0});
   const boardCall=(record,revision,operation=randomUUID()) => `select public.save_whiteboard_snapshot(${json(record)},${revision},true,'${operation}');`;
   const firstBoard=board(users.a,'board-a'); const boardOp=randomUUID();
@@ -166,6 +192,23 @@ export async function run({ sql, concurrentSql }) {
     as(users.creator,boardCall(board(users.creator,'creator-after-archive'),0));
     assert.equal(sql(`select count(*) from public.whiteboards where owner_id='${users.creator}' and archived_at is null;`),'3');
   });
+  check('whiteboard history bounds automatic snapshots and restores retained content with CAS', () => {
+    const historical=board(users.a,'retention-board');
+    as(users.a,boardCall({...historical,scene_json:{elements:[],marker:0}},0));
+    const preservedId=sql("select id from public.whiteboard_versions where whiteboard_id='retention-board' and version=1;");
+    sql(`update public.whiteboard_versions set version_kind='manual' where id='${preservedId}';`);
+    as(users.a,Array.from({length:55},(_,i)=>boardCall({...historical,scene_json:{elements:[],marker:i+1}},i+1)).join('\n'));
+    assert.equal(sql("select count(*) from public.whiteboard_versions where whiteboard_id='retention-board';"),'51');
+    assert.equal(sql("select count(*) from public.whiteboard_versions where whiteboard_id='retention-board' and version_kind='auto';"),'50');
+    assert.equal(sql("select scene_json->>'marker' from public.whiteboards where id='retention-board';"),'55');
+    const operation=randomUUID();const restore=`select public.restore_whiteboard_version('retention-board','${preservedId}',56,'${operation}');`;
+    const restored=JSON.parse(as(users.a,restore));assert.equal(restored.revision,57);assert.equal(restored.scene_json.marker,0);
+    assert.equal(JSON.parse(as(users.a,restore)).revision,57);
+    denied(users.b,`select public.restore_whiteboard_version('retention-board','${preservedId}',57,'${randomUUID()}');`);
+    denied(users.a,`select public.restore_whiteboard_version('retention-board','${preservedId}',56,'${randomUUID()}');`,/CONTENT_REVISION_CONFLICT/);
+    assert.equal(sql("select count(*) from information_schema.columns where table_schema='public' and table_name in ('whiteboards','whiteboard_versions') and column_name in ('scene','modules');"),'0');
+    assert.equal(sql(`select scene_json->>'marker' from public.whiteboard_versions where id='${preservedId}';`),'0');
+  });
   check('trusted catalog seed is transactional and idempotent', () => {
     const payload={math_courses:[{id:'seed-course',slug:'seed-course',title:'Seed'}]};
     as(null,`select public.apply_catalog_seed(${json(payload)});`,'service_role');
@@ -175,5 +218,7 @@ export async function run({ sql, concurrentSql }) {
     assert.throws(()=>as(null,`select public.apply_catalog_seed(${json(invalid)});`,'service_role'),/foreign key/);
     assert.equal(sql("select count(*) from public.math_courses where id='rollback-course';"),'0');
   });
-  console.log(`${count} database scenarios passed.`);
+  await runBillingCases({sql,concurrentSql,roleSql,as,users});
+  await runReviewCases({sql,concurrentSql,roleSql,as,users,json});
+  console.log(`${count} database scenarios plus billing/review authorization/concurrency passed.`);
 }

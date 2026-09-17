@@ -34,7 +34,8 @@ response=await api('learner-b','rpc/save_personal_content',{method:'POST',body:{
 response=await api('learner-a','rpc/save_personal_content',{method:'POST',body:{...body,p_record:{...record,title:'Stale rejected'},p_operation_id:randomUUID()}});assert.equal(response.status,500);assert.equal((await response.json()).code,'40001');
 response=await api('learner-a',`personal_notes?id=eq.${id}&select=title,revision,content`);assert.equal(response.status,200);
 assert.deepEqual((await response.json())[0],{title:record.title,revision:1,content:record.content});
-response=await api('learner-a',`personal_notes?id=eq.${id}`,{method:'DELETE'});assert.equal(response.status,204);
+response=await api('learner-a','rpc/set_personal_trash',{method:'POST',body:{p_kind:'note',p_id:id,p_action:'trash'}});assert.equal(response.status,200);
+response=await api('learner-a','rpc/set_personal_trash',{method:'POST',body:{p_kind:'note',p_id:id,p_action:'delete',p_confirmation:'DELETE'}});assert.equal(response.status,200);
 console.log('PASS real HTTP note CAS/retry/cross-owner denial/conflict/readback/cleanup');
 const refreshed=await fetch(`${manifest.apiUrl}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:manifest.anonKey,'content-type':'application/json'},body:JSON.stringify({refresh_token:learner.refreshToken})});
 assert.equal(refreshed.status,200);assert.equal((await refreshed.json()).user.id,learner.id);
