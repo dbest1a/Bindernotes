@@ -1,6 +1,6 @@
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -15,6 +15,7 @@ import {
   Save,
 } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
+import { SavedQuizResults } from "@/components/math/saved-quiz-results";
 import { MathStudyLoopPanel } from "@/components/study/math-study-loop-panel";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -26,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { useQuizAttemptResults } from "@/hooks/use-quiz-attempt-results";
 import {
   useCompleteQuizAttempt,
   useCreateQuizSet,
@@ -41,6 +43,7 @@ import {
   useSubmitQuestionAttempt,
 } from "@/hooks/use-math-learning";
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { parseFiniteDecimal } from "@/lib/finite-number";
 import { cn } from "@/lib/utils";
 import { createStudyItem, type StudyItemType } from "@/services/study-items-service";
 import { listStudyGraphLinks } from "@/services/math-study-loop-service";
@@ -625,6 +628,7 @@ export function MathQuestionEditorPage() {
   const modulesQuery = useMathModules();
   const questionsQuery = useQuestionBank({});
   const saveQuestionMutation = useSaveQuestion();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const existingQuestion = (questionsQuery.data ?? []).find((question) => question.id === questionId);
   const [draft, setDraft] = useState(() =>
     createQuestionDraft({
@@ -677,34 +681,45 @@ export function MathQuestionEditorPage() {
 
   const modules = modulesQuery.data ?? [];
   const selectedModule = modules.find((module) => module.id === draft.moduleId) ?? null;
+  const numericExpected = parseFiniteDecimal(draft.numericExpected);
+  const numericTolerance = parseFiniteDecimal(draft.numericTolerance);
+  const numericAnswerError = draft.type === "numeric" && (numericExpected === null || numericTolerance === null || numericTolerance < 0)
+    ? "Enter a finite expected answer and a nonnegative numeric tolerance."
+    : null;
 
   const saveDraft = async () => {
-    const saved = await saveQuestionMutation.mutateAsync({
-      id: draft.id || undefined,
-      userId: profile.id,
-      courseId: draft.courseId || selectedModule?.course_id || null,
-      topicId: draft.topicId || selectedModule?.topic_id || null,
-      moduleId: draft.moduleId || null,
-      noteId: draft.noteId || null,
-      type: draft.type,
-      title: draft.title || null,
-      promptMarkdown: draft.promptMarkdown,
-      promptLatex: draft.promptLatex || null,
-      answerJson: buildAnswerJson(draft),
-      explanationMarkdown: draft.explanationMarkdown || null,
-      difficulty: draft.difficulty,
-      calculatorAllowed: draft.calculatorAllowed,
-      status: draft.status,
-      choices: usesChoices(draft.type)
-        ? draft.choices.map((choice, index) => ({
-            id: choice.id,
-            choiceText: choice.choiceText,
-            isCorrect: choice.isCorrect,
-            orderIndex: index + 1,
-          }))
-        : [],
-    });
-    navigate(`/math/questions/${saved.id}/edit`);
+    if (numericAnswerError) return;
+    setSaveError(null);
+    try {
+      const saved = await saveQuestionMutation.mutateAsync({
+        id: draft.id || undefined,
+        userId: profile.id,
+        courseId: draft.courseId || selectedModule?.course_id || null,
+        topicId: draft.topicId || selectedModule?.topic_id || null,
+        moduleId: draft.moduleId || null,
+        noteId: draft.noteId || null,
+        type: draft.type,
+        title: draft.title || null,
+        promptMarkdown: draft.promptMarkdown,
+        promptLatex: draft.promptLatex || null,
+        answerJson: buildAnswerJson(draft),
+        explanationMarkdown: draft.explanationMarkdown || null,
+        difficulty: draft.difficulty,
+        calculatorAllowed: draft.calculatorAllowed,
+        status: draft.status,
+        choices: usesChoices(draft.type)
+          ? draft.choices.map((choice, index) => ({
+              id: choice.id,
+              choiceText: choice.choiceText,
+              isCorrect: choice.isCorrect,
+              orderIndex: index + 1,
+            }))
+          : [],
+      });
+      navigate(`/math/questions/${saved.id}/edit`);
+    } catch {
+      setSaveError("The question could not be saved. Your edits are still here; please try again.");
+    }
   };
 
   return (
@@ -725,11 +740,12 @@ export function MathQuestionEditorPage() {
               {existingQuestion ? "Edit math question" : "Create math question"}
             </h1>
           </div>
-          <Button onClick={saveDraft} type="button">
+          <Button disabled={Boolean(numericAnswerError) || saveQuestionMutation.isPending} onClick={saveDraft} type="button">
             <Save data-icon="inline-start" />
             Save question
           </Button>
         </div>
+        {numericAnswerError || saveError ? <p className="mt-3 text-sm" role="alert">{numericAnswerError ?? saveError}</p> : null}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.55fr)]">
@@ -876,69 +892,63 @@ export function MathQuizPage() {
 export function MathQuizAttemptPage() {
   const { quizId } = useParams();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const quizQuery = useQuizSet(quizId);
   const startAttempt = useStartQuizAttempt();
   const submitAttempt = useSubmitQuestionAttempt();
   const completeAttempt = useCompleteQuizAttempt();
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SubmittedQuestionAnswer>>({});
-  const [results, setResults] = useState<Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>>([]);
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const operation = useRef({ generation: 0, pending: false });
+  useEffect(() => {
+    operation.current = { generation: operation.current.generation + 1, pending: false };
+    setAttemptId(null);
+    setAnswers({});
+    setPending(false);
+    setSaveError(null);
+    return () => { operation.current.generation += 1; };
+  }, [quizId, profile?.id]);
 
   if (quizQuery.isLoading) {
     return <MathPageSkeleton />;
   }
+  if (quizQuery.isError) return <main className="app-page"><p role="alert">The quiz could not be loaded. Please try again.</p></main>;
 
   const quiz = quizQuery.data;
   if (!quiz || !profile) {
     return <Navigate replace to="/math/questions" />;
   }
 
-  const begin = async () => {
-    const attempt = await startAttempt.mutateAsync({
-      quizSetId: quiz.id,
-      userId: profile.id,
-    });
-    setAttemptId(attempt.id);
-  };
-
-  const finish = async () => {
-    const activeAttemptId =
-      attemptId ??
-      (
-        await startAttempt.mutateAsync({
-          quizSetId: quiz.id,
-          userId: profile.id,
-        })
-      ).id;
-    setAttemptId(activeAttemptId);
-
-    const nextResults = [];
-    for (const question of quiz.questions ?? []) {
-      const answer = answers[question.id] ?? {};
-      const submitted = await submitAttempt.mutateAsync({
-        attemptId: activeAttemptId,
-        userId: profile.id,
-        question,
-        answer,
-      });
-      nextResults.push({
-        question,
-        isCorrect: submitted.score.isCorrect,
-        points: submitted.score.pointsAwarded,
-        total: submitted.score.totalPoints,
-      });
+  const saveAttempt = async (finish: boolean) => {
+    if (operation.current.pending) return;
+    const generation = operation.current.generation;
+    operation.current.pending = true;
+    setPending(true);
+    setSaveError(null);
+    try {
+      const activeAttemptId = attemptId ?? (await startAttempt.mutateAsync({ quizSetId: quiz.id, userId: profile.id, quizTitle: quiz.title })).id;
+      if (operation.current.generation !== generation) return;
+      setAttemptId(activeAttemptId);
+      if (!finish) return;
+      const scores = [];
+      for (const question of quiz.questions ?? []) {
+        const submitted = await submitAttempt.mutateAsync({ attemptId: activeAttemptId, userId: profile.id, question, answer: answers[question.id] ?? {} });
+        if (operation.current.generation !== generation) return;
+        scores.push({ pointsAwarded: submitted.score.pointsAwarded, totalPoints: submitted.score.totalPoints });
+      }
+      await completeAttempt.mutateAsync({ attemptId: activeAttemptId, quizSet: quiz, userId: profile.id, scores });
+      if (operation.current.generation !== generation) return;
+      navigate(`/math/quizzes/${encodeURIComponent(quiz.id)}/results/${encodeURIComponent(activeAttemptId)}`);
+    } catch {
+      if (operation.current.generation === generation) setSaveError("The attempt was not fully saved. Your answers are still here. Retry to finish saving before leaving this page.");
+    } finally {
+      if (operation.current.generation === generation) {
+        operation.current.pending = false;
+        setPending(false);
+      }
     }
-
-    await completeAttempt.mutateAsync({
-      attemptId: activeAttemptId,
-      quizSet: quiz,
-      userId: profile.id,
-      scores: nextResults.map((result) => ({
-        pointsAwarded: result.points,
-        totalPoints: result.total,
-      })),
-    });
-    setResults(nextResults);
   };
 
   return (
@@ -951,17 +961,15 @@ export function MathQuizAttemptPage() {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
           </div>
           {!attemptId ? (
-            <Button onClick={begin} type="button">Start attempt</Button>
+            <Button disabled={pending} onClick={() => void saveAttempt(false)} type="button">Start attempt</Button>
           ) : (
             <Badge variant="outline">Attempt started</Badge>
           )}
         </div>
       </section>
 
-      {results.length > 0 ? (
-        <QuizResultSummary results={results} />
-      ) : (
-        <section className="grid gap-4">
+      {saveError ? <p role="alert">{saveError}</p> : null}
+        <fieldset className="grid gap-4" disabled={pending}>
           {(quiz.questions ?? []).map((question) => (
             <QuestionRenderer
               key={question.id}
@@ -972,41 +980,26 @@ export function MathQuizAttemptPage() {
               value={answers[question.id] ?? {}}
             />
           ))}
-          <Button className="justify-self-start" onClick={finish} type="button">
-            Submit answers
-          </Button>
-        </section>
-      )}
+           <Button className="justify-self-start" disabled={pending || !quiz.questions?.length} onClick={() => void saveAttempt(true)} type="button">
+             {pending ? "Saving attempt…" : "Submit answers"}
+           </Button>
+        </fieldset>
     </main>
   );
 }
 
 export function MathQuizResultsPage() {
-  const { quizId } = useParams();
-  const quizQuery = useQuizSet(quizId);
-
-  if (quizQuery.isLoading) {
-    return <MathPageSkeleton />;
+  const { quizId, attemptId } = useParams();
+  const { profile, isLoading } = useAuth();
+  const resultsQuery = useQuizAttemptResults(quizId, attemptId, profile?.id);
+  if (isLoading || resultsQuery.isLoading) return <MathPageSkeleton />;
+  if (!profile) return <Navigate replace to="/auth" />;
+  if (resultsQuery.isError) return <main className="app-page"><p role="alert">Saved results could not be loaded.</p><Button onClick={() => void resultsQuery.refetch()} type="button">Try again</Button></main>;
+  const results = resultsQuery.data;
+  if (!results || results.attempt.user_id !== profile.id || results.attempt.id !== attemptId || results.attempt.quiz_set_id !== quizId) {
+    return <main className="app-page"><EmptyState title="Saved attempt unavailable" description="This attempt does not exist or is not available to your account." /></main>;
   }
-
-  const quiz = quizQuery.data;
-  if (!quiz) {
-    return <Navigate replace to="/math/questions" />;
-  }
-
-  return (
-    <main className="app-page">
-      <EmptyState
-        action={
-          <Button asChild>
-            <Link to={`/math/quizzes/${quiz.id}/attempt`}>Start another attempt</Link>
-          </Button>
-        }
-        description="Open the attempt page to see a fresh scored result summary after submitting answers."
-        title={`${quiz.title} results`}
-      />
-    </main>
-  );
+  return <SavedQuizResults results={results} />;
 }
 
 function CourseCard({ course }: { course: MathCourse }) {
@@ -1557,42 +1550,6 @@ function AnswerEditor({
   );
 }
 
-function QuizResultSummary({
-  results,
-}: {
-  results: Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>;
-}) {
-  const score = results.reduce((sum, result) => sum + (result.points ?? 0), 0);
-  const total = results.reduce((sum, result) => sum + result.total, 0);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Score: {score} / {total}</CardTitle>
-        <CardDescription>Review explanations and retry anything that felt shaky.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {results.map((result) => (
-          <div className="rounded-lg border border-border/70 bg-background/75 p-4" key={result.question.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={result.isCorrect ? "secondary" : "outline"}>
-                {result.isCorrect === null ? "Saved" : result.isCorrect ? "Correct" : "Review"}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {result.points ?? 0} / {result.total}
-              </span>
-            </div>
-            <p className="mt-2 font-medium">{result.question.title ?? result.question.prompt_markdown}</p>
-            {result.question.explanation_markdown ? (
-              <MarkdownLite className="mt-2 text-sm text-muted-foreground" text={result.question.explanation_markdown} />
-            ) : null}
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 function MarkdownLite({ className, text }: { className?: string; text: string }) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.every((line) => line.trim().startsWith("- "))) {
@@ -1750,8 +1707,8 @@ function buildAnswerJson(draft: QuestionDraft): QuestionBankItem["answer_json"] 
   }
   if (draft.type === "numeric") {
     return {
-      expected: Number(draft.numericExpected),
-      tolerance: Number(draft.numericTolerance || 0),
+      expected: parseFiniteDecimal(draft.numericExpected),
+      tolerance: parseFiniteDecimal(draft.numericTolerance),
       units: null,
     };
   }

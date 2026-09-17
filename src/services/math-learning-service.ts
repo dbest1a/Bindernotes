@@ -8,6 +8,7 @@ import {
   mathSeedTopics,
 } from "@/lib/math-learning-seeds";
 import { scoreQuestion, type SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { savedQuestionAttemptSchema, savedQuizAttemptSchema, snapshotQuestion } from "@/services/quiz-attempt-results-service";
 import type {
   CalculatorMode,
   MathCourse,
@@ -542,7 +543,9 @@ export async function getQuizSet(quizId: string): Promise<QuizSet | null> {
 export async function startQuizAttempt(input: {
   quizSetId: string;
   userId: string;
+  quizTitle?: string;
 }): Promise<QuizAttempt> {
+  if (!supabase) throw new Error("Account storage is unavailable. Your quiz attempt was not saved.");
   const attempt: QuizAttempt = {
     id: crypto.randomUUID(),
     quiz_set_id: input.quizSetId,
@@ -551,14 +554,8 @@ export async function startQuizAttempt(input: {
     completed_at: null,
     score: null,
     total_points: null,
-    metadata_json: null,
+    metadata_json: { schema: "quiz_attempt_v1", quizTitle: input.quizTitle ?? null },
   };
-
-  if (!supabase) {
-    const local = loadLocalState();
-    saveLocalState({ ...local, attempts: [attempt, ...local.attempts] });
-    return attempt;
-  }
 
   const { data, error } = await supabase
     .from("quiz_attempts")
@@ -569,7 +566,7 @@ export async function startQuizAttempt(input: {
     throw new Error(`Could not start quiz attempt: ${error.message}`);
   }
 
-  return data as QuizAttempt;
+  return savedQuizAttemptSchema.parse(data);
 }
 
 export async function submitQuestionAttempt(input: {
@@ -578,26 +575,23 @@ export async function submitQuestionAttempt(input: {
   question: QuestionBankItem;
   answer: SubmittedQuestionAnswer;
 }) {
+  if (!supabase) throw new Error("Account storage is unavailable. Your answer was not saved.");
   const score = scoreQuestion(input.question, input.answer);
   const row = {
-    id: crypto.randomUUID(),
+    id: `${input.attemptId}:${input.question.id}`,
     quiz_attempt_id: input.attemptId,
     question_id: input.question.id,
     user_id: input.userId,
-    submitted_answer_json: input.answer as Record<string, unknown>,
+    submitted_answer_json: { ...input.answer },
     is_correct: score.isCorrect,
     points_awarded: score.pointsAwarded,
-    feedback_json: score.feedback,
+    feedback_json: { ...score.feedback, totalPoints: score.totalPoints, autoGraded: score.autoGraded, questionSnapshot: snapshotQuestion(input.question) },
     created_at: new Date().toISOString(),
   };
 
-  if (!supabase) {
-    return { attempt: row, score };
-  }
-
   const { data, error } = await supabase
     .from("question_attempts")
-    .insert(row)
+    .upsert(row, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -605,7 +599,7 @@ export async function submitQuestionAttempt(input: {
     throw new Error(`Could not submit answer: ${error.message}`);
   }
 
-  return { attempt: data, score };
+  return { attempt: savedQuestionAttemptSchema.parse(data), score };
 }
 
 export async function completeQuizAttempt(input: {
@@ -614,33 +608,15 @@ export async function completeQuizAttempt(input: {
   userId: string;
   scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
 }): Promise<QuizAttempt> {
+  if (!supabase) throw new Error("Account storage is unavailable. Your quiz result was not saved.");
+  if (input.scores.some((item) => !Number.isFinite(item.totalPoints) || item.totalPoints < 0
+    || (item.pointsAwarded !== null && (!Number.isFinite(item.pointsAwarded) || item.pointsAwarded < 0 || item.pointsAwarded > item.totalPoints)))) {
+    throw new Error("The quiz contains invalid scoring data and could not be completed.");
+  }
   const score = input.scores.reduce((sum, item) => sum + (item.pointsAwarded ?? 0), 0);
   const totalPoints = input.scores.reduce((sum, item) => sum + item.totalPoints, 0);
+  if (!Number.isFinite(score) || !Number.isFinite(totalPoints)) throw new Error("The quiz score is outside the supported numeric range.");
   const completedAt = new Date().toISOString();
-
-  if (!supabase) {
-    const local = loadLocalState();
-    const attempt =
-      local.attempts.find((candidate) => candidate.id === input.attemptId) ??
-      ({
-        id: input.attemptId,
-        quiz_set_id: input.quizSet.id,
-        user_id: input.userId,
-        started_at: completedAt,
-        metadata_json: null,
-      } as QuizAttempt);
-    const completed: QuizAttempt = {
-      ...attempt,
-      completed_at: completedAt,
-      score,
-      total_points: totalPoints,
-    };
-    saveLocalState({
-      ...local,
-      attempts: [completed, ...local.attempts.filter((item) => item.id !== input.attemptId)],
-    });
-    return completed;
-  }
 
   const { data, error } = await supabase
     .from("quiz_attempts")
@@ -651,6 +627,7 @@ export async function completeQuizAttempt(input: {
     })
     .eq("id", input.attemptId)
     .eq("user_id", input.userId)
+    .eq("quiz_set_id", input.quizSet.id)
     .select("*")
     .single();
 
@@ -658,7 +635,7 @@ export async function completeQuizAttempt(input: {
     throw new Error(`Could not complete quiz: ${error.message}`);
   }
 
-  return data as QuizAttempt;
+  return savedQuizAttemptSchema.parse(data);
 }
 
 function normalizeQuestionRows(rows: Array<Record<string, unknown>>): QuestionBankItem[] {
