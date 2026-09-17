@@ -9,6 +9,7 @@
     "build": "node scripts/build-client.mjs",
     "preview": "vite preview --config vite.config.ts --configLoader runner --host 127.0.0.1",
     "test": "vitest --run --config vite.config.ts --configLoader runner",
+    "test:functions": "node scripts/ci/functions-smoke.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false && tsc --noEmit -p tsconfig.server.json --pretty false",
     "scan:build": "node scripts/scan-build-assets.mjs",
     "seed:system": "tsx scripts/seed-system.ts",

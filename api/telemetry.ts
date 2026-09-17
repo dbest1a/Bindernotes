@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { telemetryHandler } from "../server/telemetry";
+import { telemetryHandler } from "../server/telemetry.js";
 
 const handler = telemetryHandler({
   authenticate: async (token) => {

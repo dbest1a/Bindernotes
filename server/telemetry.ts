@@ -1,4 +1,4 @@
-import { metricBatchSchema } from "../src/lib/telemetry-contract";
+import { metricBatchSchema } from "../src/lib/telemetry-contract.js";
 
 export function telemetryHandler(options: {
   authenticate: (token: string) => Promise<boolean>;

@@ -1,10 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { z } from "zod";
-import type { Database } from "../../src/lib/database.generated";
-import { createBillingHandlers } from "./handlers";
-import { stripeProvider } from "./stripe-provider";
-import { supabaseBillingStore } from "./supabase-store";
+import type { Database } from "../../src/lib/database.generated.js";
+import { createBillingHandlers } from "./handlers.js";
+import { stripeProvider } from "./stripe-provider.js";
+import { supabaseBillingStore } from "./supabase-store.js";
 
 const configSchema = z.object({
   BILLING_ENABLED: z.literal("true"),

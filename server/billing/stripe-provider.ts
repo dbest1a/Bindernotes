@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { z } from "zod";
-import { BillingError, type BillingProvider, type PaidPlan, type SubscriptionState } from "./contracts";
+import { BillingError, type BillingProvider, type PaidPlan, type SubscriptionState } from "./contracts.js";
 
 const idOf = (value: string | { id: string } | null | undefined) =>
   typeof value === "string" ? value : value?.id;

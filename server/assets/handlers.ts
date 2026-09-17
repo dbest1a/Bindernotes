@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { detectPrivateAssetMime, type PrivateAsset } from "../../src/lib/user-assets";
+import { detectPrivateAssetMime, type PrivateAsset } from "../../src/lib/user-assets.js";
 export type AssetStore = {
   authenticate(token: string): Promise<{ id: string }>;
   asset(id: string, owner: string): Promise<PrivateAsset | null>;

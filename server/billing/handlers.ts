@@ -7,7 +7,7 @@ import {
   type BillingProvider,
   type BillingStore,
   type PaidPlan,
-} from "./contracts";
+} from "./contracts.js";
 
 type Dependencies = {
   provider: BillingProvider;

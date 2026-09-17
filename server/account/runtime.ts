@@ -1,7 +1,7 @@
-import type { Database } from "../../src/lib/database.generated";
+import type { Database } from "../../src/lib/database.generated.js";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { createAccountHandlers, type AccountBilling, type AccountStore } from "./handlers";
+import { createAccountHandlers, type AccountBilling, type AccountStore } from "./handlers.js";
 export function accountRuntime() {
   if (
     process.env.ACCOUNT_DELETION_ENABLED !== "true" ||

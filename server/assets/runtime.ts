@@ -1,7 +1,7 @@
-import type { Database } from "../../src/lib/database.generated";
+import type { Database } from "../../src/lib/database.generated.js";
 import { createClient } from "@supabase/supabase-js";
-import { privateAssetSchema } from "../../src/lib/user-assets";
-import { createAssetHandlers, type AssetStore } from "./handlers";
+import { privateAssetSchema } from "../../src/lib/user-assets.js";
+import { createAssetHandlers, type AssetStore } from "./handlers.js";
 export function assetRuntime() {
   if (
     process.env.ASSET_UPLOADS_ENABLED !== "true" ||

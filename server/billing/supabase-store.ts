@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "../../src/lib/database.generated";
-import { BillingError, entitlementSchema, type BillingStore } from "./contracts";
+import type { Database } from "../../src/lib/database.generated.js";
+import { BillingError, entitlementSchema, type BillingStore } from "./contracts.js";
 
 export function supabaseBillingStore(client: SupabaseClient<Database>): BillingStore {
   async function rpc<Name extends keyof Database["public"]["Functions"]>(

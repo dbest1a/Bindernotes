@@ -18,6 +18,7 @@ files.push(
   "tsconfig.json",
   "tsconfig.node.json",
   "tsconfig.server.json",
+  "tsconfig.functions.json",
   "vercel.json",
   "vite.config.ts",
   "eslint.config.mjs",
