@@ -13,7 +13,6 @@ import {
   PanelBottom,
   Save,
   Search,
-  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -1230,15 +1229,7 @@ function StudioWorkspace({
         {diagnosticsOpen ? (
           <div className="grid gap-4 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                disabled={mutations.seedSystemSuites.isPending}
-                onClick={() => void mutations.seedSystemSuites.mutateAsync()}
-                type="button"
-                variant="outline"
-              >
-                <Sparkles data-icon="inline-start" />
-                {mutations.seedSystemSuites.isPending ? "Seeding..." : "Run system seed"}
-              </Button>
+              <p className="text-sm text-muted-foreground">Catalog updates are applied by the trusted deployment process. This panel shows their current status.</p>
               {diagnosticsLoading ? <span className="text-sm text-muted-foreground">Loading diagnostics…</span> : null}
             </div>
 

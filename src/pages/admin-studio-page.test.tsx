@@ -363,6 +363,8 @@ describe("AdminStudioPage", () => {
     expect(await screen.findByText("Workspace diagnostics")).toBeTruthy();
     expect(screen.getByText("Preset warning")).toBeTruthy();
     expect(mocks.diagnosticsPanelRender).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /Run system seed/i })).toBeNull();
+    expect(mocks.mutations.seedSystemSuites.mutateAsync).not.toHaveBeenCalled();
   });
 
   it("renders editor and math blocks only after the Content tab opens", async () => {
