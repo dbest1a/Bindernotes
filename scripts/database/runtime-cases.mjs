@@ -62,10 +62,28 @@ export async function run({ sql, concurrentSql }) {
   check('private chemistry CRUD is account-owned', () => {
     const id=randomUUID();
     as(users.a,`insert into public.user_lab_runs(id,user_id,checkpoint) values('${id}','${users.a}','{"step":1}');`);
+    as(users.a,`insert into public.user_lab_runs(id,user_id,lab_template_id,checkpoint) values('${id}','${users.a}',null,'{"step":2,"builtinTemplateId":"titration"}')
+      on conflict(id) do update set checkpoint=excluded.checkpoint;`);
+    assert.equal(as(users.a,`select checkpoint->>'step' from public.user_lab_runs where id='${id}';`),'2');
     assert.equal(as(users.b,`select count(*) from public.user_lab_runs where id='${id}';`),'0');
     assert.equal(as(users.b,`with changed as (update public.user_lab_runs set checkpoint='{}' where id='${id}' returning id) select count(*) from changed;`),'0');
     denied(users.b,`insert into public.user_lab_reports(user_id,lab_run_id) values('${users.b}','${id}');`);
+    denied(users.b,`insert into public.user_lab_runs(id,user_id,checkpoint) values('${id}','${users.b}','{}') on conflict(id) do update set checkpoint=excluded.checkpoint;`);
     as(users.a,`update public.user_lab_runs set checkpoint='{"step":2}' where id='${id}'; delete from public.user_lab_runs where id='${id}';`);
+    const attemptId=randomUUID();
+    as(users.a,`insert into public.user_chem_attempts(id,user_id,problem_template_id,final_answer,metadata)
+      values('${attemptId}','${users.a}',null,'{"amount":2}','{"builtinTemplateId":"stoichiometry"}');`);
+    as(users.a,`insert into public.user_chem_attempts(id,user_id,final_answer) values('${attemptId}','${users.a}','{"amount":3}')
+      on conflict(id) do update set final_answer=excluded.final_answer;`);
+    assert.equal(as(users.a,`select final_answer->>'amount' from public.user_chem_attempts where id='${attemptId}';`),'3');
+    assert.equal(as(users.b,`select count(*) from public.user_chem_attempts where id='${attemptId}';`),'0');
+    denied(users.b,`insert into public.user_chem_attempts(id,user_id) values('${attemptId}','${users.b}') on conflict(id) do update set final_answer='{}';`);
+    const reportId=randomUUID();
+    as(users.a,`insert into public.user_lab_reports(id,user_id,lab_run_id) values('${reportId}','${users.a}',null)
+      on conflict(id) do update set lab_run_id=excluded.lab_run_id;`);
+    assert.equal(as(users.a,`select count(*) from public.user_lab_reports where id='${reportId}';`),'1');
+    assert.equal(as(users.b,`select count(*) from public.user_lab_reports where id='${reportId}';`),'0');
+    denied(users.b,`insert into public.user_lab_reports(id,user_id) values('${reportId}','${users.b}') on conflict(id) do update set lab_run_id=null;`);
   });
   check('cross-account question attempt parent is rejected', () => {
     denied(users.b,`insert into public.question_attempts(quiz_attempt_id,question_id,user_id) values('attempt','question','${users.b}');`);

@@ -2,8 +2,10 @@ import { buildSystemSeedPayload } from "../../src/services/system-seed-service";
 import { mathSeedChoices, mathSeedCourses, mathSeedModules, mathSeedQuestions, mathSeedTopics } from "../../src/lib/math-learning-seeds";
 
 // Deterministic repository content only. No environment loading or remote calls.
+const operatorId = process.argv[2] ?? "10000000-0000-4000-8000-000000000004";
+if (!/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(operatorId)) throw new Error("Expected disposable operator UUID");
 const payload = buildSystemSeedPayload({
-  id: "10000000-0000-4000-8000-000000000004", email: "admin@disposable.invalid",
+  id: operatorId, email: "admin@disposable.invalid",
   full_name: "Disposable operator", role: "admin", created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z",
 });
 process.stdout.write(JSON.stringify({

@@ -32,3 +32,24 @@ On Windows without Docker, `--native-no-cron` runs real PostgreSQL authorization
 The client and migration0027 require a coordinated deployment: old direct-content clients are denied rather than bypassing CAS. Rollback only to an RPC-compatible client; keep additive schema/data. Removing CAS protection is not a safe rollback. History reconciliation for production remains blocked until its actual recorded state and schema are reviewed.
 
 Mutation receipts contain hashes, identity and revision, not document payloads. Define an offline-retry retention horizon before a future service maintenance job prunes receipts; this migration never deletes student data or old versions.
+
+## Native Auth and PostgREST browser environment
+
+`start-local-api-stack.mjs` creates a separate random database in the loopback PostgreSQL runtime, runs **real GoTrue auth migrations**, applies the application migration bundle, and starts real GoTrue and PostgREST behind a tiny route-only HTTP proxy. It creates four disposable Auth accounts and seeds the actual catalog transactionally. It never loads `.env` or contacts the hosted database. Existing occupied API ports cause it to refuse startup.
+
+Set `BINDERNOTES_LOCAL_RUNTIME` to the outside-repository native runtime directory containing `pgsql/bin/psql.exe`, `pgmq-1.5.1.sql`, `gotrue.exe` and `postgrest/postgrest.exe`. PostgreSQL must already listen on `127.0.0.1:55439`. No system install is required. Runtime logs and `local-api-stack.json` (local passwords and anon key) stay outside Git. Read that manifest programmatically to configure Vite; do not print it into reports or commit it.
+
+```sh
+node scripts/database/start-local-api-stack.mjs
+node scripts/database/check-local-api-stack.mjs
+```
+
+The gateway is `http://127.0.0.1:55442`; Auth listens on 55440 and PostgREST on 55441, all loopback-only. The proxy only routes requests and adds localhost CORS headers. It does not fabricate authentication or database results. The HTTP smoke verifies four actual password sign-ins, refresh-token exchange, owner-only profiles, denied role escalation, note snapshot persistence/readback, idempotent retry, denied cross-owner access and stale-revision rejection. Its temporary note is deleted afterward. Services remain running for browser journeys; the manifest records their PIDs and the exact disposable database name for deliberate teardown after verification.
+
+Reproduction sources used on September17:
+
+- PostgreSQL17.11 official [EDB portable binary](https://get.enterprisedb.com/postgresql/postgresql-17.11-3-windows-x64-binaries.zip), SHA-256 `4b8db0930c38f6ef845db919551dedda3b6b845aeb0927b3d79a6e8e9e4537cf`.
+- Official [PostgREST16.3 Windows archive](https://github.com/PostgREST/postgrest/releases/download/v16.3/postgrest-v16.3-windows-x86-64.zip), SHA-256 `5ea4b57b10a26be45521e8e31476a91084c8fe91e060951f04985d86e79367fa`. Its runtime requires the PostgreSQL `bin` directory on the child process PATH for libpq; no global PATH changes.
+- Official [Supabase Auth v2.197.0 source](https://codeload.github.com/supabase/auth/zip/refs/tags/v2.197.0), archive SHA-256 `359a3235b3280e8c8c175559450a07b72249504edc55b266ab9be1776470526b`, compiled locally with Go1.27.1. Upstream does not publish a Windows binary and its unconditional Unix socket option does not compile on Windows. The **documented local portability patch** replaces only `net.ListenConfig.Control` in `cmd/serve_cmd.go` with `net.ListenConfig{}` and removes the now-unused `syscall` and `golang.org/x/sys/unix` imports. It disables Unix SO_REUSEPORT; all Auth handlers, token/password logic and migrations remain upstream. This is a locally compiled development binary, not an unmodified official distribution. Local binary SHA-256 `3ae3ffdbfc6dfb3811adcedb91db9c6b81b203c37d91f4353173d64195a3359f`.
+
+This additional environment proves real Auth/PostgREST interactions. It still does **not** provide pg_cron workers, Storage HTTP, Realtime, delivered email, OAuth or production infrastructure equivalence. Auto-confirmed local test email avoids sending messages. Storage/Realtime requests receive an explicit 501 rather than a fake success. It is not the complete Supabase release gate.
