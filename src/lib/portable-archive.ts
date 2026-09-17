@@ -136,6 +136,7 @@ export function remapPortableArchive(archive: PortableArchive, ownerId: string, 
       .replace(/^(\/notes\/binders\/[^/?#]+\/documents\/)([^/?#]+)/, replace);
   };
   const rewrite = (value: unknown, key = ""): unknown => {
+    if (key === "desmos_state" || key === "desmosState" || key === "scene_json") return structuredClone(value);
     if (typeof value === "string") {
       if (["owner_id", "ownerId", "userId", "created_by"].includes(key)) return ownerId;
       if (reference.test(key)) return ids.get(value) ?? value;
