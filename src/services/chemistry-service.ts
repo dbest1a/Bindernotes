@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { databaseJson } from "@/lib/database-client";
 import type {
   ChemistryConceptTag,
   ChemistryMistakeTag,
@@ -117,7 +118,12 @@ export async function saveChemAttempt(payload: ChemAttemptPayload): Promise<Supa
     return { ok: false, error: "Supabase chemistry storage is not configured." };
   }
 
-  const { error } = await supabase.from("user_chem_attempts").insert(payload);
+  const { error } = await supabase.from("user_chem_attempts").insert({
+    ...payload,
+    final_answer: databaseJson(payload.final_answer),
+    step_summaries: databaseJson(payload.step_summaries),
+    metadata: databaseJson(payload.metadata),
+  });
   return error ? { ok: false, error: errorMessage(error) } : { ok: true };
 }
 
@@ -126,6 +132,6 @@ export async function saveLabRun(payload: LabRunPayload): Promise<SupabaseResult
     return { ok: false, error: "Supabase chemistry storage is not configured." };
   }
 
-  const { error } = await supabase.from("user_lab_runs").insert(payload);
+  const { error } = await supabase.from("user_lab_runs").insert({ ...payload, checkpoint: databaseJson(payload.checkpoint) });
   return error ? { ok: false, error: errorMessage(error) } : { ok: true };
 }

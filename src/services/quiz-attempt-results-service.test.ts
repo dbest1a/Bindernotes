@@ -61,6 +61,21 @@ beforeEach(() => {
 });
 
 describe("saved quiz attempt repository", () => {
+  it("preserves a free response without an optional rubric and omits absent answer fields", async () => {
+    const attempt = await startQuizAttempt({ quizSetId: quiz.id, userId: database.owner });
+    const prompt: QuestionBankItem = { ...question("proof", 0), type: "free_response", answer_json: {} };
+    const saved = await submitQuestionAttempt({ attemptId: attempt.id, userId: database.owner, question: prompt, answer: { freeResponse: "My proof", numeric: undefined } });
+    expect(saved.attempt.submitted_answer_json).toEqual({ freeResponse: "My proof" });
+    expect(saved.attempt.feedback_json).not.toHaveProperty("expected");
+    expect(saved.score.isCorrect).toBeNull();
+  });
+
+  it.each([NaN, Infinity, -Infinity])("rejects a non-JSON numeric answer %s without storing a false null or zero", async (numeric) => {
+    const attempt = await startQuizAttempt({ quizSetId: quiz.id, userId: database.owner });
+    await expect(submitQuestionAttempt({ attemptId: attempt.id, userId: database.owner, question: question("number", 0), answer: { numeric } })).rejects.toThrow();
+    expect(database.tables.question_attempts).toHaveLength(0);
+  });
+
   it.each([NaN, Infinity, -1, 2])("rejects invalid awarded points %s before storing a completion", async (pointsAwarded) => {
     const attempt = await startQuizAttempt({ quizSetId: quiz.id, userId: database.owner });
     await expect(completeQuizAttempt({ attemptId: attempt.id, quizSet: quiz, userId: database.owner, scores: [{ pointsAwarded, totalPoints: 1 }] })).rejects.toThrow(/invalid scoring data/);

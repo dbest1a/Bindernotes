@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { databaseJson } from "@/lib/database-client";
 import {
   getSeedModuleBySlug,
   mathSeedChoices,
@@ -283,7 +284,7 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
     calculator_mode: input.calculatorMode,
     title: input.title,
     desmos_state: input.desmosState,
-    expressions: input.expressions ?? null,
+    expressions: input.expressions?.map(({ id, latex }) => ({ ...(id === undefined ? {} : { id }), latex })) ?? null,
     thumbnail_url: null,
     created_at: now,
     updated_at: now,
@@ -300,7 +301,7 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
 
   const { data, error } = await supabase
     .from("math_graph_states")
-    .upsert(row, { onConflict: "id" })
+    .upsert({ ...row, desmos_state: databaseJson(row.desmos_state), expressions: databaseJson(row.expressions) }, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -349,7 +350,7 @@ export async function getQuestion(questionId: string): Promise<QuestionBankItem 
 export async function saveQuestion(input: QuestionInput): Promise<QuestionBankItem> {
   const now = new Date().toISOString();
   const id = input.id ?? crypto.randomUUID();
-  const questionRow: QuestionBankItem = {
+  const questionRow = {
     id,
     course_id: input.courseId ?? null,
     topic_id: input.topicId ?? null,
@@ -371,7 +372,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     created_by: input.userId,
     created_at: now,
     updated_at: now,
-  };
+  } satisfies QuestionBankItem;
   const choices: QuestionChoice[] = (input.choices ?? []).map((choice, index) => ({
     id: choice.id ?? crypto.randomUUID(),
     question_id: id,
@@ -398,7 +399,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
 
   const { data, error } = await supabase
     .from("question_bank")
-    .upsert(questionRow, { onConflict: "id" })
+    .upsert({ ...questionRow, answer_json: databaseJson(questionRow.answer_json) }, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -433,7 +434,7 @@ export async function createQuizSet(input: {
   moduleId?: string | null;
 }): Promise<QuizSet> {
   const now = new Date().toISOString();
-  const quiz: QuizSet = {
+  const quiz = {
     id: crypto.randomUUID(),
     user_id: input.userId,
     course_id: input.courseId ?? null,
@@ -444,7 +445,7 @@ export async function createQuizSet(input: {
     settings_json: { mode: "practice" },
     created_at: now,
     updated_at: now,
-  };
+  } satisfies QuizSet;
 
   if (!supabase) {
     const local = loadLocalState();
@@ -465,7 +466,7 @@ export async function createQuizSet(input: {
 
   const { data, error } = await supabase
     .from("quiz_sets")
-    .insert(quiz)
+    .insert({ ...quiz, settings_json: databaseJson(quiz.settings_json) })
     .select("*")
     .single();
 
@@ -559,7 +560,7 @@ export async function startQuizAttempt(input: {
 
   const { data, error } = await supabase
     .from("quiz_attempts")
-    .insert(attempt)
+    .insert({ ...attempt, metadata_json: databaseJson(attempt.metadata_json) })
     .select("*")
     .single();
   if (error) {
@@ -582,10 +583,10 @@ export async function submitQuestionAttempt(input: {
     quiz_attempt_id: input.attemptId,
     question_id: input.question.id,
     user_id: input.userId,
-    submitted_answer_json: { ...input.answer },
+    submitted_answer_json: databaseJson(Object.fromEntries(Object.entries(input.answer).filter(([, value]) => value !== undefined))),
     is_correct: score.isCorrect,
     points_awarded: score.pointsAwarded,
-    feedback_json: { ...score.feedback, totalPoints: score.totalPoints, autoGraded: score.autoGraded, questionSnapshot: snapshotQuestion(input.question) },
+    feedback_json: databaseJson({ message: score.feedback.message, ...(score.feedback.expected === undefined ? {} : { expected: score.feedback.expected }), totalPoints: score.totalPoints, autoGraded: score.autoGraded, questionSnapshot: snapshotQuestion(input.question) }),
     created_at: new Date().toISOString(),
   };
 
