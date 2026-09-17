@@ -10,6 +10,7 @@ import {
 import type { AuthChangeEvent, Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
+import { saveQueue } from "@/lib/save-queue";
 import type { Profile, Role } from "@/types";
 
 type AuthState = {
@@ -38,13 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const sessionRef = useRef<Session | null>(null);
   const profileRef = useRef<Profile | null>(profile);
 
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  useEffect(() => {
-    profileRef.current = profile;
-  }, [profile]);
+  const hydrationGenerationRef = useRef(0);
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -54,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
     let unsubscribe: (() => void) | undefined;
+    let authEventVersion = 0;
 
     void loadSupabaseClient()
       .then(async (supabase) => {
@@ -79,7 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const currentUserId = sessionRef.current?.user?.id ?? null;
           const nextUserId = nextSession?.user?.id ?? null;
           const userChanged = currentUserId !== nextUserId;
-          const shouldBlock = options?.foreground ?? (userChanged || !sessionRef.current);
+          const hasCurrentProfile = Boolean(nextUserId && profileRef.current?.id === nextUserId);
+          const shouldBlock = userChanged || !hasCurrentProfile || options?.foreground;
+          const generation = ++hydrationGenerationRef.current;
+          const isCurrent = () =>
+            active && generation === hydrationGenerationRef.current &&
+            sessionRef.current?.user?.id === nextUserId;
+
+          saveQueue.setAccount(nextUserId);
+          if (userChanged) {
+            setProfile(null);
+            profileRef.current = null;
+          }
 
           if (shouldBlock) {
             setIsLoading(true);
@@ -96,8 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          if (!userChanged && profileRef.current && !options?.refreshProfile) {
-            if (shouldBlock) {
+          if (hasCurrentProfile && !options?.refreshProfile) {
+            if (!signingOutRef.current) {
               setIsLoading(false);
             }
             return;
@@ -105,52 +113,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           try {
             const { getProfile } = await import("@/services/auth-profile");
-            const nextProfile = await getProfile(user.id, user.email ?? "");
-            if (!active) {
+            if (!isCurrent()) {
               return;
+            }
+            const nextProfile = await getProfile(user.id, user.email ?? "");
+            if (!isCurrent()) {
+              return;
+            }
+            if (nextProfile.id !== user.id) {
+              throw new Error("The account profile does not match the authenticated user.");
             }
             setProfile(nextProfile);
             profileRef.current = nextProfile;
           } catch (error) {
-            console.error("Failed to hydrate Supabase profile.", error);
-            if (!active) {
+            if (!isCurrent()) {
               return;
             }
-            if (!profileRef.current || userChanged) {
+            console.error("Failed to hydrate Supabase profile.", error);
+            if (profileRef.current?.id !== user.id) {
               setProfile(null);
               profileRef.current = null;
             }
           } finally {
-            if (active && shouldBlock) {
+            if (isCurrent() && !signingOutRef.current) {
               setIsLoading(false);
             }
           }
         };
 
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          throw error;
-        }
-
-        await hydrateAuthState(data.session, {
-          foreground: true,
-          refreshProfile: true,
-        });
-
-        if (!active) {
-          return;
-        }
-
+        const initialEventVersion = authEventVersion;
         const {
           data: { subscription },
         } = supabase.auth.onAuthStateChange((event, nextSession) => {
+          if (!active) {
+            return;
+          }
+          authEventVersion += 1;
           const nextUserId = nextSession?.user?.id ?? null;
           const currentUserId = sessionRef.current?.user?.id ?? null;
 
           if (
             event === "TOKEN_REFRESHED" &&
             currentUserId === nextUserId &&
-            profileRef.current
+            nextUserId &&
+            profileRef.current?.id === nextUserId
           ) {
             setSession(nextSession);
             sessionRef.current = nextSession;
@@ -167,12 +173,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         });
         unsubscribe = () => subscription.unsubscribe();
+
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          // An auth event is newer evidence than an in-flight initial session read.
+          if (!active || authEventVersion !== initialEventVersion) {
+            return;
+          }
+          if (error) {
+            throw error;
+          }
+          await hydrateAuthState(data.session, {
+            foreground: !profileRef.current,
+            refreshProfile: true,
+          });
+        } catch (error) {
+          if (active && authEventVersion === initialEventVersion) {
+            throw error;
+          }
+        }
       })
       .catch((error) => {
-        console.error("Failed to hydrate Supabase session.", error);
-        if (!active) {
+        if (!active || authEventVersion > 0) {
           return;
         }
+        console.error("Failed to hydrate Supabase session.", error);
+        hydrationGenerationRef.current += 1;
+        sessionRef.current = null;
+        profileRef.current = null;
+        saveQueue.setAccount(null);
         setSession(null);
         setProfile(null);
         setIsLoading(false);
@@ -180,6 +209,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false;
+      hydrationGenerationRef.current += 1;
+      saveQueue.setAccount(null);
       unsubscribe?.();
     };
   }, []);
@@ -188,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       user: session?.user ?? null,
-      profile,
+      profile: profile?.id === session?.user.id ? profile : null,
       isConfigured: isSupabaseConfigured,
       isLoading,
       signIn: async (email, password) => {
@@ -255,46 +286,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
+        const departingUserId = sessionRef.current?.user.id ?? null;
+        hydrationGenerationRef.current += 1;
+        signingOutRef.current = true;
         setIsLoading(true);
-        if (typeof window !== "undefined") {
-          const detail = {
-            promises: [] as Promise<unknown>[],
-          };
-          window.dispatchEvent(
-            new CustomEvent(NOTE_SAVE_BEFORE_SIGN_OUT_EVENT, {
-              detail,
-            }),
-          );
-
-          if (detail.promises.length > 0) {
+        try {
+          if (typeof window !== "undefined") {
+            const detail = { promises: [] as Promise<unknown>[] };
+            window.dispatchEvent(new CustomEvent(NOTE_SAVE_BEFORE_SIGN_OUT_EVENT, { detail }));
             await Promise.allSettled(detail.promises);
           }
-        }
-
-        if (isSupabaseConfigured) {
-          let supabase;
-          try {
-            supabase = await loadSupabaseClient();
-          } catch (error) {
-            setIsLoading(false);
-            throw error;
-          }
-          if (!supabase) {
-            setSession(null);
-            setProfile(null);
-            setIsLoading(false);
+          if ((sessionRef.current?.user.id ?? null) !== departingUserId) {
             return;
           }
-          const { error } = await supabase.auth.signOut();
-          if (error) {
-            setIsLoading(false);
-            throw error;
+          if (isSupabaseConfigured) {
+            const supabase = await loadSupabaseClient();
+            if ((sessionRef.current?.user.id ?? null) !== departingUserId) {
+              return;
+            }
+            if (supabase) {
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                throw error;
+              }
+            }
           }
-          return;
+          const currentUserId = sessionRef.current?.user.id ?? null;
+          if (currentUserId && currentUserId !== departingUserId) {
+            return;
+          }
+          hydrationGenerationRef.current += 1;
+          sessionRef.current = null;
+          profileRef.current = null;
+          saveQueue.setAccount(null);
+          setSession(null);
+          setProfile(null);
+        } finally {
+          signingOutRef.current = false;
+          const currentUserId = sessionRef.current?.user.id ?? null;
+          if (!currentUserId || currentUserId === departingUserId || profileRef.current?.id === currentUserId) {
+            setIsLoading(false);
+          }
         }
-        setSession(null);
-        setProfile(null);
-        setIsLoading(false);
       },
     }),
     [isLoading, profile, session],

@@ -41,17 +41,19 @@ export const queryKeys = {
   math: {
     all: ["math"] as const,
     courses: ["math", "courses"] as const,
-    course: (courseSlug: OptionalId) => ["math", "course", courseSlug] as const,
+    coursesForProfile: (profileId: OptionalId) => ["math", "courses", profileId] as const,
+    course: (courseSlug: OptionalId, profileId?: string) => ["math", "course", courseSlug, profileId] as const,
     modules: ["math", "modules"] as const,
+    modulesForProfile: (profileId: OptionalId) => ["math", "modules", profileId] as const,
     moduleBundles: ["math", "module"] as const,
     module: (moduleSlug: OptionalId, userId: string) =>
       ["math", "module", moduleSlug, userId] as const,
     questionBanks: ["math", "questions"] as const,
-    questions: <Filters>(filters: Filters) => ["math", "questions", filters] as const,
+    questions: <Filters>(filters: Filters, profileId?: string) => ["math", "questions", filters, profileId] as const,
     quizzes: ["math", "quiz"] as const,
-    quiz: (quizId: OptionalId) => ["math", "quiz", quizId] as const,
-    graphStates: (moduleId: string | null | undefined) =>
-      ["math", "graph-states", moduleId] as const,
+    quiz: (quizId: OptionalId, profileId?: string) => ["math", "quiz", quizId, profileId] as const,
+    graphStates: (moduleId: string | null | undefined, profileId?: string) =>
+      ["math", "graph-states", moduleId, profileId] as const,
   },
   tutorials: {
     all: ["tutorial-entries"] as const,

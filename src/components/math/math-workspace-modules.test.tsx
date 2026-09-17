@@ -163,6 +163,20 @@ describe("DesmosGraphModule", () => {
     expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
   });
 
+  it("recreates the graph instance across lesson scopes even when both saved graph states are null", () => {
+    const a = bindings();
+    a.controller.scopeKey = "owner:binder:lesson-A";
+    const view = render(<DesmosGraphModule bindings={a} />);
+    const previousGraph = screen.getByTestId("desmos-graph");
+    const b = bindings();
+    b.controller.scopeKey = "owner:binder:lesson-B";
+    expect(a.controller.state.currentGraphState).toBeNull();
+    expect(b.controller.state.currentGraphState).toBeNull();
+    view.rerender(<DesmosGraphModule bindings={b} />);
+    expect(screen.getByTestId("desmos-graph")).not.toBe(previousGraph);
+    expect(previousGraph.isConnected).toBe(false);
+  });
+
   it("exposes 2D and 3D graph modes from the module controls", () => {
     const testBindings = bindings();
     render(<DesmosGraphModule bindings={testBindings} />);

@@ -329,7 +329,7 @@ function RouteSkeleton() {
 }
 
 function ProtectedRoute({ children }: { children?: ReactNode }) {
-  const { profile, isLoading } = useAuth();
+  const { profile, user, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -341,14 +341,14 @@ function ProtectedRoute({ children }: { children?: ReactNode }) {
     );
   }
 
-  if (!profile) {
+  if (!profile || !user || profile.id !== user.id) {
     const next = `${location.pathname}${location.search}${location.hash}`;
     const nextTarget = next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
     return <Navigate replace to={`/auth${nextTarget}`} />;
   }
 
   return (
-    <LazyAuthenticatedAppProviders>
+    <LazyAuthenticatedAppProviders key={user.id}>
       <Suspense fallback={null}>
         <LazyTutorialPromptHost />
       </Suspense>

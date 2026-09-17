@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import {
   evaluateScientificExpression,
   parseFunctionDefinition,
@@ -114,25 +114,41 @@ function loadState(userId?: string, scopeId = "math-lab") {
   }
 }
 
-function mathWorkspaceStatesEqual(left: MathWorkspaceState, right: MathWorkspaceState) {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
 export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
-  const [state, setState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId));
+  const scopeKey = storageKey(userId, scopeId);
+  const [loadedScopeKey, setLoadedScopeKey] = useState(scopeKey);
+  const [state, setStoredState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId));
+  const scopeTokenRef = useRef({ key: scopeKey, active: true });
+  if (scopeTokenRef.current.key !== scopeKey) {
+    scopeTokenRef.current.active = false;
+    scopeTokenRef.current = { key: scopeKey, active: true };
+  }
+  const scopeToken = scopeTokenRef.current;
+  useEffect(() => {
+    scopeToken.active = true;
+    return () => { scopeToken.active = false; };
+  }, [scopeToken]);
+  const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
+    if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return;
+    setStoredState((current) => {
+      if (!scopeToken.active || scopeTokenRef.current !== scopeToken) return current;
+      return typeof update === "function" ? update(current) : update;
+    });
+  }, [scopeToken]);
+
+  // Reset before committing children or persistence effects for another scope.
+  if (loadedScopeKey !== scopeKey) {
+    setLoadedScopeKey(scopeKey);
+    setStoredState(loadState(userId, scopeId));
+  }
 
   useEffect(() => {
-    const nextState = loadState(userId, scopeId);
-    setState((current) => (mathWorkspaceStatesEqual(current, nextState) ? current : nextState));
-  }, [scopeId, userId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || loadedScopeKey !== scopeKey) {
       return;
     }
 
-    window.localStorage.setItem(storageKey(userId, scopeId), JSON.stringify(state));
-  }, [scopeId, state, userId]);
+    window.localStorage.setItem(scopeKey, JSON.stringify(state));
+  }, [loadedScopeKey, scopeKey, state]);
 
   const lastAnswer = useMemo(
     () => state.history.find((item) => Number.isFinite(item.numericResult))?.numericResult,
@@ -150,7 +166,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       calculatorExpression: expression,
       calculatorError: null,
     }));
-  }, []);
+  }, [setState]);
 
   const appendToken = useCallback((token: string) => {
     setState((current) => ({
@@ -158,7 +174,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       calculatorExpression: `${current.calculatorExpression}${token}`,
       calculatorError: null,
     }));
-  }, []);
+  }, [setState]);
 
   const clearExpression = useCallback(() => {
     setState((current) => ({
@@ -167,7 +183,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       calculatorResult: null,
       calculatorError: null,
     }));
-  }, []);
+  }, [setState]);
 
   const backspace = useCallback(() => {
     setState((current) => ({
@@ -175,7 +191,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       calculatorExpression: current.calculatorExpression.slice(0, -1),
       calculatorError: null,
     }));
-  }, []);
+  }, [setState]);
 
   const evaluate = useCallback(() => {
     setState((current) => {
@@ -254,11 +270,11 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         history: [entry, ...current.history].slice(0, MAX_HISTORY),
       };
     });
-  }, []);
+  }, [setState]);
 
   const setAngleMode = useCallback((angleMode: AngleMode) => {
     setState((current) => ({ ...current, angleMode }));
-  }, []);
+  }, [setState]);
 
   const reuseHistoryExpression = useCallback((expression: string) => {
     setState((current) => ({
@@ -266,26 +282,26 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
       calculatorExpression: expression,
       calculatorError: null,
     }));
-  }, []);
+  }, [setState]);
 
   const deleteHistoryItem = useCallback((id: string) => {
     setState((current) => ({
       ...current,
       history: current.history.filter((item) => item.id !== id),
     }));
-  }, []);
+  }, [setState]);
 
   const clearHistory = useCallback(() => {
     setState((current) => ({ ...current, history: [] }));
-  }, []);
+  }, [setState]);
 
   const setGraphVisible = useCallback((graphVisible: boolean) => {
     setState((current) => ({ ...current, graphVisible }));
-  }, []);
+  }, [setState]);
 
   const setGraphExpanded = useCallback((graphExpanded: boolean) => {
     setState((current) => ({ ...current, graphExpanded }));
-  }, []);
+  }, [setState]);
 
   const setGraphMode = useCallback((graphMode: GraphMode) => {
     setState((current) => {
@@ -300,7 +316,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         currentGraphState: current.graphStatesByMode[graphMode] ?? null,
       };
     });
-  }, []);
+  }, [setState]);
 
   const setCurrentGraphState = useCallback((graphState: DesmosState | null) => {
     setState((current) => ({
@@ -311,7 +327,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         [current.graphMode]: graphState,
       },
     }));
-  }, []);
+  }, [setState]);
 
   const saveGraphSnapshot = useCallback((name: string) => {
     if (!state.currentGraphState) {
@@ -350,7 +366,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
     });
 
     return true;
-  }, [scopeId, state.currentGraphState]);
+  }, [scopeId, state.currentGraphState, setState]);
 
   const loadGraphSnapshot = useCallback((snapshotId: string) => {
     setState((current) => {
@@ -370,21 +386,21 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         graphVisible: true,
       };
     });
-  }, []);
+  }, [setState]);
 
   const deleteGraphSnapshot = useCallback((snapshotId: string) => {
     setState((current) => ({
       ...current,
       savedGraphs: current.savedGraphs.filter((item) => item.id !== snapshotId),
     }));
-  }, []);
+  }, [setState]);
 
   const deleteSavedFunction = useCallback((functionId: string) => {
     setState((current) => ({
       ...current,
       savedFunctions: current.savedFunctions.filter((item) => item.id !== functionId),
     }));
-  }, []);
+  }, [setState]);
 
   const reuseSavedFunction = useCallback((functionId: string) => {
     setState((current) => {
@@ -399,7 +415,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         calculatorError: null,
       };
     });
-  }, []);
+  }, [setState]);
 
   const clearCurrentGraph = useCallback(() => {
     setState((current) => ({
@@ -410,9 +426,10 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
         [current.graphMode]: null,
       },
     }));
-  }, []);
+  }, [setState]);
 
   return {
+    scopeKey,
     state,
     lastAnswer,
     setExpression,

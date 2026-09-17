@@ -46,7 +46,6 @@ import {
   createDefaultWorkspacePreferences,
   loadWorkspacePreferences,
   normalizeWorkspacePreferences,
-  saveGlobalThemeSettings,
 } from "@/lib/workspace-preferences";
 import {
   deriveLessonTitle,
@@ -2384,7 +2383,6 @@ export async function upsertWorkspacePreferencesRecord(
     binderId: next.binderId,
   });
 
-  saveGlobalThemeSettings(saved.theme);
   return saved;
 }
 

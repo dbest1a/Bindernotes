@@ -1,8 +1,25 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { queryKeys, updateDashboardQueriesData } from "@/lib/query-keys";
+import { patchHistorySuiteQuery } from "@/hooks/use-history-suite";
 
 describe("queryKeys", () => {
+  it("separates account-sensitive math caches", () => {
+    expect(queryKeys.math.questions({}, "A")).not.toEqual(queryKeys.math.questions({}, "B"));
+    expect(queryKeys.math.quiz("quiz-1", "A")).not.toEqual(queryKeys.math.quiz("quiz-1", "B"));
+    expect(queryKeys.math.course("course-1", "A")).not.toEqual(queryKeys.math.course("course-1", "B"));
+  });
+
+  it("patches history data only for the specified owner", () => {
+    const client = new QueryClient();
+    const a = queryKeys.historySuite.detail("binder-1", "template-1", "A");
+    const b = queryKeys.historySuite.detail("binder-1", "template-1", "B");
+    client.setQueryData(a, { privateNote: "A" });
+    client.setQueryData(b, { privateNote: "B" });
+    patchHistorySuiteQuery(client, "binder-1", "A", (current) => ({ ...current, events: [] }));
+    expect(client.getQueryData(a)).toEqual({ privateNote: "A", events: [] });
+    expect(client.getQueryData(b)).toEqual({ privateNote: "B" });
+  });
   it("builds stable keys and profile-scoped dashboard prefixes", () => {
     expect(queryKeys.dashboard.forProfile("learner-1")).toEqual(["dashboard", "learner-1"]);
     expect(queryKeys.dashboard.detail("learner-1", "learner", false)).toEqual([

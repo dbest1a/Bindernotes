@@ -61,7 +61,11 @@ describe("Recall Lab local storage", () => {
   it("loads only cards that match the current scoped deck", () => {
     const scope = { userId: "user-1", binderId: "binder-1", documentId: "lesson-1", lessonId: "lesson-1" };
     const storage = createStorage();
-    saveRecallCards(scope, [card("a", scope), card("b", { ...scope, lessonId: "lesson-2" })], storage);
+    saveRecallCards(scope, [
+      card("a", scope),
+      card("b", { ...scope, lessonId: "lesson-2" }),
+      card("other-owner", { ...scope, userId: "user-2" }),
+    ], storage);
 
     expect(loadRecallCards(scope, storage).map((item) => item.id)).toEqual(["a"]);
   });

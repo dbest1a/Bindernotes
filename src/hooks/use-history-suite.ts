@@ -51,12 +51,13 @@ export function useHistoryMutations(
 ) {
   const queryClient = useQueryClient();
   const invalidate = () => {
-    if (!binder) {
+    if (!binder || !profile) {
       return;
     }
     void queryClient.invalidateQueries({
       queryKey: queryKeys.historySuite.forBinder(binder.id),
       exact: false,
+      predicate: (query) => query.queryKey[3] === profile.id,
     });
   };
 
@@ -115,12 +116,14 @@ export function useHistoryMutations(
 export function patchHistorySuiteQuery(
   queryClient: ReturnType<typeof useQueryClient>,
   binderId: string,
+  profileId: string,
   updater: (current: HistorySuiteData) => HistorySuiteData,
 ) {
   queryClient.setQueriesData<HistorySuiteData>(
     {
       queryKey: queryKeys.historySuite.forBinder(binderId),
       exact: false,
+      predicate: (query) => query.queryKey[3] === profileId,
     },
     (current) => (current ? updater(current) : current),
   );

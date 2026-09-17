@@ -1159,6 +1159,7 @@ export function BinderReaderPage() {
     }
 
     await saveQueue.run({
+          ownerId: profile?.id ?? "",
       entityType: "history_event",
       scopeKey: `history-timeline:${binderId}:${profile.id}`,
       runner: () =>
@@ -1196,6 +1197,7 @@ export function BinderReaderPage() {
       const templateSourceId = isUserSource ? source.template_source_id : source.id;
 
       await saveQueue.run({
+          ownerId: profile?.id ?? "",
         entityType: "history_evidence",
         scopeKey: `history-evidence:${binderId}:${profile.id}`,
         runner: () =>
@@ -1242,6 +1244,7 @@ export function BinderReaderPage() {
       });
 
       await saveQueue.run({
+          ownerId: profile?.id ?? "",
         entityType: "history_evidence",
         scopeKey: `history-evidence:${binderId}:${profile.id}`,
         runner: () =>
@@ -1291,6 +1294,7 @@ export function BinderReaderPage() {
     }
 
     await saveQueue.run({
+          ownerId: profile?.id ?? "",
       entityType: "history_argument",
       scopeKey: `history-argument:${binderId}:${profile.id}`,
       runner: async () => {
@@ -1430,6 +1434,7 @@ export function BinderReaderPage() {
       }
 
       await saveQueue.run({
+          ownerId: profile?.id ?? "",
         entityType: "history_argument",
         scopeKey: `history-argument:${binderId}:${profile.id}`,
         runner: () => historyMutations.updateArgumentChain.mutateAsync({ chainId, patch }),
@@ -1449,6 +1454,7 @@ export function BinderReaderPage() {
 
     const starter = historyData?.templateMythChecks[0];
     await saveQueue.run({
+          ownerId: profile?.id ?? "",
       entityType: "myth_check",
       scopeKey: `history-myth:${binderId}:${profile.id}`,
       runner: () =>
@@ -2152,6 +2158,7 @@ export function BinderReaderPage() {
     <T,>(scopeKey: string, runner: () => Promise<T>): Promise<T> => {
       const run = () =>
         saveQueue.run({
+          ownerId: profile?.id ?? "",
           entityType: "highlight",
           scopeKey,
           runner,
@@ -2160,7 +2167,7 @@ export function BinderReaderPage() {
       highlightOperationRef.current = next.catch(() => undefined);
       return next;
     },
-    [],
+    [profile?.id],
   );
   const lessonAnchors = useMemo(
     () => (selectedLesson ? collectLessonSectionAnchors(selectedLesson.content, selectedLesson.id) : []),

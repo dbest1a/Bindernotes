@@ -213,6 +213,7 @@ export function DesmosGraphModule({
       ) : graphRuntimeVisible ? (
         controller.state.graphMode === "3d" ? (
           <Desmos3DGraph
+            key={controller.scopeKey}
             height={height}
             loadRequest={pendingGraphLoad}
             onLoadApplied={onGraphLoadApplied}
@@ -224,6 +225,7 @@ export function DesmosGraphModule({
           />
         ) : (
           <DesmosGraph
+            key={controller.scopeKey}
             height={height}
             loadRequest={pendingGraphLoad}
             onLoadApplied={onGraphLoadApplied}

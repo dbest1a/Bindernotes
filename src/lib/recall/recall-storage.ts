@@ -31,6 +31,7 @@ export function loadRecallCards(scope: RecallDeckScope, storage: StorageLike | u
   return readJsonArray<RecallCard>(storage, recallStorageKey(scope)).filter((card) => {
     return (
       card &&
+      card.userId === scope.userId &&
       card.binderId === scope.binderId &&
       card.documentId === scope.documentId &&
       card.lessonId === scope.lessonId

@@ -5,6 +5,7 @@ import {
   createDefaultWorkspacePreferences,
   getWorkspaceViewMode,
   normalizeWorkspacePreferences,
+  saveGlobalThemeSettings,
 } from "@/lib/workspace-preferences";
 import {
   loadWorkspaceViewPreference,
@@ -79,6 +80,20 @@ export function useWorkspacePreferences(
   const { clearThemeOverride, globalTheme, setTheme } = useTheme();
   const globalThemeRef = useRef(globalTheme);
   globalThemeRef.current = globalTheme;
+  const scopeKey = JSON.stringify([userId, binderId, suiteTemplateId]);
+  const scopeRef = useRef({ key: scopeKey, userId, binderId });
+  if (scopeRef.current.key !== scopeKey) {
+    scopeRef.current = { key: scopeKey, userId, binderId };
+  }
+  const mountedRef = useRef(true);
+  const saveVersionRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      saveVersionRef.current += 1;
+    };
+  }, []);
   const [saved, setSaved] = useState<WorkspacePreferences | null>(() =>
     createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
   );
@@ -168,15 +183,28 @@ export function useWorkspacePreferences(
   };
 
   const persist = useCallback((next: WorkspacePreferences) => {
+    const scope = scopeRef.current;
+    if (!mountedRef.current || next.userId !== scope.userId || next.binderId !== scope.binderId) {
+      return;
+    }
+    const version = ++saveVersionRef.current;
+    const isCurrent = () => mountedRef.current && scopeRef.current === scope && version === saveVersionRef.current;
     setSaveError(null);
     void upsertWorkspacePreferencesRecord(next)
       .then((persisted) => {
+        if (!isCurrent()) {
+          return;
+        }
+        saveGlobalThemeSettings(persisted.theme);
         saveWorkspaceViewPreference(getWorkspaceViewMode(persisted));
         setSaveError(null);
         setSaved(persisted);
         setDraft((current) => (current?.updatedAt === next.updatedAt ? persisted : current));
       })
       .catch((error) => {
+        if (!isCurrent()) {
+          return;
+        }
         console.error("Failed to save workspace preferences.", error);
         setSaveError(
           "Workspace layout could not be saved to your account. Try again before leaving this binder.",

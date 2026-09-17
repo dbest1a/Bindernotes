@@ -816,7 +816,7 @@ export function FaceliftSimpleShell({
                   moduleId === design.primaryModule && "facelift-module-cell--primary",
                 )}
                 data-facelift-module={moduleId}
-                key={moduleId}
+                key={`${context.ownerId}:${context.binder.id}:${context.selectedLesson.id}:${moduleId}`}
               >
                 {workspaceModuleRegistry[moduleId].render(
                   moduleId === "whiteboard"

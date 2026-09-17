@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const LazyUserAppearanceSync = lazy(() =>
@@ -31,6 +31,11 @@ export function AuthenticatedAppProviders({ children }: AuthenticatedAppProvider
         },
       }),
   );
+
+  useEffect(() => () => {
+    void queryClient.cancelQueries();
+    queryClient.clear();
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
