@@ -6,6 +6,7 @@ const MIGRATION_DIR = join(process.cwd(), "supabase", "migrations");
 const GRANT_MIGRATION = join(MIGRATION_DIR, "0025_data_api_explicit_grants.sql");
 
 const expectedPublicTables = [
+  "account_entitlements",
   "admin_binder_summaries",
   "binder_lessons",
   "binders",
@@ -92,6 +93,7 @@ const anonReadableTables = [
 ].sort();
 
 const privateNoAnonTables = [
+  "account_entitlements",
   "admin_binder_summaries",
   "chem_concepts",
   "chem_lab_templates",
@@ -184,6 +186,7 @@ const authenticatedCrudTables = [
 ].sort();
 
 const authenticatedSelectOnlyTables = [
+  "account_entitlements",
   "admin_binder_summaries",
   "dashboard_binder_summaries",
   "dashboard_folder_summaries",
@@ -220,6 +223,7 @@ const readMigrations = () =>
 const normalizeSql = (sql: string) => sql.toLowerCase().replace(/\s+/g, " ").trim();
 
 const allMigrationSql = () => readMigrations().map(({ sql }) => sql).join("\n");
+const exposureMigrationSql = () => readMigrations().filter(({ file }) => file >= "0025_").map(({ sql }) => sql).join("\n");
 
 const publicTablesCreatedByMigrations = () => {
   const tables = new Set<string>();
@@ -257,7 +261,7 @@ describe("Supabase Data API explicit grants", () => {
 
   it("adds explicit Data API grants for anon, authenticated, and service_role", () => {
     expect(existsSync(GRANT_MIGRATION)).toBe(true);
-    const grantSql = readFileSync(GRANT_MIGRATION, "utf8");
+    const grantSql = exposureMigrationSql();
     const normalized = normalizeSql(grantSql);
 
     expect(normalized).toContain("grant usage on schema public to anon, authenticated, service_role;");
@@ -298,7 +302,7 @@ describe("Supabase Data API explicit grants", () => {
 
   it("does not grant anon access to private user-owned or admin-only tables", () => {
     expect(existsSync(GRANT_MIGRATION)).toBe(true);
-    const normalized = normalizeSql(readFileSync(GRANT_MIGRATION, "utf8"));
+    const normalized = normalizeSql(exposureMigrationSql());
 
     for (const table of privateNoAnonTables) {
       expect(normalized, `${table} should not be granted to anon`).not.toMatch(

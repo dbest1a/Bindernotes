@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The production history records only dashboard_organization_ordering for 0016,
+# while later personal-note and security objects were applied outside that
+# history. The legacy 0001-0008 object checks cannot authorize this repair.
+if [ -f supabase/migrations/0016_dashboard_organization_ordering.sql ] && [ -f supabase/migrations/0016_personal_notes_workspace.sql ]; then
+  echo "::error title=Reviewed migration reconciliation required::Historical version 0016 has two sources. Run scripts/database/inspect-migration-history.sql read-only, review schema equivalence, and use the explicit staging bundle. Automatic history repair is blocked. See scripts/database/README.md."
+  exit 1
+fi
+
 if [ -z "${SUPABASE_DB_URL:-}" ]; then
   echo "::error title=Missing SUPABASE_DB_URL::SUPABASE_DB_URL is required."
   exit 1

@@ -68,7 +68,7 @@ function main() {
     failures.push("Missing supabase/migrations/0025_data_api_explicit_grants.sql.");
   }
 
-  const grantSql = existsSync(grantMigrationPath) ? readFileSync(grantMigrationPath, "utf8") : "";
+  const grantSql = migrations.filter(({ file }) => file >= "0025_").map(({ sql }) => sql).join("\n");
   const normalizedGrantSql = normalizeSql(grantSql);
 
   if (!normalizedGrantSql.includes("grant usage on schema public to anon, authenticated, service_role;")) {
