@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   createUploadedTutorial,
+  reconcilePendingTutorialUploads,
   normalizeInternalTutorialLink,
 } from "@/services/tutorial-service";
 import { supabase } from "@/lib/supabase";
@@ -69,6 +70,7 @@ function mockSuccessfulTutorialSave() {
 
 describe("tutorial service security hardening", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.restoreAllMocks();
     supabaseMock.storage.from.mockReset();
     supabaseMock.from.mockReset();
@@ -178,4 +180,29 @@ describe("tutorial service security hardening", () => {
       createUploadedTutorial(validTutorialInput, misleadingFile, null, "user-1"),
     ).rejects.toThrow("Tutorial video must use an allowed file type.");
   });
+  it("removes uploaded objects only after metadata read proves they are unreferenced", async () => {
+    const upload=vi.fn().mockResolvedValue({error:null}),remove=vi.fn().mockResolvedValue({error:null});
+    supabaseMock.storage.from.mockReturnValue({upload,remove,getPublicUrl:(path:string)=>({data:{publicUrl:path}})});
+    const failure={message:"metadata rejected"};
+    supabaseMock.from.mockReturnValue({upsert:()=>({select:()=>({single:async()=>({data:null,error:failure})})}),select:()=>({eq:()=>({limit:async()=>({data:[],error:null})})})});
+    await expect(createUploadedTutorial(validTutorialInput,new File(["video"],"test.mp4",{type:"video/mp4"}),null,"admin-1")).rejects.toEqual(failure);
+    expect(remove).toHaveBeenCalledWith([upload.mock.calls[0][0]]);expect(localStorage.length).toBe(0);
+  });
+  it("never deletes an object referenced by a committed write whose acknowledgement was lost", async () => {
+    const upload=vi.fn().mockResolvedValue({error:null}),remove=vi.fn();
+    supabaseMock.storage.from.mockReturnValue({upload,remove,getPublicUrl:(path:string)=>({data:{publicUrl:path}})});
+    supabaseMock.from.mockReturnValue({upsert:()=>({select:()=>({single:async()=>({data:null,error:new Error("lost acknowledgement")})})}),select:()=>({eq:()=>({limit:async()=>({data:[{id:"safe-tutorial"}],error:null})})})});
+    await expect(createUploadedTutorial(validTutorialInput,new File(["video"],"test.mp4",{type:"video/mp4"}),null,"admin-1")).rejects.toThrow("lost acknowledgement");
+    expect(remove).not.toHaveBeenCalled();
+  });
+  it("retains a durable cleanup journal when reference lookup is unavailable, then retries", async () => {
+    const upload=vi.fn().mockResolvedValue({error:null}),remove=vi.fn().mockResolvedValue({error:null});
+    supabaseMock.storage.from.mockReturnValue({upload,remove,getPublicUrl:(path:string)=>({data:{publicUrl:path}})});
+    const lookup=vi.fn().mockResolvedValue({data:null,error:new Error("offline")});
+    supabaseMock.from.mockReturnValue({upsert:()=>({select:()=>({single:async()=>({data:null,error:new Error("write failed")})})}),select:()=>({eq:()=>({limit:lookup})})});
+    await expect(createUploadedTutorial(validTutorialInput,new File(["video"],"test.mp4",{type:"video/mp4"}),null,"admin-1")).rejects.toThrow("write failed");
+    expect(remove).not.toHaveBeenCalled();expect(localStorage.length).toBe(1);
+    lookup.mockResolvedValue({data:[],error:null});await reconcilePendingTutorialUploads("admin-1");expect(remove).toHaveBeenCalled();expect(localStorage.length).toBe(0);
+  });
+
 });

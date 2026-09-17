@@ -7,6 +7,7 @@ export type AssetStore = {
   object(asset: PrivateAsset): Promise<Response>;
   complete(asset: PrivateAsset, digest: string, size: number, mime: string): Promise<void>;
   markDeleting(asset: PrivateAsset): Promise<void>;
+  claimStale(asset: PrivateAsset): Promise<boolean>;
   removeObject(asset: PrivateAsset): Promise<void>;
   finishDeletion(asset: PrivateAsset): Promise<void>;
   stale(): Promise<PrivateAsset[]>;
@@ -53,8 +54,8 @@ export function createAssetHandlers(deps: { store: AssetStore; origin: string; c
     try { return await handler(request); }
     catch (error) { return error instanceof AssetError ? json({ message: error.message }, error.status) : json({ message: "File service is temporarily unavailable. Your upload can be retried." }, 503); }
   };
-  async function remove(asset: PrivateAsset) {
-    await deps.store.markDeleting(asset); await deps.store.removeObject(asset); await deps.store.finishDeletion(asset);
+  async function remove(asset: PrivateAsset, alreadyClaimed = false) {
+    if (!alreadyClaimed) await deps.store.markDeleting(asset); await deps.store.removeObject(asset); await deps.store.finishDeletion(asset);
   }
   return {
     complete: safe(async request => {
@@ -69,7 +70,7 @@ export function createAssetHandlers(deps: { store: AssetStore; origin: string; c
     cleanup: safe(async request => {
       if (request.method !== "POST" || !deps.cleanupSecret || request.headers.get("authorization") !== `Bearer ${deps.cleanupSecret}`) throw new AssetError(403, "Cleanup is restricted.");
       const assets = await deps.store.stale(); let removed = 0;
-      for (const asset of assets) { await remove(asset); removed++; }
+      for (const asset of assets) { if (await deps.store.claimStale(asset)) { await remove(asset, true); removed++; } }
       return json({ removed });
     }),
   };

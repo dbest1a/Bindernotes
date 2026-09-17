@@ -5,7 +5,7 @@ import type { PrivateAsset } from "../../src/lib/user-assets";
 function fixture() {
   const bytes = Buffer.from("%PDF-1.7\nDisposable test bytes");
   const asset: PrivateAsset = { id: "80000000-0000-4000-8000-000000000001", owner_id: "10000000-0000-4000-8000-000000000001", bucket_id: "private-assets", storage_path: "owner/file.pdf", name: "File.pdf", mime_type: "application/pdf", size_bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"), status: "pending", import_batch_id: null, created_at: "now", updated_at: "now" };
-  const store: AssetStore = { authenticate: vi.fn(async () => ({ id: asset.owner_id })), asset: vi.fn(async () => asset), object: vi.fn(async () => new Response(bytes)), complete: vi.fn(async () => {}), markDeleting: vi.fn(async () => {}), removeObject: vi.fn(async () => {}), finishDeletion: vi.fn(async () => {}), stale: vi.fn(async () => [asset]) };
+  const store: AssetStore = { authenticate: vi.fn(async () => ({ id: asset.owner_id })), asset: vi.fn(async () => asset), object: vi.fn(async () => new Response(bytes)), complete: vi.fn(async () => {}), markDeleting: vi.fn(async () => {}), claimStale: vi.fn(async () => true), removeObject: vi.fn(async () => {}), finishDeletion: vi.fn(async () => {}), stale: vi.fn(async () => [asset]) };
   const handlers = createAssetHandlers({ store, origin: "https://app.test", cleanupSecret: "local-test-cleanup" });
   const request = () => new Request("https://app.test/api/assets/complete", { method: "POST", headers: { origin: "https://app.test", authorization: "Bearer session" }, body: JSON.stringify({ id: asset.id }) });
   return { asset, bytes, store, handlers, request };
@@ -35,4 +35,10 @@ describe("trusted private asset handlers", () => {
     const response = await f.handlers.cleanup(new Request("https://app.test/api/assets/cleanup", { method: "POST", headers: { authorization: "Bearer local-test-cleanup" } }));
     expect(response.status).toBe(200); expect(f.store.finishDeletion).toHaveBeenCalledWith(f.asset);
   });
+  it("never cleans up a file that an import promoted after the stale listing", async () => {
+    const f=fixture(); vi.mocked(f.store.claimStale).mockResolvedValue(false);
+    const response=await f.handlers.cleanup(new Request("https://app.test/api/assets/cleanup", { method: "POST", headers: { authorization: "Bearer local-test-cleanup" } }));
+    expect(await response.json()).toEqual({removed:0}); expect(f.store.removeObject).not.toHaveBeenCalled();
+  });
+
 });

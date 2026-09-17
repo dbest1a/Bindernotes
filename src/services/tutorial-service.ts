@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import {
   formatTutorialDuration,
@@ -148,6 +149,29 @@ export async function listUploadedTutorials(includeAdminDrafts: boolean): Promis
   return (data ?? []).map(recordToTutorialEntry);
 }
 
+const uploadCleanupSchema = z.object({ owner: z.string(), assets: z.array(z.object({ bucket: z.enum(["tutorial-videos", "tutorial-posters"]), path: z.string().regex(/^[a-z0-9-]+\/(video|poster)-[a-z0-9-]+\.[a-z0-9]+$/) })) });
+const cleanupKey = (owner: string, operation: string) => `bindernotes:tutorial-upload-cleanup:${encodeURIComponent(owner)}:${operation}`;
+async function reconcileTutorialUpload(key: string, owner: string) {
+  if (!supabase) return;
+  const raw = localStorage.getItem(key); if (!raw) return;
+  const entry = uploadCleanupSchema.parse(JSON.parse(raw)); if (entry.owner !== owner) throw new Error("Tutorial cleanup belongs to another account.");
+  for (const asset of entry.assets) {
+    // A failed acknowledgement may hide a committed metadata write. Prove no
+    // tutorial references each exact path before deleting any uploaded bytes.
+    const column = asset.bucket === tutorialVideoBucket ? "storage_path" : "poster_storage_path";
+    const { data, error } = await supabase.from("tutorial_entries").select("id").eq(column, asset.path).limit(1);
+    if (error) throw error;
+    if (data?.length) continue;
+    const removed = await supabase.storage.from(asset.bucket).remove([asset.path]); if (removed.error) throw removed.error;
+  }
+  localStorage.removeItem(key);
+}
+export async function reconcilePendingTutorialUploads(owner: string) {
+  const prefix = cleanupKey(owner, "");
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith(prefix)));
+  for (const key of keys) await reconcileTutorialUpload(key, owner);
+}
+
 export async function createUploadedTutorial(
   input: CreateTutorialInput,
   videoFile: File | null,
@@ -160,6 +184,7 @@ export async function createUploadedTutorial(
   }
 
   const id = sanitizeTutorialId(input.id);
+  if (!id) throw new Error("Choose a tutorial identifier before uploading.");
   if (!videoFile && !existingTutorial?.videoSrc) {
     throw new Error("Choose a tutorial video before creating the tutorial.");
   }
@@ -182,11 +207,16 @@ export async function createUploadedTutorial(
     });
   }
 
+  await reconcilePendingTutorialUploads(userId);
   const videoPath = videoFile ? buildAssetPath(id, videoFile.name, "video") : null;
+  const posterPath = posterFile ? buildAssetPath(id, posterFile.name, "poster") : null;
+  const journal = cleanupKey(userId, crypto.randomUUID());
+  const assets = [...(videoPath ? [{ bucket: tutorialVideoBucket, path: videoPath }] : []), ...(posterPath ? [{ bucket: tutorialPosterBucket, path: posterPath }] : [])];
+  if (assets.length) localStorage.setItem(journal, JSON.stringify({ owner: userId, assets }));
+  try {
   const videoSrc = videoFile
     ? await uploadTutorialAsset(tutorialVideoBucket, videoPath!, videoFile, tutorialVideoContentTypesByExtension)
     : existingTutorial?.videoSrc ?? "";
-  const posterPath = posterFile ? buildAssetPath(id, posterFile.name, "poster") : null;
   const posterSrc = posterFile
     ? await uploadTutorialAsset(tutorialPosterBucket, posterPath!, posterFile, tutorialPosterContentTypesByExtension)
     : existingTutorial?.posterSrc || defaultPosterSrc;
@@ -234,7 +264,12 @@ export async function createUploadedTutorial(
     throw error;
   }
 
+  localStorage.removeItem(journal);
   return recordToTutorialEntry(data);
+  } catch (error) {
+    await reconcileTutorialUpload(journal, userId).catch(() => {});
+    throw error;
+  }
 }
 
 async function uploadTutorialAsset(
@@ -331,7 +366,7 @@ export function normalizeInternalTutorialLink(value: string | null | undefined) 
 
 function buildAssetPath(tutorialId: string, fileName: string, kind: "poster" | "video") {
   const extension = getFileExtension(fileName);
-  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const uniqueSuffix = `${Date.now()}-${crypto.randomUUID().replace(/-/g, "")}`;
   return `${tutorialId}/${kind}-${uniqueSuffix}${extension}`;
 }
 
