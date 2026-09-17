@@ -24,13 +24,11 @@ vi.mock("@/lib/desmos-loader", () => ({ hasDesmosApiKey: () => false }));
 beforeEach(() => {
   test.owner = "00000000-0000-4000-8000-000000000001";
   test.rows = [];
-  test.list
-    .mockReset()
-    .mockImplementation(async ({ ownerId, kind }) => ({
-      records: test.rows.filter((row) => row.ownerId === ownerId && row.snapshot.kind === kind),
-      hasMore: false,
-      unsupportedCount: 0,
-    }));
+  test.list.mockReset().mockImplementation(async ({ ownerId, kind }) => ({
+    records: test.rows.filter((row) => row.ownerId === ownerId && row.snapshot.kind === kind),
+    hasMore: false,
+    unsupportedCount: 0,
+  }));
   test.save.mockReset().mockImplementation(async ({ id, ownerId, snapshot }) => {
     const saved = { id, ownerId, snapshot: structuredClone(snapshot), createdAt: "2026-09-17T12:00:00Z" };
     test.rows = [...test.rows.filter((row) => row.id !== id), saved];
