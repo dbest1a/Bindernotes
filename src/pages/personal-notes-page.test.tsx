@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { saveQueue } from "@/lib/save-queue";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
@@ -46,6 +48,7 @@ const mocks = vi.hoisted(() => ({
   savePersonalDocument: vi.fn(),
   saveBinderLinkedNote: vi.fn(),
   setPinned: vi.fn(),
+  saveContent: vi.fn(),
   editorChain: {
     focus: vi.fn(),
     toggleBold: vi.fn(),
@@ -302,6 +305,8 @@ function missingTableIssue(table: string) {
   };
 }
 
+vi.mock("@/services/personal-content-repository", () => ({ savePersonalContent: mocks.saveContent, readPersonalContent: vi.fn(), preservePersonalContentCopy: vi.fn() }));
+
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ profile }),
 }));
@@ -339,17 +344,22 @@ import { PersonalNotesPage } from "@/pages/personal-notes-page";
 
 function renderPage(path = "/notes") {
   return render(
+    <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route element={<PersonalNotesPage />} path="/notes" />
         <Route element={<PersonalNotesPage />} path="/notes/n/:noteId" />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
+    saveQueue.setAccount(null);
+    saveQueue.setAccount(profile.id);
+    mocks.saveContent.mockReset().mockImplementation(async (operation: {expectedRevision: number}) => ({revision: operation.expectedRevision + 1}));
     window.localStorage.clear();
     mocks.editor.chain.mockReset();
     for (const command of Object.values(mocks.editorChain)) {
@@ -372,6 +382,7 @@ describe("PersonalNotesPage", () => {
 
   afterEach(() => {
     cleanup();
+    saveQueue.setAccount(null);
     window.localStorage.clear();
     mocks.personalNotesState.data = null;
     mocks.personalNotesState.error = null;
@@ -1223,10 +1234,10 @@ describe("PersonalNotesPage", () => {
   it("renders beta autosave statuses in plain language", async () => {
     enableSourceLinkedNotesBeta();
     mocks.personalNotesState.data = withSourceMarkedEntry();
-    const pendingSave: { resolve?: (value: LearnerNote) => void } = {};
-    mocks.saveBinderLinkedNote.mockImplementationOnce(
+    const pendingSave: { resolve?: (value: {revision: number}) => void } = {};
+    mocks.saveContent.mockImplementationOnce(
       () =>
-        new Promise<LearnerNote>((resolve) => {
+        new Promise<{revision: number}>((resolve) => {
           pendingSave.resolve = resolve;
         }),
     );
@@ -1245,13 +1256,13 @@ describe("PersonalNotesPage", () => {
       expect(screen.getByRole("status", { name: "Note sync status" }).textContent).toContain("Saving...");
     });
 
-    pendingSave.resolve?.({ ...learnerNote, title: "Edited source note" });
+    await act(async () => pendingSave.resolve?.({ revision: 1 }));
   });
 
   it("renders beta save errors as Error saving", async () => {
     enableSourceLinkedNotesBeta();
     mocks.personalNotesState.data = withSourceMarkedEntry();
-    mocks.saveBinderLinkedNote.mockRejectedValueOnce(new Error("Network unavailable"));
+    mocks.saveContent.mockRejectedValueOnce(new Error("Network unavailable"));
 
     renderPage("/notes/n/learner-note-1");
     fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Edited source note" } });
@@ -1587,4 +1598,46 @@ describe("PersonalNotesPage", () => {
     }
     expect((palette.getByRole("button", { name: /Open source binder workspace/ }) as HTMLButtonElement).disabled).toBe(false);
   });
+  it("preserves an immutable note snapshot when switching before the debounce fires", async () => {
+    vi.useFakeTimers();
+    try {
+      enableSourceLinkedNotesBeta();
+      mocks.personalNotesState.data = workspaceWithEntries;
+      mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: true };
+      renderPage("/notes/n/learner-note-1");
+      fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Unsaved title A" } });
+      fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+      fireEvent.click(screen.getByRole("button", { name: /Open note: Loose reading note/i }));
+      expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Loose reading note");
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      expect(mocks.saveContent).toHaveBeenCalledWith(expect.objectContaining({snapshot: expect.objectContaining({id: learnerNote.id, title: "Unsaved title A"})}));
+      fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+      fireEvent.click(screen.getByRole("button", { name: /Open note: Russian Revolution private note/i }));
+      expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Unsaved title A");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("saves newer edits after a delayed earlier acknowledgement without clearing dirty state", async () => {
+    vi.useFakeTimers();
+    try {
+      let finishFirst!: (value: {revision: number}) => void;
+      let finishSecond!: (value: {revision: number}) => void;
+      mocks.saveContent.mockImplementationOnce(() => new Promise<{revision: number}>((resolve) => { finishFirst = resolve; }));
+      mocks.saveContent.mockImplementationOnce(() => new Promise<{revision: number}>((resolve) => { finishSecond = resolve; }));
+      enableSourceLinkedNotesBeta();
+      mocks.personalNotesState.data = workspaceWithEntries;
+      mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: true };
+      renderPage("/notes/n/learner-note-1");
+      fireEvent.change(screen.getByLabelText("Note title"), { target: {value: "First edit"} });
+      await act(async () => { await vi.advanceTimersByTimeAsync(850); });
+      fireEvent.change(screen.getByLabelText("Note title"), { target: {value: "Second edit"} });
+      await act(async () => { finishFirst({revision: 1}); });
+      expect(screen.getByLabelText("Note title").getAttribute("value")).toBe("Second edit");
+      expect(screen.getByRole("status", {name: "Note sync status"}).textContent).not.toContain("No changes to save");
+      expect(mocks.saveContent).toHaveBeenLastCalledWith(expect.objectContaining({expectedRevision: 1, snapshot: expect.objectContaining({title: "Second edit"})}));
+      await act(async () => { finishSecond({revision: 2}); });
+      expect(screen.getByRole("status", {name: "Note sync status"}).textContent).toContain("No changes to save");
+    } finally { vi.useRealTimers(); }
+  });
+
 });

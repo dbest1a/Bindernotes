@@ -55,6 +55,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { useAuth } from "@/hooks/use-auth";
+import { usePersonalContentEditor } from "@/hooks/use-personal-content-editor";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   usePersonalNotes,
@@ -77,9 +78,7 @@ import type {
   Folder,
   FolderBinderLink,
   LearnerNote,
-  PersonalNote,
   PersonalNoteFolder,
-  PersonalNotebookDocument,
   PersonalNotesAnnotatorMode,
   PersonalNotesEntry,
   PersonalNotesEditorWidth,
@@ -247,14 +246,9 @@ export function PersonalNotesPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftContent, setDraftContent] = useState<JSONContent>(() => emptyDoc(""));
-  const [draftTagsInput, setDraftTagsInput] = useState("");
-  const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [reviewQueueMessage, setReviewQueueMessage] = useState<string | null>(null);
-  const saveTimerRef = useRef<number | null>(null);
+  const [recoveryError, setRecoveryError] = useState<{ id: string; message: string } | null>(null);
+  const [discardDraftId, setDiscardDraftId] = useState<string | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const newMenuRef = useRef<HTMLDivElement | null>(null);
@@ -319,6 +313,17 @@ export function PersonalNotesPage() {
     const wanted = routeSelectedId ?? selectedId;
     return filteredEntries.find((entry) => entry.id === wanted) ?? filteredEntries[0] ?? null;
   }, [filteredEntries, routeSelectedId, selectedId]);
+  const editor = usePersonalContentEditor(selectedEntry, profile?.id ?? null, preferences.autosave);
+  const draftTitle = editor.snapshot.title;
+  const draftContent = editor.snapshot.content;
+  const draftTagsInput = editor.snapshot.tagsInput;
+  const dirty = editor.dirty;
+  const saveState: SaveState = editor.state === "saving" ? "saving" : editor.error || editor.state === "conflict" ? "error" : "saved";
+  const saveError = recoveryError && recoveryError.id === selectedEntry?.id ? recoveryError.message : editor.error;
+  const persistSelected = editor.save;
+  const setDraftTitle = (title: string) => editor.change({ title });
+  const setDraftContent = (content: JSONContent) => editor.change({ content });
+  const setDraftTagsInput = (tagsInput: string) => editor.change({ tags: parseTags(tagsInput), tagsInput });
   const folderSummaries = useMemo(() => buildFolderSummaries(entries), [entries]);
   const tagSummaries = useMemo(() => buildTagSummaries(entries), [entries]);
   const mainNotesCount = entries.filter((entry) => entry.kind !== "binder-note").length;
@@ -456,24 +461,7 @@ export function PersonalNotesPage() {
     setSelectedId(filteredEntries[0].id);
   }, [filteredEntries, routeSelectedId, selectedId]);
 
-  useEffect(() => {
-    if (!selectedEntry) {
-      setDraftTitle("");
-      setDraftContent(emptyDoc(""));
-      setDraftTagsInput("");
-      setDirty(false);
-      setSaveState("saved");
-      return;
-    }
-
-    setDraftTitle(selectedEntry.title);
-    setDraftContent(selectedEntry.content);
-    setDraftTagsInput(selectedEntry.tags.join(", "));
-    setDirty(false);
-    setSaveState("saved");
-    setSaveError(null);
-    setReviewQueueMessage(null);
-  }, [selectedEntry?.id]);
+  useEffect(() => { setReviewQueueMessage(null); }, [selectedEntry?.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -567,86 +555,6 @@ export function PersonalNotesPage() {
     [navigate],
   );
 
-  const persistSelected = useCallback(async () => {
-    if (!selectedEntry) {
-      return;
-    }
-
-    setSaveState("saving");
-    setSaveError(null);
-    const tags = parseTags(draftTagsInput);
-
-    try {
-      if (selectedEntry.kind === "binder-note") {
-        const learnerNote = selectedEntry.note as LearnerNote;
-        await mutations.saveBinderLinkedNote.mutateAsync({
-          id: selectedEntry.id,
-          binderId: selectedEntry.sourceBinderId ?? learnerNote.binder_id,
-          lessonId: selectedEntry.sourceDocumentId ?? learnerNote.lesson_id,
-          folderId: learnerNote.folder_id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: learnerNote.math_blocks,
-        });
-      } else if (selectedEntry.kind === "personal-document") {
-        const document = selectedEntry.note as PersonalNotebookDocument;
-        await mutations.savePersonalDocument.mutateAsync({
-          id: selectedEntry.id,
-          binderId: selectedEntry.personalBinderId ?? document.binder_id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: document.math_blocks,
-          tags,
-          pinned: selectedEntry.pinned,
-        });
-      } else {
-        const note = selectedEntry.note as PersonalNote;
-        await mutations.savePersonalNote.mutateAsync({
-          id: selectedEntry.id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: note.math_blocks,
-          folderId: note.folder_id,
-          binderId: note.binder_id,
-          documentId: note.document_id,
-          tags,
-          pinned: selectedEntry.pinned,
-        });
-      }
-      setDirty(false);
-      setSaveState("saved");
-    } catch (saveErrorValue) {
-      setSaveState("error");
-      setSaveError(saveErrorValue instanceof Error ? saveErrorValue.message : "Could not save note.");
-    }
-  }, [draftContent, draftTagsInput, draftTitle, mutations, selectedEntry]);
-
-  useEffect(() => {
-    if (!dirty || !preferences.autosave || !selectedEntry) {
-      return;
-    }
-
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-
-    saveTimerRef.current = window.setTimeout(() => {
-      void persistSelected();
-    }, 850);
-
-    return () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [dirty, draftContent, draftTagsInput, draftTitle, persistSelected, preferences.autosave, selectedEntry]);
-
-  const markDraftChanged = useCallback(() => {
-    setDirty(true);
-    setSaveState("saved");
-    setSaveError(null);
-  }, []);
-
   const createLooseNote = useCallback(() => {
     if (!personalStorageReady) {
       return;
@@ -683,16 +591,10 @@ export function PersonalNotesPage() {
   }, [personalStorageReady]);
 
   const toggleSelectedPin = useCallback(async () => {
-    if (!selectedEntry || selectedEntry.kind === "binder-note") {
-      return;
-    }
-
-    await mutations.setPinned.mutateAsync({
-      kind: selectedEntry.kind,
-      id: selectedEntry.id,
-      pinned: !selectedEntry.pinned,
-    });
-  }, [mutations.setPinned, selectedEntry]);
+    if (!selectedEntry || selectedEntry.kind === "binder-note") return;
+    editor.change({ pinned: !editor.snapshot.pinned });
+    await editor.save();
+  }, [editor, selectedEntry]);
 
   const addTagToSelected = useCallback(async () => {
     if (!selectedEntry || selectedEntry.kind === "binder-note") {
@@ -709,35 +611,29 @@ export function PersonalNotesPage() {
   }, [data?.personalFolders.length, selectedEntry]);
 
   const submitTagForSelected = useCallback((tag: string) => {
-    if (!selectedEntry || selectedEntry.kind === "binder-note") {
-      return;
-    }
-    const nextTags = [...new Set([...parseTags(draftTagsInput), tag.trim()])];
-    setDraftTagsInput(nextTags.join(", "));
-    setDirty(true);
-    window.setTimeout(() => {
-      void persistSelected();
-    }, 0);
-  }, [draftTagsInput, persistSelected, selectedEntry]);
+    if (!selectedEntry || selectedEntry.kind === "binder-note") return;
+    const tags = [...new Set([...editor.snapshot.tags, tag.trim()])].filter(Boolean);
+    editor.change({ tags, tagsInput: tags.join(", ") });
+    void editor.save();
+  }, [editor, selectedEntry]);
 
   const submitMoveSelectedToFolder = useCallback(async (folderId: string | null) => {
-    if (!selectedEntry || selectedEntry.kind !== "personal-note") {
-      return;
-    }
+    if (!selectedEntry || selectedEntry.kind !== "personal-note") return;
+    editor.change({ folderId });
+    await editor.save();
+  }, [editor, selectedEntry]);
 
-    const note = selectedEntry.note as PersonalNote;
-    await mutations.savePersonalNote.mutateAsync({
-      id: selectedEntry.id,
-      title: draftTitle,
-      content: draftContent,
-      mathBlocks: note.math_blocks,
-      folderId,
-      binderId: note.binder_id,
-      documentId: note.document_id,
-      tags: parseTags(draftTagsInput),
-      pinned: note.pinned,
-    });
-  }, [draftContent, draftTagsInput, draftTitle, mutations.savePersonalNote, selectedEntry]);
+  const resolveConflict = async (action: "copy" | "remote") => {
+    const id = selectedEntry?.id;
+    if (!id) return;
+    try {
+      if (action === "copy") await editor.preserveCopy();
+      else await editor.useRemote();
+      setRecoveryError(null);
+    } catch (error) {
+      setRecoveryError({ id, message: error instanceof Error ? error.message : "Recovery failed; your draft is retained." });
+    }
+  };
 
   const addSelectedNoteToReview = useCallback(() => {
     if (!profile?.id || !selectedEntry || !reviewQueueBeta) {
@@ -775,6 +671,38 @@ export function PersonalNotesPage() {
   }, [createLooseNote, isLoading, searchParams, selectedEntry]);
 
   const editorPanel = (
+    <>
+      {editor.backups.length ? (
+        <details className="m-3 rounded-md border p-3">
+          <summary>Recover other device drafts ({editor.backups.length})</summary>
+          <p className="my-2 text-sm">These backups may come from another tab or an interrupted session. Recovering creates a separate note and keeps the current saved version.</p>
+          {editor.backups.map((backup) => (
+            <div key={backup.key} className="my-2 flex flex-wrap items-center gap-2">
+              <span>{backup.draft.snapshot.title || "Untitled draft"} · {new Date(backup.recordedAt).toLocaleString()}</span>
+              <Button type="button" variant="outline" onClick={() => {
+                void editor.preserveBackup(backup.key).catch((error: unknown) => {
+                  if (selectedEntry) setRecoveryError({id: selectedEntry.id, message: error instanceof Error ? error.message : "The backup could not be recovered. It is still stored on this device."});
+                });
+              }}>Recover as a separate note</Button>
+            </div>
+          ))}
+        </details>
+      ) : null}
+      {editor.state === "conflict" ? (
+        <div role="alert" className="m-3 flex flex-wrap items-center gap-3 rounded-md border p-3">
+          <p>This note changed elsewhere. Your draft is preserved on this device.</p>
+          <Button onClick={() => void resolveConflict("copy")} type="button">Save my draft as a separate note</Button>
+          {discardDraftId === selectedEntry?.id ? (
+            <div className="flex items-center gap-2">
+              <span>Discard this deviceâ€™s draft? This cannot be undone.</span>
+              <Button onClick={() => { setDiscardDraftId(null); void resolveConflict("remote"); }} type="button" variant="outline">Yes, discard this draft</Button>
+              <Button onClick={() => setDiscardDraftId(null)} type="button" variant="outline">Keep my draft</Button>
+            </div>
+          ) : (
+            <Button onClick={() => setDiscardDraftId(selectedEntry?.id ?? null)} type="button" variant="outline">Discard my draft and load saved version</Button>
+          )}
+        </div>
+      ) : null}
     <PersonalNoteEditor
       autosaveEnabled={preferences.autosave}
       dirty={dirty}
@@ -797,7 +725,6 @@ export function PersonalNotesPage() {
       onAddToReview={addSelectedNoteToReview}
       onContentChange={(content) => {
         setDraftContent(content);
-        markDraftChanged();
       }}
       onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
       onFocusModeChange={(enabled) => {
@@ -812,7 +739,6 @@ export function PersonalNotesPage() {
       onToggleFocusSideMonitor={() => setFocusSideMonitorOpen((current) => !current)}
       onInsertTemplate={(content) => {
         setDraftContent(content);
-        markDraftChanged();
       }}
       onOpenBinder={() => {
         if (selectedEntry?.quickJumpToBinderUrl) {
@@ -826,15 +752,14 @@ export function PersonalNotesPage() {
       onSave={() => void persistSelected()}
       onTagsChange={(tags) => {
         setDraftTagsInput(tags);
-        markDraftChanged();
       }}
       onTitleChange={(title) => {
         setDraftTitle(title);
-        markDraftChanged();
       }}
       saveError={saveError}
       saveState={saveState}
     />
+    </>
   );
 
   const shellTone =
