@@ -643,7 +643,8 @@ function normalizeQuestionRows(rows: Array<Record<string, unknown>>): QuestionBa
     const question_choices = Array.isArray(row.question_choices)
       ? (row.question_choices as QuestionChoice[])
       : [];
-    const { question_choices: _choices, ...question } = row;
+    const question = { ...row };
+    delete question.question_choices;
     return {
       ...(question as QuestionBankItem),
       choices: question_choices.sort((left, right) => left.order_index - right.order_index),

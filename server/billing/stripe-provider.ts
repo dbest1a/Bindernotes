@@ -25,7 +25,15 @@ export function stripeProvider(stripe: Stripe, options: {
       if (!chargeId) continue;
       const charge = await stripe.charges.retrieve(chargeId);
       if (idOf(charge.customer) !== idOf(subscription.customer)) throw new Error("Charge owner mismatch");
-      if (charge.paid && !charge.refunded && !charge.disputed) settled += Math.min(payment.amount_paid ?? 0, Math.max(0, charge.amount - charge.amount_refunded));
+      let disputeResolved = !charge.disputed;
+      if (charge.disputed) {
+        // Charge.disputed remains true after a win. Re-read the final dispute
+        // state, rather than revoking access forever from that historical flag.
+        const disputes = await stripe.disputes.list({ charge: charge.id, limit: 100 });
+        if (disputes.has_more || !disputes.data.length || disputes.data.some((dispute) => idOf(dispute.charge) !== charge.id)) throw new Error("Dispute scope incomplete");
+        disputeResolved = disputes.data.every((dispute) => ["won", "warning_closed"].includes(dispute.status));
+      }
+      if (charge.paid && !charge.refunded && disputeResolved) settled += Math.min(payment.amount_paid ?? 0, Math.max(0, charge.amount - charge.amount_refunded));
     }
     return { paid: payments.data.length > 0, fullyRefunded: settled === 0 };
   }
@@ -73,10 +81,22 @@ export function stripeProvider(stripe: Stripe, options: {
       }
       const sessions = await stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 100 });
       if (sessions.has_more) throw new Error("Checkout page incomplete");
+      let reusableUrl: string | null = null;
       for (const session of sessions.data) {
-        if (session.metadata?.bindernotes_plan === plan && session.url) return session.url;
+        if (idOf(session.customer) !== customerId || session.livemode !== options.live) throw new Error("Checkout scope mismatch");
+        if (session.metadata?.bindernotes_plan === plan && session.mode === "subscription" && session.url) {
+          const lines = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
+          const line = lines.data[0];
+          if (!reusableUrl && !lines.has_more && lines.data.length === 1 && line?.quantity === 1 && line.price?.id === price.id) {
+            reusableUrl = session.url;
+            continue;
+          }
+        }
+        // Retire obsolete prices and duplicate open sessions before returning
+        // a reusable URL, so an old checkout cannot charge an unrecognized plan.
         await stripe.checkout.sessions.expire(session.id);
       }
+      if (reusableUrl) return reusableUrl;
       const session = await stripe.checkout.sessions.create({
         mode: "subscription", customer: customerId,
         line_items: [{ price: options.prices[plan], quantity: 1 }],

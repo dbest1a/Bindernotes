@@ -34,7 +34,7 @@ export function createBillingHandlers(deps: Dependencies) {
     try { return await handler(request); }
     catch (error) {
       // Provider errors can contain customer identifiers and secret configuration.
-      return error instanceof BillingError ? response(error.status, error.message) : response(503, "Billing is temporarily unavailable. Your existing plan has not been changed by this request. Please retry.");
+      return error instanceof BillingError ? response(error.status, error.message) : response(503, "We could not confirm the billing result. Check your current plan and retry; do not start a second payment while the first is processing.");
     }
   };
   return {

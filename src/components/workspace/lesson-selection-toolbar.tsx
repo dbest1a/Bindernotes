@@ -428,7 +428,7 @@ function refreshSelectionState(
     return null;
   }
 
-  let anchor: SelectionAnchor | null = null;
+  let anchor: SelectionAnchor | null;
   try {
     anchor = measureSelectionAnchor(selection.range);
     if (!anchor) {
