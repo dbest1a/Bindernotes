@@ -5,7 +5,7 @@ const supabaseCalls = vi.hoisted(() => ({
   tables: [] as string[],
   inserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   upserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
-  rpc: vi.fn(async (_name: string, args: { p_record: Record<string, unknown>; p_expected_revision: number }) => ({ data: { ...args.p_record, revision: args.p_expected_revision + 1 }, error: null as { code: string; message: string } | null })),
+  rpc: vi.fn(async (_name: string, args: { p_record: Record<string, unknown>; p_expected_revision: number }) => ({ data: { created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z", archived_at: null, ...args.p_record, revision: args.p_expected_revision + 1 }, error: null as { code: string; message: string } | null })),
 }));
 
 const binderServiceMocks = vi.hoisted(() => ({
@@ -54,7 +54,7 @@ vi.mock("@/lib/supabase", () => ({
         select: () => chain,
         single: async () => ({
           data: {
-            id: `${table}-row`,
+            id: `${table}-row`, created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z", archived_at: null, revision: 0,
             ...payload,
           },
           error: null,

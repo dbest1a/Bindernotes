@@ -1,3 +1,4 @@
+import { learnerNoteRecordSchema } from "@/lib/personal-note-records";
 import { readMetadataPages, readMetadataForIds } from "@/lib/metadata-pages";
 import { reconcileLessonSummaries, type LessonMetadata } from "@/lib/dashboard-summary-coverage";
 import type { JSONContent } from "@tiptap/react";
@@ -1211,7 +1212,7 @@ export async function getDashboard(
 
   const bindersQuery = () => profile.role === "admin"
     ? supabase!.from("binders").select(DASHBOARD_BINDER_SELECT)
-    : supabase!.from("binders").select(DASHBOARD_BINDER_SELECT).eq("status", "published");
+    : supabase!.from("binders").select(DASHBOARD_BINDER_SELECT).or(`status.eq.published,owner_id.eq.${profile.id}`);
   const [bindersResult, foldersResult, folderBindersResult, notesResult] = await Promise.all([
     readMetadataPages((from, to) => bindersQuery().order("pinned", { ascending: false }).order("updated_at", { ascending: false }).order("id").range(from, to)),
     readMetadataPages((from, to) => supabase!.from("folders").select("*").order("id").range(from, to)),
@@ -1423,7 +1424,7 @@ async function buildRemoteCanonicalFolderWorkspace(
       : supabase
           .from("binders")
           .select(DASHBOARD_BINDER_SELECT)
-          .eq("status", "published")
+          .or(`status.eq.published,owner_id.eq.${profile.id}`)
           .order("pinned", { ascending: false })
           .order("updated_at", { ascending: false });
 
@@ -1469,7 +1470,7 @@ async function buildRemoteCanonicalFolderWorkspace(
 
   const shadowState = loadShadowState();
   const shadowNotes = shadowState.notes.filter((note) => note.owner_id === profile.id);
-  const notes = mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowNotes);
+  const notes = mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowNotes);
   const visible = filterVisibleWorkspaceData({
     binders: candidateBinders,
     folders: (foldersResult.data ?? []) as Folder[],
@@ -1616,7 +1617,7 @@ export async function getBinderBundle(
   return {
     binder,
     lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[], binderId),
-    notes: mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowState?.notes ?? []),
+    notes: mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowState?.notes ?? []),
     comments: mergeShadowComments(
       (commentsResult.data ?? []) as Comment[],
       shadowState?.comments ?? [],
@@ -1742,7 +1743,7 @@ export async function getFolderWorkspace(
     folder: folderResult.data as Folder,
     binders,
     folderBinders: (linksResult.data ?? []) as FolderBinderLink[],
-    notes: mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowNotes),
+    notes: mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowNotes),
     lessons,
     seedHealth: binders[0] ? await getSeedHealthForBinder(binders[0]) : null,
   };
@@ -1830,7 +1831,7 @@ export async function getBinderOverview(
   return {
     binder,
     lessons: mergeDemoLessons((lessonsResult.data ?? []) as BinderLesson[], binderId),
-    notes: mergeShadowNotes((notesResult.data ?? []) as LearnerNote[], shadowState?.notes ?? []),
+    notes: mergeShadowNotes(learnerNoteRecordSchema.array().parse(notesResult.data ?? []), shadowState?.notes ?? []),
     folderLinks: folderArtifacts.folderLinks,
     folders: folderArtifacts.folders,
     seedHealth,
@@ -1870,8 +1871,9 @@ export async function upsertLearnerNote(input: {
     throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Private note");
     throw error;
   }
-  if (!data || data.id !== id || data.owner_id !== input.ownerId || !Number.isSafeInteger(data.revision) || data.revision <= revision) throw new Error("The server did not confirm this lesson note revision.");
-  return data as LearnerNote;
+  const saved = learnerNoteRecordSchema.parse(data);
+  if (saved.id !== id || saved.owner_id !== input.ownerId || saved.revision <= revision) throw new Error("The server did not confirm this lesson note revision.");
+  return saved;
 }
 
 /** Explicit conflict resolution reads the lesson scope, including concurrent first-note creation. */
@@ -1880,7 +1882,7 @@ export async function readLearnerNoteByScope(ownerId: string, binderId: string, 
   await requireRemoteAccountDataStorage(binderId, "Private note", ownerId);
   const { data, error } = await client.from("learner_notes").select("*").eq("owner_id", ownerId).eq("binder_id", binderId).eq("lesson_id", lessonId).single();
   if (error || !data || data.owner_id !== ownerId || data.lesson_id !== lessonId || data.binder_id !== binderId) throw new Error("The saved lesson note could not be loaded. Your draft is still preserved.");
-  return data as LearnerNote;
+  return learnerNoteRecordSchema.parse(data);
 }
 
 export async function createHighlight(input: {

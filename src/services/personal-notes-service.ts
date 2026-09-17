@@ -1,3 +1,4 @@
+import { personalDocumentRecordSchema, personalNoteRecordSchema } from "@/lib/personal-note-records";
 import { readMetadataPages, readMetadataForIds } from "@/lib/metadata-pages";
 import { editorDocumentSchema, mathBlockSchema } from "@/lib/personal-content-contract";
 import type { JSONContent } from "@tiptap/react";
@@ -108,7 +109,7 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
   }
 
   const learnerNotes = await getBinderLinkedLearnerNotes(profile);
-  const pageTable = (table: string, select: string, active = false) => readMetadataPages((from, to) => {
+  const pageTable = (table: "personal_notes" | "personal_note_folders" | "personal_note_binders" | "personal_note_documents", select: string, active = false) => readMetadataPages((from, to) => {
     let query = supabase!.from(table).select(select).eq("owner_id", profile.id);
     if (active) query = query.is("archived_at", null);
     return query.order("id").range(from, to);
@@ -210,7 +211,7 @@ export async function getPersonalNoteEntryContent(entry: PersonalNotesEntry, own
   const content = editorDocumentSchema.parse(data.content);
   const mathBlocks = mathBlockSchema.array().parse(data.math_blocks ?? []);
   return { ...entry, note: { ...data, content, math_blocks: mathBlocks }, title: data.title, content, math_blocks: mathBlocks,
-    pinned: data.pinned, tags: data.tags ?? [], updated_at: data.updated_at, contentLoaded: true };
+    pinned: data.pinned, tags: "tags" in data ? data.tags : [], updated_at: data.updated_at, contentLoaded: true };
 }
 
 export async function createPersonalNoteFolder(input: {
@@ -387,7 +388,7 @@ export async function createPersonalDocument(
     throw error;
   }
 
-  return data as PersonalNoteDocument;
+  return personalDocumentRecordSchema.parse(data);
 }
 
 export async function updatePersonalDocument(
@@ -426,8 +427,9 @@ async function savePersonalRecord(kind: "note" | "document", input: PersonalNote
     p_operation_id: input.operationId ?? crypto.randomUUID(),
   });
   if (error) { if (error.code === "40001") throw new ContentConflictError(); throw error; }
-  if (!data || data.id !== input.id || data.owner_id !== input.ownerId || !Number.isSafeInteger(data.revision) || data.revision <= input.expectedRevision) throw new Error("The server did not confirm this note revision.");
-  return data;
+  const saved = kind === "note" ? personalNoteRecordSchema.parse(data) : personalDocumentRecordSchema.parse(data);
+  if (saved.id !== input.id || saved.owner_id !== input.ownerId || saved.revision <= input.expectedRevision) throw new Error("The server did not confirm this note revision.");
+  return saved;
 }
 
 export async function deleteLoosePersonalNote(input: {
@@ -463,7 +465,7 @@ export async function upsertPersonalNote(input: PersonalNoteInput): Promise<Pers
     throw error;
   }
 
-  return data as PersonalNote;
+  return personalNoteRecordSchema.parse(data);
 }
 
 export async function updateBinderLinkedPersonalNote(input: {

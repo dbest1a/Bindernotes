@@ -4715,7 +4715,7 @@ function NoteList({
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 break-words text-sm font-semibold leading-5">{entry.title}</p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {entry.folderName} / {entry.sourceType}
+                {entry.personalBinderTitle ?? entry.sourceBinderTitle ?? entry.folderName} / {entry.sourceType}
               </p>
             </div>
             {entry.pinned ? (

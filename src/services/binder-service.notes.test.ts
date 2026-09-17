@@ -93,7 +93,7 @@ describe("binder-service learner note persistence", () => {
   });
 
   it("saves the captured original revision and stable operation identity through the atomic RPC", async () => {
-    mockLearnerNoteSingle.mockImplementationOnce(async (_name, args) => ({ data: { ...args.p_record, revision: 5 }, error: null }));
+    mockLearnerNoteSingle.mockImplementationOnce(async (_name, args) => ({ data: { ...args.p_record, revision: 5, created_at: "2026-09-17T00:00:00Z", updated_at: "2026-09-17T00:00:00Z" }, error: null }));
     const saved = await upsertLearnerNote({ id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", folderId: "folder-math", title: "Limits notes", content: emptyDoc("saved"), mathBlocks: [], pinned: true, expectedRevision: 4, operationId: "stable-operation" });
     expect(saved.id).toBe("note-1");
     expect(mockLearnerNoteSingle).toHaveBeenCalledWith("save_personal_content", expect.objectContaining({ p_kind: "learner-note", p_expected_revision: 4, p_operation_id: "stable-operation", p_record: expect.objectContaining({ id: "note-1", pinned: true, folder_id: "folder-math" }) }));

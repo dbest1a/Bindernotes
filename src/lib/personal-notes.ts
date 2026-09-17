@@ -321,7 +321,7 @@ export function getPersonalNoteHealth(
     signals.push({ id: "needs-title", label: "Needs title", tone: "warning" });
   }
 
-  if (!hasContent) {
+  if (entry.contentLoaded !== false && !hasContent) {
     signals.push({ id: "empty-note", label: "Empty note", tone: "warning" });
   }
 
@@ -337,8 +337,8 @@ export function getPersonalNoteHealth(
     signals.push({ id: "linked-binder", label: "Linked binder", tone: "good" });
   }
 
-  if (entry.folderName === UNFILED_FOLDER.name) {
-    signals.push({ id: "unfiled", label: entry.kind === "personal-note" ? "Orphaned loose note" : "No folder/binder", tone: "neutral" });
+  if (entry.folderName === UNFILED_FOLDER.name && !entry.personalBinderId && !entry.sourceBinderId) {
+    signals.push({ id: "unfiled", label: "Unfiled note", tone: "neutral" });
   }
 
   if (entry.reviewLater) {

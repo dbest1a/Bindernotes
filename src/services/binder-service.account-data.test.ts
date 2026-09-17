@@ -16,7 +16,7 @@ import { emptyDoc } from "@/lib/utils";
 const mocks = vi.hoisted(() => {
   type QueryFilter = {
     column: string;
-    operator: "eq" | "in";
+    operator: "eq" | "in" | "publishedOrOwner";
     value: unknown;
   };
 
@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => {
   function applyFilters<T extends Record<string, unknown>>(rows: T[], filters: QueryFilter[]) {
     return rows.filter((row) =>
       filters.every((filter) => {
+        if (filter.operator === "publishedOrOwner") return row.status === "published" || row.owner_id === filter.value;
         if (filter.operator === "eq") {
           return row[filter.column] === filter.value;
         }
@@ -105,6 +106,7 @@ const mocks = vi.hoisted(() => {
         return builder;
       }),
       order: vi.fn(() => builder),
+      or: vi.fn((filter: string) => { query.filters.push({ column: "owner_id", operator: "publishedOrOwner", value: filter.split("owner_id.eq.")[1] }); return builder; }),
       range: vi.fn((from: number, to: number) => { query.range = [from, to]; return builder; }),
       maybeSingle: vi.fn(() => {
         const rows = resolveTable(table, query).data;
@@ -240,6 +242,14 @@ describe("binder-service account dashboard data", () => {
     expect(dashboard.lessons.find((lesson) => lesson.id === "lesson-demo")?.title).toBe("Demo lesson");
     expect(dashboard.lessons.some((lesson) => lesson.id === "lesson-real")).toBe(true);
     expect(JSON.stringify(dashboard.lessons)).not.toContain("Stale body");
+  });
+
+  it("includes the learner's private imported sources without showing another owner's draft", async () => {
+    mocks.state.binders[0].status = "draft";
+    mocks.state.binders[1].status = "draft";
+    const dashboard = await getDashboard(profile, { includeSystemStatus: false });
+    expect(dashboard.binders.some((binder) => binder.id === "binder-user-real")).toBe(true);
+    expect(dashboard.binders.some((binder) => binder.id === "binder-jacob-math-notes")).toBe(false);
   });
 
   it("surfaces authoritative metadata failure instead of accepting an unverified partial summary", async () => {

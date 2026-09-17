@@ -220,6 +220,14 @@ describe("Personal Notes unified model", () => {
     ]);
   });
 
+  it("does not label notebook work as orphaned or unloaded metadata as empty", () => {
+    const entries = buildPersonalNotesEntries({ learnerNotes: [], personalNotes: [personalNote({ binder_id: "personal-binder-1" })], personalDocuments: [notebookDocument()], personalBinders: [notebookBinder()], binders: [], lessons: [], folders: [] });
+    for (const entry of entries) {
+      expect(getPersonalNoteHealth(entry).some((signal) => signal.id === "unfiled")).toBe(false);
+      expect(getPersonalNoteHealth({ ...entry, contentLoaded: false, content: { type: "doc", content: [] } }).some((signal) => signal.id === "empty-note")).toBe(false);
+    }
+  });
+
   it("extracts durable source references from binder metadata and source marker annotations", () => {
     const markedContent = {
       type: "doc",

@@ -74,6 +74,7 @@ export function getWhiteboardDraft(board: BinderWhiteboard, selectedBackup?: str
     try { storage = storageFor(board, selectedBackup); }
     catch { storage = { read: () => { throw new Error("Device backup unavailable"); }, write: () => { throw new Error("Device backup unavailable"); }, remove: () => { throw new Error("Device backup unavailable"); } }; }
     draft = new RevisionedSave({
+      metricOperation: "whiteboard_save",
       ownerId: board.ownerId, entityKey: board.id, snapshot: board, serverRevision: board.revision ?? 0,
       storage, delay: AUTOSAVE_DEBOUNCE_MS,
       write: async (operation) => {
