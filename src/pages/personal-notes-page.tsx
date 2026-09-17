@@ -1,5 +1,5 @@
-import { usePersonalNoteSearch } from "@/hooks/use-personal-note-search";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { usePersonalNotesNavigation } from "@/hooks/use-personal-notes-navigation";
+import { Link } from "react-router-dom";
 import type { Editor, JSONContent } from "@tiptap/react";
 import {
   ArrowUpRight,
@@ -67,12 +67,19 @@ import {
   usePersonalNotesPreferences,
 } from "@/hooks/use-personal-notes";
 import {
-  filterPersonalNotesEntries,
   getPersonalNoteAutosaveStatus,
   getPersonalNoteHealth,
   getPersonalNoteSourceReferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
+import {
+  notebookScopeLabel,
+  structuredScopeIdForEntry,
+  type NotebookBinderNode,
+  type NotebookCategory,
+  type NotebookHierarchy,
+  type NotebookSidebarLevel,
+} from "@/lib/personal-notes-navigation";
 import { extractPlainText } from "@/lib/workspace-records";
 import { createCloudStudyItem } from "@/services/canonical-review-service";
 import type {
@@ -132,30 +139,6 @@ type PersonalNoteSelectionState = {
 type PersonalNoteEditorSelection = {
   from: number;
   to: number;
-};
-type NotebookCategory = {
-  id: string;
-  label: string;
-  count: number;
-  color: string;
-  sourceFilter: PersonalNotesSourceFilter;
-  folderName: string | null;
-};
-type NotebookSidebarLevel = "scopes" | "binders" | "binder";
-type NotebookBinderNode = {
-  id: string;
-  groupId: string;
-  title: string;
-  count: number;
-  entries: PersonalNotesEntry[];
-  scopeId: string;
-  scopeLabel: string;
-  sourceUrl: string | null;
-  kind: "source-binder" | "personal-binder";
-};
-type NotebookHierarchy = {
-  bindersById: Map<string, NotebookBinderNode>;
-  bindersByScope: Record<string, NotebookBinderNode[]>;
 };
 type OrganizeCard = {
   id: string;
@@ -285,21 +268,10 @@ const annotationHotkeyHighlightColors: Record<string, string> = {
 
 export function PersonalNotesPage() {
   const { profile } = useAuth();
-  const params = useParams();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const betaFeatures = useBetaFeatures(profile?.id);
   const { data, isLoading, error, refetch: refetchPersonalNotes } = usePersonalNotes(profile);
   const mutations = usePersonalNotesMutations(profile);
   const [preferences, updatePreferences] = usePersonalNotesPreferences(profile);
-  const [query, setQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<PersonalNotesSourceFilter>("all");
-  const [folderFilter, setFolderFilter] = useState<string | null>(null);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [notebookSidebarLevel, setNotebookSidebarLevel] = useState<NotebookSidebarLevel>("scopes");
-  const [selectedNotebookScopeId, setSelectedNotebookScopeId] = useState("all");
-  const [selectedNotebookBinderId, setSelectedNotebookBinderId] = useState<string | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [createDialog, setCreateDialog] = useState<CreateDialogKind | null>(null);
   const [focusMode, setFocusMode] = useState(false);
@@ -319,80 +291,41 @@ export function PersonalNotesPage() {
   const shellRef = useRef<HTMLElement | null>(null);
 
   const entries = data?.entries ?? [];
-  const bodySearch = usePersonalNoteSearch(
-    profile?.id,
+  const {
     query,
-    entries.some((entry) => entry.contentLoaded === false),
-  );
+    setQuery,
+    sourceFilter,
+    setSourceFilter,
+    folderFilter,
+    tagFilter,
+    setTagFilter,
+    bodySearch,
+    filteredEntries,
+    notebookCategories,
+    notebookTreeEntries,
+    notebookHierarchy,
+    selectedCategoryId,
+    selectedNotebookScope,
+    selectedNotebookBinder,
+    notesViewEntries,
+    notesListTitle,
+    notebookSidebarLevel,
+    selectedMetadataEntry,
+    newNoteRequested,
+    applySavedSearch,
+    selectNotebookCategory,
+    selectNotebookBinder,
+    stepBackNotebookSidebar,
+    showAllNotes,
+    selectEntry,
+    navigate,
+  } = usePersonalNotesNavigation({
+    ownerId: profile?.id ?? null,
+    entries,
+    showBinderNotes: preferences.showBinderNotes,
+  });
   const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
-  const filteredEntries = useMemo(
-    () =>
-      filterPersonalNotesEntries(entries, {
-        query,
-        bodyMatches: bodySearch.matches,
-        sourceFilter,
-        showBinderNotes: preferences.showBinderNotes,
-        folderName: folderFilter,
-        tag: tagFilter,
-      }),
-    [entries, folderFilter, preferences.showBinderNotes, query, sourceFilter, tagFilter, bodySearch.matches],
-  );
-  const notebookCategories = useMemo(
-    () => buildNotebookCategories(entries, preferences.showBinderNotes),
-    [entries, preferences.showBinderNotes],
-  );
-  const notebookTreeEntries = useMemo(
-    () => (preferences.showBinderNotes ? entries : entries.filter((entry) => entry.kind !== "binder-note")),
-    [entries, preferences.showBinderNotes],
-  );
-  const notebookHierarchy = useMemo(
-    () => buildNotebookHierarchy(notebookTreeEntries, notebookCategories),
-    [notebookCategories, notebookTreeEntries],
-  );
-  const selectedCategoryId = useMemo(
-    () => resolveSelectedCategoryId(notebookCategories, sourceFilter, folderFilter),
-    [folderFilter, notebookCategories, sourceFilter],
-  );
-  const selectedCategory =
-    notebookCategories.find((category) => category.id === selectedCategoryId) ?? notebookCategories[0];
-  const selectedNotebookScope =
-    notebookCategories.find((category) => category.id === selectedNotebookScopeId) ?? notebookCategories[0];
-  const selectedNotebookBinder = selectedNotebookBinderId
-    ? (notebookHierarchy.bindersById.get(selectedNotebookBinderId) ?? null)
-    : null;
-  const notesViewEntries = useMemo(() => {
-    const baseEntries = selectedNotebookBinder
-      ? selectedNotebookBinder.entries
-      : selectedNotebookScope
-        ? entriesForNotebookCategory(notebookTreeEntries, selectedNotebookScope)
-        : notebookTreeEntries;
-    return filterPersonalNotesEntries(baseEntries, {
-      query,
-      bodyMatches: bodySearch.matches,
-      sourceFilter: "all",
-      showBinderNotes: preferences.showBinderNotes,
-      folderName: null,
-      tag: tagFilter,
-    });
-  }, [
-    notebookTreeEntries,
-    preferences.showBinderNotes,
-    query,
-    selectedNotebookBinder,
-    selectedNotebookScope,
-    tagFilter,
-    bodySearch.matches,
-  ]);
-  const notesListTitle = selectedNotebookBinder
-    ? `${selectedNotebookBinder.scopeLabel} / ${selectedNotebookBinder.title}`
-    : (selectedNotebookScope?.label ??
-      (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`));
-  const routeSelectedId = params.noteId ?? params.documentId ?? null;
-  const selectedMetadataEntry = useMemo(() => {
-    const wanted = routeSelectedId ?? selectedId;
-    return filteredEntries.find((entry) => entry.id === wanted) ?? filteredEntries[0] ?? null;
-  }, [filteredEntries, routeSelectedId, selectedId]);
   const contentQuery = usePersonalEntryContent(selectedMetadataEntry, profile?.id);
   const selectedEntry = contentQuery.data;
   const editor = usePersonalContentEditor(selectedEntry, profile?.id ?? null, preferences.autosave);
@@ -483,70 +416,6 @@ export function PersonalNotesPage() {
     }
   }, [preferences.defaultView, updatePreferences]);
 
-  const applySavedSearch = useCallback((chip: (typeof savedSearchChips)[number]) => {
-    setQuery(chip.query);
-    setSourceFilter(chip.sourceFilter);
-    setTagFilter(chip.tag);
-    setFolderFilter(chip.folderName);
-  }, []);
-
-  const selectNotebookCategory = useCallback((category: NotebookCategory) => {
-    setNotebookSidebarLevel("binders");
-    setSelectedNotebookScopeId(category.id);
-    setSelectedNotebookBinderId(null);
-    setSourceFilter(category.sourceFilter);
-    setFolderFilter(category.folderName);
-    setTagFilter(null);
-    setSelectedId(null);
-  }, []);
-
-  const selectNotebookBinder = useCallback((binder: NotebookBinderNode) => {
-    setNotebookSidebarLevel("binder");
-    setSelectedNotebookScopeId(binder.scopeId);
-    setSelectedNotebookBinderId(binder.id);
-    setTagFilter(null);
-    const firstEntry = binder.entries[0];
-    if (firstEntry) {
-      setSelectedId(firstEntry.id);
-    }
-  }, []);
-
-  const stepBackNotebookSidebar = useCallback(() => {
-    if (notebookSidebarLevel === "binder") {
-      setNotebookSidebarLevel("binders");
-      setSelectedNotebookBinderId(null);
-      setSelectedId(null);
-      return;
-    }
-    if (notebookSidebarLevel === "binders") {
-      setNotebookSidebarLevel("scopes");
-      setSelectedNotebookBinderId(null);
-      setSelectedNotebookScopeId("all");
-      setSourceFilter("all");
-      setFolderFilter(null);
-      setTagFilter(null);
-      setSelectedId(null);
-    }
-  }, [notebookSidebarLevel]);
-
-  const showAllNotes = useCallback(() => {
-    setQuery("");
-    setSourceFilter("all");
-    setFolderFilter(null);
-    setTagFilter(null);
-    setSelectedId(null);
-    setNotebookSidebarLevel("scopes");
-    setSelectedNotebookScopeId("all");
-    setSelectedNotebookBinderId(null);
-  }, []);
-
-  useEffect(() => {
-    if (routeSelectedId || selectedId || filteredEntries.length === 0) {
-      return;
-    }
-    setSelectedId(filteredEntries[0].id);
-  }, [filteredEntries, routeSelectedId, selectedId]);
-
   useEffect(() => {
     setReviewQueueMessage(null);
   }, [selectedEntry?.id]);
@@ -630,14 +499,6 @@ export function PersonalNotesPage() {
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
-
-  const selectEntry = useCallback(
-    (entry: PersonalNotesEntry) => {
-      setSelectedId(entry.id);
-      navigate(entry.quickOpenUrl);
-    },
-    [navigate],
-  );
 
   const createLooseNote = useCallback(() => {
     if (!personalStorageReady) {
@@ -760,10 +621,10 @@ export function PersonalNotesPage() {
   }, [draftContent, draftTitle, profile?.id, reviewQueueBeta, selectedEntry]);
 
   useEffect(() => {
-    if (searchParams.get("action") === "new-note" && !selectedMetadataEntry && !isLoading) {
+    if (newNoteRequested && !selectedMetadataEntry && !isLoading) {
       void createLooseNote();
     }
-  }, [createLooseNote, isLoading, searchParams, selectedMetadataEntry]);
+  }, [createLooseNote, isLoading, newNoteRequested, selectedMetadataEntry]);
 
   const editorPanel = contentQuery.loadingContent ? (
     <p role="status" className="p-6">
@@ -6335,252 +6196,6 @@ function buildFolderSummaries(entries: PersonalNotesEntry[]) {
     });
   });
   return Array.from(map.values()).sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function buildNotebookCategories(
-  entries: PersonalNotesEntry[],
-  showBinderNotes: boolean,
-): NotebookCategory[] {
-  const visible = showBinderNotes ? entries : entries.filter((entry) => entry.kind !== "binder-note");
-  const folderCount = (label: string) => visible.filter((entry) => entry.folderName === label).length;
-  const looseCount = visible.filter((entry) => entry.kind === "personal-note").length;
-  const linkedCount = visible.filter((entry) => entry.kind === "binder-note").length;
-
-  const categories: NotebookCategory[] = [
-    {
-      id: "all",
-      label: "All notes",
-      count: visible.length,
-      color: "hsl(var(--primary))",
-      sourceFilter: "all",
-      folderName: null,
-    },
-    {
-      id: "history",
-      label: "History",
-      count: folderCount("History"),
-      color: "#14b8a6",
-      sourceFilter: "all",
-      folderName: "History",
-    },
-    {
-      id: "math",
-      label: "Math",
-      count: folderCount("Math"),
-      color: "#3b82f6",
-      sourceFilter: "all",
-      folderName: "Math",
-    },
-    {
-      id: "chemistry",
-      label: "Chemistry",
-      count: folderCount("Chemistry"),
-      color: "#22c55e",
-      sourceFilter: "all",
-      folderName: "Chemistry",
-    },
-    {
-      id: "other",
-      label: "Other",
-      count: folderCount("Other"),
-      color: "#a855f7",
-      sourceFilter: "all",
-      folderName: "Other",
-    },
-    {
-      id: "unfiled",
-      label: "Unfiled",
-      count: folderCount("Unfiled"),
-      color: "#94a3b8",
-      sourceFilter: "all",
-      folderName: "Unfiled",
-    },
-    {
-      id: "loose",
-      label: "Loose notes",
-      count: looseCount,
-      color: "#f59e0b",
-      sourceFilter: "loose",
-      folderName: null,
-    },
-  ];
-
-  if (showBinderNotes) {
-    categories.push({
-      id: "binder-linked",
-      label: "Binder-linked",
-      count: linkedCount,
-      color: "#60a5fa",
-      sourceFilter: "binder-linked",
-      folderName: null,
-    });
-  }
-
-  return categories;
-}
-
-function resolveSelectedCategoryId(
-  categories: NotebookCategory[],
-  sourceFilter: PersonalNotesSourceFilter,
-  folderFilter: string | null,
-) {
-  return (
-    categories.find(
-      (category) =>
-        category.sourceFilter === sourceFilter && (category.folderName ?? null) === (folderFilter ?? null),
-    )?.id ?? "all"
-  );
-}
-
-function entriesForNotebookCategory(entries: PersonalNotesEntry[], category: NotebookCategory) {
-  if (category.id === "all") {
-    return entries;
-  }
-  if (category.sourceFilter === "binder-linked") {
-    return entries.filter((entry) => entry.kind === "binder-note");
-  }
-  if (category.sourceFilter === "loose") {
-    return entries.filter((entry) => entry.kind === "personal-note");
-  }
-  if (category.folderName) {
-    return entries.filter((entry) => entry.folderName === category.folderName);
-  }
-  return [];
-}
-
-function buildNotebookHierarchy(
-  entries: PersonalNotesEntry[],
-  categories: NotebookCategory[],
-): NotebookHierarchy {
-  const categoriesById = new Map(categories.map((category) => [category.id, category]));
-  const bindersByScope = new Map<string, Map<string, NotebookBinderNode>>();
-
-  const addBinderEntry = (
-    scopeId: string,
-    groupId: string,
-    entry: PersonalNotesEntry,
-    title: string,
-    kind: NotebookBinderNode["kind"],
-  ) => {
-    const scope = categoriesById.get(scopeId) ?? categoriesById.get("all");
-    const scopedId = `${scopeId}:${groupId}`;
-    const scopeBinders = bindersByScope.get(scopeId) ?? new Map<string, NotebookBinderNode>();
-    const existing = scopeBinders.get(scopedId);
-    if (existing) {
-      if (!existing.entries.some((candidate) => candidate.kind === entry.kind && candidate.id === entry.id)) {
-        existing.entries.push(entry);
-        existing.count = existing.entries.length;
-      }
-      return;
-    }
-
-    scopeBinders.set(scopedId, {
-      id: scopedId,
-      groupId,
-      title,
-      count: 1,
-      entries: [entry],
-      scopeId,
-      scopeLabel: scope?.label ?? notebookScopeLabel(scopeId),
-      sourceUrl: entry.quickJumpToBinderUrl,
-      kind,
-    });
-    bindersByScope.set(scopeId, scopeBinders);
-  };
-
-  entries.forEach((entry) => {
-    const binderGroup = notebookBinderGroupForEntry(entry);
-    if (!binderGroup) {
-      return;
-    }
-    const scopeId = notebookScopeIdForEntry(entry);
-    addBinderEntry("all", binderGroup.id, entry, binderGroup.title, binderGroup.kind);
-    addBinderEntry(scopeId, binderGroup.id, entry, binderGroup.title, binderGroup.kind);
-    if (entry.kind === "binder-note") {
-      addBinderEntry("binder-linked", binderGroup.id, entry, binderGroup.title, binderGroup.kind);
-    }
-  });
-
-  const normalizedByScope: Record<string, NotebookBinderNode[]> = {};
-  const bindersById = new Map<string, NotebookBinderNode>();
-  categories.forEach((category) => {
-    const sorted = Array.from(bindersByScope.get(category.id)?.values() ?? []).sort((left, right) =>
-      left.title.localeCompare(right.title),
-    );
-    normalizedByScope[category.id] = sorted;
-    sorted.forEach((binder) => bindersById.set(binder.id, binder));
-  });
-
-  return { bindersById, bindersByScope: normalizedByScope };
-}
-
-function notebookBinderGroupForEntry(
-  entry: PersonalNotesEntry,
-): { id: string; title: string; kind: NotebookBinderNode["kind"] } | null {
-  if (entry.kind === "binder-note") {
-    const id = entry.sourceBinderId ?? entry.sourceBinderTitle ?? "unknown-source-binder";
-    return {
-      id: `source:${id}`,
-      title: entry.sourceBinderTitle ?? "Source binder",
-      kind: "source-binder",
-    };
-  }
-  if (entry.kind === "personal-document" || entry.personalBinderId) {
-    const id = entry.personalBinderId ?? entry.sourceBinderId ?? entry.id;
-    return {
-      id: `personal:${id}`,
-      title: entry.personalBinderTitle ?? entry.sourceBinderTitle ?? "Personal binder",
-      kind: "personal-binder",
-    };
-  }
-  return null;
-}
-
-function notebookScopeIdForEntry(entry: PersonalNotesEntry) {
-  const folderName = entry.folderName.trim().toLowerCase();
-  if (folderName === "math") {
-    return "math";
-  }
-  if (folderName === "history") {
-    return "history";
-  }
-  if (folderName === "chemistry") {
-    return "chemistry";
-  }
-  if (folderName === "unfiled" || !folderName) {
-    return "unfiled";
-  }
-  return "other";
-}
-
-function structuredScopeIdForEntry(entry: PersonalNotesEntry) {
-  if (entry.kind === "personal-note" && !entry.personalBinderId) {
-    return "loose";
-  }
-  return notebookScopeIdForEntry(entry);
-}
-
-function notebookScopeLabel(scopeId: string) {
-  switch (scopeId) {
-    case "all":
-      return "All notes";
-    case "history":
-      return "History";
-    case "math":
-      return "Math";
-    case "chemistry":
-      return "Chemistry";
-    case "other":
-      return "Other";
-    case "unfiled":
-      return "Unfiled";
-    case "loose":
-      return "Loose notes";
-    case "binder-linked":
-      return "Binder-linked";
-    default:
-      return "Notebook";
-  }
 }
 
 function buildTagSummaries(entries: PersonalNotesEntry[]) {
