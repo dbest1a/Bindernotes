@@ -1,5 +1,5 @@
 import { FormEvent, ReactNode, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { AlertCircle, BookOpenCheck, FunctionSquare, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { requestPasswordRecovery } from "@/services/account-service";
 import { LogoMark } from "@/components/ui/logo-mark";
 
 const authSchema = z.object({
@@ -17,11 +18,12 @@ const authSchema = z.object({
 });
 
 export function AuthPage() {
-  const { profile, signIn, signInWithGoogle, signUp, isConfigured } = useAuth();
+  const { profile, session, signIn, signInWithGoogle, signUp, isConfigured } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState("");
+  const [recoveryMessage, setRecoveryMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const nextPath = getSafeNextPath(searchParams.get("next"));
@@ -132,6 +134,7 @@ export function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {session && !profile && <p className="mb-4 text-sm"><Link className="underline" to="/account">Manage your session or finish pending account deletion</Link></p>}
             {!isConfigured ? (
               <p
                 className="mb-5 flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -218,6 +221,12 @@ export function AuthPage() {
               </Button>
             </form>
 
+            {mode === "login" && isConfigured && <div className="mt-3 space-y-2"><Button variant="ghost" disabled={isSubmitting} onClick={async () => {
+              const email = (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
+              if (!z.string().email().safeParse(email).success) { setRecoveryMessage("Enter your email address above first."); return; }
+              setIsSubmitting(true); try { await requestPasswordRecovery(email); setRecoveryMessage("If this address has an account, a recovery link has been sent."); }
+              catch (cause) { setRecoveryMessage(cause instanceof Error ? cause.message : "Recovery request failed."); } finally { setIsSubmitting(false); }
+            }}>Forgot password?</Button>{recoveryMessage && <p role="status" className="text-sm">{recoveryMessage}</p>}</div>}
             {isConfigured ? (
               <>
                 <div className="my-4 flex items-center gap-3">

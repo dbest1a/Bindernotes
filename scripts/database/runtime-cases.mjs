@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { runBillingCases } from './billing-cases.mjs';
 import { runReviewCases } from './review-cases.mjs';
 import { runAssetCases } from './asset-cases.mjs';
+import { runAccountCases } from './account-cases.mjs';
+import { runArchiveCases } from './archive-cases.mjs';
 
 const users = {
   a: '10000000-0000-4000-8000-000000000001', b: '10000000-0000-4000-8000-000000000002',
@@ -10,7 +12,7 @@ const users = {
 };
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const json = (value) => `${literal(JSON.stringify(value))}::jsonb`;
-const roleSql = (role, actor, statement) => `begin; set local role ${role}; set local "request.jwt.claim.sub"=${literal(actor ?? '')};\n${statement}\ncommit;`;
+const roleSql = (role, actor, statement) => `begin; set local role ${role}; set local "request.jwt.claim.sub"=${literal(actor ?? '')}; set local "request.jwt.claim.role"=${literal(role)}; set local "request.jwt.claims"=${literal(JSON.stringify({sub:actor,role,session_id:actor}))};\n${statement}\ncommit;`;
 export async function run({ sql, concurrentSql }) {
   let count = 0;
   const check = (name, fn) => { fn(); count++; console.log(`PASS ${name}`); };
@@ -18,6 +20,7 @@ export async function run({ sql, concurrentSql }) {
   const denied = (actor, statement, pattern = /permission denied|row-level security|PRIVATE_PARENT_OWNERSHIP|CONTENT_NOT_FOUND|WHITEBOARD_NOT_FOUND/) =>
     assert.throws(() => as(actor, statement), pattern);
   sql(`insert into auth.users(id,email) values ${Object.entries(users).map(([name,id]) => `('${id}','${name}@disposable.invalid')`).join(',')};
+    insert into auth.sessions(id,user_id) select id,id from auth.users;
     update public.profiles set role='admin' where id='${users.admin}';
     insert into public.account_entitlements(user_id,plan,status) values('${users.creator}','studio','active');
     insert into public.binders(id,owner_id,title,slug,status) values('catalog','${users.admin}','Catalog','catalog','published');
@@ -222,5 +225,7 @@ export async function run({ sql, concurrentSql }) {
   await runBillingCases({sql,concurrentSql,roleSql,as,users});
   await runReviewCases({sql,concurrentSql,roleSql,as,users,json});
   await runAssetCases({sql,concurrentSql,roleSql,as,users});
+  await runArchiveCases({sql,as,users,json});
+  await runAccountCases({sql,as,json});
   console.log(`${count} database scenarios plus billing/review authorization/concurrency passed.`);
 }

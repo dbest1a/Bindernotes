@@ -10,6 +10,7 @@ create schema extensions;
 create schema supabase_migrations;
 create table supabase_migrations.schema_migrations(version text primary key, statements text[],name text);
 create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}'::jsonb);
+create table auth.sessions(id uuid primary key,user_id uuid not null references auth.users(id) on delete cascade);
 create function auth.uid() returns uuid language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claim.sub',true),''),
     nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid;

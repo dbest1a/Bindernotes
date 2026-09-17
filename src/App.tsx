@@ -129,6 +129,7 @@ function AppRoutes() {
           <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/recovery" element={<PasswordRecoveryPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/pricing-beta" element={<PricingBetaPage />} />
           <Route element={<ProtectedRoute />}>
@@ -136,7 +137,6 @@ function AppRoutes() {
             <Route element={<LazyAppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/account/data" element={<AccountDataPage />} />
-              <Route path="/account" element={<AccountPage />} />
               <Route path="/notes" element={<PersonalNotesPage />} />
               <Route path="/notes/:noteId" element={<PersonalNotesPage />} />
               <Route path="/notes/n/:noteId" element={<PersonalNotesPage />} />

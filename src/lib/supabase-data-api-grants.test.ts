@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 const MIGRATION_DIR = join(process.cwd(), "supabase", "migrations");
 const GRANT_MIGRATION = join(MIGRATION_DIR, "0025_data_api_explicit_grants.sql");
 
+const newServiceOnlyTables = ["billing_accounts", "billing_events"];
+const newOwnerReadOnlyTables = ["review_items", "review_events", "review_sessions", "user_assets", "workspace_archive_imports"];
 const expectedPublicTables = [
+  ...newServiceOnlyTables, ...newOwnerReadOnlyTables,
   "account_entitlements",
   "admin_binder_summaries",
   "binder_lessons",
@@ -93,6 +96,7 @@ const anonReadableTables = [
 ].sort();
 
 const privateNoAnonTables = [
+  ...newServiceOnlyTables, ...newOwnerReadOnlyTables,
   "account_entitlements",
   "admin_binder_summaries",
   "chem_concepts",
@@ -186,6 +190,7 @@ const authenticatedCrudTables = [
 ].sort();
 
 const authenticatedSelectOnlyTables = [
+  ...newOwnerReadOnlyTables,
   "account_entitlements",
   "admin_binder_summaries",
   "dashboard_binder_summaries",
@@ -237,11 +242,11 @@ const publicTablesCreatedByMigrations = () => {
   return [...tables].sort();
 };
 
+const tableGrants = (sql: string) => [...normalizeSql(sql).matchAll(/grant ([a-z, ]+) on (?:table )?((?:public\.[a-z0-9_]+)(?:, ?public\.[a-z0-9_]+)*) to ([a-z_, ]+);/g)].map(match => ({
+  privileges: match[1].split(",").map(value => value.trim()), tables: match[2].split(",").map(value => value.trim().replace("public.", "")), roles: match[3].split(",").map(value => value.trim()),
+}));
 const expectTableGrant = (grantSql: string, table: string, privileges: string, role: string) => {
-  const normalized = normalizeSql(grantSql);
-  expect(normalized, `${table} should grant ${privileges} to ${role}`).toContain(
-    `grant ${privileges} on table public.${table} to ${role};`,
-  );
+  expect(tableGrants(grantSql).some(grant => grant.tables.includes(table) && grant.roles.includes(role) && (grant.privileges.includes("all") || privileges.split(",").every(value => grant.privileges.includes(value.trim())))), `${table} should grant ${privileges} to ${role}`).toBe(true);
 };
 
 describe("Supabase Data API explicit grants", () => {
@@ -311,6 +316,16 @@ describe("Supabase Data API explicit grants", () => {
     }
 
     expect(normalized).not.toMatch(/grant\s+[^;]*(insert|update|delete)[^;]*\s+on\s+table\s+public\.[a-z0-9_]+\s+to\s+anon;/);
+  });
+
+  it("keeps new billing tables service-only and new owner snapshots read-only", () => {
+    const grants = tableGrants(exposureMigrationSql());
+    for (const table of newServiceOnlyTables) expect(grants.filter(grant => grant.tables.includes(table) && grant.roles.some(role => ["anon", "authenticated", "public"].includes(role)))).toEqual([]);
+    for (const table of newOwnerReadOnlyTables) {
+      const client = grants.filter(grant => grant.tables.includes(table) && grant.roles.includes("authenticated"));
+      expect(client.length).toBeGreaterThan(0); expect(client.every(grant => grant.privileges.every(privilege => privilege === "select"))).toBe(true);
+      expect(grants.some(grant => grant.tables.includes(table) && grant.roles.some(role => ["anon", "public"].includes(role)))).toBe(false);
+    }
   });
 
   it("documents sequence grant status and fails if a new public identity sequence is added without lint coverage", () => {

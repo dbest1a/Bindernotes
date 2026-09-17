@@ -66,7 +66,7 @@ try {
   for(const port of [55440,55441,55442]) await requireFreePort(port);
   sql(`create database "${database}";`,'postgres');created=true;
   const fixture = (await readFile(path.join(projectRoot,'scripts/database/platform-fixture.sql'),'utf8'))
-    .replace(/^create table auth\.users[^\n]*\n/m,'');
+    .replace(/^create table auth\.(users|sessions)[^\n]*\n/gm,'');
   assert(!fixture.includes('create table auth.users'),'GoTrue must own the complete auth.users schema');sql(fixture);
   const migration = spawnSync(path.join(runtime,'gotrue.exe'),['migrate'],{cwd:runtime,env,encoding:'utf8',windowsHide:true});
   await writeFile(path.join(runtime,'gotrue-migrate.log'),migration.stdout+ migration.stderr,'utf8');
@@ -110,7 +110,7 @@ try {
   const seed = spawnSync(process.execPath,['--import','tsx',path.join(projectRoot,'scripts/database/catalog-fixture.ts'),operator.id],{cwd:projectRoot,encoding:'utf8',windowsHide:true,maxBuffer:32*1024*1024});
   assert.equal(seed.status,0,'Local catalog fixture failed');
   sql(`begin; set local role service_role; select public.apply_catalog_seed('${JSON.stringify(JSON.parse(seed.stdout)).replaceAll("'","''")}'::jsonb);commit;`);
-  const manifest={database,apiUrl,anonKey,users,pids:children.map(child=>child.pid),createdAt:new Date().toISOString(),
+  const manifest={database,apiUrl,anonKey,serviceRoleKey:serviceKey,users,pids:children.map(child=>child.pid),createdAt:new Date().toISOString(),
     limitations:['Windows GoTrue startup patch removes Unix SO_REUSEPORT only','No pg_cron worker/registration','No Storage HTTP or Realtime service']};
   await writeFile(path.join(runtime,'local-api-stack.json'),JSON.stringify(manifest,null,2),'utf8');
   console.log(`PASS: real local GoTrue + PostgREST started; four disposable users and catalogs created. API ${apiUrl}.`);

@@ -7,7 +7,7 @@ export async function runReviewCases({sql,concurrentSql,roleSql,as,users,json}) 
     due_at:timestamp,status:'due',mastery:0,review_count:0,lapse_count:0,created_at:timestamp,updated_at:timestamp}};
   const call=(value,revision,events=[],operation=randomUUID())=>`select public.save_review_item(${json(value)},${revision},'${operation}',${json(events)});`;
   // These shapes are accepted neither by the client schema nor the trusted RPC.
-  for (const bad of ['now','infinity','2026-09-17']) {
+  for (const bad of ['now','infinity','2026-09-17','2026-09-17T24:00:00Z','2026-09-17T00:00:00+0200']) {
     assert.throws(()=>as(users.a,call({...record,item:{...record.item,due_at:bad}},0)),/INVALID_REVIEW_TIME/);
   }
   assert.throws(()=>as(users.a,call({...record,schemaVersion:'1'},0)),/INVALID_REVIEW_RECORD/);
