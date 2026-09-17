@@ -7,4 +7,4 @@ output/
 tutorial-videos/
 .agents/
 package-lock.json
-src/types/database.generated.ts
+src/lib/database.generated.ts

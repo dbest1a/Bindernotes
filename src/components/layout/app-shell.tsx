@@ -573,7 +573,7 @@ export function AppShell() {
                 </div>
               ) : null}
             </div>
-            <Button data-compact-study-direct-control="logout" onClick={logout} type="button" variant="ghost">
+            <Button aria-label="Log out" data-compact-study-direct-control="logout" onClick={logout} type="button" variant="ghost">
               <LogOut data-icon="inline-start" />
               <span className="hidden sm:inline">Log out</span>
             </Button>

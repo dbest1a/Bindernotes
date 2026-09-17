@@ -68,6 +68,9 @@ if (baseline !== "clean") {
   console.log(`PASS actual Supabase ${baseline} upgrade preserves populated student content`);
 }
 await (await import("../database/runtime-cases.mjs")).run({ sql, concurrentSql });
+const generatedTypes = spawnSync(process.execPath, ["scripts/database/generate-types.mjs", "--ci-supabase", "--check"], { env: pgEnv, encoding: "utf8" });
+assert.equal(generatedTypes.status, 0, "Generated database types must match the migrated Supabase schema");
+console.log("PASS generated types match the actual Supabase schema");
 const fixture = JSON.parse(command(process.execPath, ["--import", "tsx", "scripts/database/catalog-fixture.ts"]));
 const payload = JSON.stringify(fixture).replaceAll("'", "''");
 const seed = `begin; set local role service_role; select public.apply_catalog_seed('${payload}'::jsonb); commit;`;
