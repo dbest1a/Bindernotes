@@ -212,10 +212,12 @@ describe("WhiteboardModule persistence ordering", () => {
     await act(async () => {});
     vi.useFakeTimers();
     const callbackA = storageMocks.canvas!.onSceneChange;
+    const canvasA = screen.getByTestId("whiteboard-excalidraw-host");
     act(() => callbackA({ elements: [{ id: "stroke-a", version: 1 }] }));
     fireEvent.click(screen.getByTestId("whiteboard-open-board-b"));
     await act(async () => {});
     expect(storageMocks.canvas!.board.id).toBe("board-b");
+    expect(canvasA.isConnected).toBe(false);
     act(() => callbackA({ elements: [{ id: "late-a", version: 1 }] }));
     expect(storageMocks.canvas!.board.scene.elements).toEqual([]);
     view.unmount();
@@ -235,6 +237,17 @@ describe("WhiteboardModule persistence ordering", () => {
     expect(storageMocks.canvas!.board.id).toBe("board-b");
     expect(storageMocks.canvas!.board.scene.elements).toEqual([]);
     expect(getWhiteboardDraft(a).getSnapshot().snapshot.scene.elements).toEqual([{ id: "last-stroke-a", version: 1 }]);
+  });
+
+  it("retains the canvas instance when resizing or toggling the sidebar", async () => {
+    seedBoard(); renderWhiteboard(); await act(async () => {});
+    const canvas = screen.getByTestId("whiteboard-excalidraw-host");
+    fireEvent.keyDown(screen.getByRole("separator", { name: "Resize whiteboard sidebar" }), { key: "ArrowRight" });
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBe(canvas);
+    fireEvent.click(screen.getByRole("button", { name: "Shrink whiteboard sidebar" }));
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBe(canvas);
+    fireEvent.click(screen.getByRole("button", { name: "Expand toolbox" }));
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBe(canvas);
   });
 
   it("rejects late board loads after a newer selection", async () => {
