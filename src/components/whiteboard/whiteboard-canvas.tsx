@@ -375,8 +375,12 @@ export function WhiteboardCanvas({
     () => ({
       elements: initialData.elements as never[],
       appState: {
-        viewBackgroundColor: "#11131a",
         ...(initialData.appState ?? {}),
+        // Excalidraw dark mode inverts logical canvas colors. The old dark
+        // default inverted to pale gray, making default strokes disappear.
+        viewBackgroundColor: !initialData.appState?.viewBackgroundColor || initialData.appState.viewBackgroundColor === "#11131a"
+          ? "#ffffff"
+          : initialData.appState.viewBackgroundColor,
       },
       files: (initialData.files ?? {}) as never,
     }),

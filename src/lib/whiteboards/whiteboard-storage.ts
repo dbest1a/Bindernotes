@@ -267,7 +267,7 @@ export function createLocalWhiteboard(
     scene: {
       elements: options.template?.starterElements ?? [],
       appState: {
-        viewBackgroundColor: "#11131a",
+        viewBackgroundColor: "#ffffff",
       },
       files: {},
     },
@@ -308,7 +308,7 @@ export function createScratchWhiteboard(
     scene: {
       elements: options.template?.starterElements ?? [],
       appState: {
-        viewBackgroundColor: "#11131a",
+        viewBackgroundColor: "#ffffff",
       },
       files: {},
     },

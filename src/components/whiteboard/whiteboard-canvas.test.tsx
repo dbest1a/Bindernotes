@@ -411,6 +411,20 @@ describe("WhiteboardCanvas", () => {
     }
   });
 
+  it("corrects only the known legacy inverted background without changing scene objects or custom colors", async () => {
+    const elements = [{ id: "original-shape", type: "rectangle", strokeColor: "#1e1e1e" }];
+    const saved = board({ scene: { elements, appState: { viewBackgroundColor: "#11131a" }, files: {} } });
+    render(<WhiteboardCanvas board={saved} onSceneChange={vi.fn()} />);
+    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+    expect(excalidrawMock.props?.theme).toBe("dark");
+    expect(excalidrawMock.props?.initialData).toMatchObject({ elements, appState: { viewBackgroundColor: "#ffffff" } });
+    expect(saved.scene.appState?.viewBackgroundColor).toBe("#11131a");
+    cleanup(); excalidrawMock.props = null;
+    render(<WhiteboardCanvas board={board({ scene: { elements, appState: { viewBackgroundColor: "#fff3bf" }, files: {} } })} onSceneChange={vi.fn()} />);
+    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+    expect((excalidrawMock.props as Record<string, unknown> | null)?.initialData).toMatchObject({ elements, appState: { viewBackgroundColor: "#fff3bf" } });
+  });
+
   it("flushes an immutable final scene through the retired board callback on unmount", async () => {
     const onSceneChange = vi.fn(); const onRetireScene = vi.fn();
     const view = render(<WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onRetireScene={onRetireScene} />);
