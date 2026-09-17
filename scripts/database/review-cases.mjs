@@ -6,6 +6,20 @@ export async function runReviewCases({sql,concurrentSql,roleSql,as,users,json}) 
     source_id:null,source_title:null,source_excerpt:null,binder_id:null,binder_title:null,course_id:null,course_title:null,
     due_at:timestamp,status:'due',mastery:0,review_count:0,lapse_count:0,created_at:timestamp,updated_at:timestamp}};
   const call=(value,revision,events=[],operation=randomUUID())=>`select public.save_review_item(${json(value)},${revision},'${operation}',${json(events)});`;
+  // These shapes are accepted neither by the client schema nor the trusted RPC.
+  for (const bad of ['now','infinity','2026-09-17']) {
+    assert.throws(()=>as(users.a,call({...record,item:{...record.item,due_at:bad}},0)),/INVALID_REVIEW_TIME/);
+  }
+  assert.throws(()=>as(users.a,call({...record,schemaVersion:'1'},0)),/INVALID_REVIEW_RECORD/);
+  const recall={id:'card',userId:users.a,binderId:'binder',documentId:'doc',lessonId:'lesson',sourceType:'manual',front:record.item.prompt,back:record.item.answer,
+    tags:[],cardType:'basic_qa',status:'Learning',difficulty:'new',confidence:0,reviewCount:0,lapseCount:0,createdVia:'manual',draftStatus:'accepted',createdAt:timestamp,updatedAt:timestamp};
+  const recallRecord={...record,item:{...record.item,id:'recall:'+JSON.stringify(['binder','doc','lesson','card'])},recall};
+  assert.equal(JSON.parse(as(users.a,call(recallRecord,0))).revision,1);
+  for (const patch of [{sourceId:17},{explanation:null},{qualityStatus:'unknown'},{cardType:'invalid'},
+    {lastReviewedAt:'now'},{missReasons:[{reason:'Other',note:17,createdAt:timestamp}]},
+    {teachBackReflections:[{text:'Reflection',createdAt:'yesterday'}]}]) {
+    assert.throws(()=>as(users.a,call({...recallRecord,recall:{...recall,...patch}},1)),/INVALID_RECALL|INVALID_REVIEW_TIME/);
+  }
   const operation=randomUUID();
   assert.throws(()=>as(null,call(record,0),'anon'),/permission denied/);
   for(const table of ['review_items','review_events','review_sessions']) {
@@ -40,5 +54,5 @@ export async function runReviewCases({sql,concurrentSql,roleSql,as,users,json}) 
   assert.throws(()=>as(users.a,saveSession({...session,score:0})),/REVIEW_SESSION_CONFLICT/);
   assert.throws(()=>as(users.b,saveSession(session)),/INVALID_REVIEW_SESSION/);
   assert.throws(()=>as(users.a,saveSession({...session,score:101})),/INVALID_REVIEW_SESSION/);
-  console.log('PASS review owner isolation, direct-write denial, revision retry/six-writer conflict, atomic event rollback, immutable history/session and forged ownership denial');
+  console.log('PASS review owner isolation, direct-write denial, revision retry/six-writer conflict, atomic event rollback, immutable history/session forged ownership denial and strict optional Recall/ISO timestamp validation');
 }

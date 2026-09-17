@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { runBillingCases } from './billing-cases.mjs';
 import { runReviewCases } from './review-cases.mjs';
+import { runAssetCases } from './asset-cases.mjs';
 
 const users = {
   a: '10000000-0000-4000-8000-000000000001', b: '10000000-0000-4000-8000-000000000002',
@@ -220,5 +221,6 @@ export async function run({ sql, concurrentSql }) {
   });
   await runBillingCases({sql,concurrentSql,roleSql,as,users});
   await runReviewCases({sql,concurrentSql,roleSql,as,users,json});
+  await runAssetCases({sql,concurrentSql,roleSql,as,users});
   console.log(`${count} database scenarios plus billing/review authorization/concurrency passed.`);
 }

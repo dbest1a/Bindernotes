@@ -54,6 +54,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PersonalNotesTrash } from "@/components/personal-notes-trash";
+import { PersonalFiles } from "@/components/personal-files";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { useAuth } from "@/hooks/use-auth";
 import { usePersonalEntryContent } from "@/hooks/use-personal-entry-content";
@@ -1036,6 +1037,7 @@ export function PersonalNotesPage() {
                     <Settings2 />
                   </Button>
                   {profile && <PersonalNotesTrash key={profile.id} ownerId={profile.id} data={data} hasUnsavedChanges={dirty || editor.state === "saving"} />}
+                  {profile && <PersonalFiles ownerId={profile.id} />}
                   <Button className="hidden lg:inline-flex" onClick={() => setCommandOpen(true)} size="sm" type="button" variant="outline">
                     <Command data-icon="inline-start" />
                     Ctrl/Cmd+K
