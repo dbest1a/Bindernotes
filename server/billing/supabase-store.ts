@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { Database } from "../../src/lib/database.generated";
 import { BillingError, entitlementSchema, type BillingStore } from "./contracts";
 
-export function supabaseBillingStore(client: SupabaseClient): BillingStore {
-  async function rpc(name: string, params: Record<string, unknown>): Promise<unknown> {
+export function supabaseBillingStore(client: SupabaseClient<Database>): BillingStore {
+  async function rpc<Name extends keyof Database["public"]["Functions"]>(name: Name, params: Database["public"]["Functions"][Name]["Args"]): Promise<unknown> {
     const { data, error } = await client.rpc(name, params);
     if (error) throw new Error("Billing transaction failed");
     return data;

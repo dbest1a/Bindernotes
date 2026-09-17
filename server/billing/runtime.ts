@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { z } from "zod";
+import type { Database } from "../../src/lib/database.generated";
 import { createBillingHandlers } from "./handlers";
 import { stripeProvider } from "./stripe-provider";
 import { supabaseBillingStore } from "./supabase-store";
@@ -20,7 +21,7 @@ export function billingRuntime() {
   const prices = { plus: config.STRIPE_PLUS_PRICE_ID, studio: config.STRIPE_STUDIO_PRICE_ID, everything: config.STRIPE_EVERYTHING_PRICE_ID };
   if (new Set(Object.values(prices)).size !== 3) throw new Error("Billing prices must be distinct");
   const stripe = new Stripe(config.STRIPE_SECRET_KEY, { maxNetworkRetries: 2, timeout: 15000 });
-  const client = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const client = createClient<Database>(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   return createBillingHandlers({
     provider: stripeProvider(stripe, { origin: origin.origin, webhookSecret: config.STRIPE_WEBHOOK_SECRET, prices, live }),
     store: supabaseBillingStore(client), prices, origin: origin.origin, live,
