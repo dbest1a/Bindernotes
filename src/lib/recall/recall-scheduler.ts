@@ -12,8 +12,6 @@ const dayMs = 24 * 60 * 60 * 1000;
 export function normalizeRecallAnswer(value: string) {
   return value
     .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "")
     .replace(/\s+/g, " ");
 }
 
@@ -25,11 +23,8 @@ export function compareRecallAnswer(answer: string, expected: string) {
     return false;
   }
 
-  return (
-    normalizedAnswer === normalizedExpected ||
-    normalizedExpected.includes(normalizedAnswer) ||
-    normalizedAnswer.includes(normalizedExpected)
-  );
+  // Text feedback only: signs, powers, punctuation and case can change math meaning.
+  return normalizedAnswer === normalizedExpected;
 }
 
 function addDays(now: Date, days: number) {

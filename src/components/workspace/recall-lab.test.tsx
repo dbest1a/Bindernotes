@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RecallLab } from "@/components/workspace/recall-lab";
 import type { Binder, BinderLesson, Highlight } from "@/types";
+import { saveQueue } from "@/lib/save-queue";
+import { reviewCloudFixture, reviewOwnerA } from "@/test/review-cloud-fixture";
+const cloud = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+vi.mock("@/lib/supabase", () => ({ supabase: cloud }));
+let database: ReturnType<typeof reviewCloudFixture>;
 
 const binder = {
   id: "binder-1",
@@ -18,7 +23,7 @@ const lesson = {
 
 const highlight: Highlight = {
   id: "highlight-1",
-  owner_id: "user-1",
+  owner_id: reviewOwnerA,
   binder_id: "binder-1",
   lesson_id: "lesson-1",
   anchor_text: "A ray has one endpoint and extends in one direction.",
@@ -51,17 +56,20 @@ function renderRecallLab(betaEnabled = true) {
       noteTitle="Geometry note"
       onOpenSource={vi.fn()}
       subject="math"
-      userId="user-1"
+      userId={reviewOwnerA}
     />,
   );
 }
 
 beforeEach(() => {
   window.localStorage.clear();
+  database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA);
+  cloud.from.mockImplementation(database.from); cloud.rpc.mockImplementation(database.rpc);
 });
 
 afterEach(() => {
   cleanup();
+  saveQueue.setAccount(null);
 });
 
 describe("RecallLab", () => {
@@ -99,7 +107,7 @@ describe("RecallLab", () => {
 
     fireEvent.click(within(draft!).getByRole("button", { name: /save final card/i }));
 
-    expect(screen.getByText("Card saved to this lesson's source deck.")).toBeTruthy();
+    expect(screen.getByText("Card accepted. Account save pending.")).toBeTruthy();
     expect(screen.getAllByText("Due today").length).toBeGreaterThan(0);
   });
 
@@ -125,7 +133,7 @@ describe("RecallLab", () => {
     expect(screen.getAllByText("sticky").length).toBeGreaterThan(0);
   });
 
-  it("updates due counts through ratings and records mistake reasons without automatic deletion", () => {
+  it("updates due counts through ratings and records mistake reasons without automatic deletion", async () => {
     renderRecallLab(true);
 
     fireEvent.change(screen.getByLabelText(/^Front$/i), { target: { value: "What are parallel lines?" } });
@@ -134,9 +142,10 @@ describe("RecallLab", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create manual draft/i }));
     fireEvent.click(screen.getByRole("button", { name: /save final card/i }));
-
+    fireEvent.click(screen.getByRole("button", { name: /save \/ retry/i }));
+    await waitFor(() => expect(screen.getByText("Recall work is saved to your account.")).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: "Again" }));
-    expect(screen.getByText("Again recorded. Next due state updated.")).toBeTruthy();
+    expect(screen.getByText("Again recorded in your draft. Account save pending.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Mistake review" }));
     fireEvent.change(screen.getByLabelText(/why did you miss this/i), {

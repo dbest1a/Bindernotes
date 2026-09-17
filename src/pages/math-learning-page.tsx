@@ -45,7 +45,8 @@ import {
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
 import { parseFiniteDecimal } from "@/lib/finite-number";
 import { cn } from "@/lib/utils";
-import { createStudyItem, type StudyItemType } from "@/services/study-items-service";
+import type { StudyItemType } from "@/services/study-items-service";
+import { createCloudStudyItem } from "@/services/canonical-review-service";
 import { listStudyGraphLinks } from "@/services/math-study-loop-service";
 import type {
   MathCourse,
@@ -316,8 +317,8 @@ export function MathModulePage() {
     setSaveMessage(`Saved ${graph.title}`);
   };
 
-  const addFormulaToReview = (formula: FormulaCard) => {
-    createStudyItem({
+  const addFormulaToReview = async (formula: FormulaCard) => {
+    try { await createCloudStudyItem({
       answer: formula.explanation?.trim() || formula.latex,
       betaEnabled: reviewQueueBeta,
       courseId: module.course_id,
@@ -331,10 +332,11 @@ export function MathModulePage() {
       type: "formula_card",
     });
     setSaveMessage(`${formula.label} added to Review Queue.`);
+    } catch (error) { setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
   };
 
-  const addQuestionToReview = (question: QuestionBankItem) => {
-    createStudyItem({
+  const addQuestionToReview = async (question: QuestionBankItem) => {
+    try { await createCloudStudyItem({
       answer: question.explanation_markdown?.trim() || JSON.stringify(question.answer_json),
       betaEnabled: reviewQueueBeta,
       courseId: module.course_id,
@@ -348,6 +350,7 @@ export function MathModulePage() {
       type: studyItemTypeForQuestion(question),
     });
     setSaveMessage(`${question.title ?? "Practice problem"} added to Review Queue.`);
+    } catch (error) { setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
   };
 
   return (

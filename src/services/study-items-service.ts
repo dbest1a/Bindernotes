@@ -102,7 +102,7 @@ export function listStudyReviewEvents(ownerId: string, storage = defaultStorage(
     .sort((left, right) => Date.parse(right.reviewed_at) - Date.parse(left.reviewed_at));
 }
 
-export function createStudyItem(input: CreateStudyItemInput, storage = defaultStorage()): StudyItem {
+export function buildStudyItem(input: CreateStudyItemInput): StudyItem {
   assertReviewQueueBetaEnabled(input.betaEnabled);
   const now = input.now ?? new Date();
   const createdAt = now.toISOString();
@@ -133,8 +133,13 @@ export function createStudyItem(input: CreateStudyItemInput, storage = defaultSt
     throw new Error("Study items need both a prompt and an answer.");
   }
 
-  const next = [item, ...listStudyItems(input.ownerId, storage)];
-  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), next);
+  return item;
+}
+
+/** Legacy browser format, retained for explicit migration and existing device backups. */
+export function createStudyItem(input: CreateStudyItemInput, storage = defaultStorage()): StudyItem {
+  const item = buildStudyItem(input);
+  writeJsonArray(storage, studyItemsStorageKey(input.ownerId), [item, ...listStudyItems(input.ownerId, storage)]);
   return item;
 }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildStudySessionSummary, type StudyReviewRating } from "@/lib/study-scheduler";
@@ -10,24 +10,34 @@ export function ReviewSession({
   onRate,
 }: {
   items: StudyItem[];
-  onRate: (item: StudyItem, rating: StudyReviewRating, response: string) => StudyReviewEvent;
+  onRate: (item: StudyItem, rating: StudyReviewRating, response: string) => StudyReviewEvent | Promise<StudyReviewEvent>;
 }) {
   const [reviewedItemIds, setReviewedItemIds] = useState<Set<string>>(() => new Set());
   const [response, setResponse] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [events, setEvents] = useState<StudyReviewEvent[]>([]);
+  const [reviewedItems, setReviewedItems] = useState<StudyItem[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const running = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const activeItem = items.find((item) => !reviewedItemIds.has(item.id)) ?? null;
   const summary = useMemo(
-    () => buildStudySessionSummary({ events, items }),
-    [events, items],
+    () => buildStudySessionSummary({ events, items: [...items, ...reviewedItems] }),
+    [events, items, reviewedItems],
   );
 
-  const rateActive = (rating: StudyReviewRating) => {
-    if (!activeItem) {
+  const rateActive = async (rating: StudyReviewRating) => {
+    if (!activeItem || running.current) {
       return;
     }
-    const event = onRate(activeItem, rating, response);
+    running.current = true; setPending(true); setError("");
+    try {
+    const event = await onRate(activeItem, rating, response);
+    if (!alive.current) return;
     setEvents((current) => [...current, event]);
+    setReviewedItems((current) => [...current, activeItem]);
     setReviewedItemIds((current) => {
       const next = new Set(current);
       next.add(activeItem.id);
@@ -35,6 +45,8 @@ export function ReviewSession({
     });
     setResponse("");
     setRevealed(false);
+    } catch (error) { if (alive.current) setError(error instanceof Error ? error.message : "Rating could not be saved. Your response is still here."); }
+    finally { if (alive.current) { running.current = false; setPending(false); } }
   };
 
   return (
@@ -51,17 +63,20 @@ export function ReviewSession({
         </div>
         <Badge variant="secondary">{events.length} reviewed</Badge>
       </div>
+      {pending && <p role="status">Saving review…</p>}
+      {error && <p role="alert">{error}</p>}
 
       {activeItem ? (
         <ReviewCard
           item={activeItem}
-          onRate={rateActive}
+          onRate={(rating) => { void rateActive(rating); }}
+          pending={pending}
           onResponseChange={setResponse}
           onReveal={() => setRevealed(true)}
           response={response}
           revealed={revealed}
         />
-      ) : items.length ? (
+      ) : items.length || events.length ? (
         <SessionSummaryView summary={summary} />
       ) : (
         <EmptyState

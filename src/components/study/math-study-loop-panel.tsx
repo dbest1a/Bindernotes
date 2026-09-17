@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import {
-  addProblemMistakeToReview,
+  addProblemMistakeToCloudReview,
   createProblemLogEntry,
   formatMistakeType,
   listProblemLogEntries,
@@ -18,7 +18,7 @@ import {
   type MathProblemLogEntry,
   type MathStudyGraphLink,
 } from "@/services/math-study-loop-service";
-import { createStudyItem } from "@/services/study-items-service";
+import { createCloudStudyItem } from "@/services/canonical-review-service";
 import type { CalculatorMode, MathGraphState, MathModuleJson, ModuleExpression, QuestionBankItem } from "@/types/math-learning";
 
 const LazyDesmosGraph = lazy(async () => {
@@ -151,12 +151,12 @@ export function MathStudyLoopPanel({
     setMessage("Graph context saved to the Math Study Loop.");
   };
 
-  const addFormulaToReview = (formula: FormulaCardInput) => {
+  const addFormulaToReview = async (formula: FormulaCardInput) => {
     if (!reviewQueueBetaEnabled) {
       setMessage("Turn on Beta Revamp - Review Queue before adding formula cards to review.");
       return;
     }
-    createStudyItem({
+    try { await createCloudStudyItem({
       answer: formula.explanation?.trim() || formula.latex,
       betaEnabled: reviewQueueBetaEnabled,
       courseId,
@@ -170,14 +170,15 @@ export function MathStudyLoopPanel({
       type: "formula_card",
     });
     setMessage(`${formula.label} added to Review Queue.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Review card could not be saved."); }
   };
 
-  const addMistakeToReview = (problemLog: MathProblemLogEntry) => {
+  const addMistakeToReview = async (problemLog: MathProblemLogEntry) => {
     if (!reviewQueueBetaEnabled) {
       setMessage("Turn on Beta Revamp - Review Queue before reviewing mistakes.");
       return;
     }
-    addProblemMistakeToReview({
+    try { await addProblemMistakeToCloudReview({
       betaEnabled,
       ownerId,
       problemLog,
@@ -185,6 +186,7 @@ export function MathStudyLoopPanel({
     });
     setProblemLogs(listProblemLogEntries(ownerId));
     setMessage("Mistake review item added.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Mistake review could not be saved."); }
   };
 
   const activeGraphLink: MathStudyGraphLink | null = activeGraphState

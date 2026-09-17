@@ -39,7 +39,10 @@ function card(overrides: Partial<RecallCard> = {}): RecallCard {
 
 describe("Recall Lab scheduler", () => {
   it("compares typed answers with simple deterministic normalization", () => {
-    expect(compareRecallAnswer("  Ray!! ", "ray")).toBe(true);
+    expect(compareRecallAnswer("  ray  ", "ray")).toBe(true);
+    for (const [answer, expected] of [["1", "-1"], ["x", "x^2"], ["2", "12"], ["a", "A"], ["1/2", "12"], ["x+y", "xy"], ["", "0"]]) {
+      expect(compareRecallAnswer(answer, expected)).toBe(false);
+    }
     expect(compareRecallAnswer("perpendicular lines", "Lines meet at 90 degrees")).toBe(false);
   });
 

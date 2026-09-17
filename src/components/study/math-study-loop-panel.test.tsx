@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { listStudyItems } from "@/services/study-items-service";
+import { saveQueue } from "@/lib/save-queue";
+import { reviewCloudFixture, reviewOwnerA } from "@/test/review-cloud-fixture";
 import { listProblemLogEntries, saveStudyGraphLink } from "@/services/math-study-loop-service";
 import { GraphStudyCard, MathStudyLoopPanel } from "@/components/study/math-study-loop-panel";
 import * as desmosLoader from "@/lib/desmos-loader";
+const cloud = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+vi.mock("@/lib/supabase", () => ({ supabase: cloud }));
+let database: ReturnType<typeof reviewCloudFixture>;
 
 vi.mock("@/lib/desmos-loader", () => ({
   hasDesmosApiKey: vi.fn(),
@@ -38,11 +42,14 @@ const questions = [
 describe("MathStudyLoopPanel", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    database = reviewCloudFixture(); saveQueue.setAccount(reviewOwnerA);
+    cloud.from.mockImplementation(database.from); cloud.rpc.mockImplementation(database.rpc);
     vi.mocked(desmosLoader.hasDesmosApiKey).mockReturnValue(true);
   });
 
   afterEach(() => {
     cleanup();
+    saveQueue.setAccount(null);
     window.localStorage.clear();
     vi.clearAllMocks();
   });
@@ -92,7 +99,7 @@ describe("MathStudyLoopPanel", () => {
     expect(screen.getByText("Chain rule warmup")).toBeTruthy();
   });
 
-  it("renders formula and theorem cards with example, common mistake, graph context, and review action", () => {
+  it("renders formula and theorem cards with example, common mistake, graph context, and review action", async () => {
     const graphLink = saveStudyGraphLink({
       betaEnabled: true,
       desmosState: { expressions: { list: [] } },
@@ -104,7 +111,7 @@ describe("MathStudyLoopPanel", () => {
       title: "Power graph",
     });
 
-    renderPanel({ graphLinks: [graphLink], reviewQueueBetaEnabled: true });
+    renderPanel({ graphLinks: [graphLink], reviewQueueBetaEnabled: true, ownerId: reviewOwnerA });
 
     const card = within(screen.getByTestId("math-formula-card-formula-power-rule"));
     expect(card.getByText("Power rule")).toBeTruthy();
@@ -116,7 +123,8 @@ describe("MathStudyLoopPanel", () => {
 
     fireEvent.click(card.getByRole("button", { name: "Add to Review" }));
 
-    expect(listStudyItems("user-1")[0]).toMatchObject({
+    await waitFor(() => expect(database.tables.review_items).toHaveLength(1));
+    expect((database.tables.review_items[0].payload as { item: unknown }).item).toMatchObject({
       source_kind: "formula",
       source_id: "formula-power-rule",
       type: "formula_card",

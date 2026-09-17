@@ -18,6 +18,7 @@ export function ReviewCard({
   onResponseChange,
   response,
   revealed,
+  pending = false,
 }: {
   item: StudyItem;
   onRate: (rating: StudyReviewRating) => void;
@@ -25,6 +26,7 @@ export function ReviewCard({
   onResponseChange: (value: string) => void;
   response: string;
   revealed: boolean;
+  pending?: boolean;
 }) {
   return (
     <article className="review-session-card grid gap-4" data-testid="review-session-card">
@@ -69,7 +71,7 @@ export function ReviewCard({
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {ratingLabels.map((rating) => (
             <Button
-              disabled={!revealed}
+              disabled={!revealed || pending}
               key={rating.value}
               onClick={() => onRate(rating.value)}
               type="button"

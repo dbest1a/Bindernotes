@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpenCheck, Filter, NotebookTabs, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,10 @@ import { ReviewSession } from "@/components/study/review-session";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { bucketStudyItems, type StudyReviewRating } from "@/lib/study-scheduler";
-import {
-  createStudyItem,
-  listStudyItems,
-  recordStudyReviewEvent,
-  type StudyItem,
-} from "@/services/study-items-service";
+import type { StudyItem } from "@/services/study-items-service";
+import { createCloudStudyItem, listCanonicalReviews, recordCloudStudyReview, retryPendingReviewSaves } from "@/services/canonical-review-service";
+import { reviewIsActive, type SavedReviewRecord } from "@/lib/canonical-review";
+import { ReviewMigrationPanel } from "@/components/study/review-migration-panel";
 
 type ReviewTab = "due" | "upcoming" | "difficult" | "mastered" | "binder" | "mistakes";
 
@@ -27,13 +25,35 @@ const baseReviewTabs: Array<{ id: ReviewTab; label: string }> = [
 
 export function ReviewPage() {
   const { profile } = useAuth();
+  if (!profile) return <main className="app-page"><EmptyState title="Sign in to review" description="Your review cards belong to your account." /></main>;
+  return <AccountReviewPage key={profile.id} ownerId={profile.id} />;
+}
+
+function AccountReviewPage({ ownerId }: { ownerId: string }) {
+  const profile = { id: ownerId };
   const betaFeatures = useBetaFeatures(profile?.id);
   const mathStudyLoopBeta = betaFeatures.isFeatureEnabled("betaRevampMathStudyLoop");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const [activeTab, setActiveTab] = useState<ReviewTab>("due");
   const [binderFilter, setBinderFilter] = useState("all");
-  const [items, setItems] = useState<StudyItem[]>(() => (profile?.id ? listStudyItems(profile.id) : []));
+  const [records, setRecords] = useState<SavedReviewRecord[]>([]);
+  const items = useMemo(() => records.filter((saved) => reviewIsActive(saved.record)).map((saved) => saved.record.item), [records]);
+  const [reload, setReload] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [creating, setCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!reviewQueueBeta) return;
+    const controller = new AbortController();
+    setLoading(true); setLoadError("");
+    void listCanonicalReviews(ownerId, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setRecords(result);
+    }).catch((error) => {
+      if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "Could not load review work.");
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [ownerId, reviewQueueBeta, reload]);
 
   const buckets = useMemo(() => bucketStudyItems(items), [items]);
   const reviewTabs = useMemo(
@@ -79,17 +99,12 @@ export function ReviewPage() {
     );
   }
 
-  const refreshItems = () => {
-    if (profile?.id) {
-      setItems(listStudyItems(profile.id));
-    }
-  };
+  const refreshItems = () => setReload((value) => value + 1);
 
-  const createStarterItem = () => {
-    if (!profile?.id) {
-      return;
-    }
-    createStudyItem({
+  const createStarterItem = async () => {
+    if (creating) return;
+    setCreating(true);
+    try { await createCloudStudyItem({
       answer: "Write the source-linked answer in your own words before checking.",
       betaEnabled: reviewQueueBeta,
       ownerId: profile.id,
@@ -99,21 +114,22 @@ export function ReviewPage() {
       type: "free_response",
     });
     refreshItems();
-    setMessage("Review item added.");
+    setMessage("Review item saved to your account.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Review item could not be saved."); }
+    finally { setCreating(false); }
   };
 
-  const recordRating = (item: StudyItem, rating: StudyReviewRating, response: string) => {
+  const recordRating = async (item: StudyItem, rating: StudyReviewRating, response: string) => {
     if (!profile?.id) {
       throw new Error("A real account is required for Review Queue.");
     }
-    const result = recordStudyReviewEvent({
-      betaEnabled: reviewQueueBeta,
+    const result = await recordCloudStudyReview({
       itemId: item.id,
       ownerId: profile.id,
       rating,
       response,
     });
-    setItems(listStudyItems(profile.id));
+    setRecords((current) => current.map((saved) => saved.record.item.id === item.id ? result.saved : saved));
     return result.event;
   };
 
@@ -138,7 +154,7 @@ export function ReviewPage() {
               Personal Notes
             </Link>
           </Button>
-          <Button onClick={createStarterItem} type="button">
+          <Button disabled={creating} onClick={() => void createStarterItem()} type="button">
             <Plus data-icon="inline-start" />
             Add free-response item
           </Button>
@@ -153,6 +169,10 @@ export function ReviewPage() {
       </section>
 
       {message ? <p className="rounded-lg border border-border/70 bg-card/85 px-3 py-2 text-sm" role="status">{message}</p> : null}
+      <ReviewMigrationPanel key={ownerId} ownerId={ownerId} onImported={refreshItems} />
+      <Button variant="outline" onClick={() => { void retryPendingReviewSaves(ownerId).then((count) => { setMessage(`${count} pending review saves confirmed.`); refreshItems(); }).catch((error) => setMessage(error instanceof Error ? error.message : "Pending saves could not be confirmed.")); }}>Retry pending review saves</Button>
+      {loading && <p role="status">Loading account review work…</p>}
+      {loadError && <p role="alert">{loadError} <Button variant="outline" onClick={refreshItems}>Retry loading</Button></p>}
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
         <aside className="page-shell grid gap-4 p-4">
@@ -217,7 +237,7 @@ export function ReviewPage() {
             <BookOpenCheck className="size-5 text-primary" />
             <h2 className="text-lg font-semibold">Study Session</h2>
           </div>
-          <ReviewSession items={visibleItems.filter((item) => item.status !== "mastered")} onRate={recordRating} />
+          <ReviewSession key={`${ownerId}:${activeTab}:${binderFilter}`} items={visibleItems.filter((item) => item.status !== "mastered")} onRate={recordRating} />
         </section>
       </section>
     </main>
