@@ -20,6 +20,8 @@ import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/wh
 type WhiteboardCanvasProps = {
   board: BinderWhiteboard;
   onSceneChange: (scene: WhiteboardSceneData) => void;
+  onRetireScene?: (scene: WhiteboardSceneData) => void;
+  onFlushReady?: (flush: (() => void) | null) => void;
   onViewportChange?: (transform: WhiteboardViewportTransform) => void;
   onViewportRequestReady?: (requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => void;
   fullscreen?: boolean;
@@ -33,8 +35,8 @@ type ExcalidrawCameraApi = {
 
 type PendingSceneInput = {
   elements: readonly unknown[];
-  appState: unknown;
-  files: unknown;
+  appState?: unknown;
+  files?: unknown;
 };
 
 type WhiteboardDebugWindow = typeof window & {
@@ -44,6 +46,8 @@ type WhiteboardDebugWindow = typeof window & {
 export function WhiteboardCanvas({
   board,
   onSceneChange,
+  onRetireScene,
+  onFlushReady,
   onViewportChange,
   onViewportRequestReady,
   fullscreen = false,
@@ -141,7 +145,7 @@ export function WhiteboardCanvas({
     }
   }, []);
 
-  const flushPendingSceneChange = useCallback(() => {
+  const flushPendingSceneChange = useCallback((retiring = false) => {
     const pendingScene = pendingSceneRef.current;
     pendingSceneRef.current = null;
     clearSceneChangeTimer();
@@ -159,8 +163,9 @@ export function WhiteboardCanvas({
     }
 
     latestPersistentSceneRef.current = scene;
-    onSceneChange(scene);
-  }, [clearSceneChangeTimer, onSceneChange]);
+    if (retiring && onRetireScene) onRetireScene(scene);
+    else onSceneChange(scene);
+  }, [clearSceneChangeTimer, onRetireScene, onSceneChange]);
 
   const scheduleSceneChangeFlush = useCallback(() => {
     clearSceneChangeTimer();
@@ -272,13 +277,16 @@ export function WhiteboardCanvas({
     [emitViewportChange, onViewportRequestReady],
   );
 
-  useEffect(
-    () => () => {
-      flushPendingSceneChange();
-      onViewportRequestReady?.(null);
-    },
-    [flushPendingSceneChange, onViewportRequestReady],
-  );
+  const retireRef = useRef({ flushPendingSceneChange, onViewportRequestReady });
+  retireRef.current = { flushPendingSceneChange, onViewportRequestReady };
+  useEffect(() => () => {
+    retireRef.current.flushPendingSceneChange(true);
+    retireRef.current.onViewportRequestReady?.(null);
+  }, []);
+  useEffect(() => {
+    onFlushReady?.(() => retireRef.current.flushPendingSceneChange());
+    return () => onFlushReady?.(null);
+  }, [onFlushReady]);
 
   useEffect(() => {
     flushPendingSceneChange();
@@ -378,11 +386,7 @@ export function WhiteboardCanvas({
   const handleExcalidrawChange = useCallback(
     (elements: readonly unknown[], appState: unknown, files: unknown) => {
       emitViewportChange(appState as Record<string, unknown>);
-      pendingSceneRef.current = {
-        elements,
-        appState,
-        files,
-      };
+      pendingSceneRef.current = structuredClone(sanitizeExcalidrawInitialData({ elements: [...elements], appState, files }));
       scheduleSceneChangeFlush();
     },
     [emitViewportChange, scheduleSceneChangeFlush],

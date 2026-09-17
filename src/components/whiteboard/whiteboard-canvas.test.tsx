@@ -411,6 +411,21 @@ describe("WhiteboardCanvas", () => {
     }
   });
 
+  it("flushes an immutable final scene through the retired board callback on unmount", async () => {
+    const onSceneChange = vi.fn(); const onRetireScene = vi.fn();
+    const view = render(<WhiteboardCanvas board={board()} onSceneChange={onSceneChange} onRetireScene={onRetireScene} />);
+    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+    vi.useFakeTimers();
+    const elements = [{ id: "last-stroke", version: 1 }];
+    act(() => (excalidrawMock.props!.onChange as (elements: unknown[], state: unknown, files: unknown) => void)(elements, {}, {}));
+    elements[0].id = "mutated-after-event";
+    view.unmount();
+    expect(onSceneChange).not.toHaveBeenCalled();
+    expect(onRetireScene).toHaveBeenCalledWith(expect.objectContaining({ elements: [{ id: "last-stroke", version: 1 }] }));
+    act(() => vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS));
+    expect(onRetireScene).toHaveBeenCalledTimes(1);
+  });
+
   it("does not emit a stale camera from a deferred refresh after parent module movement ends", async () => {
     const resizeCallbacks: ResizeObserverCallback[] = [];
     const OriginalResizeObserver = globalThis.ResizeObserver;

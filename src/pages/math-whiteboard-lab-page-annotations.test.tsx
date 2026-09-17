@@ -2,8 +2,12 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveQueue } from "@/lib/save-queue";
 import { MathWhiteboardLabPage } from "@/pages/math-whiteboard-lab-page";
+
+beforeEach(() => saveQueue.setAccount("user-1"));
+afterEach(() => saveQueue.setAccount(null));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({

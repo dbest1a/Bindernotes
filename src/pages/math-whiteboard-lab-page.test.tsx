@@ -2,11 +2,15 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveQueue } from "@/lib/save-queue";
 import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import { MathWhiteboardLabPage } from "@/pages/math-whiteboard-lab-page";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import type { WorkspaceModuleId } from "@/types";
+
+beforeEach(() => saveQueue.setAccount("user-1"));
+afterEach(() => saveQueue.setAccount(null));
 
 const mocks = vi.hoisted(() => ({
   setGraphExpanded: vi.fn(),

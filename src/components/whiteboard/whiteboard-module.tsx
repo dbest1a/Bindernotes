@@ -59,7 +59,6 @@ import {
   type PrivateNotesTargetCandidate,
 } from "@/lib/whiteboards/whiteboard-note-targeting";
 import {
-  AUTOSAVE_DEBOUNCE_MS,
   MAX_OBJECTS_WARNING,
   MAX_WHITEBOARD_DESMOS_GRAPHS,
   MAX_WHITEBOARDS_PER_USER,
@@ -73,8 +72,9 @@ import {
   listLocalWhiteboards,
   listWhiteboards,
   loadWhiteboard,
-  saveWhiteboard,
 } from "@/lib/whiteboards/whiteboard-storage";
+import { createWhiteboardDraftCopy, getWhiteboardDraft, listWhiteboardBackups, mergeWhiteboardDrafts, restoreWhiteboardBackup, whiteboardDraftSnapshot } from "@/lib/whiteboards/whiteboard-drafts";
+import { saveQueue } from "@/lib/save-queue";
 import { countWhiteboardObjects, validateWhiteboardForStorage } from "@/lib/whiteboards/whiteboard-serialization";
 import { hasPersistentWhiteboardSceneChange } from "@/lib/whiteboards/whiteboard-serialization";
 import type {
@@ -175,7 +175,8 @@ function keepSceneCameraInSync(
   };
 }
 
-function mapSaveResultStatus(status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "unavailable"): WhiteboardSaveStatus {
+function mapSaveResultStatus(status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "conflict" | "unavailable"): WhiteboardSaveStatus {
+  if (status === "conflict") return "conflict";
   if (status === "saved") {
     return "saved";
   }
@@ -291,7 +292,7 @@ function getWhiteboardLoadedMessage(backend: "local" | "supabase", compactWhiteb
 }
 
 function getWhiteboardSavedMessage(
-  status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "unavailable",
+  status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "conflict" | "unavailable",
   message: string,
   compactWhiteboardTools: boolean,
 ) {
@@ -303,6 +304,10 @@ function getWhiteboardSavedMessage(
 }
 
 export function WhiteboardModule({ context, onBack, renderModule, variant = "module" }: WhiteboardModuleProps) {
+  return <WhiteboardModuleContent key={`${context.ownerId}:${context.binder.id}:${context.selectedLesson.id}`} context={context} onBack={onBack} renderModule={renderModule} variant={variant} />;
+}
+
+function WhiteboardModuleContent({ context, onBack, renderModule, variant = "module" }: WhiteboardModuleProps) {
   const ownerId = context.ownerId;
   const labMode = variant === "lab";
   const compactWhiteboardTools = Boolean(context.compactWhiteboardTools);
@@ -330,19 +335,21 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   );
   const [boards, setBoards] = useState<BinderWhiteboard[]>([]);
   const [activeBoard, setActiveBoard] = useState<BinderWhiteboard | null>(null);
-  const [saveStatus, setSaveStatus] = useState<WhiteboardSaveStatus>("offline-draft");
-  const [saveMessage, setSaveMessage] = useState("Local draft");
-  const [warning, setWarning] = useState<string | null>(null);
+  const [recoveryKey, setRecoveryKey] = useState(0);
+  const [storedSaveStatus, setSaveStatus] = useState<WhiteboardSaveStatus>("offline-draft");
+  const [storedSaveMessage, setSaveMessage] = useState("Local draft");
+  const [storedWarning, setWarning] = useState<string | null>(null);
   const [pendingZoomAction, setPendingZoomAction] = useState<PendingZoomAction | null>(null);
   const [pendingNotesInsertion, setPendingNotesInsertion] = useState<PendingNotesInsertion | null>(null);
   const latestSceneRef = useRef<WhiteboardSceneData | null>(null);
   const boardRef = useRef<BinderWhiteboard | null>(null);
-  const autosaveTimerRef = useRef<number | null>(null);
   const viewportTransformRef = useRef<WhiteboardViewportTransform>(defaultWhiteboardViewportTransform);
   const boardPinnedGeometrySnapshotRef = useRef("");
   const lastCountUpdateRef = useRef(0);
-  const saveStatusRef = useRef(saveStatus);
-  const saveRequestIdRef = useRef(0);
+  const selectionRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+  const flushCanvasRef = useRef<(() => void) | null>(null);
+  const registerCanvasFlush = useCallback((flush: (() => void) | null) => { flushCanvasRef.current = flush; }, []);
   const lastUsedPrivateNotesModuleRef = useRef<string | null>(null);
   const requestViewportTransformRef = useRef<((transform: WhiteboardViewportTransform) => void) | null>(null);
   const pendingViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
@@ -352,6 +359,17 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
     defaultWhiteboardViewportTransform,
   );
+  const boardLifetimeId = `${activeBoard?.id}:${recoveryKey}`;
+  const boardLifetimeRef = useRef({ id: boardLifetimeId, active: true, preserveOnRetire: true });
+  if (boardLifetimeRef.current.id !== boardLifetimeId) {
+    boardLifetimeRef.current.active = false;
+    boardLifetimeRef.current = { id: boardLifetimeId, active: true, preserveOnRetire: true };
+  }
+  const boardLifetime = boardLifetimeRef.current;
+  useEffect(() => {
+    boardLifetime.active = true;
+    return () => { boardLifetime.active = false; };
+  }, [boardLifetime]);
 
   const layoutStyle = useMemo(
     () =>
@@ -524,13 +542,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     ],
   );
 
-  useEffect(() => {
-    saveStatusRef.current = saveStatus;
-  }, [saveStatus]);
-
   const applyWhiteboardListResult = useCallback(
     (boards: BinderWhiteboard[], nextActiveId?: string) => {
-      const repairedBoards = boards.map(repairBoardModules);
+      const repairedBoards = (scope ? mergeWhiteboardDrafts(boards, scope) : boards).map(repairBoardModules);
       setBoards(repairedBoards);
       const requestedBoard = nextActiveId ? repairedBoards.find((board) => board.id === nextActiveId) ?? null : null;
       const documentBoard =
@@ -573,7 +587,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      const selection = selectionRequestRef.current;
       void listWhiteboards(scope).then((result) => {
+        if (!mountedRef.current || selection !== selectionRequestRef.current) return;
         const currentBoard = boardRef.current;
         if (result.boards.length > 0 || !currentBoard) {
           applyWhiteboardListResult(result.boards, nextActiveId ?? currentBoard?.id);
@@ -602,7 +618,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       return;
     }
 
-    const localBoards = listLocalWhiteboards(scope).map(repairBoardModules);
+    const localBoards = mergeWhiteboardDrafts(listLocalWhiteboards(scope), scope).map(repairBoardModules);
     if (localBoards.length === 0) {
       return;
     }
@@ -664,13 +680,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   }, [applyWhiteboardListResult, compactWhiteboardTools, scope]);
 
   useEffect(
-    () => () => {
-      if (autosaveTimerRef.current) {
-        window.clearTimeout(autosaveTimerRef.current);
-      }
-      if (viewportUpdateRafRef.current !== null) {
-        window.cancelAnimationFrame(viewportUpdateRafRef.current);
-      }
+    () => {
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+        selectionRequestRef.current += 1;
+        if (viewportUpdateRafRef.current !== null) window.cancelAnimationFrame(viewportUpdateRafRef.current);
+      };
     },
     [],
   );
@@ -704,55 +720,16 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   }, [exitWhiteboardFocus]);
 
   const persistBoard = useCallback(
-    (board: BinderWhiteboard) => {
+    (board: BinderWhiteboard, immediate = true) => {
       try {
-        const requestId = saveRequestIdRef.current + 1;
-        saveRequestIdRef.current = requestId;
-        const saved = board;
+        if (!mountedRef.current || boardRef.current?.id !== board.id) return null;
+        const draft = getWhiteboardDraft(board);
+        draft.edit(() => ({ ...board, updatedAt: new Date().toISOString() }), !isScratchWhiteboard(board));
+        const saved = whiteboardDraftSnapshot(board);
         setActiveBoard(saved);
         boardRef.current = saved;
         rememberBoardPinnedGeometry(saved.modules);
-        if (isScratchWhiteboard(saved)) {
-          setSaveStatus("offline-draft");
-          setSaveMessage("Scratch board - not saved yet");
-          setWarning(null);
-          return saved;
-        }
-        setSaveStatus("saving");
-        setSaveMessage("Saving...");
-        const validation = validateWhiteboardForStorage(saved);
-        setWarning(validation.warnings[0] ?? null);
-        void saveWhiteboard(saved, { backend: "supabase", createVersion: saveStatusRef.current !== "saving" }).then(
-          (result) => {
-            if (requestId !== saveRequestIdRef.current) {
-              return;
-            }
-            const nextBoard = repairBoardModules(result.board);
-            setActiveBoard(nextBoard);
-            boardRef.current = nextBoard;
-            rememberBoardPinnedGeometry(nextBoard.modules);
-            setSaveStatus(mapSaveResultStatus(result.status));
-            setSaveMessage(getWhiteboardSavedMessage(result.status, result.message, compactWhiteboardTools));
-            if (result.status !== "saved") {
-              setWarning(result.message);
-            } else {
-              setWarning(validateWhiteboardForStorage(nextBoard).warnings[0] ?? null);
-            }
-            setBoards((currentBoards) => {
-              const withoutSaved = currentBoards.filter((candidate) => candidate.id !== nextBoard.id);
-              return [nextBoard, ...withoutSaved].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-            });
-          },
-          (error) => {
-            if (requestId !== saveRequestIdRef.current) {
-              return;
-            }
-            setSaveStatus("error");
-            const message = error instanceof Error ? error.message : "Could not save this board.";
-            setSaveMessage("Remote save failed");
-            setWarning(message);
-          },
-        );
+        if (immediate && !isScratchWhiteboard(board)) void draft.flush();
         return saved;
       } catch (error) {
         setSaveStatus("error");
@@ -762,10 +739,40 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return null;
       }
     },
-    [compactWhiteboardTools, rememberBoardPinnedGeometry, repairBoardModules],
+    [rememberBoardPinnedGeometry],
   );
 
+  const activeDraft = useMemo(() => activeBoard ? getWhiteboardDraft(activeBoard) : null, [activeBoard?.id, recoveryKey]);
+  const preserveRetiringScene = useCallback((scene: WhiteboardSceneData) => {
+    if (!activeDraft || !boardLifetime.preserveOnRetire) return;
+    const current = activeDraft.getSnapshot().snapshot;
+    if (saveQueue.getAccount() !== current.ownerId || !hasPersistentWhiteboardSceneChange(current.scene, scene)) return;
+    try {
+      activeDraft.edit((board) => ({ ...board, scene, objectCount: countWhiteboardObjects({ scene, modules: board.modules }), updatedAt: new Date().toISOString() }), !isScratchWhiteboard(current));
+    } catch { /* Account retirement invalidates the old canvas together with its controller. */ }
+  }, [activeDraft, boardLifetime]);
+  useEffect(() => {
+    if (!activeDraft) return;
+    const sync = () => {
+      const state = activeDraft.getSnapshot();
+      if (!mountedRef.current || boardRef.current?.id !== state.snapshot.id) return;
+      const revision = activeDraft.getServerRevision();
+      const snapshot = { ...state.snapshot, revision, ...(revision > 0 ? { storageMode: "supabase" as const } : {}) };
+      boardRef.current = snapshot;
+      latestSceneRef.current = snapshot.scene;
+      setActiveBoard(snapshot);
+      setBoards((current) => [snapshot, ...current.filter((board) => board.id !== snapshot.id)]);
+      const scratch = isScratchWhiteboard(snapshot);
+      setSaveStatus(scratch ? "offline-draft" : state.state === "saved" ? revision > 0 ? "saved" : "offline-draft" : state.state === "conflict" ? "conflict" : state.state === "error" ? "error" : state.state === "offline" ? "offline-draft" : "saving");
+      setSaveMessage(scratch ? "Scratch board - not saved yet" : state.state === "saved" ? revision > 0 ? "Saved" : "Local draft" : state.state === "conflict" ? "Choose which version to keep" : state.state === "error" ? "Save needs attention" : state.state === "offline" ? "Offline draft" : "Saving...");
+      setWarning(state.error ?? validateWhiteboardForStorage(snapshot).warnings[0] ?? null);
+    };
+    sync();
+    return activeDraft.subscribe(sync);
+  }, [activeDraft]);
+
   const saveLatestBoard = useCallback(() => {
+    flushCanvasRef.current?.();
     const current = boardRef.current;
     if (!current) {
       return;
@@ -785,17 +792,6 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     persistBoard(nextBoard);
   }, [persistBoard]);
 
-  const scheduleAutosave = useCallback(() => {
-    if (autosaveTimerRef.current) {
-      window.clearTimeout(autosaveTimerRef.current);
-    }
-    if (saveStatusRef.current !== "saving") {
-      saveStatusRef.current = "saving";
-      setSaveStatus("saving");
-    }
-    autosaveTimerRef.current = window.setTimeout(saveLatestBoard, AUTOSAVE_DEBOUNCE_MS);
-  }, [saveLatestBoard]);
-
   const toggleBrowserFullscreen = useCallback(() => {
     if (typeof document === "undefined") {
       return;
@@ -814,7 +810,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const handleSceneChange = useCallback(
     (scene: WhiteboardSceneData) => {
       const current = boardRef.current;
-      if (!current) {
+      if (!current || !mountedRef.current || !boardLifetime.active || boardLifetime !== boardLifetimeRef.current || current.id !== activeBoard?.id) {
         return;
       }
       const previousScene = latestSceneRef.current ?? current.scene;
@@ -830,15 +826,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (!hasPersistentWhiteboardSceneChange(previousScene, scene)) {
         return;
       }
-      scheduleAutosave();
+      persistBoard({ ...current, scene, objectCount }, false);
     },
-    [scheduleAutosave],
+    [activeBoard?.id, boardLifetime, persistBoard],
   );
 
   const updateBoardModules = useCallback(
     (updater: (modules: WhiteboardModuleElement[]) => WhiteboardModuleElement[]) => {
       const current = boardRef.current;
-      if (!current) {
+      if (!current || !boardLifetime.active || boardLifetime !== boardLifetimeRef.current) {
         return;
       }
 
@@ -857,7 +853,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       rememberBoardPinnedGeometry(nextBoard.modules);
       persistBoard(nextBoard);
     },
-    [persistBoard, rememberBoardPinnedGeometry],
+    [boardLifetime, persistBoard, rememberBoardPinnedGeometry],
   );
 
   const createBoardFromTemplate = useCallback(
@@ -880,11 +876,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
 
       setSaveStatus("saving");
       setSaveMessage("Saving...");
+      const selection = ++selectionRequestRef.current;
       void createWhiteboard(scope, {
         title: template.id === "blank-board" ? `${context.selectedLesson.title} whiteboard` : template.name,
         subject: context.binder.subject,
         template,
       }).then((result) => {
+        if (!mountedRef.current || selection !== selectionRequestRef.current) return;
         if (result.status === "limit") {
           setSaveStatus("limit");
           setSaveMessage(result.message);
@@ -929,9 +927,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (!scope) {
         return;
       }
+      flushCanvasRef.current?.();
+      const selection = ++selectionRequestRef.current;
       const cached = boards.find((board) => board.id === boardId);
       if (cached) {
-        const repaired = repairBoardModules(cached);
+        const repaired = repairBoardModules(whiteboardDraftSnapshot(cached));
         latestSceneRef.current = repaired.scene;
         handleViewportChange(extractWhiteboardViewportTransform(repaired.scene.appState));
         setActiveBoard(repaired);
@@ -941,11 +941,12 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         setSaveMessage(getWhiteboardLoadedMessage(repaired.storageMode === "supabase" ? "supabase" : "local", compactWhiteboardTools));
       }
       void loadWhiteboard(scope, boardId).then((result) => {
+        if (!mountedRef.current || selection !== selectionRequestRef.current) return;
         const remoteLoaded = result.boards[0];
         if (!remoteLoaded) {
           return;
         }
-        const nextBoard = repairBoardModules(remoteLoaded);
+        const nextBoard = repairBoardModules(whiteboardDraftSnapshot(remoteLoaded));
         latestSceneRef.current = nextBoard.scene;
         handleViewportChange(extractWhiteboardViewportTransform(nextBoard.scene.appState));
         setActiveBoard(nextBoard);
@@ -966,7 +967,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
 
       setSaveStatus("saving");
       setSaveMessage("Archiving...");
-      void archiveWhiteboard(scope, boardId).then((result) => {
+      void (async () => {
+        const board = boards.find((item) => item.id === boardId);
+        if (board) {
+          const draft = getWhiteboardDraft(board);
+          await draft.flush();
+          if (draft.getSnapshot().dirty) {
+            if (mountedRef.current) setWarning("Save this draft or choose a conflict version before archiving. Your work is preserved.");
+            return;
+          }
+        }
+        const result = await archiveWhiteboard(scope, boardId);
+        if (!mountedRef.current) return;
         if (result.status === "error") {
           setSaveStatus("error");
           setSaveMessage(result.message);
@@ -988,7 +1000,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         setSaveMessage(result.message);
         setWarning(null);
         refreshBoards(nextActive?.id);
-      });
+      })();
     },
     [activeBoard, boards, handleViewportChange, refreshBoards, rememberBoardPinnedGeometry, scope],
   );
@@ -1322,6 +1334,81 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     [persistBoard],
   );
 
+  const loadSavedVersion = async () => {
+    if (!scope || !activeDraft) return;
+    const draft = activeDraft;
+    const boardId = draft.getSnapshot().snapshot.id;
+    try {
+      const result = await loadWhiteboard(scope, boardId);
+      const remote = result.boards.find((board) => board.id === boardId && board.ownerId === scope.ownerId);
+      if (result.backend !== "supabase" || !remote) throw new Error("The saved version could not be loaded. Your draft is still preserved.");
+      if (!mountedRef.current || boardRef.current?.id !== boardId) return;
+      boardLifetimeRef.current.preserveOnRetire = false;
+      draft.useRemote(remote, remote.revision ?? 0);
+      setRecoveryKey((key) => key + 1);
+      handleViewportChange(extractWhiteboardViewportTransform(remote.scene.appState));
+    } catch (error) {
+      if (mountedRef.current && boardRef.current?.id === boardId) setWarning(error instanceof Error ? error.message : "Could not load the saved version.");
+    }
+  };
+
+  const preserveDraftCopy = () => {
+    if (!activeDraft) return;
+    flushCanvasRef.current?.();
+    const draft = createWhiteboardDraftCopy(activeDraft.getSnapshot().snapshot);
+    const copy = draft.getSnapshot().snapshot;
+    selectionRequestRef.current += 1;
+    boardRef.current = copy;
+    latestSceneRef.current = copy.scene;
+    setActiveBoard(copy);
+    setBoards((current) => [copy, ...current]);
+    void draft.flush();
+  };
+
+  const exportDraft = () => {
+    if (!activeDraft) return;
+    const board = activeDraft.getSnapshot().snapshot;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(board, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `whiteboard-${board.id}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  // Background lists may update their load status, but cannot hide a dirty draft or conflict.
+  const draftState = activeDraft?.getSnapshot();
+  const useDraftStatus = draftState?.dirty && (storedSaveStatus !== "limit" || draftState.state === "conflict");
+  const saveStatus: WhiteboardSaveStatus = useDraftStatus
+    ? draftState.state === "conflict" ? "conflict" : draftState.state === "error" ? "error" : draftState.state === "offline" || isScratchWhiteboard(draftState.snapshot) ? "offline-draft" : "saving"
+    : storedSaveStatus;
+  const saveMessage = useDraftStatus
+    ? draftState.state === "conflict" ? "Choose which version to keep" : draftState.state === "error" ? "Save needs attention" : draftState.state === "offline" ? "Offline draft" : isScratchWhiteboard(draftState.snapshot) ? "Scratch board - not saved yet" : "Saving..."
+    : storedSaveMessage;
+  const warning = draftState?.error ?? storedWarning;
+  const recoveryControls = activeDraft && (saveStatus === "conflict" || saveStatus === "error" || saveStatus === "offline-draft") ? (
+    <div className={labMode ? "pointer-events-auto fixed bottom-20 left-4 right-4 z-[1200] flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3 shadow-lg" : "flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3"} role="status" data-testid="whiteboard-recovery-controls">
+      {saveStatus === "conflict" ? <span>This board changed elsewhere. Your draft is preserved.</span> : null}
+      {saveStatus === "conflict" || isScratchWhiteboard(activeDraft.getSnapshot().snapshot) ? <Button size="sm" variant="secondary" onClick={preserveDraftCopy}>Save draft as a copy</Button> : null}
+      {saveStatus === "conflict" ? <Button size="sm" variant="outline" onClick={() => void loadSavedVersion()}>Load saved version</Button> : null}
+      {saveStatus !== "conflict" && !isScratchWhiteboard(activeDraft.getSnapshot().snapshot) ? <Button size="sm" variant="outline" onClick={() => void activeDraft.flush()}>Retry save</Button> : null}
+      <Button size="sm" variant="outline" onClick={exportDraft}>Download draft backup</Button>
+    </div>
+  ) : null;
+  const backups = activeBoard ? listWhiteboardBackups(activeBoard) : [];
+  const backupChoices = activeBoard && backups.length > 0 ? (
+    <details className={labMode ? "fixed bottom-4 right-4 z-[1200] max-h-48 max-w-sm overflow-auto rounded-lg border bg-background p-2" : "rounded-lg border bg-background p-2"}>
+      <summary className="cursor-pointer text-sm">Device draft backups ({backups.length})</summary>
+      {backups.map((backup, index) => <Button key={backup.key} size="sm" variant="outline" disabled={saveStatus === "saving"} onClick={() => {
+        const restored = restoreWhiteboardBackup(activeBoard, backup.key);
+        const snapshot = restored.getSnapshot().snapshot;
+        boardRef.current = snapshot;
+        latestSceneRef.current = snapshot.scene;
+        setActiveBoard(snapshot);
+        setRecoveryKey((key) => key + 1);
+      }}>Recover backup {index + 1}: {backup.draft.snapshot.title}</Button>)}
+    </details>
+  ) : null;
+
   if (!scope) {
     return (
       <WorkspacePanel description="Sign in is required for whiteboard drafts" title="Math Whiteboard">
@@ -1339,6 +1426,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         className="bindernotes-whiteboard-lab fixed inset-0 z-[999] h-screen w-screen overflow-hidden bg-[#10131a] text-foreground"
         data-testid="whiteboard-lab-page"
       >
+        {recoveryControls}
+        {backupChoices}
         {activeBoard ? (
           <>
             {exitWhiteboardFocus ? (
@@ -1377,9 +1466,12 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               </div>
             ) : null}
             <WhiteboardCanvas
+              key={`${activeBoard.id}:${recoveryKey}`}
               board={activeBoard}
               fullscreen
               onSceneChange={handleSceneChange}
+              onRetireScene={preserveRetiringScene}
+              onFlushReady={registerCanvasFlush}
               onViewportChange={handleViewportChange}
               onViewportRequestReady={(requestViewport) => {
                 requestViewportTransformRef.current = requestViewport;
@@ -1551,6 +1643,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       description="Local review draft with graph-paper drawing and live BinderNotes modules"
       title="Math Whiteboard"
     >
+      {recoveryControls}
+      {backupChoices}
       <div
         className={`whiteboard-module-layout grid h-full min-h-0 gap-3 ${sidebarCollapsed ? "whiteboard-module-layout--sidebar-collapsed" : ""}`}
         data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}
@@ -1753,8 +1847,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           {activeBoard ? (
             <div className="whiteboard-module-board relative h-full min-h-0 min-w-0 overflow-hidden">
               <WhiteboardCanvas
+                key={`${activeBoard.id}:${recoveryKey}`}
                 board={activeBoard}
                 onSceneChange={handleSceneChange}
+                onRetireScene={preserveRetiringScene}
+                onFlushReady={registerCanvasFlush}
                 onViewportChange={handleViewportChange}
                 onViewportRequestReady={(requestViewport) => {
                   requestViewportTransformRef.current = requestViewport;
