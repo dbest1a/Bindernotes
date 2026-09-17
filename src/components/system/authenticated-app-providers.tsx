@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import "@/lib/telemetry-runtime";
 
 const LazyUserAppearanceSync = lazy(() =>
   import("@/components/theme/user-appearance-sync").then((module) => ({
