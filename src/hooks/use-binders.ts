@@ -223,13 +223,16 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
       title: string;
       content: JSONContent;
       mathBlocks: MathBlock[];
+      pinned?: boolean;
+      expectedRevision?: number;
+      operationId?: string;
     }) =>
       upsertLearnerNote({
         ...input,
         ownerId: profile!.id,
       }),
     onSuccess: (savedNote) => {
-      updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
+      updateBinderBundleCache(queryClient, savedNote.binder_id, profile, (current) => ({
         ...current,
         notes: upsertNoteByScope(current.notes, savedNote),
       }));

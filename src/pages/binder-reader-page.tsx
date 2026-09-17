@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import type { JSONContent } from "@tiptap/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -36,6 +35,7 @@ import {
   workspaceModuleRegistry,
 } from "@/components/workspace/workspace-modules";
 import { useAuth } from "@/hooks/use-auth";
+import { useLearnerNoteEditor } from "@/hooks/use-learner-note-editor";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import {
   useAnnotationMutations,
@@ -56,7 +56,7 @@ import {
   type NoteInsertRequest,
 } from "@/lib/note-blocks";
 import { buildBinderNotebookStructure } from "@/lib/notebook-structure";
-import { formatNoteSavedAt, NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
+import { formatNoteSavedAt } from "@/lib/note-save";
 import { saveQueue } from "@/lib/save-queue";
 import { extractPlainText, isWorkspaceContainerId } from "@/lib/workspace-records";
 import {
@@ -132,19 +132,6 @@ import type {
   WorkspaceViewMode,
   WorkspaceWindowFrame,
 } from "@/types";
-
-type PendingNoteSave = {
-  input: {
-    id?: string;
-    binderId: string;
-    lessonId: string;
-    folderId?: string | null;
-    title: string;
-    content: JSONContent;
-    mathBlocks: MathBlock[];
-  };
-  scopeKey: string;
-};
 
 type WorkspaceCanvasView = {
   height: number;
@@ -225,14 +212,7 @@ export function BinderReaderPage() {
       yMax: number;
     };
   } | null>(null);
-  const [noteId, setNoteId] = useState<string | undefined>(undefined);
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteContent, setNoteContent] = useState<JSONContent>(emptyDoc());
-  const [noteMath, setNoteMath] = useState<MathBlock[]>([]);
   const [noteInsertRequest, setNoteInsertRequest] = useState<NoteInsertRequest | null>(null);
-  const [noteSaveError, setNoteSaveError] = useState<string | null>(null);
-  const [isNoteSaveActive, setIsNoteSaveActive] = useState(false);
-  const [noteLastSavedAt, setNoteLastSavedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
@@ -242,20 +222,8 @@ export function BinderReaderPage() {
   const workspaceRootRef = useRef<HTMLElement | null>(null);
   const handledWhiteboardOpenIntentRef = useRef<string | null>(null);
   const revampLessonEntryGuardRef = useRef<string | null>(null);
-  const pendingNoteSaveRef = useRef<PendingNoteSave | null>(null);
-  const retryNoteSaveRef = useRef<PendingNoteSave | null>(null);
-  const noteSaveTimerRef = useRef<number | null>(null);
-  const noteMutationRef = useRef(noteMutation.mutateAsync);
-  const noteSaveActiveRef = useRef(false);
-  const noteScopeHydratedRef = useRef(false);
-  const noteHasLocalEditsRef = useRef(false);
-  const activeNoteScopeRef = useRef("");
-  const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
-  const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
-
   const responsiveDevice = useResponsiveDevice();
   const isCompact = responsiveDevice.isMobileWorkspace;
-  const syncedSnapshotRef = useRef("");
   const active = workspace.active;
   const revampBetaEnabled = betaFeatures.revampBetaEnabled;
   const canvasReworkEnabled = betaFeatures.isFeatureEnabled("canvasRework");
@@ -298,7 +266,6 @@ export function BinderReaderPage() {
   const isWindowedWorkspace = isCanvasMode;
   const isLayoutEditing = layoutMode === "setup" && canEditWindowLayout;
   const isLayoutEditingRef = useRef(isLayoutEditing);
-  const deferredNoteContent = useDeferredValue(noteContent);
   const deferredQuery = useDeferredValue(query);
   const lessons = binderQuery.data?.lessons ?? [];
   const selectedLesson = useMemo(
@@ -418,13 +385,6 @@ export function BinderReaderPage() {
     setActiveHistorySourceId((current) => current ?? firstSourceId);
   }, [historyData?.sources, historyData?.templateSources]);
 
-  const clearNoteSaveTimer = useCallback(() => {
-    if (noteSaveTimerRef.current !== null) {
-      window.clearTimeout(noteSaveTimerRef.current);
-      noteSaveTimerRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
     if (!active) {
       return;
@@ -474,6 +434,33 @@ export function BinderReaderPage() {
 
     return binderQuery.data?.folders.some((folder) => folder.id === folderId) ? folderId : null;
   }, [binderQuery.data?.folderLinks, binderQuery.data?.folders]);
+  const currentNote = useMemo(() => {
+    if (!binderQuery.data || !profile || !selectedLesson) {
+      return null;
+    }
+
+    return (
+      binderQuery.data.notes.find(
+        (note) => note.lesson_id === selectedLesson.id && note.owner_id === profile.id,
+      ) ?? null
+    );
+  }, [binderQuery.data, profile, selectedLesson]);
+
+  const noteEditor = useLearnerNoteEditor({ ownerId, binderId, lessonId: selectedLesson?.id, lessonTitle: selectedLesson?.title ?? "Lesson", folderId: activeFolderId, note: currentNote, ready: Boolean(binderQuery.data && selectedLesson), write: noteMutation.mutateAsync });
+  const noteTitle = noteEditor.title;
+  const noteContent = noteEditor.content;
+  const noteMath = noteEditor.mathBlocks;
+  const setNoteTitle = noteEditor.setTitle;
+  const setNoteContent = noteEditor.setContent;
+  const setNoteMath = noteEditor.setMathBlocks;
+  const noteSaveError = noteEditor.error;
+  const noteLastSavedAt = noteEditor.savedAt;
+  const noteId = noteEditor.persisted ? noteEditor.snapshot.id : undefined;
+  const isNoteSaveActive = noteEditor.state === "saving";
+  const deferredNoteContent = useDeferredValue(noteContent);
+  const saveNoteNow = useCallback(() => { void noteEditor.save(); }, [noteEditor.save]);
+  const retryFailedNoteSave = saveNoteNow;
+
   const defaultHighlightColor: HighlightColor = active?.theme.defaultHighlightColor ?? "yellow";
   const commitWorkspacePreferences = useCallback(
     (next: WorkspacePreferences) => {
@@ -494,15 +481,10 @@ export function BinderReaderPage() {
   );
   const updateNoteMathDraft = useCallback(
     (updater: MathBlock[] | ((current: MathBlock[]) => MathBlock[])) => {
-      noteHasLocalEditsRef.current = true;
       setNoteMath(updater);
     },
-    [],
+    [setNoteMath],
   );
-
-  useEffect(() => {
-    noteMutationRef.current = noteMutation.mutateAsync;
-  }, [noteMutation.mutateAsync]);
 
   const mathWorkspace = useMathWorkspace(
     profile?.id,
@@ -1700,376 +1682,10 @@ export function BinderReaderPage() {
       .map(({ lesson }) => lesson);
   }, [deferredQuery, lessons, searchableLessons]);
 
-  const currentNote = useMemo(() => {
-    if (!binderQuery.data || !profile || !selectedLesson) {
-      return null;
-    }
-
-    return (
-      binderQuery.data.notes.find(
-        (note) => note.lesson_id === selectedLesson.id && note.owner_id === profile.id,
-      ) ?? null
-    );
-  }, [binderQuery.data, profile, selectedLesson]);
-
-  const queueCurrentDraftForSave = useCallback(() => {
-    if (!noteScopeHydratedRef.current) {
-      return false;
-    }
-
-    if (!noteHasLocalEditsRef.current) {
-      return false;
-    }
-
-    const currentDraft = latestVisibleNoteDraftRef.current;
-    if (!currentDraft) {
-      return false;
-    }
-
-    const currentSnapshot = serializeNoteSnapshot(
-      currentDraft.input.title,
-      currentDraft.input.content,
-      currentDraft.input.mathBlocks,
-    );
-    if (currentSnapshot === syncedSnapshotRef.current) {
-      return false;
-    }
-
-    pendingNoteSaveRef.current = currentDraft;
-    retryNoteSaveRef.current = null;
-    return true;
-  }, []);
-
   useEffect(() => {
-    noteScopeHydratedRef.current = false;
-    noteHasLocalEditsRef.current = false;
-    clearNoteSaveTimer();
-    const previousDraft = latestVisibleNoteDraftRef.current;
-    if (
-      previousDraft &&
-      previousDraft.scopeKey &&
-      previousDraft.scopeKey !== currentNoteScopeKey
-    ) {
-      const previousSnapshot = serializeNoteSnapshot(
-        previousDraft.input.title,
-        previousDraft.input.content,
-        previousDraft.input.mathBlocks,
-      );
-
-      if (previousSnapshot !== syncedSnapshotRef.current) {
-        pendingNoteSaveRef.current = previousDraft;
-        retryNoteSaveRef.current = null;
-      }
-    }
-
-    activeNoteScopeRef.current = currentNoteScopeKey;
-  }, [clearNoteSaveTimer, currentNoteScopeKey]);
-
-  const flushQueuedNoteSave = useCallback(async () => {
-    if (noteSaveActiveRef.current) {
-      return;
-    }
-
-    if (!isOnline) {
-      return;
-    }
-
-    const pendingDraft = pendingNoteSaveRef.current;
-    if (!pendingDraft) {
-      return;
-    }
-
-    pendingNoteSaveRef.current = null;
-    noteSaveActiveRef.current = true;
-    setIsNoteSaveActive(true);
-    setNoteSaveError(null);
-    submittedNoteSnapshotRef.current = {
-      scopeKey: pendingDraft.scopeKey,
-      snapshot: serializeNoteSnapshot(
-        pendingDraft.input.title,
-        pendingDraft.input.content,
-        pendingDraft.input.mathBlocks,
-      ),
-    };
-
-    try {
-      const savedNote = await noteMutationRef.current(pendingDraft.input);
-      retryNoteSaveRef.current = null;
-      if (pendingDraft.scopeKey === activeNoteScopeRef.current) {
-        const savedSnapshot = serializeNoteSnapshot(
-          savedNote.title,
-          savedNote.content,
-          savedNote.math_blocks,
-        );
-        setNoteId(savedNote.id);
-        setNoteLastSavedAt(savedNote.updated_at);
-        syncedSnapshotRef.current = savedSnapshot;
-        setNoteSaveError(null);
-        const visibleDraft = latestVisibleNoteDraftRef.current;
-        const visibleSnapshot =
-          visibleDraft && visibleDraft.scopeKey === pendingDraft.scopeKey
-            ? serializeNoteSnapshot(
-                visibleDraft.input.title,
-                visibleDraft.input.content,
-                visibleDraft.input.mathBlocks,
-              )
-            : savedSnapshot;
-        noteHasLocalEditsRef.current = visibleSnapshot !== savedSnapshot;
-      }
-    } catch (caught) {
-      retryNoteSaveRef.current = pendingDraft;
-      if (pendingDraft.scopeKey === activeNoteScopeRef.current) {
-        setNoteSaveError(getLearnerNoteSaveErrorMessage(caught));
-      }
-    } finally {
-      noteSaveActiveRef.current = false;
-      setIsNoteSaveActive(false);
-      if (pendingNoteSaveRef.current && isOnline) {
-        void flushQueuedNoteSave();
-      }
-    }
-  }, [isOnline]);
-
-  useEffect(() => {
-    if (!isOnline || !pendingNoteSaveRef.current || noteSaveActiveRef.current) {
-      return;
-    }
-
-    void flushQueuedNoteSave();
-  }, [currentNoteScopeKey, flushQueuedNoteSave, isOnline]);
-
-  const retryFailedNoteSave = useCallback(() => {
-    const retryDraft = retryNoteSaveRef.current ?? latestVisibleNoteDraftRef.current;
-    if (!retryDraft) {
-      return;
-    }
-
-    pendingNoteSaveRef.current = retryDraft;
-    void flushQueuedNoteSave();
-  }, [flushQueuedNoteSave]);
-
-  const saveNoteNow = useCallback(() => {
-    clearNoteSaveTimer();
-    const queued = queueCurrentDraftForSave();
-    if (queued) {
-      void flushQueuedNoteSave();
-    }
-  }, [clearNoteSaveTimer, flushQueuedNoteSave, queueCurrentDraftForSave]);
-
-  useEffect(() => {
-    if (!isOnline || noteSaveActiveRef.current) {
-      return;
-    }
-
-    if (!pendingNoteSaveRef.current && retryNoteSaveRef.current) {
-      pendingNoteSaveRef.current = retryNoteSaveRef.current;
-    }
-
-    if (pendingNoteSaveRef.current) {
-      void flushQueuedNoteSave();
-    }
-  }, [flushQueuedNoteSave, isOnline]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof document === "undefined") {
-      return;
-    }
-
-    const flushCurrentDraft = () => {
-      if (queueCurrentDraftForSave() && isOnline) {
-        void flushQueuedNoteSave();
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        flushCurrentDraft();
-      }
-    };
-
-    const handleBeforeSignOut = (event: Event) => {
-      if (!queueCurrentDraftForSave() || !isOnline) {
-        return;
-      }
-
-      const detail = (event as CustomEvent<{ promises?: Promise<unknown>[] }>).detail;
-      const promise = flushQueuedNoteSave();
-      if (detail?.promises) {
-        detail.promises.push(promise);
-      }
-    };
-
-    window.addEventListener("pagehide", flushCurrentDraft);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener(
-      NOTE_SAVE_BEFORE_SIGN_OUT_EVENT,
-      handleBeforeSignOut as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener("pagehide", flushCurrentDraft);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener(
-        NOTE_SAVE_BEFORE_SIGN_OUT_EVENT,
-        handleBeforeSignOut as EventListener,
-      );
-    };
-  }, [flushQueuedNoteSave, isOnline, queueCurrentDraftForSave]);
-
-  useEffect(() => {
-    if (!noteScopeHydratedRef.current || !ownerId || !binderId || !selectedLesson) {
-      latestVisibleNoteDraftRef.current = null;
-      return;
-    }
-
-    latestVisibleNoteDraftRef.current = {
-      input: {
-        id: noteId,
-        binderId,
-        lessonId: selectedLesson.id,
-        folderId: activeFolderId,
-        title: noteTitle.trim() || `${selectedLesson.title} notes`,
-        content: noteContent,
-        mathBlocks: noteMath,
-      },
-      scopeKey: currentNoteScopeKey,
-    };
-  }, [
-    activeFolderId,
-    binderId,
-    currentNoteScopeKey,
-    noteContent,
-    noteId,
-    noteMath,
-    noteTitle,
-    ownerId,
-    selectedLesson,
-  ]);
-
-  useEffect(() => {
-    if (!selectedLesson) {
-      return;
-    }
-
-    const nextTitle = currentNote?.title ?? `${selectedLesson.title} notes`;
-    const nextContent = currentNote?.content ?? emptyDoc();
-    const nextMath = currentNote?.math_blocks ?? [];
-    const nextSnapshot = serializeNoteSnapshot(nextTitle, nextContent, nextMath);
-    const currentDraft = latestVisibleNoteDraftRef.current;
-    const currentSnapshot = currentDraft
-      ? serializeNoteSnapshot(
-          currentDraft.input.title,
-          currentDraft.input.content,
-          currentDraft.input.mathBlocks,
-        )
-      : "";
-    const isOwnSubmittedSaveEcho =
-      submittedNoteSnapshotRef.current?.scopeKey === currentNoteScopeKey &&
-      submittedNoteSnapshotRef.current.snapshot === currentSnapshot;
-
-    if (
-      currentNoteScopeKey === activeNoteScopeRef.current &&
-      noteScopeHydratedRef.current &&
-      noteHasLocalEditsRef.current &&
-      currentDraft?.scopeKey === currentNoteScopeKey &&
-      currentSnapshot !== syncedSnapshotRef.current &&
-      nextSnapshot !== currentSnapshot &&
-      !isOwnSubmittedSaveEcho
-    ) {
-      setNoteSaveError(
-        "A newer saved version is available in another tab. Save this note to keep your current draft.",
-      );
-      return;
-    }
-
-    if (
-      currentNoteScopeKey === activeNoteScopeRef.current &&
-      currentDraft?.scopeKey === currentNoteScopeKey &&
-      currentNote?.id === currentDraft?.input.id &&
-      nextSnapshot === currentSnapshot
-    ) {
-      noteScopeHydratedRef.current = true;
-      syncedSnapshotRef.current = nextSnapshot;
-      return;
-    }
-
-    setNoteId(currentNote?.id);
-    setNoteTitle(nextTitle);
-    setNoteContent(nextContent);
-    setNoteMath(nextMath);
-    setDismissedMath([]);
-    setCommentAnchor(null);
-    setHiddenStickyIds([]);
-    setPendingExpression(null);
-    setPendingGraphLoad(null);
-    setNoteSaveError(null);
-    setNoteLastSavedAt(currentNote?.updated_at ?? null);
-    retryNoteSaveRef.current = null;
-    noteScopeHydratedRef.current = true;
-    noteHasLocalEditsRef.current = false;
-    syncedSnapshotRef.current = nextSnapshot;
-  }, [
-    currentNote,
-    currentNoteScopeKey,
-    selectedLesson,
-  ]);
-
-  useEffect(() => {
-    if (!noteScopeHydratedRef.current || !ownerId || !binderId || !selectedLesson) {
-      clearNoteSaveTimer();
-      return;
-    }
-
-    if (!noteHasLocalEditsRef.current) {
-      clearNoteSaveTimer();
-      return;
-    }
-
-    const title = noteTitle.trim() || `${selectedLesson.title} notes`;
-    const snapshot = serializeNoteSnapshot(title, noteContent, noteMath);
-    if (snapshot === syncedSnapshotRef.current) {
-      clearNoteSaveTimer();
-      setNoteSaveError(null);
-      retryNoteSaveRef.current = null;
-      noteHasLocalEditsRef.current = false;
-      return;
-    }
-
-    clearNoteSaveTimer();
-    noteSaveTimerRef.current = window.setTimeout(() => {
-      pendingNoteSaveRef.current = {
-        input: {
-          id: noteId,
-          binderId,
-          lessonId: selectedLesson.id,
-          folderId: activeFolderId,
-          title,
-          content: noteContent,
-          mathBlocks: noteMath,
-        },
-        scopeKey: currentNoteScopeKey,
-      };
-      retryNoteSaveRef.current = null;
-      noteSaveTimerRef.current = null;
-      if (isOnline) {
-        void flushQueuedNoteSave();
-      }
-    }, 700);
-
-    return clearNoteSaveTimer;
-  }, [
-    activeFolderId,
-    binderId,
-    clearNoteSaveTimer,
-    noteContent,
-    noteId,
-    noteMath,
-    noteTitle,
-    ownerId,
-    currentNoteScopeKey,
-    isOnline,
-    selectedLesson,
-  ]);
+    setDismissedMath([]); setCommentAnchor(null); setHiddenStickyIds([]);
+    setPendingExpression(null); setPendingGraphLoad(null);
+  }, [currentNoteScopeKey]);
 
   const mathSuggestions = useMemo(
     () =>
@@ -2210,11 +1826,7 @@ export function BinderReaderPage() {
       null,
     [binderNotebookSections, selectedLesson?.id],
   );
-  const autosaveSnapshot = useMemo(
-    () => serializeNoteSnapshot(noteTitle.trim() || `${selectedLessonTitle} notes`, noteContent, noteMath),
-    [noteContent, noteMath, noteTitle, selectedLessonTitle],
-  );
-  const hasUnsavedChanges = autosaveSnapshot !== syncedSnapshotRef.current;
+  const hasUnsavedChanges = noteEditor.dirty;
   const autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error" = isNoteSaveActive
     ? "saving"
     : !isOnline && hasUnsavedChanges
@@ -2224,12 +1836,12 @@ export function BinderReaderPage() {
         : hasUnsavedChanges
           ? "unsaved"
           : "saved";
-  const hasPersistedCurrentNote = Boolean(noteId || noteLastSavedAt);
+  const hasPersistedCurrentNote = noteEditor.persisted;
   const noteSaveLabel =
     autosaveStatus === "saving"
       ? "Saving..."
       : autosaveStatus === "offline"
-        ? "Offline - keep this tab open"
+        ? noteEditor.durable ? "Offline draft backed up" : "Offline - keep this tab open"
         : autosaveStatus === "error"
           ? "Save failed"
           : autosaveStatus === "unsaved"
@@ -2243,7 +1855,7 @@ export function BinderReaderPage() {
     autosaveStatus === "saving"
       ? "Saving this lesson note to your account now."
       : autosaveStatus === "offline"
-        ? "You're offline. Keep this tab open so this note can sync when the connection returns."
+        ? noteEditor.durable ? "Your draft is backed up on this device and will sync when the connection returns." : "Device backup failed. Copy this note and keep the tab open."
         : autosaveStatus === "error"
           ? noteSaveError ?? "Save failed. Retry to keep this lesson note."
           : autosaveStatus === "unsaved"
@@ -2673,15 +2285,12 @@ export function BinderReaderPage() {
     onSelectLesson: (lesson) => navigate(`/binders/${binderId}/documents/${lesson.id}`),
     onQueryChange: setQuery,
     onNoteTitleChange: (value) => {
-      noteHasLocalEditsRef.current = true;
       setNoteTitle(value);
     },
     onNoteContentChange: (value) => {
-      noteHasLocalEditsRef.current = true;
       setNoteContent(value);
     },
     onNoteMathChange: (value) => {
-      noteHasLocalEditsRef.current = true;
       setNoteMath(value);
     },
     onCommentDraftChange: setCommentDraft,
@@ -3050,6 +2659,28 @@ export function BinderReaderPage() {
       data-workspace-view={workspaceViewMode}
       ref={workspaceRootRef}
     >
+      {noteEditor.state === "conflict" ? (
+        <section className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-background p-4" role="alert">
+          <p>This lesson note changed in another tab. Your draft is preserved.</p>
+          <Button onClick={() => void noteEditor.preserveCopy()} size="sm">Save draft as a copy</Button>
+          <Button onClick={() => void noteEditor.useRemote()} size="sm" variant="outline">Load saved version</Button>
+        </section>
+      ) : null}
+      {noteEditor.backups.length > 0 ? (
+        <details className="rounded-xl border bg-background p-3">
+          <summary>Device note backups ({noteEditor.backups.length})</summary>
+          {noteEditor.backups.map((backup) => <Button key={backup.key} size="sm" variant="outline" onClick={() => void noteEditor.preserveBackup(backup.key)}>Save backup from {new Date(backup.recordedAt).toLocaleString()} as a copy</Button>)}
+        </details>
+      ) : null}
+      {!noteEditor.durable ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive p-3" role="alert">
+          <p>{noteEditor.error}</p>
+          <Button size="sm" variant="outline" onClick={() => {
+            const url = URL.createObjectURL(new Blob([JSON.stringify(noteEditor.snapshot, null, 2)], { type: "application/json" }));
+            const link = document.createElement("a"); link.href = url; link.download = "lesson-note-backup.json"; link.click(); URL.revokeObjectURL(url);
+          }}>Download note backup</Button>
+        </div>
+      ) : null}
       {!compactStudyChrome && !isFaceliftSimple && !isStudyPanelsMode ? (
         <Breadcrumbs
           items={[
@@ -3977,45 +3608,4 @@ function appearanceColorsChanged(
     previous.appearance.customPalette.accent !== next.appearance.customPalette.accent ||
     previous.appearance.customPalette.sourceTheme !== next.appearance.customPalette.sourceTheme
   );
-}
-
-function serializeNoteSnapshot(title: string, content: JSONContent, mathBlocks: MathBlock[]) {
-  return JSON.stringify({
-    title,
-    content,
-    mathBlocks,
-  });
-}
-
-function getLearnerNoteSaveErrorMessage(caught: unknown) {
-  const fallback = "Private notes could not be saved right now.";
-  const message = caught instanceof Error ? caught.message : fallback;
-
-  if (
-    message.includes("learner_notes_binder_id_fkey") ||
-    message.includes("learner_notes_lesson_id_fkey")
-  ) {
-    return "This lesson is not available in live storage yet. Refresh once and try again.";
-  }
-
-  if (message.toLowerCase().includes("row-level security")) {
-    return "Your session could not write this note. Sign in again and try once more.";
-  }
-
-  if (
-    message.toLowerCase().includes("refresh token") ||
-    message.toLowerCase().includes("jwt") ||
-    message.toLowerCase().includes("auth session missing")
-  ) {
-    return "Your session expired before this note could save. Sign in again and retry.";
-  }
-
-  if (
-    message.toLowerCase().includes("failed to fetch") ||
-    message.toLowerCase().includes("network")
-  ) {
-    return "Connection was interrupted while saving. Retry once you're back online.";
-  }
-
-  return message;
 }

@@ -41,4 +41,14 @@ describe("durable private note journal", () => {
     expect(() => createPersonalDraftJournal("A", "personal-note:note-1").write(value)).toThrow("Draft identity or revision mismatch");
     expect(localStorage.length).toBe(0);
   });
+  it("explicitly clears inherited recovery selection without deleting another writer's backup", () => {
+    const first = createPersonalDraftJournal("A", "personal-note:note-1");
+    first.write(draft("retained backup"));
+    const reloaded = createPersonalDraftJournal("A", "personal-note:note-1");
+    expect(reloaded.read()?.snapshot.title).toBe("retained backup");
+    reloaded.remove(); reloaded.clearSelection();
+    const afterRemoteChoice = createPersonalDraftJournal("A", "personal-note:note-1");
+    expect(afterRemoteChoice.read()).toBeNull();
+    expect(afterRemoteChoice.list().map((item) => item.draft.snapshot.title)).toEqual(["retained backup"]);
+  });
 });

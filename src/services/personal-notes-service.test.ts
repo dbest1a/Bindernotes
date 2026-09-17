@@ -5,6 +5,7 @@ const supabaseCalls = vi.hoisted(() => ({
   tables: [] as string[],
   inserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   upserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
+  rpc: vi.fn(async (_name: string, args: { p_record: Record<string, unknown>; p_expected_revision: number }) => ({ data: { ...args.p_record, revision: args.p_expected_revision + 1 }, error: null as { code: string; message: string } | null })),
 }));
 
 const binderServiceMocks = vi.hoisted(() => ({
@@ -35,6 +36,7 @@ const binderServiceMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
+    rpc: supabaseCalls.rpc,
     from: (table: string) => {
       supabaseCalls.tables.push(table);
       let payload: Record<string, unknown> = {};
@@ -74,6 +76,8 @@ import {
   createPersonalDocument,
   createPersonalNoteFolder,
   updateBinderLinkedPersonalNote,
+  updateLoosePersonalNote,
+  updatePersonalDocument,
 } from "@/services/personal-notes-service";
 
 const content: JSONContent = {
@@ -86,6 +90,7 @@ describe("Personal Notes service writes", () => {
     supabaseCalls.tables.length = 0;
     supabaseCalls.inserts.length = 0;
     supabaseCalls.upserts.length = 0;
+    supabaseCalls.rpc.mockClear();
     binderServiceMocks.getDashboard.mockClear();
     binderServiceMocks.upsertLearnerNote.mockClear();
   });
@@ -98,7 +103,7 @@ describe("Personal Notes service writes", () => {
       tags: ["review", "review"],
     });
 
-    expect(supabaseCalls.upserts[0]).toMatchObject({
+    expect(supabaseCalls.inserts[0]).toMatchObject({
       table: "personal_notes",
       payload: {
         owner_id: "user-1",
@@ -110,6 +115,8 @@ describe("Personal Notes service writes", () => {
         tags: ["review"],
       },
     });
+    expect(supabaseCalls.upserts).toEqual([]);
+    expect(supabaseCalls.inserts[0].payload).not.toHaveProperty("updated_at");
   });
 
   it("creates folders in personal_note_folders with owner-scoped rows", async () => {
@@ -146,7 +153,7 @@ describe("Personal Notes service writes", () => {
       content,
     });
 
-    expect(supabaseCalls.upserts[0]).toMatchObject({
+    expect(supabaseCalls.inserts[0]).toMatchObject({
       table: "personal_note_documents",
       payload: {
         owner_id: "user-1",
@@ -178,5 +185,15 @@ describe("Personal Notes service writes", () => {
       mathBlocks: [],
     });
     expect(supabaseCalls.tables).not.toContain("personal_notes");
+  });
+
+  it("requires captured revisions and uses atomic RPC for both legacy update wrappers", async () => {
+    const note = { id: "note-1", ownerId: "user-1", title: "Updated note", content };
+    await expect(updateLoosePersonalNote(note)).rejects.toThrow(/original saved revision/);
+    await updateLoosePersonalNote({ ...note, expectedRevision: 2, operationId: "same-operation" });
+    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith("save_personal_content", expect.objectContaining({ p_kind: "note", p_expected_revision: 2, p_operation_id: "same-operation" }));
+    await updatePersonalDocument({ ...note, binderId: "binder-1", expectedRevision: 4, operationId: "document-operation" });
+    expect(supabaseCalls.rpc).toHaveBeenLastCalledWith("save_personal_content", expect.objectContaining({ p_kind: "document", p_expected_revision: 4, p_operation_id: "document-operation" }));
+    expect(supabaseCalls.upserts).toEqual([]);
   });
 });

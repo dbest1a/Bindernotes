@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveQueue } from "@/lib/save-queue";
-import { createWhiteboardDraftCopy, getWhiteboardDraft, listWhiteboardBackups, mergeWhiteboardDrafts, restoreWhiteboardBackup } from "./whiteboard-drafts";
+import { clearWhiteboardRecoverySelection, createWhiteboardDraftCopy, getWhiteboardDraft, listWhiteboardBackups, mergeWhiteboardDrafts, restoreWhiteboardBackup } from "./whiteboard-drafts";
 import { saveWhiteboard } from "./whiteboard-storage";
 import type { BinderWhiteboard, WhiteboardSaveResult } from "./whiteboard-types";
 
@@ -116,5 +116,15 @@ describe("durable whiteboard drafts", () => {
     expect(listWhiteboardBackups(board()).map((item) => item.draft.snapshot.title)).toContain("first tab work");
     const recovered = restoreWhiteboardBackup(board(), inheritedKey);
     expect(recovered.getSnapshot().snapshot.title).toBe("first tab work");
+  });
+  it("does not automatically resurrect an inherited draft after an explicit remote choice", () => {
+    const first = getWhiteboardDraft(board()); first.edit((current) => ({ ...current, title: "old draft" }), false);
+    saveQueue.setAccount(null); saveQueue.setAccount("owner");
+    const recovered = getWhiteboardDraft(board());
+    recovered.useRemote({ ...board(), title: "remote chosen" }, 4);
+    clearWhiteboardRecoverySelection(board());
+    saveQueue.setAccount(null); saveQueue.setAccount("owner");
+    expect(getWhiteboardDraft({ ...board(), title: "remote chosen" }).getSnapshot()).toMatchObject({ dirty: false, snapshot: { title: "remote chosen" } });
+    expect(listWhiteboardBackups(board()).map((item) => item.draft.snapshot.title)).toContain("old draft");
   });
 });

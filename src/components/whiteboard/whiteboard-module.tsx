@@ -73,7 +73,7 @@ import {
   listWhiteboards,
   loadWhiteboard,
 } from "@/lib/whiteboards/whiteboard-storage";
-import { createWhiteboardDraftCopy, getWhiteboardDraft, listWhiteboardBackups, mergeWhiteboardDrafts, restoreWhiteboardBackup, whiteboardDraftSnapshot } from "@/lib/whiteboards/whiteboard-drafts";
+import { clearWhiteboardRecoverySelection, createWhiteboardDraftCopy, getWhiteboardDraft, listWhiteboardBackups, mergeWhiteboardDrafts, restoreWhiteboardBackup, whiteboardDraftSnapshot } from "@/lib/whiteboards/whiteboard-drafts";
 import { saveQueue } from "@/lib/save-queue";
 import { countWhiteboardObjects, validateWhiteboardForStorage } from "@/lib/whiteboards/whiteboard-serialization";
 import { hasPersistentWhiteboardSceneChange } from "@/lib/whiteboards/whiteboard-serialization";
@@ -1345,6 +1345,7 @@ function WhiteboardModuleContent({ context, onBack, renderModule, variant = "mod
       if (!mountedRef.current || boardRef.current?.id !== boardId) return;
       boardLifetimeRef.current.preserveOnRetire = false;
       draft.useRemote(remote, remote.revision ?? 0);
+      clearWhiteboardRecoverySelection(remote);
       setRecoveryKey((key) => key + 1);
       handleViewportChange(extractWhiteboardViewportTransform(remote.scene.appState));
     } catch (error) {

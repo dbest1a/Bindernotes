@@ -91,6 +91,8 @@ export function usePersonalNotesMutations(profile: Profile | null) {
         documentId?: string | null;
         tags?: string[];
         pinned?: boolean;
+        expectedRevision?: number;
+        operationId?: string;
       }) =>
         updateLoosePersonalNote({
           ...input,
@@ -107,6 +109,8 @@ export function usePersonalNotesMutations(profile: Profile | null) {
         mathBlocks?: MathBlock[];
         tags?: string[];
         pinned?: boolean;
+        expectedRevision?: number;
+        operationId?: string;
       }) =>
         updatePersonalDocument({
           ...input,
@@ -123,6 +127,9 @@ export function usePersonalNotesMutations(profile: Profile | null) {
         title: string;
         content: JSONContent;
         mathBlocks: MathBlock[];
+        pinned?: boolean;
+        expectedRevision?: number;
+        operationId?: string;
       }) =>
         updateBinderLinkedPersonalNote({
           ...input,

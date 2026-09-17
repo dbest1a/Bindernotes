@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
+import { ContentConflictError } from "@/lib/revisioned-save";
 import { supabase, supabaseProjectRef } from "@/lib/supabase";
 import {
   demoBinders,
@@ -1904,44 +1905,40 @@ export async function upsertLearnerNote(input: {
   title: string;
   content: JSONContent;
   mathBlocks: MathBlock[];
+  pinned?: boolean;
+  expectedRevision?: number;
+  operationId?: string;
 }): Promise<LearnerNote> {
   const normalizedTitle = input.title.trim() || "Private lesson notes";
   const client = getAccountDataSupabaseClient();
   await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
 
-  const persistWithFolderId = (folderId: string | null) =>
-    client
-      .from("learner_notes")
-      .upsert(
-        {
-          owner_id: input.ownerId,
-          binder_id: input.binderId,
-          lesson_id: input.lessonId,
-          folder_id: folderId,
-          title: normalizedTitle,
-          content: input.content,
-          math_blocks: input.mathBlocks,
-          pinned: false,
-          updated_at: now(),
-        },
-        { onConflict: "owner_id,lesson_id" },
-      )
-      .select("*")
-      .single();
-
-  let { data, error } = await persistWithFolderId(input.folderId ?? null);
-
-  if (error && input.folderId && isLearnerNoteFolderReferenceError(error)) {
-    const retry = await persistWithFolderId(null);
-    data = retry.data;
-    error = retry.error;
-  }
+  if (input.id && input.expectedRevision === undefined) throw new Error("The original saved revision is required before updating a lesson note.");
+  const id = input.id ?? crypto.randomUUID();
+  const revision = input.expectedRevision ?? 0;
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Invalid lesson note revision.");
+  const { data, error } = await client.rpc("save_personal_content", {
+    p_kind: "learner-note",
+    p_record: { id, owner_id: input.ownerId, binder_id: input.binderId, lesson_id: input.lessonId, folder_id: input.folderId ?? null, title: normalizedTitle, content: input.content, math_blocks: input.mathBlocks, pinned: input.pinned ?? false },
+    p_expected_revision: revision,
+    p_operation_id: input.operationId ?? crypto.randomUUID(),
+  });
 
   if (error) {
+    if (error.code === "40001" || error.code === "23505") throw new ContentConflictError();
     throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Private note");
     throw error;
   }
+  if (!data || data.id !== id || data.owner_id !== input.ownerId || !Number.isSafeInteger(data.revision) || data.revision <= revision) throw new Error("The server did not confirm this lesson note revision.");
+  return data as LearnerNote;
+}
 
+/** Explicit conflict resolution reads the lesson scope, including concurrent first-note creation. */
+export async function readLearnerNoteByScope(ownerId: string, binderId: string, lessonId: string): Promise<LearnerNote> {
+  const client = getAccountDataSupabaseClient();
+  await requireRemoteAccountDataStorage(binderId, "Private note", ownerId);
+  const { data, error } = await client.from("learner_notes").select("*").eq("owner_id", ownerId).eq("binder_id", binderId).eq("lesson_id", lessonId).single();
+  if (error || !data || data.owner_id !== ownerId || data.lesson_id !== lessonId || data.binder_id !== binderId) throw new Error("The saved lesson note could not be loaded. Your draft is still preserved.");
   return data as LearnerNote;
 }
 

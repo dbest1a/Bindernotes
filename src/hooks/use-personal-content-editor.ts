@@ -32,7 +32,7 @@ export function usePersonalContentEditor(entry: PersonalNotesEntry | null, owner
       const snapshot = personalContentFromEntry(entry, ownerId);
       let storage;
       try { storage = createPersonalDraftJournal(ownerId, identity); }
-      catch { storage = { list: () => [], read: () => { throw new Error("Device storage unavailable"); }, write: () => { throw new Error("Device storage unavailable"); }, remove: () => { throw new Error("Device storage unavailable"); } }; }
+      catch { storage = { clearSelection: () => {}, list: () => [], read: () => { throw new Error("Device storage unavailable"); }, write: () => { throw new Error("Device storage unavailable"); }, remove: () => { throw new Error("Device storage unavailable"); } }; }
       journals.set(key, storage);
       existing = new RevisionedSave({
         ownerId, entityKey: identity, snapshot, serverRevision: contentRevision(entry.note), storage,
@@ -63,7 +63,8 @@ export function usePersonalContentEditor(entry: PersonalNotesEntry | null, owner
     if (!editor) return;
     const remote = await readPersonalContent(editor.getSnapshot().snapshot);
     editor.useRemote(remote.snapshot, remote.revision);
-  }, [editor]);
+    journals.get(`${ownerId}:${identity}`)?.clearSelection();
+  }, [editor, identity, ownerId]);
   const preserveCopy = useCallback(async () => {
     if (!editor) return;
     const copy = await preservePersonalContentCopy(editor.getSnapshot().snapshot);

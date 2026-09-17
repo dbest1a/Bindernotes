@@ -63,6 +63,7 @@ const {
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: mockFrom,
+    rpc: mockLearnerNoteSingle,
   },
   isSupabaseConfigured: true,
   supabaseProjectRef: "test-project",
@@ -91,62 +92,22 @@ describe("binder-service learner note persistence", () => {
     mockLearnerNoteSingle.mockReset();
   });
 
-  it("retries without an optional folder id when a synthetic UI folder fails the foreign key", async () => {
-    mockLearnerNoteSingle
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          code: "23503",
-          message:
-            'insert or update on table "learner_notes" violates foreign key constraint "learner_notes_folder_id_fkey"',
-          details: 'Key is not present in table "folders".',
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          id: "note-1",
-          owner_id: "user-1",
-          binder_id: "custom-binder",
-          lesson_id: "lesson-1",
-          folder_id: null,
-          title: "Limits notes",
-          content: emptyDoc("saved"),
-          math_blocks: [],
-          pinned: false,
-          created_at: "2026-04-23T10:00:00.000Z",
-          updated_at: "2026-04-23T10:01:00.000Z",
-        },
-        error: null,
-      });
+  it("saves the captured original revision and stable operation identity through the atomic RPC", async () => {
+    mockLearnerNoteSingle.mockImplementationOnce(async (_name, args) => ({ data: { ...args.p_record, revision: 5 }, error: null }));
+    const saved = await upsertLearnerNote({ id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", folderId: "folder-math", title: "Limits notes", content: emptyDoc("saved"), mathBlocks: [], pinned: true, expectedRevision: 4, operationId: "stable-operation" });
+    expect(saved.id).toBe("note-1");
+    expect(mockLearnerNoteSingle).toHaveBeenCalledWith("save_personal_content", expect.objectContaining({ p_kind: "learner-note", p_expected_revision: 4, p_operation_id: "stable-operation", p_record: expect.objectContaining({ id: "note-1", pinned: true, folder_id: "folder-math" }) }));
+    expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
+  });
 
-    const saved = await upsertLearnerNote({
-      ownerId: "user-1",
-      binderId: "custom-binder",
-      lessonId: "lesson-1",
-      folderId: "folder-math",
-      title: "Limits notes",
-      content: emptyDoc("saved"),
-      mathBlocks: [],
-    });
-
-    expect(saved.folder_id).toBeNull();
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(2);
-    const upsertCalls = mockLearnerNoteUpsert.mock.calls as unknown[][];
-    const firstUpsertPayload = upsertCalls[0]?.[0] as Record<string, unknown>;
-    const secondUpsertPayload = upsertCalls[1]?.[0] as Record<string, unknown>;
-
-    expect(firstUpsertPayload).toMatchObject({
-      owner_id: "user-1",
-      binder_id: "custom-binder",
-      lesson_id: "lesson-1",
-      folder_id: "folder-math",
-    });
-    expect(secondUpsertPayload).toMatchObject({
-      owner_id: "user-1",
-      binder_id: "custom-binder",
-      lesson_id: "lesson-1",
-      folder_id: null,
-    });
+  it("requires an original revision for updates and surfaces stale or concurrent creation conflicts", async () => {
+    const input = { id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", title: "Draft", content: emptyDoc("draft"), mathBlocks: [] };
+    await expect(upsertLearnerNote(input)).rejects.toThrow(/original saved revision/);
+    expect(mockLearnerNoteSingle).not.toHaveBeenCalled();
+    for (const code of ["40001", "23505"]) {
+      mockLearnerNoteSingle.mockResolvedValueOnce({ data: null, error: { code, message: "Conflict" } });
+      await expect(upsertLearnerNote({ ...input, expectedRevision: 4, operationId: "same-operation" })).rejects.toThrow(/changed on another tab/);
+    }
   });
 
   it("does not hide required binder or lesson reference failures", async () => {
@@ -173,7 +134,8 @@ describe("binder-service learner note persistence", () => {
     ).rejects.toMatchObject({
       code: "23503",
     });
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteSingle).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
   });
 
   it("materializes the account-visible Chemistry course in Supabase before saving its private notes", async () => {
@@ -184,6 +146,7 @@ describe("binder-service learner note persistence", () => {
     mockLearnerNoteSingle.mockResolvedValueOnce({
       data: {
         id: "note-chem-1",
+        revision: 1,
         owner_id: "admin-1",
         binder_id: CHEMISTRY_SHOWCASE_BINDER_ID,
         lesson_id: chemistryLesson.id,
@@ -199,6 +162,8 @@ describe("binder-service learner note persistence", () => {
     });
 
     const saved = await upsertLearnerNote({
+      id: "note-chem-1",
+      expectedRevision: 0,
       ownerId: "admin-1",
       binderId: CHEMISTRY_SHOWCASE_BINDER_ID,
       lessonId: chemistryLesson.id,
@@ -212,7 +177,8 @@ describe("binder-service learner note persistence", () => {
     expect(mockBindersMaybeSingle).toHaveBeenCalledTimes(1);
     expect(mockBindersUpsert).toHaveBeenCalledTimes(1);
     expect(mockBinderLessonsUpsert).toHaveBeenCalledTimes(1);
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteSingle).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
 
     const binderPayload = mockBindersUpsert.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(binderPayload).toMatchObject({

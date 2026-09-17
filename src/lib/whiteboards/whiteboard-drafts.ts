@@ -140,6 +140,10 @@ export function restoreWhiteboardBackup(board: BinderWhiteboard, backupKey: stri
   return getWhiteboardDraft(board, backupKey);
 }
 
+export function clearWhiteboardRecoverySelection(board: BinderWhiteboard) {
+  sessionStorage.removeItem(`${prefix}selected:${identity(board)}:${contextId()}`);
+}
+
 export function createWhiteboardDraftCopy(board: BinderWhiteboard) {
   const now = new Date().toISOString();
   const copy = { ...structuredClone(board), id: crypto.randomUUID(), revision: 0, title: `${board.title} (draft copy)`, createdAt: now, updatedAt: now, archivedAt: null, storageMode: "local-draft" as const };

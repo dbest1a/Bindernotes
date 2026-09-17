@@ -47,6 +47,7 @@ export function createPersonalDraftJournal(ownerId: string, entityKey: string) {
       sessionStorage.setItem(pointer, key);
     },
     remove: () => localStorage.removeItem(key),
+    clearSelection: () => sessionStorage.removeItem(pointer),
     list,
   };
 }
