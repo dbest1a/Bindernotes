@@ -47,6 +47,12 @@ The environment bullets above record the preserved baseline and initial setup. T
 
 The register deliberately uses **IN PROGRESS** for local implementations awaiting acceptance/final-candidate checks, and **BLOCKED — EXTERNAL ACTION REQUIRED** where external setup, rights, hosted verification or actual usage evidence prevents completion. A passing focused test or an implemented disabled feature is not a release approval.
 
+## Publication checkpoint
+
+The application candidate `c1d69951878723c05bc2307a170c4ad8f1369ce5` is published in a Vercel preview and the changes are pushed in [draft PR #2](https://github.com/dbest1a/Bindernotes/pull/2). See [hosted preview verification](HOSTED_PREVIEW_VERIFICATION.md) for exact deployment metadata and limitations. The latest complete local suite passes 1,543 tests; native compiled API startup and sixteen disabled requests also pass. CI platform fixes preserve historical migrations and runtime policies. Production and authenticated hosted acceptance remain blocked.
+
+Latest inspected [GitHub run 35272366847](https://github.com/dbest1a/Bindernotes/actions/runs/35272366847), source `8b571f0a82a95a810930ef738fd4165ea1616e35`: quality **PASS**, including install, formatting, lint, types, native function startup, unit tests, build, asset budgets and audit. All four real Supabase jobs passed migrations and their SQL authorization/concurrency/storage/archive/search/account scenarios, then **FAILED** at the generated-types assertion (`supabase-check.mjs`, child exit 1). That assertion withheld the generator stderr, so the precise mismatch/process cause is not established. Authenticated browser CI was skipped. At the user's request to finish publishing immediately, no further CI iteration was started. This is an explicit remaining engineering blocker, not a passing full-platform gate.
+
 ## Task register
 
 ### BE01 — Replace Personal Notes autosave with revision-aware saves
