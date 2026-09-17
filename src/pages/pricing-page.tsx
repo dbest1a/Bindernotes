@@ -1,4 +1,4 @@
-import { CSSProperties, PointerEvent, useState } from "react";
+import { CSSProperties, PointerEvent, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/ui/logo-mark";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { openBillingPortal, startCheckout, type Plan } from "@/services/stripe-service";
 
 const pricingProof = [
   "View pricing before sign-in",
@@ -62,7 +63,7 @@ const planCards = [
       "3 Math Whiteboards",
       "Desmos PowerGraphs",
       "Graph states and formula study",
-      "No Admin Studio",
+      "Private study workspace",
     ],
   },
   {
@@ -76,10 +77,10 @@ const planCards = [
     href: "/auth",
     badge: "Best value",
     features: [
-      "Admin Studio",
+      "Creator workspace for your own content",
       "Publish your own notes",
       "Control your own files",
-      "Upload and annotate PDFs",
+      "Manage your published materials",
       "20 Math Whiteboards",
     ],
   },
@@ -89,16 +90,15 @@ const planCards = [
     name: "Everything",
     price: "$35",
     cadence: "per month",
-    summary: "For the full BinderNotes setup: studying, publishing, files, whiteboards, and premium controls.",
+    summary: "Support continued development with all current Studio features.",
     cta: "Get Everything",
     href: "/auth",
     badge: "All access",
     features: [
       "Everything in Studio",
-      "Full Admin Studio controls",
-      "Expanded whiteboard capacity",
-      "All Desmos, PDF, and publishing tools",
-      "Premium workspace customization",
+      "20 Math Whiteboards",
+      "Publish and manage your own content",
+      "Same current product limits as Studio",
     ],
   },
 ];
@@ -107,11 +107,10 @@ const comparisonRows = [
   ["Source lessons + private notes", "Included", "Included", "Included", "Included"],
   ["Highlights, comments, and quote capture", "Included", "Included", "Included", "Included"],
   ["Binders", "Starter access", "Unlimited", "Unlimited", "Unlimited"],
-  ["Math Whiteboards", "Starter access", "3 boards", "20 boards", "Expanded capacity"],
+  ["Math Whiteboards", "3 boards", "3 boards", "20 boards", "20 boards"],
   ["Desmos PowerGraphs", "Basic graphing", "Included", "Included", "Included"],
-  ["Admin Studio", "Not included", "Not included", "Included", "Full controls"],
+  ["Create and publish your own materials", "Not included", "Not included", "Included", "Included"],
   ["Publish your own notes", "Not included", "Not included", "Included", "Included"],
-  ["Upload and annotate PDFs", "Not included", "Not included", "Included", "Included"],
 ];
 
 function renderComparisonValue(value: string) {
@@ -167,8 +166,8 @@ const faqs = [
     answer: "Start with Free if you are exploring. Plus is the clean upgrade for students who want unlimited binders, 3 whiteboards, and stronger graphing.",
   },
   {
-    question: "Which plan includes Admin Studio?",
-    answer: "Studio includes Admin Studio at $20/month. Everything includes the full admin, publishing, PDF, graph, and workspace feature set.",
+    question: "Which plan includes publishing?",
+    answer: "Studio and Everything include publishing for your own materials and 20 whiteboards. Operator administration is reserved for the BinderNotes team. Everything has the same current product limits as Studio.",
   },
   {
     question: "Is Desmos included?",
@@ -196,6 +195,31 @@ export function PricingBetaPage() {
 }
 
 function ClassicPricingPage() {
+  const { profile } = useAuth();
+  const account = useRef(profile?.id);
+  account.current = profile?.id;
+  const requestIds = useRef(new Map<string, string>());
+  const [billingMessage, setBillingMessage] = useState("");
+  const [billingPending, setBillingPending] = useState(false);
+  const beginBilling = async (plan?: Plan["id"]) => {
+    const owner = profile?.id;
+    setBillingPending(true);
+    setBillingMessage("");
+    try {
+      if (plan) {
+        const key = `${owner}:${plan}`;
+        const requestId = requestIds.current.get(key) ?? crypto.randomUUID();
+        requestIds.current.set(key, requestId);
+        const result = await startCheckout(plan, requestId);
+        if (account.current === owner && result.kind === "checkout") window.location.assign(result.url);
+      } else {
+        const url = await openBillingPortal();
+        if (account.current === owner) window.location.assign(url);
+      }
+    } catch (error) {
+      if (account.current === owner) setBillingMessage(error instanceof Error ? error.message : "Billing is temporarily unavailable. Please retry.");
+    } finally { if (account.current === owner) setBillingPending(false); }
+  };
   const [heroPointer, setHeroPointer] = useState({
     x: "0px",
     y: "0px",
@@ -292,10 +316,12 @@ function ClassicPricingPage() {
                 <span>{plan.price}</span>
                 <small>{plan.cadence}</small>
               </div>
-              <Link className="pricing-plan-card__cta" to={plan.href}>
-                {plan.cta}
-                <ArrowRight data-icon="inline-end" />
-              </Link>
+              {profile && plan.id !== "free" ? (
+                <button className="pricing-plan-card__cta" disabled={billingPending} onClick={() => {
+                  const selected = plan.id;
+                  if (selected === "plus" || selected === "studio" || selected === "everything") void beginBilling(selected);
+                }} type="button">{billingPending ? "Opening billing…" : plan.cta}<ArrowRight data-icon="inline-end" /></button>
+              ) : <Link className="pricing-plan-card__cta" to={plan.href}>{plan.cta}<ArrowRight data-icon="inline-end" /></Link>}
               <div className="pricing-plan-card__features">
                 {plan.features.map((feature) => (
                   <span key={feature}>
@@ -309,6 +335,9 @@ function ClassicPricingPage() {
         </div>
       </section>
 
+      {profile && <Button disabled={billingPending} onClick={() => void beginBilling()} type="button" variant="outline">Manage billing</Button>}
+      {billingMessage && <p role="alert">{billingMessage}</p>}
+      <p>Paid checkout is available only after billing activation. Your plan changes after payment is confirmed. A canceled checkout leaves your current plan unchanged.</p>
       <section className="pricing-story pricing-section">
         <div className="pricing-story__visual">
           <div className="pricing-story__track" aria-hidden="true">

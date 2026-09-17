@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
 import { PricingBetaPage, PricingPage } from "@/pages/pricing-page";
 
 const pricingProfileId = "pricing-user";
+const checkout = vi.hoisted(() => vi.fn());
+vi.mock("@/services/stripe-service", () => ({ startCheckout: checkout, openBillingPortal: vi.fn() }));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -27,6 +29,7 @@ function setCalmStudyHomepageBeta(enabled: boolean) {
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  vi.clearAllMocks();
 });
 
 describe("PricingPage", () => {
@@ -55,8 +58,9 @@ describe("PricingPage", () => {
 
     expect(screen.getAllByLabelText("Included").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Not included").length).toBeGreaterThan(0);
-    expect(screen.getByText("3 boards")).toBeTruthy();
-    expect(screen.getByText("Full controls")).toBeTruthy();
+    expect(screen.getAllByText("3 boards")).toHaveLength(2);
+    expect(screen.getAllByText("20 boards")).toHaveLength(2);
+    expect(screen.queryByText(/Full controls|Full Admin Studio controls|Expanded capacity/)).toBeNull();
   });
 
   it("answers pricing questions interactively", () => {
@@ -70,6 +74,18 @@ describe("PricingPage", () => {
 
     expect(screen.getByText("Yes. BinderNotes includes Desmos-powered graphing inside the math study flow.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Is Desmos included?" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("reports disabled billing honestly and reuses the checkout request on retry", async () => {
+    checkout.mockRejectedValue(new Error("Paid plans are not available yet."));
+    render(<MemoryRouter><PricingPage /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Start Studio" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Paid plans are not available yet."));
+    const first = checkout.mock.calls[0];
+    expect(first[0]).toBe("studio");
+    fireEvent.click(screen.getByRole("button", { name: "Start Studio" }));
+    await waitFor(() => expect(checkout).toHaveBeenCalledTimes(2));
+    expect(checkout.mock.calls[1]).toEqual(first);
   });
 
   it("keeps the standard four-plan pricing on /pricing even when the homepage beta flag is on", () => {

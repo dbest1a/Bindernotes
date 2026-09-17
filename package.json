@@ -9,7 +9,7 @@
     "build": "node scripts/build-client.mjs",
     "preview": "vite preview --config vite.config.ts --configLoader runner --host 127.0.0.1",
     "test": "vitest --run --config vite.config.ts --configLoader runner",
-    "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false",
+    "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false && tsc --noEmit -p tsconfig.server.json --pretty false",
     "scan:build": "node scripts/scan-build-assets.mjs",
     "seed:system": "tsx scripts/seed-system.ts",
     "repair:system": "tsx scripts/repair-system-content.ts",
@@ -29,12 +29,14 @@
     "@excalidraw/excalidraw": "^0.18.1",
     "@supabase/supabase-js": "^2.103.3",
     "@tanstack/react-query": "^5.99.2",
-    "@tiptap/extension-highlight": "^3.22.4",
-    "@tiptap/extension-placeholder": "^3.22.4",
-    "@tiptap/extension-typography": "^3.22.4",
-    "@tiptap/extension-underline": "^3.22.4",
-    "@tiptap/react": "^3.22.4",
-    "@tiptap/starter-kit": "^3.22.4",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-highlight": "^3.31.3",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/extension-typography": "^3.31.3",
+    "@tiptap/extension-underline": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "katex": "^0.16.45",
@@ -43,6 +45,7 @@
     "react-dom": "^19.1.1",
     "react-resizable-panels": "^4.10.0",
     "react-router-dom": "^7.14.1",
+    "stripe": "22.6.2",
     "tailwind-merge": "^3.5.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.9",
@@ -65,10 +68,10 @@
     "lodash-es": "4.18.1",
     "uuid": "14.0.0",
     "@excalidraw/excalidraw": {
-      "nanoid": "3.3.11"
+      "nanoid": "3.3.19"
     },
     "@excalidraw/mermaid-to-excalidraw": {
-      "nanoid": "5.1.6"
+      "nanoid": "5.1.16"
     }
   }
 }
