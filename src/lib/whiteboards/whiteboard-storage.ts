@@ -1,3 +1,4 @@
+import { databaseJson } from "@/lib/database-client";
 import { MAX_WHITEBOARDS_PER_USER } from "@/lib/whiteboards/whiteboard-limits";
 import { supabase } from "@/lib/supabase";
 import {
@@ -53,7 +54,7 @@ export async function restoreWhiteboardVersion(board: BinderWhiteboard, versionI
     if (error.code === "40001") throw new Error("This board changed. Load the saved version before restoring history.");
     throw error;
   }
-  if (!data || typeof data !== "object" || data.owner_id !== board.ownerId || data.id !== board.id) throw new Error("The restore response did not match this board.");
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.owner_id !== board.ownerId || data.id !== board.id) throw new Error("The restore response did not match this board.");
   return mapWhiteboardRecord(data as Record<string, unknown>);
 }
 
@@ -215,7 +216,7 @@ async function loadSupabaseWhiteboard(scope: WhiteboardScope, boardId: string): 
 async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: boolean, operationId: string = crypto.randomUUID(), expectedRevision = board.revision ?? 0) {
   if (!supabase) throw new Error("Supabase is not configured for whiteboard sync.");
   const { data, error } = await supabase.rpc("save_whiteboard_snapshot", {
-    p_board: buildWhiteboardRecord(board),
+    p_board: databaseJson(buildWhiteboardRecord(board)),
     p_expected_revision: expectedRevision,
     p_create_version: createVersion,
     p_operation_id: operationId,

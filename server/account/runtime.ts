@@ -1,3 +1,4 @@
+import type { Database } from "../../src/lib/database.generated";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { createAccountHandlers, type AccountBilling, type AccountStore } from "./handlers";
@@ -5,7 +6,7 @@ export function accountRuntime() {
  if (process.env.ACCOUNT_DELETION_ENABLED !== "true" || !process.env.APP_ORIGIN || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Account lifecycle unavailable");
  const origin = new URL(process.env.APP_ORIGIN);
  if (origin.origin !== process.env.APP_ORIGIN || (origin.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(origin.hostname))) throw new Error("Invalid app origin");
- const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+ const client = createClient<Database>(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
  const store: AccountStore = {
   async authenticate(token) {
    const { data, error } = await client.auth.getUser(token); if (error || !data.user) throw new Error("Invalid session");

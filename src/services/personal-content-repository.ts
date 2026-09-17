@@ -1,3 +1,4 @@
+import { databaseJson } from "@/lib/database-client";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { saveQueue } from "@/lib/save-queue";
@@ -13,13 +14,13 @@ export async function savePersonalContent(operation: SaveOperation<PersonalConte
   const snapshot = personalContentSchema.parse(operation.snapshot);
   const { data, error } = await clientFor(snapshot.ownerId).rpc("save_personal_content", {
     p_kind: snapshot.kind,
-    p_record: {
+    p_record: databaseJson({
       id: snapshot.id, owner_id: snapshot.ownerId, title: snapshot.title.trim() || "Untitled note",
       content: snapshot.content, math_blocks: snapshot.mathBlocks, pinned: snapshot.pinned, binder_id: snapshot.binderId,
       ...(snapshot.kind === "document" ? { tags: snapshot.tags } : { folder_id: snapshot.folderId }),
       ...(snapshot.kind === "note" ? { tags: snapshot.tags, document_id: snapshot.documentId } : {}),
       ...(snapshot.kind === "learner-note" ? { lesson_id: snapshot.lessonId } : {}),
-    },
+    }),
     p_expected_revision: operation.expectedRevision, p_operation_id: operation.operationId,
   });
   if (error) {

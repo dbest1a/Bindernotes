@@ -1,3 +1,4 @@
+import { databaseJson } from "@/lib/database-client";
 import { supabase } from "@/lib/supabase";
 import {
   buildSystemFolderFromSuite,
@@ -547,7 +548,7 @@ export async function upsertEvidenceCard(
 
   const { data, error } = await supabase
     .from("history_evidence_cards")
-    .upsert(next, { onConflict: "id" })
+    .upsert({ ...next, source_snapshot_json: databaseJson(next.source_snapshot_json) }, { onConflict: "id" })
     .select("*")
     .single();
 

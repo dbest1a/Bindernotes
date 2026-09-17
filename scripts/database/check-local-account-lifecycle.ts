@@ -33,6 +33,9 @@ try{
  const payload={p_kind:"note",p_record:note,p_expected_revision:0,p_operation_id:operation};const saved=await first.rpc("save_personal_content",payload);assert.ifError(saved.error);
  const revoked=await first.auth.signOut({scope:"global"});assert.ifError(revoked.error);
  const headers={apikey:manifest.anonKey,authorization:`Bearer ${login2.data.session.access_token}`,"content-type":"application/json"};
+ const revokedUser=await admin.auth.getUser(login2.data.session.access_token);assert(revokedUser.error,'GoTrue must reject revoked session even if access JWT is unexpired');
+ process.env.ACCOUNT_DELETION_ENABLED="true";process.env.APP_ORIGIN="http://localhost:5173";process.env.SUPABASE_URL=manifest.apiUrl;process.env.SUPABASE_SERVICE_ROLE_KEY=manifest.serviceRoleKey;
+ const deniedDeletion=await accountRuntime().delete(new Request("http://localhost:5173/api/account/delete",{method:"POST",headers:{origin:"http://localhost:5173",authorization:`Bearer ${login2.data.session.access_token}`,"content-type":"application/json"},body:JSON.stringify({confirmation:"DELETE",operationId:randomUUID()})}));assert.equal(deniedDeletion.status,401);assert.equal(sql(`select count(*) from auth.users where id='${owner}';`),"1");
  const oldRead=await fetch(`${manifest.apiUrl}/rest/v1/personal_notes?id=eq.${note.id}`,{headers});assert.equal(oldRead.status,200);assert.deepEqual(await oldRead.json(),[]);
  const oldWrite=await fetch(`${manifest.apiUrl}/rest/v1/rpc/save_personal_content`,{method:"POST",headers,body:JSON.stringify(payload)});assert.equal(oldWrite.status,403);assert.match((await oldWrite.json()).message,/ACCOUNT_SESSION_REVOKED/);
  const refresh=await client().auth.refreshSession({refresh_token:login2.data.session.refresh_token});assert(refresh.error);

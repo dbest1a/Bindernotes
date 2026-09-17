@@ -110,6 +110,8 @@ try {
   const firstSeed = sql(seedSql); const secondSeed = sql(seedSql);
   assert.deepEqual(JSON.parse(secondSeed),JSON.parse(firstSeed));
   console.log('PASS: complete actual repository system+math seed payload, twice, through trusted transaction');
+  const typeCheck=spawnSync(process.execPath,[path.join(projectRoot,'scripts/database/generate-types.mjs'),`--database=${db}`,'--check'],{env:process.env,encoding:'utf8',windowsHide:true,maxBuffer:1024*1024});
+  assert.equal(typeCheck.status,0,typeCheck.stderr || typeCheck.stdout); console.log(typeCheck.stdout.trim());
   console.log('PASS: disposable PostgreSQL authorization and concurrency cases');
 } finally {
   if (created) sql(`drop database "${db}" with (force);`, 'postgres');

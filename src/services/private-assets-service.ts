@@ -29,7 +29,7 @@ export async function uploadPrivateAsset(ownerId: string, file: File, options: {
     journal = raw ? JSON.parse(raw) : { id: options.assetId ?? crypto.randomUUID() };
     if (!journal || !/^[0-9a-f-]{36}$/i.test(journal.id) || (options.assetId && journal.id !== options.assetId)) throw new Error();
   } catch { throw new Error("This upload's resume information could not be read. Remove the pending file from Files before retrying."); }
-  const { data, error } = await client().rpc("reserve_user_asset", { p_id: journal.id, p_name: file.name, p_mime_type: mimeType, p_size_bytes: file.size, p_sha256: sha256, p_import_batch_id: options.batchId ?? null });
+  const { data, error } = await client().rpc("reserve_user_asset", { p_id: journal.id, p_name: file.name, p_mime_type: mimeType, p_size_bytes: file.size, p_sha256: sha256, p_import_batch_id: options.batchId });
   if (error) throw error;
   const asset = privateAssetSchema.parse(data);
   if (asset.owner_id !== ownerId || asset.id !== journal.id) throw new Error("Upload reservation belongs to another account.");

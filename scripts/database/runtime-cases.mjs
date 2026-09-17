@@ -65,6 +65,19 @@ export async function run({ sql, concurrentSql }) {
     denied(users.creator,"insert into public.math_courses(id,slug,title) values('forged-course','forged','Forged');");
     as(users.creator,"delete from public.binder_lessons where id='creator-lesson'; delete from public.binders where id='creator-binder';");
   });
+  check('History source evidence fields survive an owned edit', () => {
+    as(users.a,`insert into public.history_sources(id,owner_id,binder_id,title,source_type,author,date_label,quote_text,claim_supports,claim_challenges) values('30000000-0000-4000-8000-000000000036','${users.a}','catalog','Source','primary','Author','1900','Exact quote','Claim supported','Claim challenged');`);
+    assert.equal(as(users.a,"select quote_text||':'||claim_supports||':'||claim_challenges from public.history_sources where id='30000000-0000-4000-8000-000000000036';"),'Exact quote:Claim supported:Claim challenged');
+    assert.equal(as(users.b,"select count(*) from public.history_sources where id='30000000-0000-4000-8000-000000000036';"),'0');
+  });
+  as(users.creator,`insert into public.binders(id,owner_id,title,slug,status) values('creator-race','${users.creator}','Own published course','creator-race','published');insert into public.binder_lessons(id,binder_id,title) values('creator-race-lesson','creator-race','Before');`);
+  const creatorVersion=as(users.creator,"select updated_at from public.binder_lessons where id='creator-race-lesson';");
+  const creatorWrites=await Promise.all([0,1].map(index=>concurrentSql(roleSql('authenticated',users.creator,`with changed as(update public.binder_lessons set title='Creator edit${index}',updated_at=now()+interval '1 second' where id='creator-race-lesson' and updated_at='${creatorVersion}'::timestamptz returning id)select count(*) from changed;`))));
+  assert.equal(creatorWrites.filter(result=>result.status===0&&result.stdout.trim()==='1').length,1);
+  as(users.creator,"update public.binders set status='archived' where id='creator-race';");
+  assert.equal(as(users.creator,"select status from public.binders where id='creator-race';"),'archived');
+  assert.equal(as(users.a,"with changed as(update public.binder_lessons set title='Foreign' where id='creator-race-lesson' returning id)select count(*) from changed;"),'0');
+  console.log('PASS paid creator publishes/archives own binder and competing lesson edits have one conditional winner');
   check('private chemistry CRUD is account-owned', () => {
     const id=randomUUID();
     as(users.a,`insert into public.user_lab_runs(id,user_id,checkpoint) values('${id}','${users.a}','{"step":1}');`);

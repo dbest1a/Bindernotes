@@ -1,3 +1,4 @@
+import { databaseJson } from "@/lib/database-client";
 import { supabase } from "@/lib/supabase";
 
 export type ActivityItemType =
@@ -33,13 +34,6 @@ export type WorkspaceActivityEventInput = {
 export type ActivityWriteResult = {
   ok: boolean;
   error?: string;
-};
-
-type SupabaseRpcClient = {
-  rpc?: (
-    name: string,
-    params: Record<string, unknown>,
-  ) => Promise<{ data?: unknown; error?: { code?: string; message?: string } | null }>;
 };
 
 const RECENT_ITEM_DEBOUNCE_MS = 600;
@@ -123,7 +117,7 @@ function buildRecentItemPayload(input: RecentItemInput) {
     title_snapshot: input.titleSnapshot ? compactText(input.titleSnapshot, 180) : null,
     last_opened_at: new Date().toISOString(),
     open_count: 1,
-    metadata: sanitizeActivityMetadata(input.metadata),
+    metadata: databaseJson(sanitizeActivityMetadata(input.metadata)),
   };
 }
 
@@ -136,7 +130,7 @@ function buildRecentItemRpcParams(input: RecentItemInput) {
     p_folder_id: input.folderId ?? null,
     p_lesson_id: input.lessonId ?? null,
     p_title_snapshot: input.titleSnapshot ? compactText(input.titleSnapshot, 180) : null,
-    p_metadata: sanitizeActivityMetadata(input.metadata),
+    p_metadata: databaseJson(sanitizeActivityMetadata(input.metadata)),
   };
 }
 
@@ -145,7 +139,7 @@ export async function upsertUserRecentItem(input: RecentItemInput): Promise<Acti
     return { ok: false, error: "Supabase activity storage is not configured." };
   }
 
-  const rpc = (supabase as unknown as SupabaseRpcClient).rpc;
+  const rpc = supabase.rpc?.bind(supabase);
   if (rpc) {
     const { error } = await rpc("record_user_recent_item", buildRecentItemRpcParams(input));
     if (!error) {
@@ -176,7 +170,7 @@ export async function insertWorkspaceActivityEvent(
     lesson_id: input.lessonId ?? null,
     module_id: input.moduleId,
     event_type: input.eventType,
-    metadata: sanitizeActivityMetadata(input.metadata),
+    metadata: databaseJson(sanitizeActivityMetadata(input.metadata)),
   });
 
   return error ? { ok: false, error: getErrorMessage(error) } : { ok: true };

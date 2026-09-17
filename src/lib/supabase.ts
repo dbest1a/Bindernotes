@@ -1,3 +1,4 @@
+import type { Database } from "@/lib/database.generated";
 import { createClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabaseConfig } from "@/lib/supabase-config";
 
@@ -16,7 +17,7 @@ export const supabaseProjectRef = supabaseUrl
 export { isSupabaseConfigured } from "@/lib/supabase-config";
 
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+  ? createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
