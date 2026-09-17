@@ -9,6 +9,7 @@ type WhiteboardRecord = Record<string, unknown>;
 const mockDb = vi.hoisted(() => ({
   whiteboards: [] as WhiteboardRecord[],
   versions: [] as WhiteboardRecord[],
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
 }));
 
 function matchesFilter(row: WhiteboardRecord, filter: { column: string; value: unknown; type: "eq" | "is" }) {
@@ -116,6 +117,22 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (table: "whiteboards" | "whiteboard_versions") => createQuery(table),
+    rpc: async (name: string, args: { p_board: WhiteboardRecord; p_expected_revision: number; p_create_version: boolean; p_operation_id: string }) => {
+      mockDb.rpcCalls.push({ name, args });
+      const index = mockDb.whiteboards.findIndex((row) => row.id === args.p_board.id);
+      const previous = index >= 0 ? mockDb.whiteboards[index] : null;
+      if (Number(previous?.revision ?? 0) !== args.p_expected_revision) {
+        return { data: null, error: { code: "40001", message: "CONTENT_REVISION_CONFLICT" } };
+      }
+      if (!previous && mockDb.whiteboards.filter((row) => row.owner_id === args.p_board.owner_id && !row.archived_at).length >= MAX_WHITEBOARDS_PER_USER) {
+        return { data: null, error: { code: "23514", message: "WHITEBOARD_LIMIT_REACHED" } };
+      }
+      const row: WhiteboardRecord = { ...previous, ...args.p_board, revision: args.p_expected_revision + 1, created_at: previous?.created_at ?? "2026-04-26T12:00:00.000Z", updated_at: "2026-04-26T12:00:00.000Z" };
+      if (index >= 0) mockDb.whiteboards[index] = row;
+      else mockDb.whiteboards.unshift(row);
+      if (args.p_create_version) mockDb.versions.push({ whiteboard_id: row.id, owner_id: args.p_board.owner_id });
+      return { data: row, error: null };
+    },
   },
   isSupabaseConfigured: true,
   supabaseProjectRef: "test-project",
@@ -186,6 +203,7 @@ describe("whiteboard Supabase storage", () => {
   afterEach(() => {
     mockDb.whiteboards = [];
     mockDb.versions = [];
+    mockDb.rpcCalls = [];
     window.localStorage.clear();
   });
 
@@ -227,6 +245,17 @@ describe("whiteboard Supabase storage", () => {
       ]),
     );
     expect(mockDb.versions[0]).toMatchObject({ owner_id: scope.ownerId, whiteboard_id: "board-1" });
+    expect(mockDb.rpcCalls).toHaveLength(1);
+    expect(mockDb.rpcCalls[0]).toMatchObject({ name: "save_whiteboard_snapshot", args: { p_expected_revision: 0, p_create_version: true } });
+  });
+
+  it("preserves a stale draft and reports an explicit revision conflict", async () => {
+    const first = await saveWhiteboard(board(), { backend: "supabase" });
+    await saveWhiteboard({ ...first.board, title: "Changed on device B" }, { backend: "supabase" });
+    const stale = await saveWhiteboard({ ...first.board, title: "My pending local changes" }, { backend: "supabase" });
+    expect(stale.status).toBe("conflict");
+    expect(stale.board.title).toBe("My pending local changes");
+    expect(mockDb.whiteboards[0].title).toBe("Changed on device B");
   });
 
   it("returns active boards by owner and does not list or load another user's board", async () => {

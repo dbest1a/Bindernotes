@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SYSTEM_BINDER_IDS, SYSTEM_SEED_VERSION, SYSTEM_SUITE_IDS } from "@/lib/history-suite-seeds";
 import {
   buildSystemSeedPayload,
   seedSystemSuitesWithClient,
+  seedSystemSuites,
 } from "@/services/system-seed-service";
 import type { Profile } from "@/types";
-import type { SupabaseClient } from "@supabase/supabase-js";
+
 
 const adminProfile: Profile = {
   id: "admin-user",
@@ -79,47 +80,28 @@ describe("system seed payload", () => {
     expect(payload.historyMythCheckTemplates.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("uses idempotent upserts so running the seed twice does not duplicate rows", async () => {
+  it("submits every system table in one transactional RPC", async () => {
     const payload = buildSystemSeedPayload(adminProfile);
-    const client = new FakeSeedClient();
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    await seedSystemSuitesWithClient({ rpc }, payload);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("apply_catalog_seed", {
+      p_payload: expect.objectContaining({
+        suite_templates: payload.suites,
+        binder_lessons: payload.lessons,
+        seed_versions: payload.seedVersions,
+      }),
+    });
+  });
 
-    await seedSystemSuitesWithClient(client as unknown as SupabaseClient, payload);
-    await seedSystemSuitesWithClient(client as unknown as SupabaseClient, payload);
+  it("surfaces transactional failure without continuing individual writes", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: { message: "permission denied" } });
+    await expect(seedSystemSuitesWithClient({ rpc }, buildSystemSeedPayload(adminProfile)))
+      .rejects.toThrow("Transactional system seed failed: permission denied");
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
 
-    expect(client.count("suite_templates")).toBe(payload.suites.length);
-    expect(client.count("folders")).toBe(payload.folders.length);
-    expect(client.count("folder_binders")).toBe(payload.folderBinders.length);
-    expect(client.count("binders")).toBe(payload.binders.length);
-    expect(client.count("binder_lessons")).toBe(payload.lessons.length);
-    expect(client.count("workspace_presets")).toBe(payload.workspacePresets.length);
-    expect(client.count("seed_versions")).toBe(payload.seedVersions.length);
+  it("rejects browser seeding even for operator profiles", async () => {
+    await expect(seedSystemSuites(adminProfile)).rejects.toThrow("trusted server CLI");
   });
 });
-
-class FakeSeedClient {
-  private readonly tables = new Map<string, Map<string, Record<string, unknown>>>();
-
-  from(table: string) {
-    return {
-      upsert: async (rows: Record<string, unknown>[], options?: { onConflict?: string }) => {
-        const onConflict = (options?.onConflict ?? "id")
-          .split(",")
-          .map((part) => part.trim())
-          .filter(Boolean);
-        const tableStore = this.tables.get(table) ?? new Map<string, Record<string, unknown>>();
-
-        for (const row of rows) {
-          const key = onConflict.map((column) => String(row[column] ?? "")).join("::");
-          tableStore.set(key, row);
-        }
-
-        this.tables.set(table, tableStore);
-        return { error: null };
-      },
-    };
-  }
-
-  count(table: string) {
-    return this.tables.get(table)?.size ?? 0;
-  }
-}

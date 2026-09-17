@@ -34,6 +34,7 @@ const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
   limit: "Whiteboard limit reached",
   "storage-limit": "Storage limit exceeded",
   unavailable: "Supabase unavailable",
+  conflict: "Conflicting changes - draft preserved",
 };
 
 export function WhiteboardFloatingUiLayer({

@@ -20,6 +20,7 @@ const saveLabels: Record<WhiteboardSaveStatus, string> = {
   limit: "Limit reached",
   "storage-limit": "Storage limit",
   unavailable: "Sync unavailable",
+  conflict: "Conflicting changes - draft preserved",
 };
 
 export function WhiteboardToolbar({

@@ -95,19 +95,9 @@ export type SystemSeedCounts = {
   lessons: number;
 };
 
-type SeedableTable =
-  | "suite_templates"
-  | "seed_versions"
-  | "folders"
-  | "folder_binders"
-  | "binders"
-  | "binder_lessons"
-  | "concept_nodes"
-  | "concept_edges"
-  | "workspace_presets"
-  | "history_event_templates"
-  | "history_source_templates"
-  | "history_myth_check_templates";
+export type CatalogSeedClient = {
+  rpc(name: "apply_catalog_seed", args: { p_payload: Record<string, unknown> }): PromiseLike<{ error: { message: string } | null }>;
+};
 
 const SYSTEM_DEMO_BINDER_IDS = new Set<string>([
   SYSTEM_BINDER_IDS.algebra,
@@ -289,65 +279,22 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
 }
 
 export async function seedSystemSuitesWithClient(
-  client: SupabaseClient,
+  client: CatalogSeedClient,
   payload: SystemSeedPayload,
 ): Promise<SystemSeedResult> {
-  const upsert = async (table: SeedableTable, rows: Record<string, unknown>[], onConflict = "id") => {
-    if (rows.length === 0) {
-      return;
-    }
-
-    const { error } = await client.from(table).upsert(rows, { onConflict });
-    if (error) {
-      const message = error.message.toLowerCase();
-      if (
-        error.code === "PGRST205" ||
-        error.code === "PGRST204" ||
-        message.includes("column") ||
-        message.includes("relation") ||
-        message.includes("workspace_presets") ||
-        message.includes("suite_template_id") ||
-        message.includes("could not find the table")
-      ) {
-        throw new Error(`Run the latest Supabase migrations before seeding system suites. Supabase said: ${error.message}`);
-      }
-      throw error;
-    }
-  };
-
-  await upsert("suite_templates", payload.suites as unknown as Record<string, unknown>[]);
-  await upsert("folders", payload.folders as unknown as Record<string, unknown>[]);
-  await upsert("binders", payload.binders as unknown as Record<string, unknown>[]);
-  await upsert("binder_lessons", payload.lessons as unknown as Record<string, unknown>[]);
-  await upsert(
-    "folder_binders",
-    payload.folderBinders as unknown as Record<string, unknown>[],
-    "owner_id,folder_id,binder_id",
-  );
-  await upsert("concept_nodes", payload.conceptNodes as unknown as Record<string, unknown>[]);
-  await upsert("concept_edges", payload.conceptEdges as unknown as Record<string, unknown>[]);
-  await upsert(
-    "workspace_presets",
-    payload.workspacePresets as unknown as Record<string, unknown>[],
-    "suite_template_id,preset_id,breakpoint",
-  );
-  await upsert(
-    "history_event_templates",
-    payload.historyEventTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "history_source_templates",
-    payload.historySourceTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "history_myth_check_templates",
-    payload.historyMythCheckTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "seed_versions",
-    payload.seedVersions as unknown as Record<string, unknown>[],
-    "suite_template_id,version",
-  );
+  const { error } = await client.rpc("apply_catalog_seed", {
+    p_payload: {
+      suite_templates: payload.suites, folders: payload.folders, binders: payload.binders,
+      binder_lessons: payload.lessons, folder_binders: payload.folderBinders,
+      concept_nodes: payload.conceptNodes, concept_edges: payload.conceptEdges,
+      workspace_presets: payload.workspacePresets,
+      history_event_templates: payload.historyEventTemplates,
+      history_source_templates: payload.historySourceTemplates,
+      history_myth_check_templates: payload.historyMythCheckTemplates,
+      seed_versions: payload.seedVersions,
+    },
+  });
+  if (error) throw new Error(`Transactional system seed failed: ${error.message}`);
 
   return {
     suiteCount: payload.suites.length,
@@ -468,13 +415,8 @@ export async function getSystemSeedCounts(client: SupabaseClient): Promise<Syste
   };
 }
 
+/** Browser entry retained only to give old callers an explicit safe failure. */
 export async function seedSystemSuites(profile: Profile): Promise<SystemSeedResult> {
   requireAdmin(profile);
-
-  const { supabase } = await import("@/lib/supabase");
-  if (!supabase) {
-    throw new Error("Supabase must be configured before seeding system suites.");
-  }
-
-  return seedSystemSuitesWithClient(supabase, buildSystemSeedPayload(profile));
+  throw new Error("System seeding requires the trusted server CLI and service-role credentials. Browser seeding is disabled.");
 }
