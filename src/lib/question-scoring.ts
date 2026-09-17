@@ -96,7 +96,7 @@ export function scoreQuestion(
             : null,
         totalPoints,
         feedback: {
-          message: "Free responses are saved for review. No AI grading is used.",
+          message: "Free responses are saved for review. Completion credit is for a non-empty response, not mathematical correctness. No AI grading is used.",
           expected: question.answer_json.rubric,
         },
       };
@@ -171,7 +171,7 @@ function scoreShortAnswer(
   return scoreBooleanResult(
     accepted.includes(submittedText),
     totalPoints,
-    "Match one of the accepted answers.",
+    "This is an exact-text check against accepted forms, not a symbolic or meaning-based check. Compare the explanation if an equivalent answer was not matched.",
     acceptedAnswers,
   );
 }

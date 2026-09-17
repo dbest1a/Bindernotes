@@ -16,6 +16,7 @@ export function SavedQuizResults({ results }: { results: QuizAttemptResults }) {
       <CardContent className="grid gap-4">
         <h2 className="text-xl font-semibold">{attempt.completed_at ? `Score: ${attempt.score ?? "Not graded"} / ${attempt.total_points ?? "Not recorded"}` : "Incomplete attempt"}</h2>
         <p className="text-sm text-muted-foreground">These are the saved answers and scores from this attempt.</p>
+        {answers.some((answer) => answer.is_correct === null && answer.points_awarded !== null) ? <p className="text-sm text-muted-foreground">This total includes completion credit for responses awaiting review. It is not a count of mathematically correct answers.</p> : null}
         {answers.length ? answers.map((answer) => <SavedAnswer answer={answer} key={answer.id} />) : <p>No saved answers were recorded for this attempt.</p>}
         <Button asChild className="justify-self-start"><Link to={`/math/quizzes/${encodeURIComponent(attempt.quiz_set_id)}/attempt`}>Start another attempt</Link></Button>
       </CardContent>

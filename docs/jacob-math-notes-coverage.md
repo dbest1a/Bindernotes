@@ -1,5 +1,7 @@
 # Jacob Math Notes Coverage Ledger
 
+**17 September 2026 audit note:** this is the historical structural inventory. Its uploaded-source provenance and claims of full coverage have not been independently verified. See [the current answer-key, provenance, and coverage audit](math-curriculum-audit.md). The 27 sections and 54 practice questions are starter coverage, not a complete curriculum.
+
 This ledger was created from the uploaded `Jacob's Math Notes (1).docx` source and the current BinderNotes repo state.
 
 ## Source Audit

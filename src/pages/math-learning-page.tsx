@@ -1293,6 +1293,8 @@ function QuestionRenderer({
         {question.prompt_latex ? <LatexBlock latex={question.prompt_latex} /> : null}
       </CardHeader>
       <CardContent>
+        {question.type === "short_answer" || question.type === "fill_blank" ? <p className="mb-3 text-sm text-muted-foreground">Answers use an exact-text check. Equivalent mathematical forms or different wording may need review against the explanation.</p> : null}
+        {question.type === "free_response" ? <p className="mb-3 text-sm text-muted-foreground">This response is saved for review. Any completion credit is not a correctness grade.</p> : null}
         <QuestionInput question={question} value={value} onAnswerChange={onAnswerChange} />
       </CardContent>
     </Card>
