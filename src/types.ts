@@ -96,6 +96,7 @@ export type PersonalNote = {
 };
 
 export type PersonalNoteBinder = {
+  archived_at?: string | null;
   id: string;
   owner_id: string;
   folder_id: string | null;
@@ -127,6 +128,7 @@ export type PersonalNoteDocument = {
 export type PersonalNotebookDocument = PersonalNoteDocument;
 
 export type PersonalNoteFolder = {
+  archived_at?: string | null;
   id: string;
   owner_id: string;
   name: string;

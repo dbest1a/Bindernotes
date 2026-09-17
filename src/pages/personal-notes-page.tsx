@@ -53,6 +53,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PersonalNotesTrash } from "@/components/personal-notes-trash";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { useAuth } from "@/hooks/use-auth";
 import { usePersonalContentEditor } from "@/hooks/use-personal-content-editor";
@@ -678,7 +679,7 @@ export function PersonalNotesPage() {
           <p className="my-2 text-sm">These backups may come from another tab or an interrupted session. Recovering creates a separate note and keeps the current saved version.</p>
           {editor.backups.map((backup) => (
             <div key={backup.key} className="my-2 flex flex-wrap items-center gap-2">
-              <span>{backup.draft.snapshot.title || "Untitled draft"} · {new Date(backup.recordedAt).toLocaleString()}</span>
+              <span>{backup.draft.snapshot.title || "Untitled draft"} Â· {new Date(backup.recordedAt).toLocaleString()}</span>
               <Button type="button" variant="outline" onClick={() => {
                 void editor.preserveBackup(backup.key).catch((error: unknown) => {
                   if (selectedEntry) setRecoveryError({id: selectedEntry.id, message: error instanceof Error ? error.message : "The backup could not be recovered. It is still stored on this device."});
@@ -1026,6 +1027,7 @@ export function PersonalNotesPage() {
                   >
                     <Settings2 />
                   </Button>
+                  {profile && <PersonalNotesTrash key={profile.id} ownerId={profile.id} data={data} hasUnsavedChanges={dirty || editor.state === "saving"} />}
                   <Button className="hidden lg:inline-flex" onClick={() => setCommandOpen(true)} size="sm" type="button" variant="outline">
                     <Command data-icon="inline-start" />
                     Ctrl/Cmd+K

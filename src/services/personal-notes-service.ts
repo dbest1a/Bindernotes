@@ -1,7 +1,10 @@
 import type { JSONContent } from "@tiptap/react";
+import { ContentConflictError } from "@/lib/revisioned-save";
 import { supabase } from "@/lib/supabase";
 import { emptyDoc } from "@/lib/utils";
 import { buildPersonalNotesEntries } from "@/lib/personal-notes";
+import { activePersonalTree } from "@/lib/personal-trash";
+import { setPersonalTrash } from "@/services/personal-trash-service";
 import { getDashboard, upsertLearnerNote } from "@/services/binder-service";
 import type {
   Binder,
@@ -44,6 +47,8 @@ type PersonalNoteInput = {
   documentId?: string | null;
   tags?: string[];
   pinned?: boolean;
+  expectedRevision?: number;
+  operationId?: string;
 };
 
 type PersonalDocumentInput = {
@@ -55,6 +60,8 @@ type PersonalDocumentInput = {
   mathBlocks?: MathBlock[];
   tags?: string[];
   pinned?: boolean;
+  expectedRevision?: number;
+  operationId?: string;
 };
 
 function requireSupabase() {
@@ -186,10 +193,12 @@ export async function getPersonalNotesWorkspace(profile: Profile): Promise<Perso
 
   return buildPersonalNotesData({
     learnerNotes,
-    personalNotes: personalNotesResult.data,
-    personalFolders: personalFoldersResult.data,
-    personalBinders: personalBindersResult.data,
-    personalDocuments: personalDocumentsResult.data,
+    ...activePersonalTree({
+      personalNotes: personalNotesResult.data,
+      personalFolders: personalFoldersResult.data,
+      personalBinders: personalBindersResult.data,
+      personalDocuments: personalDocumentsResult.data,
+    }),
     binders,
     lessons,
     folders,
@@ -280,16 +289,7 @@ export async function deletePersonalNoteFolder(input: {
   id: string;
   ownerId: string;
 }) {
-  const client = requireSupabase();
-  const { error } = await client
-    .from("personal_note_folders")
-    .delete()
-    .eq("owner_id", input.ownerId)
-    .eq("id", input.id);
-
-  if (error) {
-    throw error;
-  }
+  await setPersonalTrash("folder", input.id, "trash");
 }
 
 export async function createPersonalBinder(input: {
@@ -375,16 +375,7 @@ export async function deletePersonalBinder(input: {
   id: string;
   ownerId: string;
 }) {
-  const client = requireSupabase();
-  const { error } = await client
-    .from("personal_note_binders")
-    .delete()
-    .eq("owner_id", input.ownerId)
-    .eq("id", input.id);
-
-  if (error) {
-    throw error;
-  }
+  await setPersonalTrash("binder", input.id, "trash");
 }
 
 export async function createPersonalDocument(
@@ -395,7 +386,7 @@ export async function createPersonalDocument(
 
   const { data, error } = await client
     .from("personal_note_documents")
-    .upsert({
+    .insert({
       id: input.id ?? crypto.randomUUID(),
       owner_id: input.ownerId,
       binder_id: input.binderId,
@@ -404,7 +395,6 @@ export async function createPersonalDocument(
       math_blocks: input.mathBlocks ?? [],
       tags: normalizeTags(input.tags ?? []),
       pinned: input.pinned ?? false,
-      updated_at: now(),
     })
     .select("*")
     .single();
@@ -419,6 +409,7 @@ export async function createPersonalDocument(
 export async function updatePersonalDocument(
   input: PersonalDocumentInput,
 ): Promise<PersonalNoteDocument> {
+  if (input.id) return savePersonalRecord("document", input) as Promise<PersonalNoteDocument>;
   return createPersonalDocument(input);
 }
 
@@ -426,16 +417,7 @@ export async function deletePersonalDocument(input: {
   id: string;
   ownerId: string;
 }) {
-  const client = requireSupabase();
-  const { error } = await client
-    .from("personal_note_documents")
-    .update({ archived_at: now(), updated_at: now() })
-    .eq("owner_id", input.ownerId)
-    .eq("id", input.id);
-
-  if (error) {
-    throw error;
-  }
+  await setPersonalTrash("document", input.id, "trash");
 }
 
 export async function createLoosePersonalNote(input: PersonalNoteInput): Promise<PersonalNote> {
@@ -443,32 +425,42 @@ export async function createLoosePersonalNote(input: PersonalNoteInput): Promise
 }
 
 export async function updateLoosePersonalNote(input: PersonalNoteInput): Promise<PersonalNote> {
+  if (input.id) return savePersonalRecord("note", input) as Promise<PersonalNote>;
   return upsertPersonalNote(input);
+}
+
+async function savePersonalRecord(kind: "note" | "document", input: PersonalNoteInput | PersonalDocumentInput) {
+  if (!input.id || input.expectedRevision === undefined || !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) throw new Error("The original saved revision is required before updating this note.");
+  const { data, error } = await requireSupabase().rpc("save_personal_content", {
+    p_kind: kind,
+    p_record: {
+      id: input.id, owner_id: input.ownerId, title: input.title.trim() || "Untitled note", content: input.content ?? emptyDoc(""),
+      math_blocks: input.mathBlocks ?? [], tags: normalizeTags(input.tags ?? []), pinned: input.pinned ?? false, binder_id: input.binderId ?? null,
+      ...(kind === "note" ? { folder_id: "folderId" in input ? input.folderId ?? null : null, document_id: "documentId" in input ? input.documentId ?? null : null } : {}),
+    },
+    p_expected_revision: input.expectedRevision,
+    p_operation_id: input.operationId ?? crypto.randomUUID(),
+  });
+  if (error) { if (error.code === "40001") throw new ContentConflictError(); throw error; }
+  if (!data || data.id !== input.id || data.owner_id !== input.ownerId || !Number.isSafeInteger(data.revision) || data.revision <= input.expectedRevision) throw new Error("The server did not confirm this note revision.");
+  return data;
 }
 
 export async function deleteLoosePersonalNote(input: {
   id: string;
   ownerId: string;
 }) {
-  const client = requireSupabase();
-  const { error } = await client
-    .from("personal_notes")
-    .update({ archived_at: now(), updated_at: now() })
-    .eq("owner_id", input.ownerId)
-    .eq("id", input.id);
-
-  if (error) {
-    throw error;
-  }
+  await setPersonalTrash("note", input.id, "trash");
 }
 
 export async function upsertPersonalNote(input: PersonalNoteInput): Promise<PersonalNote> {
+  if (input.id && input.expectedRevision !== undefined) return savePersonalRecord("note", input) as Promise<PersonalNote>;
   const client = requireSupabase();
   const title = input.title.trim() || "Untitled note";
 
   const { data, error } = await client
     .from("personal_notes")
-    .upsert({
+    .insert({
       id: input.id ?? crypto.randomUUID(),
       owner_id: input.ownerId,
       folder_id: input.folderId ?? null,
@@ -479,7 +471,6 @@ export async function upsertPersonalNote(input: PersonalNoteInput): Promise<Pers
       math_blocks: input.mathBlocks ?? [],
       tags: normalizeTags(input.tags ?? []),
       pinned: input.pinned ?? false,
-      updated_at: now(),
     })
     .select("*")
     .single();
@@ -500,6 +491,9 @@ export async function updateBinderLinkedPersonalNote(input: {
   title: string;
   content: JSONContent;
   mathBlocks: MathBlock[];
+  pinned?: boolean;
+  expectedRevision?: number;
+  operationId?: string;
 }): Promise<LearnerNote> {
   return upsertLearnerNote(input);
 }
@@ -517,7 +511,7 @@ export async function setPersonalEntryPinned(input: {
       : "personal_notes";
   const { error } = await client
     .from(table)
-    .update({ pinned: input.pinned, updated_at: now() })
+    .update({ pinned: input.pinned })
     .eq("owner_id", input.ownerId)
     .eq("id", input.id);
 
