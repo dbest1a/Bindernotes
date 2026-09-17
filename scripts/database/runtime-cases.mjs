@@ -241,6 +241,6 @@ export async function run({ sql, concurrentSql }) {
   await runAssetCases({sql,concurrentSql,roleSql,as,users});
   await runArchiveCases({sql,as,users,json});
   await runNoteSearchCases({sql,as,users,json});
-  await runAccountCases({sql,as,json});
+  await runAccountCases({sql,concurrentSql,roleSql,as,json});
   console.log(`${count} database scenarios plus billing/review authorization/concurrency passed.`);
 }

@@ -8,10 +8,10 @@ import { NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(), getProfile: vi.fn(), onAuthStateChange: vi.fn(),
-  signOut: vi.fn(), setAccount: vi.fn(), unsubscribe: vi.fn(),
+  rpc: vi.fn(), signOut: vi.fn(), setAccount: vi.fn(), unsubscribe: vi.fn(),
 }));
 vi.mock("@/lib/supabase-config", () => ({ isSupabaseConfigured: true }));
-vi.mock("@/lib/supabase", () => ({ supabase: { auth: mocks } }));
+vi.mock("@/lib/supabase", () => ({ supabase: { auth: mocks, rpc: mocks.rpc } }));
 vi.mock("@/services/auth-profile", () => ({ getProfile: mocks.getProfile }));
 vi.mock("@/lib/save-queue", () => ({ saveQueue: { setAccount: mocks.setAccount } }));
 
@@ -21,7 +21,7 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
-const session = (id: string) => ({ user: { id, email: `${id}@example.test` } }) as Session;
+const session = (id: string) => ({ access_token: `token-${id}`, user: { id, email: `${id}@example.test` } }) as Session;
 const profile = (id: string) => ({ id, role: "learner", full_name: id }) as Profile;
 let listener: (event: AuthChangeEvent, nextSession: Session | null) => void;
 
@@ -33,6 +33,7 @@ const mount = () => renderHook(useAuth, { wrapper: AuthProvider });
 describe("auth account lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rpc.mockResolvedValue({ data: "active", error: null });
     mocks.getSession.mockResolvedValue({ data: { session: session("A") }, error: null });
     mocks.getProfile.mockImplementation(async (id: string) => profile(id));
     mocks.onAuthStateChange.mockImplementation((callback) => {
@@ -168,4 +169,32 @@ describe("auth account lifecycle", () => {
     expect(mocks.setAccount).toHaveBeenLastCalledWith(null);
     expect(mocks.unsubscribe).toHaveBeenCalledOnce();
   });
+  it("retires a remotely revoked session on foreground without deleting owner drafts", async () => {
+    const view=mount(); await waitFor(()=>expect(view.result.current.profile?.id).toBe("A"));
+    localStorage.setItem("binder-notes:draft:v2:A:note", "retained draft");
+    mocks.rpc.mockResolvedValue({data:"revoked",error:null});
+    await act(async()=>{window.dispatchEvent(new Event("focus"));});
+    await waitFor(()=>expect(view.result.current.user).toBeNull());
+    expect(view.result.current.sessionCheckMessage).toMatch(/session ended/);
+    expect(localStorage.getItem("binder-notes:draft:v2:A:note")).toBe("retained draft");
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+  it("does not log out an account on network failure and allows a deleting session to retry", async () => {
+    const view=mount(); await waitFor(()=>expect(view.result.current.profile?.id).toBe("A"));
+    mocks.rpc.mockRejectedValueOnce(new TypeError("offline")); await act(async()=>{await view.result.current.validateSession();});
+    expect(view.result.current.user?.id).toBe("A"); expect(view.result.current.profile?.id).toBe("A");
+    expect(view.result.current.sessionCheckMessage).toMatch(/could not be checked/);
+    mocks.rpc.mockResolvedValue({data:"deleting",error:null}); await act(async()=>{await view.result.current.validateSession();});
+    expect(view.result.current.user?.id).toBe("A");expect(view.result.current.profile).toBeNull();
+    expect(view.result.current.sessionCheckMessage).toMatch(/deletion is pending/);
+  });
+  it("ignores revoked A evidence that arrives after B signs in", async () => {
+    const view=mount(); await waitFor(()=>expect(view.result.current.profile?.id).toBe("A"));
+    const pending=deferred<{data:string;error:null}>();mocks.rpc.mockReturnValueOnce(pending.promise);
+    let check!:Promise<void>;act(()=>{check=view.result.current.validateSession();});await waitFor(()=>expect(mocks.rpc).toHaveBeenCalled());
+    await emit("SIGNED_IN",session("B")); await waitFor(()=>expect(view.result.current.profile?.id).toBe("B"));
+    await act(async()=>{pending.resolve({data:"revoked",error:null});await check;});
+    expect(view.result.current.user?.id).toBe("B");expect(view.result.current.profile?.id).toBe("B");expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
 });

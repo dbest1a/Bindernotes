@@ -14,7 +14,7 @@ export function accountRuntime() {
    const claims = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")) as { amr?: { method: string; timestamp: number }[] };
    return { id: data.user.id, recentlyAuthenticated: Boolean(claims.amr?.some(entry => ["password", "oauth", "otp", "totp", "recovery"].includes(entry.method) && Number.isFinite(entry.timestamp) && entry.timestamp <= Date.now() / 1000 + 30 && entry.timestamp >= Date.now() / 1000 - 300)) };
   },
-  async operator(owner) { const { data, error } = await client.from("profiles").select("role").eq("id", owner).single(); if (error) throw error; return data.role === "admin"; },
+  async operator(owner) { const { data, error } = await client.rpc("account_deletion_requires_transfer", { p_owner: owner }); if (error) throw error; return data === true; },
   async customer(owner) { const { data, error } = await client.from("billing_accounts").select("customer_id").eq("user_id", owner).maybeSingle(); if (error) throw error; return data?.customer_id ?? null; },
   async deleting(owner) { const { data, error } = await client.rpc("account_deletion_state", { p_owner: owner }); if (error) throw error; return data === true; },
   async claim(customer, event, token) { const { data, error } = await client.rpc("claim_billing_event", { p_customer: customer, p_event: event, p_token: token }); if (error) throw error; return data; },

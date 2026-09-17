@@ -1,17 +1,48 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-export async function runAccountCases({sql,as,json}) {
+export async function runAccountCases({sql,concurrentSql,roleSql,as,json}) {
  const owner=randomUUID(),other=randomUUID(),note=randomUUID(),operation=randomUUID();
  sql(`insert into auth.users(id,email) values('${owner}','account-local@disposable.invalid'),('${other}','other-local@disposable.invalid');insert into auth.sessions(id,user_id) values('${owner}','${owner}'),('${other}','${other}');`);
  const record={id:note,title:'Private deletion fixture',content:{type:'doc',content:[]},math_blocks:[],tags:[]};
  const save=`select public.save_personal_content('note',${json(record)},0,'${operation}');`;
  as(owner,save);
+ assert.equal(as(owner,"select public.get_account_session_status();"),"active");
+ assert.throws(()=>as(null,"select public.get_account_session_status();","anon"),/permission denied/);
  sql(`delete from auth.sessions where user_id='${owner}';`);
+ assert.equal(as(owner,"select public.get_account_session_status();"),"revoked");
  assert.equal(as(owner,`select count(*) from public.personal_notes where id='${note}';`),'0');
  assert.throws(()=>as(owner,save),/ACCOUNT_SESSION_REVOKED/);
  assert.throws(()=>as(owner,`select public.reserve_user_asset('${randomUUID()}','No.pdf','application/pdf',10,'${'a'.repeat(64)}');`),/ACCOUNT_SESSION_REVOKED/);
  assert.equal(as(other,'select count(*) from public.profiles;'),'1');
  sql(`insert into auth.sessions(id,user_id) values('${owner}','${owner}');`);
+ const shared='shared-delete-'+randomUUID();
+ sql(`insert into public.binders(id,owner_id,title,slug,status) values('${shared}','${owner}','Shared source','${shared}','published');insert into public.binder_lessons(id,binder_id,title) values('${shared}-lesson','${shared}','Source');`);
+ assert.equal(as(null,`select public.account_deletion_requires_transfer('${owner}');`,'service_role'),'t');
+ sql(`update public.binders set status='archived' where id='${shared}';insert into public.learner_notes(id,owner_id,binder_id,lesson_id,title) values('${randomUUID()}','${other}','${shared}','${shared}-lesson','Other learner must survive');`);
+ assert.throws(()=>as(null,`select public.begin_account_deletion('${owner}','${randomUUID()}',null,null);`,'service_role'),/ACCOUNT_SHARED_CONTENT_REQUIRES_TRANSFER/);
+ assert.equal(sql(`select count(*) from public.learner_notes where owner_id='${other}' and binder_id='${shared}';`),'1');
+ // Explicit fixture transfer mirrors the required operator workflow; no student
+ // records are deleted to make the account test proceed.
+ sql(`update public.binders set owner_id='${other}' where id='${shared}';`);
+ // Competing source attachment vs deletion cannot commit together. This uses
+ // separate real PostgreSQL transactions, including privileged background writes.
+ for(let attempt=0;attempt<2;attempt++) {
+  const raceOwner=randomUUID(),source='delete-race-'+randomUUID(),child=randomUUID();
+  sql(`insert into auth.users(id,email) values('${raceOwner}','race-${raceOwner}@disposable.invalid');insert into public.binders(id,owner_id,title,slug,status) values('${source}','${raceOwner}','Private source','${source}','draft');`);
+  const deletionResult=concurrentSql(roleSql('service_role',null,`select public.begin_account_deletion('${raceOwner}','${randomUUID()}',null,null);select pg_sleep(0.15);`));
+  const childResult=concurrentSql(roleSql('service_role',null,`insert into public.learner_notes(id,owner_id,binder_id,title) values('${child}','${other}','${source}','Concurrent foreign child');select pg_sleep(0.15);`));
+  const [deleting,attaching]=await Promise.all([deletionResult,childResult]);
+  assert.equal([deleting,attaching].filter(result=>result.status===0).length,1,'Exactly one side of the dependency/deletion race may commit');
+  if(deleting.status===0) {
+   assert.match(attaching.stderr,/SHARED_SOURCE_ACCOUNT_DELETING/);
+   assert.equal(sql(`select count(*) from public.learner_notes where id='${child}';`),'0');
+   assert.throws(()=>as(null,`insert into public.learner_notes(id,owner_id,binder_id,title) values('${randomUUID()}','${other}','${source}','Late child');`,'service_role'),/SHARED_SOURCE_ACCOUNT_DELETING/);
+  } else {
+   assert.match(deleting.stderr,/ACCOUNT_SHARED_CONTENT_REQUIRES_TRANSFER/);
+   assert.equal(sql(`select count(*) from public.learner_notes where id='${child}';`),'1');
+   assert.equal(as(null,`select public.account_deletion_state('${raceOwner}');`,'service_role'),'f');
+  }
+ }
  const deletion=randomUUID(),lease=randomUUID(),customer='cus_accountcase';
  const begin=`select public.begin_account_deletion('${owner}','${deletion}','${customer}','${lease}');`;
  assert.throws(()=>as(owner,begin),/permission denied/);
@@ -21,6 +52,7 @@ export async function runAccountCases({sql,as,json}) {
  assert.equal(as(null,`select public.claim_billing_event('${customer}','account-delete:${deletion}','${lease}');`,'service_role'),'claimed');
  assert.equal(as(null,`select public.claim_billing_event('${customer}','checkout','${randomUUID()}');`,'service_role'),'busy');
  as(null,begin,'service_role');as(null,begin,'service_role');
+ assert.equal(as(owner,"select public.get_account_session_status();"),"deleting");
  assert.equal(as(null,`select public.account_deletion_state('${owner}');`,'service_role'),'t');
  assert.equal(as(owner,`select count(*) from public.personal_notes;`),'0');
  assert.throws(()=>as(owner,save),/ACCOUNT_SESSION_REVOKED/);

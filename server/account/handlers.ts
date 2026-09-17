@@ -32,7 +32,7 @@ export function createAccountHandlers(deps: { store: AccountStore; billing: Acco
    let raw: unknown; try { raw = JSON.parse(body); } catch { throw new AccountError(400, "Confirm account deletion."); }
    const input = z.object({ confirmation: z.literal("DELETE"), operationId: z.string().uuid() }).strict().safeParse(raw);
    if (!input.success) throw new AccountError(400, "Type DELETE to confirm permanent account deletion.");
-   if (await deps.store.operator(user.id)) throw new AccountError(409, "Operator accounts require a reviewed transfer of shared content before deletion.");
+   if (await deps.store.operator(user.id)) throw new AccountError(409, "This account has published or shared content. Transfer it through an operator before deleting the account so other students keep their work.");
    marked = await deps.store.deleting(user.id);
    if (!marked) {
     customer = await deps.store.customer(user.id);

@@ -5,7 +5,11 @@ import path from 'node:path';
 import {projectRoot} from './migration-bundle.mjs';
 const explicitDatabase=process.argv.find(arg=>arg.startsWith('--database='))?.split('=')[1];
 let psql,database,port='55439',user='postgres';
-if(explicitDatabase){
+if(process.argv.includes('--ci-supabase')){
+ assert.equal(process.env.CI,'true','Full Supabase catalog checks require isolated CI');
+ assert(['127.0.0.1','localhost','::1'].includes(process.env.PGHOST),'CI catalog must be loopback');
+ assert.equal(process.env.PGDATABASE,'postgres');database='postgres';psql='psql';port=process.env.PGPORT??'54322';user=process.env.PGUSER??'postgres';
+}else if(explicitDatabase){
  assert.match(explicitDatabase,/^bindernotes_test_[a-f0-9]{32}$/);database=explicitDatabase;
  const host=process.env.BINDERNOTES_TEST_DB_HOST??'127.0.0.1';assert(['127.0.0.1','localhost','::1'].includes(host),'Only disposable loopback catalogs');
  psql=path.join(process.env.BINDERNOTES_PG_BIN??'',process.platform==='win32'?'psql.exe':'psql');port=process.env.BINDERNOTES_TEST_DB_PORT??port;user=process.env.BINDERNOTES_TEST_DB_USER??user;

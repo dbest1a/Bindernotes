@@ -1,5 +1,5 @@
 // Generated from the actual disposable PostgreSQL catalog by scripts/database/generate-types.mjs.
-// Do not hand-edit. Migration versions: 0001,0002,0003,0004,0005,0006,0007,0008,0009,0010,0011,0012,0013,0014,0015,0016,0017,0018,0019,0020,0021,0022,0023,0024,0025,0026,0027,0028,0029,0030,0031,0032,0033,0034,0035,0036
+// Do not hand-edit. Migration versions: 0001,0002,0003,0004,0005,0006,0007,0008,0009,0010,0011,0012,0013,0014,0015,0016,0017,0018,0019,0020,0021,0022,0023,0024,0025,0026,0027,0028,0029,0030,0031,0032,0033,0034,0035,0036,0037,0038,0039
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 export type Database = { public: {
 Tables: {
@@ -2914,6 +2914,7 @@ Relationships: [{ foreignKeyName: "workspace_presets_suite_template_id_fkey"; co
 Views: {
 };
 Functions: {
+"account_deletion_requires_transfer": { Args: {"p_owner": string | null;}; Returns: boolean };
 "account_deletion_state": { Args: {"p_owner": string | null;}; Returns: boolean };
 "apply_catalog_seed": { Args: {"p_payload": Json;}; Returns: Json };
 "armor": { Args: {"arg1": string | null;}; Returns: string } | { Args: {"arg1": string | null;"arg2": (string)[] | null;"arg3": (string)[] | null;}; Returns: string };
@@ -2939,6 +2940,7 @@ Functions: {
 "gen_random_bytes": { Args: {"arg1": number | null;}; Returns: string };
 "gen_random_uuid": { Args: Record<PropertyKey, never>; Returns: string };
 "gen_salt": { Args: {"arg1": string | null;}; Returns: string } | { Args: {"arg1": string | null;"arg2": number | null;}; Returns: string };
+"get_account_session_status": { Args: Record<PropertyKey, never>; Returns: string };
 "hmac": { Args: {"arg1": string | null;"arg2": string | null;"arg3": string | null;}; Returns: string } | { Args: {"arg1": string | null;"arg2": string | null;"arg3": string | null;}; Returns: string };
 "import_portable_workspace": { Args: {"p_archive": Json;"p_batch_id": string | null;"p_archive_digest": string | null;}; Returns: Json };
 "is_admin": { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -2972,6 +2974,7 @@ Functions: {
 "save_review_item": { Args: {"p_record": Json;"p_expected_revision": number | null;"p_operation_id": string | null;"p_events"?: Json;}; Returns: Json };
 "save_review_session": { Args: {"p_id": string | null;"p_session": Json;}; Returns: Json };
 "save_whiteboard_snapshot": { Args: {"p_board": Json;"p_expected_revision": number | null;"p_create_version": boolean | null;"p_operation_id": string | null;}; Returns: Json };
+"search_personal_notes": { Args: {"p_query": string | null;"p_offset"?: number | null;"p_limit"?: number | null;}; Returns: {"kind": string;"id": string;}[] };
 "set_personal_trash": { Args: {"p_kind": string | null;"p_id": string | null;"p_action": string | null;"p_confirmation"?: string | null;}; Returns: Json };
 "whiteboard_json_array_length": { Args: {"value": Json;}; Returns: number };
 };

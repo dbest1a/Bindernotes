@@ -1,4 +1,5 @@
 import {
+  Link,
   Navigate,
   Outlet,
   Route,
@@ -8,7 +9,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from "react";
+import { Component, Suspense, lazy, useEffect, type ErrorInfo, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -119,9 +120,12 @@ export function App() {
 
 function AppRoutes() {
   const location = useLocation();
+  const { validateSession, sessionCheckMessage, user } = useAuth();
+  useEffect(() => { void validateSession?.(); }, [location.pathname, location.search, user?.id, validateSession]);
 
   return (
     <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
+      {sessionCheckMessage && <div role="alert" className="flex flex-wrap items-center gap-3 border-b bg-secondary px-4 py-3 text-sm"><span>{sessionCheckMessage}</span><Button size="sm" variant="outline" onClick={() => void validateSession()}>Retry session check</Button><Link className="underline" to={user ? "/account" : "/auth"}>{user ? "Open Account" : "Sign in"}</Link></div>}
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
