@@ -66,6 +66,7 @@ export type ConservationResult =
   | ChemistryError;
 
 export type ChemistryMistakeTag =
+  | "invalid_numeric_answer"
   | "equation_not_balanced"
   | "molar_mass_error"
   | "mole_ratio_flipped"

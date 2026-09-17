@@ -154,7 +154,9 @@ export function checkStoichiometryAttempt(input: {
     mistakeTags.push("sig_fig_error");
   }
 
-  if (solution.ok && typeof input.submitted.finalAnswer === "number") {
+  const validFinalAnswer = typeof input.submitted.finalAnswer === "number" && Number.isFinite(input.submitted.finalAnswer) && input.submitted.finalAnswer >= 0;
+  if (!validFinalAnswer) mistakeTags.push("invalid_numeric_answer");
+  if (solution.ok && validFinalAnswer && input.submitted.finalAnswer !== undefined) {
     const relativeError = Math.abs(input.submitted.finalAnswer - solution.finalAnswer.value) / solution.finalAnswer.value;
     if (relativeError > 0.05 && !mistakeTags.includes("molar_mass_error")) {
       mistakeTags.push("molar_mass_error");
@@ -166,7 +168,7 @@ export function checkStoichiometryAttempt(input: {
     conceptTags,
     savedSummary: {
       expectedFinalAnswer: solution.ok ? solution.finalAnswer : null,
-      submittedFinalAnswer: input.submitted.finalAnswer ?? null,
+      submittedFinalAnswer: validFinalAnswer ? input.submitted.finalAnswer : null,
       mistakeTags,
       conceptTags,
     },
