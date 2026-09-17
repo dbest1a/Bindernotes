@@ -53,7 +53,7 @@ function concurrentSql(text) {
 function nativeMigration(migration) {
   if (!native || migration.version !== "0018") return migration.sql;
   let content = migration.sql.replace(
-    /^create extension if not exists (pg_cron|pgmq) with schema extensions;\r?\n/gm,
+    /^create extension if not exists (pg_cron|pgmq)(?: with schema extensions)?;\r?\n/gm,
     "",
   );
   let removed = 0;

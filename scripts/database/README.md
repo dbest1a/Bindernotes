@@ -2,6 +2,8 @@
 
 Historical SQL files remain unchanged. `migration-bundle.mjs` combines the two reviewed 0016 files into one version **only in a new staging directory**, recording the normalized SHA-256 of each source. Unknown duplicate versions fail. Do not push directly from the historical source directory.
 
+The bundle also prefixes 0018 with the separately fingerprinted prerequisite `create extension if not exists pgmq;`. Actual full Supabase CI exposed SQLSTATE 0A000 from historical 0018's attempted `WITH SCHEMA extensions`: PGMQ requires its declared `pgmq` schema. The prerequisite follows the [official installation command](https://supabase.com/docs/guides/queues/pgmq), so the original `IF NOT EXISTS` observes the installed extension without altering historical SQL or existing queues. This affects clean and pre-0018 replay only; it does not rewrite recorded migration history. Native mode omits this extension registration alongside the original registration, so only the full Supabase CI run can verify the platform fix.
+
 Before an existing database upgrade, run `inspect-migration-history.sql` read-only against the explicitly selected environment and retain the results privately. A recorded 0016 does not identify which file ran. Object presence alone does not prove equivalent policies or statements. Supported paths are a clean database, the complete historical chain through 0015, and the complete recovery schema through 0025 with both 0016 components. Partial schemas, ambiguous 0016 or unexpected history require a reviewed environment-specific forward repair; automatic history rewriting is not provided.
 
 ```sh
