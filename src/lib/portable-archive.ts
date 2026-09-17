@@ -124,11 +124,22 @@ export function remapPortableArchive(archive: PortableArchive, ownerId: string, 
   archive.reviewEvents.forEach((event) => put(event.id)); archive.recallSessions.forEach((session) => put(session.id));
   for (const group of [archive.localMath.problemLogs, archive.localMath.formulaCards, archive.localMath.graphLinks]) group.forEach((row) => put(row.id));
   const reference = /^(id|.*_id|.*Id|.*_ids|.*Ids)$/;
+  const remapInternalUrl = (value: string) => {
+    const replace = (_match: string, prefix: string, encoded: string) => {
+      try { return prefix + (ids.get(decodeURIComponent(encoded)) ?? encoded); } catch { return prefix + encoded; }
+    };
+    // Only route positions with a defined entity identity are portable. External
+    // source URLs and unrelated path segments are original provenance.
+    return value.replace(/^(\/(?:binders|folders)\/)([^/?#]+)/, replace)
+      .replace(/^(\/binders\/[^/?#]+\/documents\/)([^/?#]+)/, replace)
+      .replace(/^(\/notes\/(?:n|binders)\/)([^/?#]+)/, replace)
+      .replace(/^(\/notes\/binders\/[^/?#]+\/documents\/)([^/?#]+)/, replace);
+  };
   const rewrite = (value: unknown, key = ""): unknown => {
     if (typeof value === "string") {
       if (["owner_id", "ownerId", "userId", "created_by"].includes(key)) return ownerId;
       if (reference.test(key)) return ids.get(value) ?? value;
-      if (key === "sourceUrl" || key === "href" || key === "src") return value.replace(/[^/?#]+/g, (segment) => { try { return ids.get(decodeURIComponent(segment)) ?? segment; } catch { return segment; } });
+      if (key === "sourceUrl" || key === "href" || key === "src") return remapInternalUrl(value);
       return value;
     }
     if (Array.isArray(value)) return value.map((item) => rewrite(item, key));

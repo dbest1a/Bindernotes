@@ -32,6 +32,16 @@ describe("portable archive contract", () => {
     expect(result.recallSessions[0].cardIds[0]).toBe(result.reviews[0].recall!.id);
     expect(result.reviews[0].recall).toMatchObject({ userId: target, reviewCount: 3, lapseCount: 1, confidence: 0.5 });
   });
+  it("preserves external source URLs and remaps only known application route identities", () => {
+    const original = archiveFixture();
+    original.tables.personal_notes[0].content = { type: "doc", content: [
+      { type: "paragraph", attrs: { sourceUrl: "https://example.test/lesson", href: "/external/lesson", src: "//example.test/source" } },
+      { type: "paragraph", attrs: { sourceUrl: "/binders/source/documents/lesson#reading", href: `/notes/n/${original.tables.personal_notes[0].id}?mode=read` } },
+    ] };
+    const { archive, ids } = remapPortableArchive(original, target);
+    expect(archive.tables.personal_notes[0].content.content?.[0].attrs).toEqual(original.tables.personal_notes[0].content.content?.[0].attrs);
+    expect(archive.tables.personal_notes[0].content.content?.[1].attrs).toEqual({ sourceUrl: `/binders/${ids.get("source")}/documents/${ids.get("lesson")}#reading`, href: `/notes/n/${ids.get(original.tables.personal_notes[0].id)}?mode=read` });
+  });
   it("keeps annotation identities, threaded parents and selectors when moving owners", () => {
     const original = archiveFixture();
     const base = { owner_id: owner, binder_id: "source", lesson_id: "lesson", created_at: timestamp, updated_at: timestamp };
