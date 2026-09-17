@@ -1,5 +1,5 @@
 // Generated from the actual disposable PostgreSQL catalog by scripts/database/generate-types.mjs.
-// Do not hand-edit. Migration versions: 0001,0002,0003,0004,0005,0006,0007,0008,0009,0010,0011,0012,0013,0014,0015,0016,0017,0018,0019,0020,0021,0022,0023,0024,0025,0026,0027,0028,0029,0030,0031,0032,0033,0034,0035,0036,0037,0038,0039
+// Do not hand-edit. Migration versions: 0001,0002,0003,0004,0005,0006,0007,0008,0009,0010,0011,0012,0013,0014,0015,0016,0017,0018,0019,0020,0021,0022,0023,0024,0025,0026,0027,0028,0029,0030,0031,0032,0033,0034,0035,0036,0037,0038,0039,0040
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 export type Database = { public: {
 Tables: {
@@ -2911,8 +2911,7 @@ Update: {
 Relationships: [{ foreignKeyName: "workspace_presets_suite_template_id_fkey"; columns: ["suite_template_id"]; isOneToOne: false; referencedRelation: "suite_templates"; referencedColumns: ["id"] }];
 };
 };
-Views: {
-};
+Views: Record<PropertyKey, never>;
 Functions: {
 "account_deletion_requires_transfer": { Args: {"p_owner": string | null;}; Returns: boolean };
 "account_deletion_state": { Args: {"p_owner": string | null;}; Returns: boolean };
