@@ -673,7 +673,7 @@ async function resolveBundledContentStorageMode(binderId: string): Promise<Bundl
   }
 
   const cached = readBundledContentStorageMode(binderId);
-  if (cached && (!strictSeedHealthMode || cached === "remote")) {
+  if (cached === "remote") {
     return cached;
   }
 
@@ -772,90 +772,16 @@ function getAccountDataSupabaseClient() {
   return supabase;
 }
 
-function getAccountVisibleBundledLessonsForBinder(binderId: string) {
-  if (binderId === chemistryShowcaseBinder.id) {
-    return chemistryShowcaseLessons;
-  }
-
-  return [];
-}
-
-async function materializeAccountVisibleBundledCourseForSave(
-  binderId: string,
-  ownerId: string,
-): Promise<boolean> {
-  if (!supabase) {
-    return false;
-  }
-
-  const binder = getAccountVisibleBundledBinderById(binderId);
-  if (!binder) {
-    return false;
-  }
-
-  const lessons = getAccountVisibleBundledLessonsForBinder(binderId);
-  if (lessons.length === 0) {
-    return false;
-  }
-
-  const updatedAt = now();
-  const { error: binderError } = await supabase.from("binders").upsert(
-    {
-      ...binder,
-      owner_id: ownerId,
-      updated_at: updatedAt,
-    },
-    { onConflict: "id" },
-  );
-
-  if (binderError) {
-    throw binderError;
-  }
-
-  const { error: lessonsError } = await supabase.from("binder_lessons").upsert(
-    lessons.map((lesson) => ({
-      ...lesson,
-      updated_at: updatedAt,
-    })),
-    { onConflict: "id" },
-  );
-
-  if (lessonsError) {
-    throw lessonsError;
-  }
-
-  recordBundledContentStorageMode(binderId, "remote");
-  return true;
-}
-
-async function requireRemoteAccountDataStorage(binderId: string, label: string, ownerId?: string) {
-  const tryMaterialize = async () => {
-    if (!ownerId) {
-      return false;
-    }
-
-    try {
-      return await materializeAccountVisibleBundledCourseForSave(binderId, ownerId);
-    } catch {
-      return false;
-    }
-  };
-
+// Bundled catalog content is installed only by the trusted seed workflow.
+// Learner saves must never publish or take ownership of a shared course.
+async function requireRemoteAccountDataStorage(binderId: string, label: string) {
   try {
     if ((await resolveBundledContentStorageMode(binderId)) !== "shadow") {
       return;
     }
   } catch {
-    if (await tryMaterialize()) {
-      return;
-    }
     throw createAccountDataCloudSaveError(label);
   }
-
-  if (await tryMaterialize()) {
-    return;
-  }
-
   throw createAccountDataCloudSaveError(label);
 }
 
@@ -1872,7 +1798,7 @@ export async function upsertLearnerNote(input: {
 }): Promise<LearnerNote> {
   const normalizedTitle = input.title.trim() || "Private lesson notes";
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
+  await requireRemoteAccountDataStorage(input.binderId, "Private note");
 
   if (input.id && input.expectedRevision === undefined)
     throw new Error("The original saved revision is required before updating a lesson note.");
@@ -1914,7 +1840,7 @@ export async function readLearnerNoteByScope(
   lessonId: string,
 ): Promise<LearnerNote> {
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(binderId, "Private note", ownerId);
+  await requireRemoteAccountDataStorage(binderId, "Private note");
   const { data, error } = await client
     .from("learner_notes")
     .select("*")
@@ -1977,7 +1903,7 @@ export async function createHighlight(input: {
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Highlight", input.ownerId);
+  await requireRemoteAccountDataStorage(input.binderId, "Highlight");
 
   const { data, error } = await runHighlightMutationWithFallback({
     preferredMode: readCachedHighlightSchemaMode(),
@@ -2154,7 +2080,7 @@ export async function resetHighlights(input: {
   lessonId?: string;
 }): Promise<void> {
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Highlights", input.ownerId);
+  await requireRemoteAccountDataStorage(input.binderId, "Highlights");
 
   const shadowState = loadShadowState();
   const shadowExists = shadowState.highlights.some(
@@ -2206,7 +2132,7 @@ export async function createComment(input: {
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(input.binderId, "Comment", input.ownerId);
+  await requireRemoteAccountDataStorage(input.binderId, "Comment");
 
   const { data, error } = await client.from("comments").insert(comment).select("*").single();
 
@@ -2329,7 +2255,7 @@ export async function upsertWorkspacePreferencesRecord(
   };
 
   const client = getAccountDataSupabaseClient();
-  await requireRemoteAccountDataStorage(next.binderId, "Workspace layout", next.userId);
+  await requireRemoteAccountDataStorage(next.binderId, "Workspace layout");
 
   const { data, error } = await client
     .from("workspace_preferences")

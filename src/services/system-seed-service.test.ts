@@ -6,6 +6,11 @@ import {
   seedSystemSuites,
 } from "@/services/system-seed-service";
 import type { Profile } from "@/types";
+import {
+  chemistryShowcaseBinder,
+  chemistryShowcaseFolder,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 
 const adminProfile: Profile = {
   id: "admin-user",
@@ -34,9 +39,33 @@ describe("system seed payload", () => {
         SYSTEM_BINDER_IDS.frenchRevolution,
       ]),
     );
-    expect(payload.folders).toHaveLength(3);
+    expect(payload.folders).toHaveLength(4);
     expect(payload.workspacePresets.length).toBeGreaterThan(0);
     expect(payload.seedVersions.every((version) => version.version === SYSTEM_SEED_VERSION)).toBe(true);
+  });
+
+  it("installs the complete Chemistry catalog under the trusted operator before learner saves", () => {
+    const payload = buildSystemSeedPayload(adminProfile);
+    expect(payload.binders.find((binder) => binder.id === chemistryShowcaseBinder.id)).toMatchObject({
+      owner_id: adminProfile.id,
+      status: "published",
+    });
+    expect(payload.folders.find((folder) => folder.id === chemistryShowcaseFolder.id)).toMatchObject({
+      owner_id: adminProfile.id,
+      source: "system",
+    });
+    expect(payload.folderBinders).toContainEqual(
+      expect.objectContaining({
+        binder_id: chemistryShowcaseBinder.id,
+        folder_id: chemistryShowcaseFolder.id,
+        owner_id: adminProfile.id,
+      }),
+    );
+    expect(
+      payload.lessons
+        .filter((lesson) => lesson.binder_id === chemistryShowcaseBinder.id)
+        .map((lesson) => lesson.id),
+    ).toEqual(chemistryShowcaseLessons.map((lesson) => lesson.id));
   });
 
   it("attaches each seeded binder to a suite folder", () => {

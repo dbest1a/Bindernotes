@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoBinders, demoConceptEdges, demoConceptNodes, demoLessons } from "@/lib/demo-data";
 import {
+  chemistryShowcaseBinder,
+  chemistryShowcaseFolder,
+  chemistryShowcaseFolderLink,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
+import {
   buildSystemFolderFromSuite,
   frenchRevolutionBinder,
   frenchRevolutionEventTemplates,
@@ -236,15 +242,21 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
       created_by: profile.id,
       status: "current",
     })),
-    folders,
-    folderBinders,
-    binders,
-    lessons: [...getSeededDemoLessons(), ...frenchRevolutionLessons, ...russianRevolutionLessons].map(
-      (lesson) => ({
-        ...lesson,
-        updated_at: now,
-      }),
-    ),
+    folders: [...folders, { ...chemistryShowcaseFolder, owner_id: profile.id, updated_at: now }],
+    folderBinders: [
+      ...folderBinders,
+      { ...chemistryShowcaseFolderLink, owner_id: profile.id, updated_at: now },
+    ],
+    binders: [...binders, { ...chemistryShowcaseBinder, owner_id: profile.id, updated_at: now }],
+    lessons: [
+      ...getSeededDemoLessons(),
+      ...frenchRevolutionLessons,
+      ...russianRevolutionLessons,
+      ...chemistryShowcaseLessons,
+    ].map((lesson) => ({
+      ...lesson,
+      updated_at: now,
+    })),
     conceptNodes: [...getSeededConceptNodes(), ...russianRevolutionConceptNodes],
     conceptEdges: [...getSeededConceptEdges(), ...russianRevolutionConceptEdges],
     workspacePresets: buildWorkspacePresetRows(now),
@@ -345,7 +357,11 @@ export async function resolveSystemSeedProfile(
 
 export async function getSystemSeedCounts(client: SupabaseClient): Promise<SystemSeedCounts> {
   const suiteIds = systemSuiteTemplates.map((suite) => suite.id);
-  const binderIds = Object.values(SYSTEM_BINDER_IDS);
+  const binderIds = [...Object.values(SYSTEM_BINDER_IDS), chemistryShowcaseBinder.id];
+  const folderIds = [
+    ...systemSuiteTemplates.map((suite) => buildSystemFolderFromSuite(suite).id),
+    chemistryShowcaseFolder.id,
+  ];
 
   const exactCount = async (
     promise: PromiseLike<{ count: number | null; error: { message: string } | null }>,
@@ -380,7 +396,7 @@ export async function getSystemSeedCounts(client: SupabaseClient): Promise<Syste
           .from("folders")
           .select("id", { count: "exact", head: true })
           .eq("source", "system")
-          .in("suite_template_id", suiteIds),
+          .in("id", folderIds),
       ),
       exactCount(
         client.from("folder_binders").select("id", { count: "exact", head: true }).in("binder_id", binderIds),

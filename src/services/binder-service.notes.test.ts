@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockBinderLessonsSelectEq,
@@ -71,11 +71,14 @@ vi.mock("@/lib/supabase", () => ({
 import { upsertLearnerNote } from "@/services/binder-service";
 import {
   CHEMISTRY_SHOWCASE_BINDER_ID,
+  chemistryShowcaseBinder,
   chemistryShowcaseLessons,
 } from "@/lib/chemistry/chemistry-showcase-content";
 import { emptyDoc } from "@/lib/utils";
 
 describe("binder-service learner note persistence", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
     mockFrom.mockClear();
     mockBindersMaybeSingle.mockReset();
@@ -175,7 +178,23 @@ describe("binder-service learner note persistence", () => {
     expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
   });
 
-  it("materializes the account-visible Chemistry course in Supabase before saving its private notes", async () => {
+  it("rechecks a cached missing Chemistry mirror and saves only the private note after trusted seeding", async () => {
+    const status = new Map([
+      [
+        "binder-notes:bundled-content-status:v1",
+        JSON.stringify({
+          [CHEMISTRY_SHOWCASE_BINDER_ID]: { mode: "shadow", checkedAt: "2020-01-01" },
+        }),
+      ],
+    ]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => status.get(key) ?? null,
+        setItem: (key: string, value: string) => status.set(key, value),
+      },
+    });
+    mockBindersMaybeSingle.mockResolvedValue({ data: chemistryShowcaseBinder, error: null });
+    mockBinderLessonsSelectEq.mockResolvedValue({ data: chemistryShowcaseLessons, error: null });
     const chemistryLesson =
       chemistryShowcaseLessons.find((lesson) => lesson.title === "Electrolysis and Faraday's Law") ??
       chemistryShowcaseLessons[0];
@@ -212,27 +231,29 @@ describe("binder-service learner note persistence", () => {
 
     expect(saved.lesson_id).toBe(chemistryLesson.id);
     expect(mockBindersMaybeSingle).toHaveBeenCalledTimes(1);
-    expect(mockBindersUpsert).toHaveBeenCalledTimes(1);
-    expect(mockBinderLessonsUpsert).toHaveBeenCalledTimes(1);
+    expect(mockBindersUpsert).not.toHaveBeenCalled();
+    expect(mockBinderLessonsUpsert).not.toHaveBeenCalled();
     expect(mockLearnerNoteSingle).toHaveBeenCalledTimes(1);
     expect(mockLearnerNoteUpsert).not.toHaveBeenCalled();
 
-    const binderPayload = mockBindersUpsert.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(binderPayload).toMatchObject({
-      id: CHEMISTRY_SHOWCASE_BINDER_ID,
-      owner_id: "admin-1",
-      status: "published",
-    });
+    expect(
+      JSON.parse(status.get("binder-notes:bundled-content-status:v1")!)[CHEMISTRY_SHOWCASE_BINDER_ID].mode,
+    ).toBe("remote");
+  });
 
-    const lessonRows = mockBinderLessonsUpsert.mock.calls[0]?.[0] as Array<Record<string, unknown>>;
-    expect(lessonRows).toHaveLength(chemistryShowcaseLessons.length);
-    expect(lessonRows).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: chemistryLesson.id,
-          binder_id: CHEMISTRY_SHOWCASE_BINDER_ID,
-        }),
-      ]),
-    );
+  it("refuses missing Chemistry references without attempting learner-owned catalog writes", async () => {
+    await expect(
+      upsertLearnerNote({
+        ownerId: "learner-1",
+        binderId: CHEMISTRY_SHOWCASE_BINDER_ID,
+        lessonId: chemistryShowcaseLessons[0].id,
+        title: "Unsaved private draft",
+        content: emptyDoc("Keep my work"),
+        mathBlocks: [],
+      }),
+    ).rejects.toThrow(/could not save.*supabase/i);
+    expect(mockBindersUpsert).not.toHaveBeenCalled();
+    expect(mockBinderLessonsUpsert).not.toHaveBeenCalled();
+    expect(mockLearnerNoteSingle).not.toHaveBeenCalled();
   });
 });
