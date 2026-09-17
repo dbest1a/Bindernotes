@@ -1,4 +1,5 @@
 import { calculateStrongAcidStrongBasePh } from "@/lib/chemistry/titration-lab";
+import { nonnegative, positive } from "@/lib/chemistry/calculation-validation";
 
 export type TitrationCurvePoint = {
   volumeMl: number;
@@ -15,32 +16,28 @@ export function generateStrongAcidStrongBaseCurve(input: {
 }): TitrationCurvePoint[] {
   const step = input.stepMl ?? 2.5;
   const maxVolume = input.maxBaseVolumeMl ?? 50;
-  const equivalenceVolume = (input.acidMolarity * input.acidVolumeMl) / input.baseMolarity;
-  const points: TitrationCurvePoint[] = [];
+  positive(step, "Titration step");
+  nonnegative(maxVolume, "Maximum base volume");
+  positive(input.acidMolarity, "Acid molarity");
+  positive(input.baseMolarity, "Base molarity");
+  positive(input.acidVolumeMl, "Initial acid volume");
+  const count = Math.floor(maxVolume / step) + 1;
+  if (!Number.isSafeInteger(count) || count > 10000) throw new RangeError("Use at most 10000 titration samples.");
+  const equivalenceVolume = positive((input.acidMolarity / input.baseMolarity) * input.acidVolumeMl, "Equivalence volume");
+  const volumes = Array.from({ length: count }, (_, index) => index * step);
+  if (equivalenceVolume <= maxVolume && !volumes.includes(equivalenceVolume)) volumes.push(equivalenceVolume);
 
-  for (let volume = 0; volume <= maxVolume + 1e-9; volume += step) {
+  return volumes.sort((a, b) => a - b).map((volume) => {
     const ph = calculateStrongAcidStrongBasePh({
       acidMolarity: input.acidMolarity,
       acidVolumeMl: input.acidVolumeMl,
       baseMolarity: input.baseMolarity,
       baseVolumeMl: volume,
     });
-    points.push({
-      volumeMl: Number(volume.toFixed(2)),
+    return {
+      volumeMl: volume,
       ph: Number(ph.toFixed(2)),
-      equivalence: Math.abs(volume - equivalenceVolume) <= step / 2,
-    });
-  }
-
-  if (!points.some((point) => point.equivalence)) {
-    const ph = calculateStrongAcidStrongBasePh({
-      acidMolarity: input.acidMolarity,
-      acidVolumeMl: input.acidVolumeMl,
-      baseMolarity: input.baseMolarity,
-      baseVolumeMl: equivalenceVolume,
-    });
-    points.push({ volumeMl: Number(equivalenceVolume.toFixed(2)), ph: Number(ph.toFixed(2)), equivalence: true });
-  }
-
-  return points.sort((a, b) => a.volumeMl - b.volumeMl);
+      equivalence: volume === equivalenceVolume,
+    };
+  });
 }

@@ -9,12 +9,7 @@ import { balanceEquation } from "@/lib/chemistry/equation-balancer";
 import { calculateMolarMass } from "@/lib/chemistry/molar-mass";
 
 function roundToSigFigs(value: number, significantFigures = 4) {
-  if (!Number.isFinite(value) || value === 0) {
-    return value;
-  }
-  const exponent = Math.floor(Math.log10(Math.abs(value)));
-  const factor = 10 ** (significantFigures - exponent - 1);
-  return Math.round(value * factor) / factor;
+  return Number(value.toPrecision(significantFigures));
 }
 
 function findCoefficient(formula: string, formulas: string[], coefficients: number[]) {
@@ -23,8 +18,12 @@ function findCoefficient(formula: string, formulas: string[], coefficients: numb
 }
 
 export function solveStoichiometryProblem(input: StoichiometryProblemInput): StoichiometrySolution {
-  if (input.given.quantity <= 0) {
-    return { ok: false, code: "INVALID_QUANTITY", message: "Given quantity must be greater than zero." };
+  if (!Number.isFinite(input.given.quantity) || input.given.quantity <= 0) {
+    return { ok: false, code: "INVALID_QUANTITY", message: "Given quantity must be finite and greater than zero." };
+  }
+  const significantFigures = input.significantFigures ?? 4;
+  if (!Number.isInteger(significantFigures) || significantFigures < 1 || significantFigures > 15) {
+    return { ok: false, code: "INVALID_QUANTITY", message: "Use between 1 and 15 significant figures." };
   }
 
   const balanced = balanceEquation(input.equation);
@@ -57,6 +56,13 @@ export function solveStoichiometryProblem(input: StoichiometryProblemInput): Sto
   const targetMoles = givenMoles * (targetCoefficient / givenCoefficient);
   const targetValue =
     input.target.unit === "mol" ? targetMoles : targetMoles * targetMolarMass.gramsPerMole;
+  if (![givenMoles, targetMoles, targetValue].every((value) => Number.isFinite(value) && value > 0)) {
+    return { ok: false, code: "INVALID_QUANTITY", message: "The calculated quantity is outside the supported numeric range." };
+  }
+  const roundedValue = roundToSigFigs(targetValue, significantFigures);
+  if (!Number.isFinite(roundedValue) || roundedValue <= 0) {
+    return { ok: false, code: "INVALID_QUANTITY", message: "The rounded quantity is outside the supported numeric range." };
+  }
 
   const steps: StoichiometryStepSummary[] = [
     {
@@ -96,7 +102,7 @@ export function solveStoichiometryProblem(input: StoichiometryProblemInput): Sto
     balancedEquation: balanced.balancedEquation,
     finalAnswer: {
       formula: input.target.formula,
-      value: roundToSigFigs(targetValue, input.significantFigures),
+      value: roundedValue,
       unit: input.target.unit,
     },
     steps,

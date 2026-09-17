@@ -3,6 +3,9 @@ import { balanceEquation } from "@/lib/chemistry/equation-balancer";
 import { checkEquationConservation } from "@/lib/chemistry/conservation";
 
 describe("chemistry equation balancer", () => {
+  it("fails explicitly when fraction operations exceed the safe-integer domain", () => {
+    expect(balanceEquation("H9007199254740991 + O2 -> H2O")).toMatchObject({ ok: false });
+  });
   it("balances common reactions with integer coefficients", () => {
     expect(balanceEquation("H2 + O2 -> H2O")).toMatchObject({
       ok: true,

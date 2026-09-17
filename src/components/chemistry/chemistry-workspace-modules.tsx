@@ -26,6 +26,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import { calculateStrongAcidBase, getPhScaleLabel } from "@/lib/chemistry/acid-base";
+import { validateCalculation } from "@/lib/chemistry/calculation-validation";
+import { calculateDilution } from "@/lib/chemistry/dilution";
+import { parseFiniteDecimal, requireFiniteDecimal } from "@/lib/finite-number";
 import { chemistryConceptCards } from "@/lib/chemistry/chemistry-concepts";
 import { commonIons } from "@/lib/chemistry/common-ions";
 import { demoReactions } from "@/lib/chemistry/demo-reactions";
@@ -1066,10 +1069,11 @@ export function SolutionMixerModule() {
   const [stock, setStock] = useState("1.00");
   const [target, setTarget] = useState("0.100");
   const [volume, setVolume] = useState("250");
-  const stockM = Number(stock) || 1;
-  const targetM = Number(target) || 0;
-  const targetMl = Number(volume) || 0;
-  const stockVolumeMl = stockM > 0 ? (targetM * targetMl) / stockM : 0;
+  const calculation = validateCalculation(() => calculateDilution({
+    stockM: requireFiniteDecimal(stock, "Stock concentration"),
+    targetM: requireFiniteDecimal(target, "Target concentration"),
+    targetVolumeMl: requireFiniteDecimal(volume, "Target volume"),
+  }));
 
   return (
     <WorkspacePanel description="M1V1 = M2V2 solution mixer with safety-aware data capture." title="Solution mixer">
@@ -1088,10 +1092,10 @@ export function SolutionMixerModule() {
             <Input onChange={(event) => setVolume(event.target.value)} value={volume} />
           </label>
         </div>
-        <div className="chem-beaker">
-          <span style={{ height: `${Math.min(90, Math.max(12, (targetM / stockM) * 90))}%` }} />
-        </div>
-        <p className="chem-result-tile">Use {stockVolumeMl.toFixed(2)} mL stock, then dilute to {targetMl.toFixed(0)} mL.</p>
+        {calculation.ok ? <>
+          <div className="chem-beaker"><span style={{ height: `${Math.min(90, Math.max(12, calculation.value.fractionOfStock * 90))}%` }} /></div>
+          <p className="chem-result-tile">Use {calculation.value.stockVolumeMl.toFixed(2)} mL stock, then dilute to {calculation.value.targetVolumeMl.toFixed(0)} mL.</p>
+        </> : <p role="alert">{calculation.message}</p>}
       </div>
     </WorkspacePanel>
   );
@@ -1100,18 +1104,21 @@ export function SolutionMixerModule() {
 export function AcidBaseCalculatorModule() {
   const [kind, setKind] = useState<"acid" | "base">("acid");
   const [concentration, setConcentration] = useState("0.010");
-  const result = calculateStrongAcidBase({ kind, concentrationM: Number(concentration) || 0.01 });
+  const calculation = validateCalculation(() => calculateStrongAcidBase({ kind, concentrationM: requireFiniteDecimal(concentration, "Concentration") }));
+  const result = calculation.ok ? calculation.value : null;
 
   return (
-    <WorkspacePanel description="Strong acid/base pH plus buffer-preview guardrails." title="pH / acid-base calculator">
+    <WorkspacePanel description="Ideal, fully dissociated monovalent acid/base at 25°C, including water autoionization. Activity effects are not modeled." title="pH / acid-base calculator">
       <div className="chem-showcase-module" data-chemistry-module="ph-calculator">
         <div className="chem-showcase-toolbar">
           <select className="chem-select" onChange={(event) => setKind(event.target.value as "acid" | "base")} value={kind}>
             <option value="acid">Strong acid</option>
             <option value="base">Strong base</option>
           </select>
-          <Input onChange={(event) => setConcentration(event.target.value)} value={concentration} />
+          <Input aria-label="Acid or base concentration (M)" aria-invalid={!calculation.ok} onChange={(event) => setConcentration(event.target.value)} value={concentration} />
         </div>
+        {!calculation.ok ? <p role="alert">{calculation.message}</p> : null}
+        {result ? <>
         <div className="chem-ph-scale">
           <span style={{ left: `${Math.max(0, Math.min(100, (result.ph / 14) * 100))}%` }} />
         </div>
@@ -1129,6 +1136,7 @@ export function AcidBaseCalculatorModule() {
             <strong>{getPhScaleLabel(result.ph)}</strong>
           </article>
         </div>
+        </> : null}
         <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs">
           Strong acid does not mean concentrated acid. Strength describes ionization; concentration describes amount per liter.
         </p>
@@ -1164,11 +1172,12 @@ export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration
 export function KineticsSimulatorModule() {
   const [order, setOrder] = useState<KineticsOrder>(1);
   const [rate, setRate] = useState("0.020");
-  const dataset = generateKineticsDataset({
+  const calculation = validateCalculation(() => generateKineticsDataset({
     order,
     initialConcentrationM: 1,
-    rateConstant: Number(rate) || 0.02,
-  });
+    rateConstant: requireFiniteDecimal(rate, "Rate constant"),
+  }));
+  const dataset = calculation.ok ? calculation.value : [];
   const points = dataset.map((point) => ({ x: (point.timeS / 120) * 100, y: point.concentrationM * 100 }));
 
   return (
@@ -1180,14 +1189,14 @@ export function KineticsSimulatorModule() {
             <option value={1}>First order</option>
             <option value={2}>Second order</option>
           </select>
-          <Input onChange={(event) => setRate(event.target.value)} value={rate} />
+          <Input aria-label="Rate constant" aria-invalid={!calculation.ok} onChange={(event) => setRate(event.target.value)} value={rate} />
         </div>
-        <Sparkline ariaLabel="Kinetics concentration vs time" points={points} />
+        {!calculation.ok ? <p role="alert">{calculation.message}</p> : <Sparkline ariaLabel="Kinetics concentration vs time" points={points} />}
         <div className="chem-data-table">
           {dataset.slice(0, 5).map((point) => (
             <div key={point.timeS}>
-              <span>{point.timeS}s</span>
-              <strong>{point.concentrationM} M</strong>
+              <span>{Number(point.timeS.toPrecision(4))}s</span>
+              <strong>{Number(point.concentrationM.toPrecision(4))} M</strong>
             </div>
           ))}
         </div>
@@ -1199,11 +1208,12 @@ export function KineticsSimulatorModule() {
 export function ThermochemistryModule() {
   const [mass, setMass] = useState("100");
   const [delta, setDelta] = useState("8");
-  const q = calculateHeatTransfer({
-    massG: Number(mass) || 0,
+  const calculation = validateCalculation(() => calculateHeatTransfer({
+    massG: requireFiniteDecimal(mass, "Mass"),
     specificHeatJPerGC: 4.184,
-    deltaTemperatureC: Number(delta) || 0,
-  });
+    deltaTemperatureC: requireFiniteDecimal(delta, "Temperature change"),
+  }));
+  const q = calculation.ok ? calculation.value : null;
 
   return (
     <WorkspacePanel description="Calorimetry, energy diagrams, and q = mc delta T." title="Thermochemistry studio">
@@ -1218,11 +1228,11 @@ export function ThermochemistryModule() {
             <Input onChange={(event) => setDelta(event.target.value)} value={delta} />
           </label>
         </div>
-        <div className="chem-energy-diagram">
+        {q !== null ? <><div className="chem-energy-diagram">
           <span className={q >= 0 ? "is-endo" : "is-exo"} />
           <strong>{describeHeatSign(q)}</strong>
         </div>
-        <p className="chem-result-tile">q = {q.toFixed(1)} J</p>
+        <p className="chem-result-tile">q = {q.toFixed(1)} J</p></> : !calculation.ok ? <p role="alert">{calculation.message}</p> : null}
       </div>
     </WorkspacePanel>
   );
@@ -1344,14 +1354,14 @@ export function ChemistryDataTableModule() {
 
 export function ChemistryStoichiometryCoachModule() {
   const [givenQuantity, setGivenQuantity] = useState("4.032");
-  const quantity = Number(givenQuantity);
+  const quantity = parseFiniteDecimal(givenQuantity);
   const solution = useMemo(
     () =>
       solveStoichiometryProblem({
         equation: stoichTemplate.equation,
         given: {
           formula: stoichTemplate.givenFormula,
-          quantity: Number.isFinite(quantity) ? quantity : 0,
+          quantity: quantity ?? NaN,
           unit: "g",
         },
         target: {

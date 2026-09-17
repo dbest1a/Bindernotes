@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parseFormula } from "@/lib/chemistry/formula-parser";
 
 describe("chemistry formula parser", () => {
+  it.each(["H0", "(H2O)0", "()", "Fe^0+", "Fe0+", "H9007199254740992", "(H9007199254740991)2", `H${"9".repeat(400)}`])(
+    "rejects empty, zero, or unrepresentable atom counts and charges in %s", (formula) => {
+      expect(parseFormula(formula)).toMatchObject({ ok: false, code: "INVALID_TOKEN" });
+    },
+  );
   it("parses plain formulas and nested groups into atom inventories", () => {
     expect(parseFormula("H2O")).toMatchObject({
       ok: true,

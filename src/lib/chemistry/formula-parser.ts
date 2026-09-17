@@ -6,9 +6,12 @@ function chemistryError(code: ChemistryError["code"], message: string, index?: n
 }
 
 function mergeAtoms(target: AtomInventory, source: AtomInventory, multiplier = 1) {
-  Object.entries(source).forEach(([symbol, count]) => {
-    target[symbol] = (target[symbol] ?? 0) + count * multiplier;
-  });
+  for (const [symbol, count] of Object.entries(source)) {
+    const combined = (target[symbol] ?? 0) + count * multiplier;
+    if (!Number.isSafeInteger(combined) || combined <= 0) return false;
+    target[symbol] = combined;
+  }
+  return true;
 }
 
 function parseNumber(source: string, index: number) {
@@ -57,12 +60,16 @@ function extractCharge(source: string) {
 }
 
 export function parseFormula(input: string): FormulaParseResult {
+  if (input.length > 4096) return chemistryError("INVALID_TOKEN", "Formula must be at most 4096 characters.");
   const formula = input.replace(/\s+/g, "");
   if (!formula) {
     return chemistryError("EMPTY_FORMULA", "Enter a chemical formula before calculating.");
   }
 
   const { body, charge } = extractCharge(formula);
+  if (!Number.isSafeInteger(charge) || (/[+-]$/.test(formula) && charge === 0)) {
+    return chemistryError("INVALID_TOKEN", "Ionic charge must be a nonzero safe integer.");
+  }
   if (!body) {
     return chemistryError("INVALID_TOKEN", "A charge must be attached to a chemical formula.");
   }
@@ -86,7 +93,10 @@ export function parseFormula(input: string): FormulaParseResult {
 
       const group = stack.pop() ?? {};
       const parsedCount = parseNumber(body, index + 1);
-      mergeAtoms(stack[stack.length - 1], group, parsedCount.value);
+      if (!Object.keys(group).length || !Number.isSafeInteger(parsedCount.value) || parsedCount.value <= 0
+        || !mergeAtoms(stack[stack.length - 1], group, parsedCount.value)) {
+        return chemistryError("INVALID_TOKEN", "Groups need atoms and positive safe-integer counts.", index);
+      }
       index = parsedCount.next;
       continue;
     }
@@ -106,11 +116,13 @@ export function parseFormula(input: string): FormulaParseResult {
     }
 
     const parsedCount = parseNumber(body, index + 1);
-    if (parsedCount.value <= 0) {
+    if (!Number.isSafeInteger(parsedCount.value) || parsedCount.value <= 0) {
       return chemistryError("INVALID_TOKEN", "Atom counts must be positive integers.", index);
     }
 
-    mergeAtoms(stack[stack.length - 1], { [symbol]: parsedCount.value });
+    if (!mergeAtoms(stack[stack.length - 1], { [symbol]: parsedCount.value })) {
+      return chemistryError("INVALID_TOKEN", "Total atom count exceeds the supported integer range.", index);
+    }
     index = parsedCount.next;
   }
 

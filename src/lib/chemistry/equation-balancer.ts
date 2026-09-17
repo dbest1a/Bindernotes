@@ -31,6 +31,9 @@ class Fraction {
   readonly denominator: number;
 
   constructor(numerator: number, denominator = 1) {
+    if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator)) {
+      throw new RangeError("Equation coefficients exceed the supported exact-integer range.");
+    }
     if (denominator === 0) {
       throw new Error("Zero denominator.");
     }
@@ -216,7 +219,7 @@ function nullspaceVector(matrix: number[][]): number[] | null {
     integers = integers.map((value) => -value);
   }
 
-  return integers.every((value) => Number.isInteger(value) && value > 0) ? integers : null;
+  return integers.every((value) => Number.isSafeInteger(value) && value > 0) ? integers : null;
 }
 
 function formatBalancedEquation(parsed: ParsedChemicalEquation, coefficients: number[]) {
@@ -235,7 +238,13 @@ export function balanceEquation(equation: string): BalanceEquationResult {
     return parsed;
   }
 
-  const coefficients = nullspaceVector(buildMatrix(parsed));
+  let coefficients: number[] | null;
+  try {
+    coefficients = nullspaceVector(buildMatrix(parsed));
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    return chemistryError("UNBALANCEABLE_EQUATION", error.message);
+  }
   if (!coefficients) {
     return chemistryError("UNBALANCEABLE_EQUATION", "This equation could not be balanced with positive integers.");
   }

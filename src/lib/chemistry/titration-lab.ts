@@ -4,6 +4,8 @@ import type {
   TitrationNotebook,
   TitrationState,
 } from "@/lib/chemistry/chemistry-types";
+import { calculateStrongAcidBase } from "@/lib/chemistry/acid-base";
+import { finite, nonnegative, positive } from "@/lib/chemistry/calculation-validation";
 
 function nowIso() {
   return new Date().toISOString();
@@ -21,38 +23,20 @@ function emptyNotebook(): TitrationNotebook {
   };
 }
 
-function clampVolume(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(50, value));
-}
-
-function safeNegativeLog10(concentration: number) {
-  return -Math.log10(Math.max(concentration, 1e-14));
-}
-
 export function calculateStrongAcidStrongBasePh(input: {
   acidMolarity: number;
   acidVolumeMl: number;
   baseMolarity: number;
   baseVolumeMl: number;
 }) {
-  const acidMoles = input.acidMolarity * (input.acidVolumeMl / 1000);
-  const baseMoles = input.baseMolarity * (input.baseVolumeMl / 1000);
-  const totalLiters = Math.max((input.acidVolumeMl + input.baseVolumeMl) / 1000, 0.000001);
-  const difference = acidMoles - baseMoles;
-
-  if (Math.abs(difference) < 1e-10) {
-    return 7;
-  }
-
-  if (difference > 0) {
-    return safeNegativeLog10(difference / totalLiters);
-  }
-
-  const poh = safeNegativeLog10(Math.abs(difference) / totalLiters);
-  return 14 - poh;
+  positive(input.acidMolarity, "Acid molarity");
+  positive(input.baseMolarity, "Base molarity");
+  positive(input.acidVolumeMl, "Initial acid volume");
+  nonnegative(input.baseVolumeMl, "Added base volume");
+  const totalVolumeMl = finite(input.acidVolumeMl + input.baseVolumeMl, "Total volume");
+  const difference = input.acidMolarity * (input.acidVolumeMl / totalVolumeMl)
+    - input.baseMolarity * (input.baseVolumeMl / totalVolumeMl);
+  return calculateStrongAcidBase({ kind: difference < 0 ? "base" : "acid", concentrationM: Math.abs(difference) }).ph;
 }
 
 function buildMeasurement(
@@ -115,7 +99,9 @@ export function titrationReducer(state: TitrationState, action: TitrationAction)
     };
   }
 
-  const nextAdded = clampVolume(state.titrantAddedMl + action.volumeMl);
+  nonnegative(state.titrantAddedMl, "Existing titrant volume");
+  nonnegative(action.volumeMl, "Added titrant volume");
+  const nextAdded = Math.min(50, finite(state.titrantAddedMl + action.volumeMl, "Total titrant volume"));
   const nextCore = {
     labTemplateId: state.labTemplateId,
     acidFormula: state.acidFormula,
