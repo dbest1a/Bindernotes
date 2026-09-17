@@ -17,6 +17,8 @@ import {
 import { workspaceModuleRegistry } from "@/components/workspace/workspace-modules";
 import { getWorkspaceMobileModuleTabs, getWorkspacePresetDesign } from "@/lib/workspace-preset-designs";
 
+vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ profile: null }) }));
+
 vi.mock("@/lib/desmos-loader", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/desmos-loader")>();
   return {

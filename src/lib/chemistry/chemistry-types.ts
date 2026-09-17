@@ -158,5 +158,6 @@ export type TitrationState = {
 
 export type TitrationAction =
   | { type: "add_titrant"; volumeMl: number }
+  | { type: "restore"; state: TitrationState }
   | { type: "reset" }
-  | { type: "update_notebook"; section: TitrationNotebookSection; value: string };
+  | { type: "update_notebook"; section: keyof TitrationNotebook; value: string };

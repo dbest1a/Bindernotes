@@ -84,6 +84,7 @@ export function createTitrationInitialState(): TitrationState {
 }
 
 export function titrationReducer(state: TitrationState, action: TitrationAction): TitrationState {
+  if (action.type === "restore") return action.state;
   if (action.type === "reset") {
     return createTitrationInitialState();
   }
@@ -102,6 +103,7 @@ export function titrationReducer(state: TitrationState, action: TitrationAction)
   nonnegative(state.titrantAddedMl, "Existing titrant volume");
   nonnegative(action.volumeMl, "Added titrant volume");
   const nextAdded = Math.min(50, finite(state.titrantAddedMl + action.volumeMl, "Total titrant volume"));
+  if (nextAdded === state.titrantAddedMl) return state;
   const nextCore = {
     labTemplateId: state.labTemplateId,
     acidFormula: state.acidFormula,

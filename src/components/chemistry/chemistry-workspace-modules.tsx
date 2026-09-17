@@ -25,6 +25,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import { ChemistryActivityStorage } from "@/components/chemistry/chemistry-activity-storage";
+import { useAuth } from "@/hooks/use-auth";
+import type { ChemistryActivity } from "@/services/chemistry-activity-service";
+import type { TitrationNotebook } from "@/lib/chemistry/chemistry-types";
 import { calculateStrongAcidBase, getPhScaleLabel } from "@/lib/chemistry/acid-base";
 import { validateCalculation } from "@/lib/chemistry/calculation-validation";
 import { calculateDilution } from "@/lib/chemistry/dilution";
@@ -1353,9 +1357,15 @@ export function ChemistryDataTableModule() {
 }
 
 export function ChemistryStoichiometryCoachModule() {
+  const { profile } = useAuth();
+  return <AccountStoichiometryCoach key={profile?.id ?? "signed-out"} ownerId={profile?.id ?? null} />;
+}
+
+function AccountStoichiometryCoach({ ownerId }: { ownerId: string | null }) {
   const [givenQuantity, setGivenQuantity] = useState("4.032");
+  const [restoredResult, setRestoredResult] = useState<Extract<ChemistryActivity, { kind: "stoichiometry" }>["result"] | null>(null);
   const quantity = parseFiniteDecimal(givenQuantity);
-  const solution = useMemo(
+  const computedSolution = useMemo(
     () =>
       solveStoichiometryProblem({
         equation: stoichTemplate.equation,
@@ -1371,8 +1381,13 @@ export function ChemistryStoichiometryCoachModule() {
       }),
     [quantity],
   );
+  const solution = restoredResult ? { ok: true as const, ...restoredResult } : computedSolution;
   const h2Mass = calculateMolarMass("H2");
   const waterMass = calculateMolarMass("H2O");
+  const snapshot: ChemistryActivity | null = solution.ok ? {
+    kind: "stoichiometry", version: 1, template: "template-water-from-hydrogen", givenQuantity,
+    result: { balancedEquation: solution.balancedEquation, steps: solution.steps, conceptTags: solution.conceptTags, finalAnswer: { ...solution.finalAnswer, unit: "g", formula: "H2O" } },
+  } : null;
 
   return (
     <WorkspacePanel
@@ -1380,6 +1395,9 @@ export function ChemistryStoichiometryCoachModule() {
       title="Chemistry Stoichiometry Coach"
     >
       <div className="grid gap-4">
+        <ChemistryActivityStorage ownerId={ownerId} kind="stoichiometry" snapshot={snapshot} onRestore={(saved) => {
+          if (saved.kind === "stoichiometry") { setGivenQuantity(saved.givenQuantity); setRestoredResult(saved.result); }
+        }} />
         <section className="rounded-2xl border border-border/70 bg-background/70 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1395,7 +1413,7 @@ export function ChemistryStoichiometryCoachModule() {
               Given grams of H2
               <Input
                 inputMode="decimal"
-                onChange={(event) => setGivenQuantity(event.target.value)}
+                onChange={(event) => { setGivenQuantity(event.target.value); setRestoredResult(null); }}
                 value={givenQuantity}
               />
             </label>
@@ -1602,6 +1620,11 @@ export function ChemistryLabCoachModule({
 }
 
 export function ChemistryTitrationLabModule() {
+  const { profile } = useAuth();
+  return <AccountTitrationLab key={profile?.id ?? "signed-out"} ownerId={profile?.id ?? null} />;
+}
+
+function AccountTitrationLab({ ownerId }: { ownerId: string | null }) {
   const [state, dispatch] = useReducer(titrationReducer, undefined, createTitrationInitialState);
   const points = state.measurements.length > 0 ? state.measurements : [{ titrantVolumeMl: 0, ph: state.ph, equivalenceProgress: 0 }];
   const latestProgress = state.measurements.at(-1)?.equivalenceProgress ?? 0;
@@ -1620,6 +1643,9 @@ export function ChemistryTitrationLabModule() {
       description="Strong acid and strong base titration with controlled checkpoints."
       title="Acid-base titration lab"
     >
+      <ChemistryActivityStorage ownerId={ownerId} kind="titration" snapshot={{ kind: "titration", version: 1, state: { ...state, acidMolarity: 0.1, acidVolumeMl: 25, baseMolarity: 0.1 } }} onRestore={(saved) => {
+        if (saved.kind === "titration") dispatch({ type: "restore", state: saved.state });
+      }} />
       <div className="chem-titration-v2 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid gap-3">
           <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
@@ -1639,6 +1665,7 @@ export function ChemistryTitrationLabModule() {
               {["0.50", "1.00", "5.00"].map((volume) => (
                 <Button
                   key={volume}
+                  disabled={state.titrantAddedMl >= 50}
                   onClick={() => dispatch({ type: "add_titrant", volumeMl: Number(volume) })}
                   type="button"
                   variant="outline"
@@ -1708,21 +1735,9 @@ export function ChemistryTitrationLabModule() {
             </div>
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/72 p-4">
-            <p className="text-sm font-semibold">Notebook prompts</p>
+            <p className="text-sm font-semibold">Lab notebook</p>
             <div className="mt-3 grid gap-2">
-              {[
-                "Hypothesis",
-                "Procedure",
-                "Data table",
-                "Calculations",
-                "Observations",
-                "Error analysis",
-                "Conclusion",
-              ].map((prompt) => (
-                <p className="rounded-xl border border-border/55 bg-card/70 px-3 py-2 text-xs" key={prompt}>
-                  {prompt}
-                </p>
-              ))}
+              <ChemistryNotebookFields notebook={state.notebook} onChange={(section, value) => dispatch({ type: "update_notebook", section, value })} />
             </div>
           </div>
         </aside>
@@ -1732,32 +1747,25 @@ export function ChemistryTitrationLabModule() {
 }
 
 export function ChemistryLabNotebookModule() {
-  const [conclusion, setConclusion] = useState("");
+  const { profile } = useAuth();
+  return <AccountLabNotebook key={profile?.id ?? "signed-out"} ownerId={profile?.id ?? null} />;
+}
+
+function ChemistryNotebookFields({ notebook, onChange }: { notebook: TitrationNotebook; onChange: (section: keyof TitrationNotebook, value: string) => void }) {
+  const sections: Array<[keyof TitrationNotebook, string]> = [["hypothesis", "Hypothesis"], ["procedure", "Procedure"], ["dataTable", "Data table"], ["calculations", "Calculations"], ["observations", "Observations"], ["errorAnalysis", "Error analysis"], ["conclusion", "Conclusion"]];
+  return <>{sections.map(([section, label]) => <label className="grid gap-2 text-sm" key={section}>{label}<Textarea maxLength={20000} value={notebook[section]} onChange={(event) => onChange(section, event.target.value)} /></label>)}</>;
+}
+
+function AccountLabNotebook({ ownerId }: { ownerId: string | null }) {
+  const [notebook, setNotebook] = useState(() => createTitrationInitialState().notebook);
 
   return (
-    <WorkspacePanel description="Structured notebook sections for lab thinking." title="Smart lab notebook">
+    <WorkspacePanel description="A separate lab notebook. Titration measurements and its notes are saved together in the titration tool." title="Smart lab notebook">
       <div className="grid gap-3">
-        {[
-          ["Hypothesis", "Predict how pH will change near the endpoint."],
-          ["Procedure", "List the exact increments and measurement routine."],
-          ["Data table", "Use the titration lab measurement table as the checkpoint source."],
-          ["Calculations", "Show moles acid, moles base, and endpoint logic."],
-          ["Observations", "Record color, pH jump, and endpoint behavior."],
-          ["Error analysis", "Name overshoot, reading, or concentration error."],
-        ].map(([title, description]) => (
-          <section className="rounded-xl border border-border/70 bg-card/80 p-3" key={title}>
-            <p className="text-sm font-semibold">{title}</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-          </section>
-        ))}
-        <label className="grid gap-2 text-sm">
-          Conclusion
-          <Textarea
-            onChange={(event) => setConclusion(event.target.value)}
-            placeholder="Explain whether the titration result supports your claim."
-            value={conclusion}
-          />
-        </label>
+        <ChemistryActivityStorage ownerId={ownerId} kind="notebook" snapshot={{ kind: "notebook", version: 1, notebook }} onRestore={(saved) => {
+          if (saved.kind === "notebook") setNotebook(saved.notebook);
+        }} />
+        <ChemistryNotebookFields notebook={notebook} onChange={(section, value) => setNotebook((current) => ({ ...current, [section]: value }))} />
       </div>
     </WorkspacePanel>
   );
@@ -1800,7 +1808,7 @@ export function ChemistryReferenceSafetyModule() {
         </article>
         <p className="flex items-start gap-2 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs leading-5 text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
-          BinderNotes saves summaries and checkpoints only. It does not save every small lab interaction.
+          Use Save chemistry work in the stoichiometry, titration, and notebook tools to keep a snapshot in your account. Changes are not saved automatically.
         </p>
       </div>
     </WorkspacePanel>
