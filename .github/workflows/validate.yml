@@ -2,7 +2,7 @@ name: Validate BinderNotes
 on:
   pull_request:
   push:
-    branches: [main, 'codex/**']
+    branches: [main, "codex/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,13 +31,14 @@ jobs:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_ANON_KEY: local-validation-placeholder
           VITE_RELEASE_SHA: ${{ github.sha }}
+      - run: npm run scan:build
       - run: npm audit --audit-level=moderate
   database:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        baseline: [clean, '0015', '0025', production-observed]
+        baseline: [clean, "0015", "0025", production-observed]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -5,6 +5,7 @@ import { spawnSync, spawn } from "node:child_process";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { readMigrationBundle, projectRoot } from "../database/migration-bundle.mjs";
+import { safeCommandFailure } from "./safe-command-output.mjs";
 
 // Full Linux Supabase runtime. Deliberately never consumes hosted env credentials.
 assert.equal(process.env.CI, "true", "This orchestrator requires an isolated CI worker with Docker");
@@ -15,8 +16,7 @@ await mkdir(path.dirname(directory), { recursive: true });
 await mkdir(directory, { recursive: false });
 function command(binary, args) {
   const result = spawnSync(binary, args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (result.status !== 0)
-    throw new Error(`${binary} failed; no credential-bearing output is included in CI logs`);
+  if (result.status !== 0) throw new Error(safeCommandFailure(binary, args[0] ?? "command", result));
   return result.stdout;
 }
 command("supabase", ["init", "--workdir", directory]);
