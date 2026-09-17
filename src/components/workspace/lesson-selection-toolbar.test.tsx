@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildLessonContentSelector } from "@/components/workspace/lesson-content-renderer";
-import { LessonSelectionToolbar, resolveToolbarPortalHost } from "@/components/workspace/lesson-selection-toolbar";
+import {
+  LessonSelectionToolbar,
+  resolveToolbarPortalHost,
+} from "@/components/workspace/lesson-selection-toolbar";
 import type { LessonTextSelection } from "@/types";
 
 describe("lesson selection toolbar helpers", () => {
@@ -94,7 +97,9 @@ describe("lesson selection toolbar helpers", () => {
       selectText("Second selectable quote");
       document.dispatchEvent(new Event("selectionchange"));
 
-      expect((await screen.findByTestId("whiteboard-annotation-popup")).className).toContain("z-[2147483647]");
+      expect((await screen.findByTestId("whiteboard-annotation-popup")).className).toContain(
+        "z-[2147483647]",
+      );
     } finally {
       restoreRange();
     }
@@ -120,6 +125,44 @@ describe("lesson selection toolbar helpers", () => {
       await screen.findByTestId("whiteboard-annotation-popup");
       fireEvent.click(screen.getByRole("button", { name: /copy quote/i }));
       expect(onQuoteToNotes).toHaveBeenCalledWith("Second selectable quote");
+    } finally {
+      restoreRange();
+    }
+  });
+
+  it("uses the beta source-linked copy for sending a highlight into notes", async () => {
+    const onSendToNotes = vi.fn();
+    const restoreRange = installSelectionRect();
+
+    try {
+      renderSelectionToolbar({ onSendToNotes, sourceLinkedNotesBeta: true });
+      selectText("Second selectable quote");
+      document.dispatchEvent(new Event("selectionchange"));
+
+      await screen.findByTestId("whiteboard-annotation-popup");
+      fireEvent.click(screen.getByRole("button", { name: /send highlight to notes/i }));
+
+      expect(onSendToNotes).toHaveBeenCalledWith("Second selectable quote");
+    } finally {
+      restoreRange();
+    }
+  });
+
+  it("shows a beta Add to Review action for selected source text", async () => {
+    const onAddSelectionToReview = vi.fn();
+    const restoreRange = installSelectionRect();
+
+    try {
+      renderSelectionToolbar({ onAddSelectionToReview, reviewQueueBeta: true });
+      selectText("Second selectable quote");
+      document.dispatchEvent(new Event("selectionchange"));
+
+      await screen.findByTestId("whiteboard-annotation-popup");
+      fireEvent.click(screen.getByRole("button", { name: /add to review/i }));
+
+      expect(onAddSelectionToReview).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "Second selectable quote" }),
+      );
     } finally {
       restoreRange();
     }
@@ -153,10 +196,16 @@ function renderSelectionToolbar({
   onCommentSelection = vi.fn(),
   onQuoteToNotes = vi.fn(),
   onSendToNotes = vi.fn(),
+  onAddSelectionToReview = vi.fn(),
+  reviewQueueBeta = false,
+  sourceLinkedNotesBeta = false,
 }: {
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
   onQuoteToNotes?: (anchorText: string) => void;
   onSendToNotes?: (anchorText: string) => void;
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
 }) {
   return render(
     <>
@@ -168,10 +217,13 @@ function renderSelectionToolbar({
         defaultHighlightColor="yellow"
         highlights={[]}
         onCommentSelection={onCommentSelection}
+        onAddSelectionToReview={onAddSelectionToReview}
         onHighlight={vi.fn()}
         onQuoteToNotes={onQuoteToNotes}
         onRemoveHighlight={vi.fn()}
+        reviewQueueBeta={reviewQueueBeta}
         onSendToNotes={onSendToNotes}
+        sourceLinkedNotesBeta={sourceLinkedNotesBeta}
         onStickyNote={vi.fn()}
       />
     </>,

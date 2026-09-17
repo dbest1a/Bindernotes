@@ -38,7 +38,9 @@ export function compareHistoricalDates(left: HistoricalDateParts, right: Histori
   return Number(left.approximate) - Number(right.approximate);
 }
 
-export function sortHistoryEvents<T extends HistoryEventTemplate | HistoryEvent | HistoryTimelineEvent>(events: T[]) {
+export function sortHistoryEvents<T extends HistoryEventTemplate | HistoryEvent | HistoryTimelineEvent>(
+  events: T[],
+) {
   return [...events].sort((left, right) => {
     const dateDelta = compareHistoricalDates(left, right);
     if (dateDelta !== 0) {

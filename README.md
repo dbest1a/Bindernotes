@@ -1,5 +1,7 @@
 # Binder Notes
 
+Current Codex project folder: `C:\Users\kaich\Documents\Codex\bindernotes-clean-project`
+
 Last updated: 2026-04-28
 
 Binder Notes is a student-first learning workspace for reading course material, taking private notes, graphing math, building study layouts, and testing the product through a Vercel-ready public site.
@@ -60,6 +62,12 @@ Public:
 - `/` public landing page
 - `/pricing` pricing and plan comparison
 - `/auth` signup/sign-in
+
+Beta review routes:
+
+- `/homepage-beta` shows the Beta Revamp Calm Study Homepage only when the `Beta Revamp - Calm Study Homepage` flag is enabled; otherwise it falls back to the standard landing page.
+- `/pricing-beta` shows the simplified Beta Revamp pricing copy only when the same beta flag is enabled; `/pricing` remains the standard four-plan pricing page.
+- Beta Revamp surfaces are local review paths and should not replace production defaults until the beta flag is deliberately enabled and reviewed.
 
 Protected app:
 

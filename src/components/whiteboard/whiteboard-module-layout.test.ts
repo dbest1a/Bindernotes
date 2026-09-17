@@ -13,8 +13,82 @@ describe("WhiteboardModule workspace layout", () => {
   });
 
   it("does not reuse fixed lab-sized canvas constraints in the normal workspace module", () => {
-    expect(source).not.toContain('whiteboard-workspace-panel min-h-[720px]');
-    expect(source).not.toContain('relative min-h-[680px] overflow-auto');
-    expect(source).not.toContain('relative min-h-[1800px] min-w-[1800px]');
+    expect(source).not.toContain("whiteboard-workspace-panel min-h-[720px]");
+    expect(source).not.toContain("relative min-h-[680px] overflow-auto");
+    expect(source).not.toContain("relative min-h-[1800px] min-w-[1800px]");
+  });
+
+  it("keeps a visible escape hatch and temporary hint for focused whiteboard surfaces", () => {
+    expect(source).toContain("onExitWhiteboardFocus");
+    expect(source).toContain('data-testid="whiteboard-focus-exit"');
+    expect(source).toContain('data-testid="whiteboard-focus-exit-hint"');
+    expect(source).toContain("whiteboard-focus-exit-hint--fullscreen");
+    expect(source).toContain("whiteboard-focus-exit-hint--embedded");
+    expect(source).toContain("Back to workspace");
+    expect(source).toContain("5000");
+  });
+
+  it("keeps the focused whiteboard escape hatch away from the native top toolbar", () => {
+    expect(source).toContain("whiteboard-focus-return");
+    expect(source).toContain('data-whiteboard-focus-return="true"');
+    expect(source).not.toContain("fixed bottom-4 left-1/2");
+    expect(source).not.toContain("whiteboard-focus-exit--floating pointer-events-auto fixed bottom-4");
+  });
+
+  it("keeps whiteboard focus opt-in through an explicit full board control", () => {
+    expect(source).toContain("onEnterWhiteboardFocus");
+    expect(source).toContain('data-testid="whiteboard-enter-focus"');
+    expect(source).toContain("Full board");
+    expect(source).toContain("Open full board");
+  });
+
+  it("does not expose implementation-copy about future Supabase storage in the student sidebar", () => {
+    expect(source).not.toContain("Remote Supabase storage is prepared for a later approved migration.");
+    expect(source).toContain("Keep the board beside your lesson, notes, and live tools while you work.");
+  });
+
+  it("uses Compact Whiteboard Tools to default the toolbox to a rail and lazily reveal templates", () => {
+    expect(source).toContain("compactWhiteboardTools || context.whiteboardSidebarDefaultCollapsed");
+    expect(source).toContain('data-compact-whiteboard-tools={compactWhiteboardTools ? "true" : "false"}');
+    expect(source).toContain('aria-label="Shrink whiteboard sidebar"');
+    expect(source).toContain('aria-label="Expand toolbox"');
+    expect(source).toContain("templatesOpen ? mathWhiteboardTemplates : []");
+    expect(source).toContain("compact={compactWhiteboardTools}");
+  });
+
+  it("lets the whiteboard sidebar shrink and resize without remounting the board", () => {
+    expect(source).toContain("WHITEBOARD_SIDEBAR_WIDTH_KEY");
+    expect(source).toContain("clampWhiteboardSidebarWidth");
+    expect(source).toContain('data-testid="whiteboard-sidebar-resizer"');
+    expect(source).toContain('aria-label="Resize whiteboard sidebar"');
+    expect(source).toContain('aria-label="Shrink whiteboard sidebar"');
+    expect(source).not.toContain('<Badge variant="outline">Local draft</Badge>');
+    expect(source).toContain("--whiteboard-sidebar-width");
+    expect(source).toContain("whiteboard-sidebar-scroll");
+  });
+
+  it("keeps menu switching performance-first without remounting the board canvas", () => {
+    expect(source).toContain('data-whiteboard-performance-shell="true"');
+    expect(source).toContain("templatesOpen ? mathWhiteboardTemplates : []");
+  });
+
+  it("keeps whiteboard storage status language consistent for students", () => {
+    expect(source).toContain("Loaded from Supabase");
+    expect(source).toContain("Loaded from your account");
+    expect(source).toContain("Scratch board - not saved yet");
+    expect(source).toContain('"Saved"');
+    expect(source).not.toContain("Saved to Supabase");
+  });
+
+  it("keeps Revamp Beta board starts document-scoped and offers scratch boards at the account cap", () => {
+    expect(source).toContain("documentBoard");
+    expect(source).toContain("board.binderId === scope.binderId && board.lessonId === scope.lessonId");
+    expect(source).toContain("isScratchWhiteboard(boardRef.current)");
+    expect(source).toContain("activeAfterRefresh");
+    expect(source).toContain("activateScratchBoard(template)");
+    expect(source).toMatch(
+      /onCreateScratchBoard=\{\s*compactWhiteboardTools\s*\?\s*\(\)\s*=>\s*activateScratchBoard\(mathWhiteboardTemplates\[0\]\)\s*:\s*undefined\s*\}/,
+    );
+    expect(source).toContain("archiveActionsVisible={!compactWhiteboardTools}");
   });
 });

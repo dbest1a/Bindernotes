@@ -1,9 +1,10 @@
 import katex from "katex";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import "katex/dist/katex.min.css";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
-  BookOpen,
+  BookOpenCheck,
   CheckCircle2,
   Cuboid,
   FileQuestion,
@@ -12,9 +13,10 @@ import {
   ListChecks,
   Plus,
   Save,
-  Sparkles,
 } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
+import { SavedQuizResults } from "@/components/math/saved-quiz-results";
+import { MathStudyLoopPanel } from "@/components/study/math-study-loop-panel";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { useQuizAttemptResults } from "@/hooks/use-quiz-attempt-results";
 import {
   useCompleteQuizAttempt,
   useCreateQuizSet,
@@ -39,14 +43,12 @@ import {
   useSubmitQuestionAttempt,
 } from "@/hooks/use-math-learning";
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { parseFiniteDecimal } from "@/lib/finite-number";
 import { cn } from "@/lib/utils";
-import type {
-  MathCourse,
-  MathModule,
-  QuestionBankItem,
-  QuestionChoice,
-  QuestionType,
-} from "@/types/math-learning";
+import type { StudyItemType } from "@/services/study-items-service";
+import { createCloudStudyItem } from "@/services/canonical-review-service";
+import { listStudyGraphLinks } from "@/services/math-study-loop-service";
+import type { MathCourse, MathModule, QuestionBankItem, QuestionType } from "@/types/math-learning";
 
 const questionTypes: QuestionType[] = [
   "multiple_choice",
@@ -61,6 +63,7 @@ const questionTypes: QuestionType[] = [
 ];
 
 type ActiveGraphMode = Exclude<MathModule["calculator_mode"], "none">;
+type FormulaCard = NonNullable<MathModule["module_json"]["formulaCards"]>[number];
 
 export function MathLandingPage() {
   const coursesQuery = useMathCourses();
@@ -84,8 +87,8 @@ export function MathLandingPage() {
             Jacob's Math Notes, upgraded with Desmos graphs and practice that saves.
           </h1>
           <p className="mt-4 max-w-2xl page-copy">
-            Move from Geometry to Real Analysis with formula cards, 2D and 3D graph modules,
-            saved graph states, and linked practice.
+            Move from Geometry to Real Analysis with formula cards, 2D and 3D graph modules, saved graph
+            states, and linked practice.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild>
@@ -156,9 +159,7 @@ export function MathCoursePage() {
       <section className="page-shell p-6">
         <Badge variant="outline">Course</Badge>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight">{bundle.course.title}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-          {bundle.course.description}
-        </p>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{bundle.course.description}</p>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -168,6 +169,11 @@ export function MathCoursePage() {
             <CardDescription>Move through the course by concept.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
+            {bundle.topics.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No topics have been published for this course yet.
+              </p>
+            ) : null}
             {bundle.topics.map((topic) => (
               <div
                 className="rounded-lg border border-border/70 bg-background/75 px-3 py-2 text-sm"
@@ -180,6 +186,17 @@ export function MathCoursePage() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
+          {bundle.modules.length === 0 ? (
+            <EmptyState
+              title="No modules published yet"
+              description="This course is listed in the catalog, but its study modules are not available yet. Browse Math modules for available lessons."
+              action={
+                <Button asChild variant="outline">
+                  <Link to="/math/modules">Browse available modules</Link>
+                </Button>
+              }
+            />
+          ) : null}
           {bundle.modules.map((module) => (
             <ModuleCard key={module.id} module={module} />
           ))}
@@ -224,6 +241,7 @@ export function MathModulePage() {
   const { moduleSlug } = useParams();
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const betaFeatures = useBetaFeatures(profile?.id);
   const bundleQuery = useMathModuleBundle(moduleSlug, profile?.id);
   const createQuiz = useCreateQuizSet();
   const saveGraph = useSaveMathGraphState();
@@ -262,10 +280,16 @@ export function MathModulePage() {
   const graphCards = module.module_json.graphCards ?? [];
   const selectedGraphCard = graphCards.find((graph) => graph.id === selectedGraphCardId) ?? null;
   const expressions = selectedGraphCard
-    ? selectedGraphCard.expressions.map((latex, index) => ({ id: `${selectedGraphCard.id}-${index + 1}`, latex }))
-    : module.module_json.expressions ?? [];
+    ? selectedGraphCard.expressions.map((latex, index) => ({
+        id: `${selectedGraphCard.id}-${index + 1}`,
+        latex,
+      }))
+    : (module.module_json.expressions ?? []);
   const activeGraphState = graphStatesByMode[activeGraphMode];
   const canSaveGraph = module.calculator_mode !== "none" && Boolean(activeGraphState);
+  const mathStudyLoopBeta = betaFeatures.isFeatureEnabled("betaRevampMathStudyLoop");
+  const narrowAiStudyToolsBeta = betaFeatures.isFeatureEnabled("betaRevampNarrowAiStudyTools");
+  const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const setActiveGraphState = (nextState: DesmosState) => {
     setGraphStatesByMode((current) => ({
       ...current,
@@ -305,13 +329,58 @@ export function MathModulePage() {
     setSaveMessage(`Saved ${graph.title}`);
   };
 
+  const addFormulaToReview = async (formula: FormulaCard) => {
+    try {
+      await createCloudStudyItem({
+        answer: formula.explanation?.trim() || formula.latex,
+        betaEnabled: reviewQueueBeta,
+        courseId: module.course_id,
+        courseTitle: bundle.course?.title ?? null,
+        ownerId: profile.id,
+        prompt: `Explain when to use ${formula.label}.`,
+        sourceExcerpt: formula.latex,
+        sourceId: formula.id,
+        sourceKind: "formula",
+        sourceTitle: formula.label,
+        type: "formula_card",
+      });
+      setSaveMessage(`${formula.label} added to Review Queue.`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+    }
+  };
+
+  const addQuestionToReview = async (question: QuestionBankItem) => {
+    try {
+      await createCloudStudyItem({
+        answer: question.explanation_markdown?.trim() || JSON.stringify(question.answer_json),
+        betaEnabled: reviewQueueBeta,
+        courseId: module.course_id,
+        courseTitle: bundle.course?.title ?? null,
+        ownerId: profile.id,
+        prompt: question.title ?? question.prompt_markdown,
+        sourceExcerpt: question.prompt_markdown,
+        sourceId: question.id,
+        sourceKind: "problem",
+        sourceTitle: question.title ?? "Practice problem",
+        type: studyItemTypeForQuestion(question),
+      });
+      setSaveMessage(`${question.title ?? "Practice problem"} added to Review Queue.`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Review card could not be saved.");
+    }
+  };
+
   return (
     <main className="app-page max-w-[1680px]">
       <Breadcrumbs
         items={[
           { label: "Workspace", to: "/dashboard" },
           { label: "Math", to: "/math" },
-          { label: bundle.course?.title ?? "Course", to: bundle.course ? `/math/courses/${bundle.course.slug}` : "/math" },
+          {
+            label: bundle.course?.title ?? "Course",
+            to: bundle.course ? `/math/courses/${bundle.course.slug}` : "/math",
+          },
           { label: module.title },
         ]}
       />
@@ -321,9 +390,7 @@ export function MathModulePage() {
           <div>
             <Badge variant="outline">{bundle.course?.title ?? "Math module"}</Badge>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight">{module.title}</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
-              {module.description}
-            </p>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{module.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={startPractice} type="button">
@@ -339,6 +406,25 @@ export function MathModulePage() {
           </div>
         </div>
       </section>
+
+      <MathStudyLoopPanel
+        activeExpressions={expressions}
+        activeGraphMode={activeGraphMode}
+        activeGraphState={activeGraphState}
+        betaEnabled={mathStudyLoopBeta}
+        courseId={module.course_id}
+        courseTitle={bundle.course?.title ?? null}
+        formulaCards={module.module_json.formulaCards ?? []}
+        graphLinks={listStudyGraphLinks(profile.id)}
+        graphStates={bundle.graphStates}
+        moduleId={module.id}
+        moduleTitle={module.title}
+        narrowAiBetaEnabled={narrowAiStudyToolsBeta}
+        onRestoreGraphState={setActiveGraphState}
+        ownerId={profile.id}
+        questions={bundle.questions}
+        reviewQueueBetaEnabled={reviewQueueBeta}
+      />
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(560px,1.18fr)]">
         <div className="grid gap-4">
@@ -373,7 +459,11 @@ export function MathModulePage() {
             </CardContent>
           </Card>
 
-          <FormulaCardGrid formulas={module.module_json.formulaCards ?? []} />
+          <FormulaCardGrid
+            formulas={module.module_json.formulaCards ?? []}
+            onAddFormulaToReview={addFormulaToReview}
+            reviewQueueBeta={reviewQueueBeta}
+          />
           <GraphCardList
             graphs={graphCards}
             onOpenGraph={(graph) => {
@@ -385,7 +475,11 @@ export function MathModulePage() {
             selectedGraphId={selectedGraphCard?.id ?? null}
           />
           <RelatedConcepts concepts={module.module_json.relatedConcepts ?? []} />
-          <PracticeList questions={bundle.questions} />
+          <PracticeList
+            onAddQuestionToReview={addQuestionToReview}
+            questions={bundle.questions}
+            reviewQueueBeta={reviewQueueBeta}
+          />
         </div>
 
         <Card className="overflow-hidden">
@@ -447,13 +541,15 @@ export function MathModulePage() {
                 placeholder="Name this graph state"
                 value={snapshotName}
               />
-              <Button disabled={!canSaveGraph || saveGraph.isPending} onClick={saveCurrentGraph} type="button">
+              <Button
+                disabled={!canSaveGraph || saveGraph.isPending}
+                onClick={saveCurrentGraph}
+                type="button"
+              >
                 <Save data-icon="inline-start" />
                 Save graph state
               </Button>
-              {saveMessage ? (
-                <span className="text-sm text-muted-foreground">{saveMessage}</span>
-              ) : null}
+              {saveMessage ? <span className="text-sm text-muted-foreground">{saveMessage}</span> : null}
             </div>
           </CardContent>
         </Card>
@@ -520,6 +616,7 @@ export function MathQuestionBankPage() {
           </div>
         </div>
         <Input
+          aria-label="Search question prompts"
           className="mt-5 max-w-lg"
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search prompts"
@@ -533,9 +630,7 @@ export function MathQuestionBankPage() {
             key={question.id}
             onToggle={(checked) => {
               setSelectedIds((current) =>
-                checked
-                  ? [...current, question.id]
-                  : current.filter((id) => id !== question.id),
+                checked ? [...current, question.id] : current.filter((id) => id !== question.id),
               );
             }}
             question={question}
@@ -556,6 +651,7 @@ export function MathQuestionEditorPage() {
   const modulesQuery = useMathModules();
   const questionsQuery = useQuestionBank({});
   const saveQuestionMutation = useSaveQuestion();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const existingQuestion = (questionsQuery.data ?? []).find((question) => question.id === questionId);
   const [draft, setDraft] = useState(() =>
     createQuestionDraft({
@@ -608,34 +704,47 @@ export function MathQuestionEditorPage() {
 
   const modules = modulesQuery.data ?? [];
   const selectedModule = modules.find((module) => module.id === draft.moduleId) ?? null;
+  const numericExpected = parseFiniteDecimal(draft.numericExpected);
+  const numericTolerance = parseFiniteDecimal(draft.numericTolerance);
+  const numericAnswerError =
+    draft.type === "numeric" &&
+    (numericExpected === null || numericTolerance === null || numericTolerance < 0)
+      ? "Enter a finite expected answer and a nonnegative numeric tolerance."
+      : null;
 
   const saveDraft = async () => {
-    const saved = await saveQuestionMutation.mutateAsync({
-      id: draft.id || undefined,
-      userId: profile.id,
-      courseId: draft.courseId || selectedModule?.course_id || null,
-      topicId: draft.topicId || selectedModule?.topic_id || null,
-      moduleId: draft.moduleId || null,
-      noteId: draft.noteId || null,
-      type: draft.type,
-      title: draft.title || null,
-      promptMarkdown: draft.promptMarkdown,
-      promptLatex: draft.promptLatex || null,
-      answerJson: buildAnswerJson(draft),
-      explanationMarkdown: draft.explanationMarkdown || null,
-      difficulty: draft.difficulty,
-      calculatorAllowed: draft.calculatorAllowed,
-      status: draft.status,
-      choices: usesChoices(draft.type)
-        ? draft.choices.map((choice, index) => ({
-            id: choice.id,
-            choiceText: choice.choiceText,
-            isCorrect: choice.isCorrect,
-            orderIndex: index + 1,
-          }))
-        : [],
-    });
-    navigate(`/math/questions/${saved.id}/edit`);
+    if (numericAnswerError) return;
+    setSaveError(null);
+    try {
+      const saved = await saveQuestionMutation.mutateAsync({
+        id: draft.id || undefined,
+        userId: profile.id,
+        courseId: draft.courseId || selectedModule?.course_id || null,
+        topicId: draft.topicId || selectedModule?.topic_id || null,
+        moduleId: draft.moduleId || null,
+        noteId: draft.noteId || null,
+        type: draft.type,
+        title: draft.title || null,
+        promptMarkdown: draft.promptMarkdown,
+        promptLatex: draft.promptLatex || null,
+        answerJson: buildAnswerJson(draft),
+        explanationMarkdown: draft.explanationMarkdown || null,
+        difficulty: draft.difficulty,
+        calculatorAllowed: draft.calculatorAllowed,
+        status: draft.status,
+        choices: usesChoices(draft.type)
+          ? draft.choices.map((choice, index) => ({
+              id: choice.id,
+              choiceText: choice.choiceText,
+              isCorrect: choice.isCorrect,
+              orderIndex: index + 1,
+            }))
+          : [],
+      });
+      navigate(`/math/questions/${saved.id}/edit`);
+    } catch {
+      setSaveError("The question could not be saved. Your edits are still here; please try again.");
+    }
   };
 
   return (
@@ -656,23 +765,37 @@ export function MathQuestionEditorPage() {
               {existingQuestion ? "Edit math question" : "Create math question"}
             </h1>
           </div>
-          <Button onClick={saveDraft} type="button">
+          <Button
+            disabled={Boolean(numericAnswerError) || saveQuestionMutation.isPending}
+            onClick={saveDraft}
+            type="button"
+          >
             <Save data-icon="inline-start" />
             Save question
           </Button>
         </div>
+        {numericAnswerError || saveError ? (
+          <p className="mt-3 text-sm" role="alert">
+            {numericAnswerError ?? saveError}
+          </p>
+        ) : null}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.55fr)]">
         <Card>
           <CardHeader>
             <CardTitle>Question setup</CardTitle>
-            <CardDescription>Manual questions can be linked to a course, module, or note later.</CardDescription>
+            <CardDescription>
+              Manual questions can be linked to a course, module, or note later.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-3 md:grid-cols-2">
               <LabelledField label="Title">
-                <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
+                <Input
+                  value={draft.title}
+                  onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+                />
               </LabelledField>
               <LabelledField label="Question type">
                 <select
@@ -807,69 +930,89 @@ export function MathQuizPage() {
 export function MathQuizAttemptPage() {
   const { quizId } = useParams();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const quizQuery = useQuizSet(quizId);
   const startAttempt = useStartQuizAttempt();
   const submitAttempt = useSubmitQuestionAttempt();
   const completeAttempt = useCompleteQuizAttempt();
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SubmittedQuestionAnswer>>({});
-  const [results, setResults] = useState<Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>>([]);
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const operation = useRef({ generation: 0, pending: false });
+  useEffect(() => {
+    operation.current = { generation: operation.current.generation + 1, pending: false };
+    setAttemptId(null);
+    setAnswers({});
+    setPending(false);
+    setSaveError(null);
+    return () => {
+      operation.current.generation += 1;
+    };
+  }, [quizId, profile?.id]);
 
   if (quizQuery.isLoading) {
     return <MathPageSkeleton />;
   }
+  if (quizQuery.isError)
+    return (
+      <main className="app-page">
+        <p role="alert">The quiz could not be loaded. Please try again.</p>
+      </main>
+    );
 
   const quiz = quizQuery.data;
   if (!quiz || !profile) {
     return <Navigate replace to="/math/questions" />;
   }
 
-  const begin = async () => {
-    const attempt = await startAttempt.mutateAsync({
-      quizSetId: quiz.id,
-      userId: profile.id,
-    });
-    setAttemptId(attempt.id);
-  };
-
-  const finish = async () => {
-    const activeAttemptId =
-      attemptId ??
-      (
-        await startAttempt.mutateAsync({
-          quizSetId: quiz.id,
+  const saveAttempt = async (finish: boolean) => {
+    if (operation.current.pending) return;
+    const generation = operation.current.generation;
+    operation.current.pending = true;
+    setPending(true);
+    setSaveError(null);
+    try {
+      const activeAttemptId =
+        attemptId ??
+        (await startAttempt.mutateAsync({ quizSetId: quiz.id, userId: profile.id, quizTitle: quiz.title }))
+          .id;
+      if (operation.current.generation !== generation) return;
+      setAttemptId(activeAttemptId);
+      if (!finish) return;
+      const scores = [];
+      for (const question of quiz.questions ?? []) {
+        const submitted = await submitAttempt.mutateAsync({
+          attemptId: activeAttemptId,
           userId: profile.id,
-        })
-      ).id;
-    setAttemptId(activeAttemptId);
-
-    const nextResults = [];
-    for (const question of quiz.questions ?? []) {
-      const answer = answers[question.id] ?? {};
-      const submitted = await submitAttempt.mutateAsync({
+          question,
+          answer: answers[question.id] ?? {},
+        });
+        if (operation.current.generation !== generation) return;
+        scores.push({
+          pointsAwarded: submitted.score.pointsAwarded,
+          totalPoints: submitted.score.totalPoints,
+        });
+      }
+      await completeAttempt.mutateAsync({
         attemptId: activeAttemptId,
+        quizSet: quiz,
         userId: profile.id,
-        question,
-        answer,
+        scores,
       });
-      nextResults.push({
-        question,
-        isCorrect: submitted.score.isCorrect,
-        points: submitted.score.pointsAwarded,
-        total: submitted.score.totalPoints,
-      });
+      if (operation.current.generation !== generation) return;
+      navigate(`/math/quizzes/${encodeURIComponent(quiz.id)}/results/${encodeURIComponent(activeAttemptId)}`);
+    } catch {
+      if (operation.current.generation === generation)
+        setSaveError(
+          "The attempt was not fully saved. Your answers are still here. Retry to finish saving before leaving this page.",
+        );
+    } finally {
+      if (operation.current.generation === generation) {
+        operation.current.pending = false;
+        setPending(false);
+      }
     }
-
-    await completeAttempt.mutateAsync({
-      attemptId: activeAttemptId,
-      quizSet: quiz,
-      userId: profile.id,
-      scores: nextResults.map((result) => ({
-        pointsAwarded: result.points,
-        totalPoints: result.total,
-      })),
-    });
-    setResults(nextResults);
   };
 
   return (
@@ -882,62 +1025,70 @@ export function MathQuizAttemptPage() {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
           </div>
           {!attemptId ? (
-            <Button onClick={begin} type="button">Start attempt</Button>
+            <Button disabled={pending} onClick={() => void saveAttempt(false)} type="button">
+              Start attempt
+            </Button>
           ) : (
             <Badge variant="outline">Attempt started</Badge>
           )}
         </div>
       </section>
 
-      {results.length > 0 ? (
-        <QuizResultSummary results={results} />
-      ) : (
-        <section className="grid gap-4">
-          {(quiz.questions ?? []).map((question) => (
-            <QuestionRenderer
-              key={question.id}
-              onAnswerChange={(answer) =>
-                setAnswers((current) => ({ ...current, [question.id]: answer }))
-              }
-              question={question}
-              value={answers[question.id] ?? {}}
-            />
-          ))}
-          <Button className="justify-self-start" onClick={finish} type="button">
-            Submit answers
-          </Button>
-        </section>
-      )}
+      {saveError ? <p role="alert">{saveError}</p> : null}
+      <fieldset className="grid gap-4" disabled={pending}>
+        {(quiz.questions ?? []).map((question) => (
+          <QuestionRenderer
+            key={question.id}
+            onAnswerChange={(answer) => setAnswers((current) => ({ ...current, [question.id]: answer }))}
+            question={question}
+            value={answers[question.id] ?? {}}
+          />
+        ))}
+        <Button
+          className="justify-self-start"
+          disabled={pending || !quiz.questions?.length}
+          onClick={() => void saveAttempt(true)}
+          type="button"
+        >
+          {pending ? "Saving attempt…" : "Submit answers"}
+        </Button>
+      </fieldset>
     </main>
   );
 }
 
 export function MathQuizResultsPage() {
-  const { quizId } = useParams();
-  const quizQuery = useQuizSet(quizId);
-
-  if (quizQuery.isLoading) {
-    return <MathPageSkeleton />;
+  const { quizId, attemptId } = useParams();
+  const { profile, isLoading } = useAuth();
+  const resultsQuery = useQuizAttemptResults(quizId, attemptId, profile?.id);
+  if (isLoading || resultsQuery.isLoading) return <MathPageSkeleton />;
+  if (!profile) return <Navigate replace to="/auth" />;
+  if (resultsQuery.isError)
+    return (
+      <main className="app-page">
+        <p role="alert">Saved results could not be loaded.</p>
+        <Button onClick={() => void resultsQuery.refetch()} type="button">
+          Try again
+        </Button>
+      </main>
+    );
+  const results = resultsQuery.data;
+  if (
+    !results ||
+    results.attempt.user_id !== profile.id ||
+    results.attempt.id !== attemptId ||
+    results.attempt.quiz_set_id !== quizId
+  ) {
+    return (
+      <main className="app-page">
+        <EmptyState
+          title="Saved attempt unavailable"
+          description="This attempt does not exist or is not available to your account."
+        />
+      </main>
+    );
   }
-
-  const quiz = quizQuery.data;
-  if (!quiz) {
-    return <Navigate replace to="/math/questions" />;
-  }
-
-  return (
-    <main className="app-page">
-      <EmptyState
-        action={
-          <Button asChild>
-            <Link to={`/math/quizzes/${quiz.id}/attempt`}>Start another attempt</Link>
-          </Button>
-        }
-        description="Open the attempt page to see a fresh scored result summary after submitting answers."
-        title={`${quiz.title} results`}
-      />
-    </main>
-  );
+  return <SavedQuizResults results={results} />;
 }
 
 function CourseCard({ course }: { course: MathCourse }) {
@@ -1020,8 +1171,12 @@ function ModuleDesmos({
 
 function FormulaCardGrid({
   formulas,
+  onAddFormulaToReview,
+  reviewQueueBeta,
 }: {
-  formulas: NonNullable<MathModule["module_json"]["formulaCards"]>;
+  formulas: FormulaCard[];
+  onAddFormulaToReview?: (formula: FormulaCard) => void;
+  reviewQueueBeta?: boolean;
 }) {
   if (formulas.length === 0) {
     return null;
@@ -1036,9 +1191,22 @@ function FormulaCardGrid({
       <CardContent className="grid gap-3">
         {formulas.map((formula) => (
           <div className="rounded-lg border border-border/70 bg-background/80 p-4" key={formula.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">Formula card</Badge>
-              <h2 className="font-semibold tracking-tight">{formula.label}</h2>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Badge variant="secondary">Formula card</Badge>
+                <h2 className="font-semibold tracking-tight">{formula.label}</h2>
+              </div>
+              {reviewQueueBeta && onAddFormulaToReview ? (
+                <Button
+                  onClick={() => onAddFormulaToReview(formula)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <BookOpenCheck data-icon="inline-start" />
+                  Add to Review
+                </Button>
+              ) : null}
             </div>
             <LatexBlock latex={formula.latex} />
             {formula.explanation ? (
@@ -1117,7 +1285,15 @@ function RelatedConcepts({ concepts }: { concepts: string[] }) {
   );
 }
 
-function PracticeList({ questions }: { questions: QuestionBankItem[] }) {
+function PracticeList({
+  onAddQuestionToReview,
+  questions,
+  reviewQueueBeta,
+}: {
+  onAddQuestionToReview?: (question: QuestionBankItem) => void;
+  questions: QuestionBankItem[];
+  reviewQueueBeta?: boolean;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -1129,13 +1305,23 @@ function PracticeList({ questions }: { questions: QuestionBankItem[] }) {
           <EmptyState description="No questions are linked yet." title="Practice coming soon" />
         ) : (
           questions.map((question) => (
-            <div
-              className="rounded-lg border border-border/70 bg-background/75 p-3"
-              key={question.id}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{formatQuestionType(question.type)}</Badge>
-                <Badge variant="outline">{question.difficulty}</Badge>
+            <div className="rounded-lg border border-border/70 bg-background/75 p-3" key={question.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{formatQuestionType(question.type)}</Badge>
+                  <Badge variant="outline">{question.difficulty}</Badge>
+                </div>
+                {reviewQueueBeta && onAddQuestionToReview ? (
+                  <Button
+                    onClick={() => onAddQuestionToReview(question)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <BookOpenCheck data-icon="inline-start" />
+                    Add to Review
+                  </Button>
+                ) : null}
               </div>
               <p className="mt-2 text-sm font-medium">{question.title ?? question.prompt_markdown}</p>
             </div>
@@ -1159,6 +1345,7 @@ function QuestionBankRow({
     <Card>
       <CardContent className="flex flex-wrap items-start gap-4 p-4">
         <input
+          aria-label={`Select question: ${question.title || question.prompt_markdown}`}
           checked={selected}
           className="mt-1 size-4"
           onChange={(event) => onToggle(event.target.checked)}
@@ -1197,12 +1384,23 @@ function QuestionRenderer({
           {question.calculator_allowed ? <Badge variant="outline">Calculator allowed</Badge> : null}
         </div>
         <CardTitle>{question.title ?? "Practice question"}</CardTitle>
-        <CardDescription>
+        <div className="text-sm leading-6 text-muted-foreground/95">
           <MarkdownLite text={question.prompt_markdown} />
-        </CardDescription>
+        </div>
         {question.prompt_latex ? <LatexBlock latex={question.prompt_latex} /> : null}
       </CardHeader>
       <CardContent>
+        {question.type === "short_answer" || question.type === "fill_blank" ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            Answers use an exact-text check. Equivalent mathematical forms or different wording may need
+            review against the explanation.
+          </p>
+        ) : null}
+        {question.type === "free_response" ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            This response is saved for review. Any completion credit is not a correctness grade.
+          </p>
+        ) : null}
         <QuestionInput question={question} value={value} onAnswerChange={onAnswerChange} />
       </CardContent>
     </Card>
@@ -1225,7 +1423,7 @@ function QuestionInput({
             { id: "true", choice_text: "True" },
             { id: "false", choice_text: "False" },
           ]
-        : question.choices ?? [];
+        : (question.choices ?? []);
     return (
       <div className="grid gap-2">
         {choices.map((choice) => (
@@ -1287,6 +1485,7 @@ function QuestionInput({
   if (question.type === "numeric") {
     return (
       <Input
+        aria-label={`Numeric answer: ${question.title || question.prompt_markdown}`}
         onChange={(event) => onAnswerChange({ ...value, numeric: event.target.value })}
         placeholder="Enter a number"
         value={String(value.numeric ?? "")}
@@ -1297,6 +1496,7 @@ function QuestionInput({
   if (question.type === "step_ordering") {
     return (
       <Textarea
+        aria-label={`Step order: ${question.title || question.prompt_markdown}`}
         onChange={(event) =>
           onAnswerChange({
             ...value,
@@ -1311,6 +1511,7 @@ function QuestionInput({
 
   return (
     <Textarea
+      aria-label={`Written answer: ${question.title || question.prompt_markdown}`}
       onChange={(event) =>
         onAnswerChange(
           question.type === "free_response"
@@ -1336,7 +1537,10 @@ function AnswerEditor({
       <LabelledField label="Choices">
         <div className="grid gap-2">
           {draft.choices.map((choice, index) => (
-            <div className="grid gap-2 rounded-lg border border-border/70 bg-background/75 p-3 md:grid-cols-[1fr_auto]" key={choice.id}>
+            <div
+              className="grid gap-2 rounded-lg border border-border/70 bg-background/75 p-3 md:grid-cols-[1fr_auto]"
+              key={choice.id}
+            >
               <Input
                 onChange={(event) => {
                   const choices = [...draft.choices];
@@ -1460,42 +1664,6 @@ function AnswerEditor({
   );
 }
 
-function QuizResultSummary({
-  results,
-}: {
-  results: Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>;
-}) {
-  const score = results.reduce((sum, result) => sum + (result.points ?? 0), 0);
-  const total = results.reduce((sum, result) => sum + result.total, 0);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Score: {score} / {total}</CardTitle>
-        <CardDescription>Review explanations and retry anything that felt shaky.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {results.map((result) => (
-          <div className="rounded-lg border border-border/70 bg-background/75 p-4" key={result.question.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={result.isCorrect ? "secondary" : "outline"}>
-                {result.isCorrect === null ? "Saved" : result.isCorrect ? "Correct" : "Review"}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {result.points ?? 0} / {result.total}
-              </span>
-            </div>
-            <p className="mt-2 font-medium">{result.question.title ?? result.question.prompt_markdown}</p>
-            {result.question.explanation_markdown ? (
-              <MarkdownLite className="mt-2 text-sm text-muted-foreground" text={result.question.explanation_markdown} />
-            ) : null}
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 function MarkdownLite({ className, text }: { className?: string; text: string }) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.every((line) => line.trim().startsWith("- "))) {
@@ -1562,6 +1730,18 @@ function formatQuestionType(type: QuestionType) {
     .split("_")
     .map((part) => part[0]?.toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function studyItemTypeForQuestion(question: QuestionBankItem): StudyItemType {
+  if (question.type === "multiple_choice") {
+    return "multiple_choice";
+  }
+
+  if (question.type === "numeric") {
+    return "numeric_problem";
+  }
+
+  return "free_response";
 }
 
 type QuestionDraft = {
@@ -1634,15 +1814,17 @@ function buildAnswerJson(draft: QuestionDraft): QuestionBankItem["answer_json"] 
     return { correctChoiceId: draft.choices.find((choice) => choice.isCorrect)?.id };
   }
   if (draft.type === "multiple_select") {
-    return { correctChoiceIds: draft.choices.filter((choice) => choice.isCorrect).map((choice) => choice.id) };
+    return {
+      correctChoiceIds: draft.choices.filter((choice) => choice.isCorrect).map((choice) => choice.id),
+    };
   }
   if (draft.type === "true_false") {
     return { expectedBoolean: draft.correctBoolean };
   }
   if (draft.type === "numeric") {
     return {
-      expected: Number(draft.numericExpected),
-      tolerance: Number(draft.numericTolerance || 0),
+      expected: parseFiniteDecimal(draft.numericExpected),
+      tolerance: parseFiniteDecimal(draft.numericTolerance),
       units: null,
     };
   }

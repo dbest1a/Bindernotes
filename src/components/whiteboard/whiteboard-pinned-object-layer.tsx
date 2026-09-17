@@ -1,10 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
-import type {
-  GraphExpressionRequest,
-  GraphLoadRequest,
-} from "@/components/math/math-workspace-modules";
+import type { GraphExpressionRequest, GraphLoadRequest } from "@/components/math/math-workspace-modules";
 import {
   getWhiteboardModuleDefinition,
   isAlwaysLiveWhiteboardModule,
@@ -27,7 +24,15 @@ import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { cn } from "@/lib/utils";
-import type { Binder, BinderLesson, Comment, Highlight, HighlightColor, LessonTextSelection, MathBlock } from "@/types";
+import type {
+  Binder,
+  BinderLesson,
+  Comment,
+  Highlight,
+  HighlightColor,
+  LessonTextSelection,
+  MathBlock,
+} from "@/types";
 
 const lessonScopedWhiteboardModules = new Set<WhiteboardModuleElement["moduleId"]>([
   "lesson",
@@ -50,8 +55,13 @@ type WhiteboardPinnedObjectLayerProps = {
   context: WorkspaceModuleContext;
   fixed?: boolean;
   modules: WhiteboardModuleElement[];
-  onAddLinkedModule?: (moduleElement: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">) => void;
-  renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+  onAddLinkedModule?: (
+    moduleElement: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">,
+  ) => void;
+  renderModule: (
+    moduleId: WhiteboardModuleElement["moduleId"],
+    context: WorkspaceModuleContext,
+  ) => ReactElement | null;
   onChangeModule: (moduleElement: WhiteboardModuleElement) => void;
   onRemoveModule: (moduleId: string) => void;
   onRouteSelectionToNotes?: (request: {
@@ -61,6 +71,7 @@ type WhiteboardPinnedObjectLayerProps = {
   }) => void;
   viewportTransform?: WhiteboardViewportTransform;
   getViewportTransform?: () => WhiteboardViewportTransform;
+  layerRef?: Ref<HTMLDivElement>;
 };
 
 function emptyNoteDoc(): JSONContent {
@@ -164,7 +175,10 @@ function createWhiteboardComment({
   };
 }
 
-function getLayerTransform(transform: WhiteboardViewportTransform, fixed: boolean): WhiteboardViewportTransform {
+function getLayerTransform(
+  transform: WhiteboardViewportTransform,
+  fixed: boolean,
+): WhiteboardViewportTransform {
   if (fixed) {
     return transform;
   }
@@ -186,6 +200,87 @@ function getFloatingTransform(transform: WhiteboardViewportTransform): Whiteboar
     offsetLeft: 0,
     offsetTop: 0,
   };
+}
+
+function getPinnedLayerTransform(layer: HTMLElement, transform: WhiteboardViewportTransform) {
+  const fixed =
+    layer.dataset.whiteboardLayerFixed === "true" ||
+    (layer.dataset.whiteboardLayerFixed === undefined && layer.classList.contains("fixed"));
+
+  if (fixed) {
+    return transform;
+  }
+
+  return {
+    ...transform,
+    offsetLeft: 0,
+    offsetTop: 0,
+  };
+}
+
+function getBoardModuleScreenPointFromDataset(card: HTMLElement, transform: WhiteboardViewportTransform) {
+  const sceneX = Number.parseFloat(card.dataset.cardSceneX ?? "");
+  const sceneY = Number.parseFloat(card.dataset.cardSceneY ?? "");
+  if (!Number.isFinite(sceneX) || !Number.isFinite(sceneY)) {
+    return null;
+  }
+
+  return {
+    x: (sceneX + transform.scrollX) * transform.zoom + (transform.offsetLeft ?? 0),
+    y: (sceneY + transform.scrollY) * transform.zoom + (transform.offsetTop ?? 0),
+  };
+}
+
+export function syncWhiteboardPinnedModuleLayerToViewport(
+  layer: HTMLElement | null,
+  transform: WhiteboardViewportTransform,
+) {
+  if (!layer) {
+    return;
+  }
+
+  const layerTransform = getPinnedLayerTransform(layer, transform);
+
+  layer.dataset.whiteboardViewportScrollX = String(layerTransform.scrollX);
+  layer.dataset.whiteboardViewportScrollY = String(layerTransform.scrollY);
+  layer.dataset.whiteboardViewportZoom = String(layerTransform.zoom);
+  layer.dataset.whiteboardViewportOffsetLeft = String(layerTransform.offsetLeft ?? 0);
+  layer.dataset.whiteboardViewportOffsetTop = String(layerTransform.offsetTop ?? 0);
+
+  const boardCards = layer.querySelectorAll<HTMLElement>(
+    '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board"],' +
+      '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board-fixed-size"]',
+  );
+
+  boardCards.forEach((card) => {
+    if (card.dataset.dragging === "true") {
+      return;
+    }
+
+    const point = getBoardModuleScreenPointFromDataset(card, layerTransform);
+    if (!point) {
+      return;
+    }
+
+    card.dataset.cardRenderX = String(point.x);
+    card.dataset.cardRenderY = String(point.y);
+
+    if (card.dataset.cardAnchor === "board") {
+      card.dataset.cardRenderZoom = String(layerTransform.zoom);
+      card.style.setProperty("left", "0px");
+      card.style.setProperty("top", "0px");
+      card.style.setProperty(
+        "transform",
+        `translate3d(${point.x}px, ${point.y}px, 0) scale(${layerTransform.zoom})`,
+      );
+      return;
+    }
+
+    card.dataset.cardRenderZoom = "1";
+    card.style.setProperty("left", `${point.x}px`);
+    card.style.setProperty("top", `${point.y}px`);
+    card.style.setProperty("transform", "none");
+  });
 }
 
 function moduleFrameSignature(moduleElement: WhiteboardModuleElement) {
@@ -257,7 +352,9 @@ function sortLessonsByOrder(lessons: BinderLesson[]) {
 }
 
 function isSyntheticMathLabSource(moduleElement: Pick<WhiteboardModuleElement, "binderId" | "lessonId">) {
-  return moduleElement.binderId === syntheticMathLabBinderId && moduleElement.lessonId === syntheticMathLabLessonId;
+  return (
+    moduleElement.binderId === syntheticMathLabBinderId && moduleElement.lessonId === syntheticMathLabLessonId
+  );
 }
 
 function scopeSelectionToSource(
@@ -334,15 +431,12 @@ function getSourceLessonModuleContext(
   }
 
   const binder =
-    context.library.binders.find((candidate) => candidate.id === moduleElement.binderId) ??
-    context.binder;
+    context.library.binders.find((candidate) => candidate.id === moduleElement.binderId) ?? context.binder;
   const lessons = sortLessonsByOrder(
     context.library.lessons.filter((lesson) => lesson.binder_id === binder.id),
   );
   const selectedLesson =
-    lessons.find((lesson) => lesson.id === moduleElement.lessonId) ??
-    lessons[0] ??
-    context.selectedLesson;
+    lessons.find((lesson) => lesson.id === moduleElement.lessonId) ?? lessons[0] ?? context.selectedLesson;
   const highlights = context.highlights ?? [];
   const comments = context.comments ?? [];
   const moduleHighlights = moduleElement.whiteboardHighlights ?? [];
@@ -362,11 +456,17 @@ function getSourceLessonModuleContext(
     filteredLessons: lessons,
     selectedLesson,
     comments: [
-      ...moduleComments.filter((comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id),
-      ...comments.filter((comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id),
+      ...moduleComments.filter(
+        (comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id,
+      ),
+      ...comments.filter(
+        (comment) => comment.binder_id === binder.id && comment.lesson_id === selectedLesson.id,
+      ),
     ],
     highlights: [
-      ...moduleHighlights.filter((highlight) => highlight.binder_id === binder.id && highlight.lesson_id === selectedLesson.id),
+      ...moduleHighlights.filter(
+        (highlight) => highlight.binder_id === binder.id && highlight.lesson_id === selectedLesson.id,
+      ),
       ...highlights.filter((highlight) => {
         if (highlight.binder_id !== binder.id) {
           return false;
@@ -397,7 +497,7 @@ function getSourceLessonModuleContext(
         updatedAt: new Date().toISOString(),
       });
     },
-    onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) =>
+    onRemoveHighlight: (_selection: LessonTextSelection, highlightIds: string[]) =>
       onChangeModule({
         ...moduleElement,
         whiteboardHighlights: (moduleElement.whiteboardHighlights ?? []).filter(
@@ -481,16 +581,13 @@ function WhiteboardScopedDesmosGraphModule({
 }: {
   context: WorkspaceModuleContext;
   moduleElement: WhiteboardModuleElement;
-  renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+  renderModule: (
+    moduleId: WhiteboardModuleElement["moduleId"],
+    context: WorkspaceModuleContext,
+  ) => ReactElement | null;
 }) {
-  const {
-    state,
-    setGraphExpanded,
-    setGraphMode,
-    setGraphVisible,
-    savedFunctionMap,
-    ...mathWorkspace
-  } = useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement));
+  const { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace } =
+    useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement));
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -517,7 +614,14 @@ function WhiteboardScopedDesmosGraphModule({
     ...context,
     surface: "whiteboard",
     mathModules: {
-      controller: { state, setGraphExpanded, setGraphMode, setGraphVisible, savedFunctionMap, ...mathWorkspace },
+      controller: {
+        state,
+        setGraphExpanded,
+        setGraphMode,
+        setGraphVisible,
+        savedFunctionMap,
+        ...mathWorkspace,
+      },
       lessonGraphs: [] as Extract<MathBlock, { type: "graph" }>[],
       pendingGraphLoad,
       pendingExpression,
@@ -543,7 +647,10 @@ function WhiteboardLiveModuleContent({
 }: {
   context: WorkspaceModuleContext;
   moduleElement: WhiteboardModuleElement;
-  renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+  renderModule: (
+    moduleId: WhiteboardModuleElement["moduleId"],
+    context: WorkspaceModuleContext,
+  ) => ReactElement | null;
 }) {
   if (moduleElement.moduleId === "desmos-graph") {
     return (
@@ -564,11 +671,7 @@ type SourceLessonPickerProps = {
   onChangeModule: (moduleElement: WhiteboardModuleElement) => void;
 };
 
-function WhiteboardSourceLessonPicker({
-  context,
-  moduleElement,
-  onChangeModule,
-}: SourceLessonPickerProps) {
+function WhiteboardSourceLessonPicker({ context, moduleElement, onChangeModule }: SourceLessonPickerProps) {
   const library = context.library;
   const initialBinderId = isSyntheticMathLabSource(moduleElement) ? undefined : moduleElement.binderId;
   const initialLessonId = isSyntheticMathLabSource(moduleElement) ? undefined : moduleElement.lessonId;
@@ -610,9 +713,7 @@ function WhiteboardSourceLessonPicker({
   const bindersById = new Map(library.binders.map((binder) => [binder.id, binder]));
   const activeFolderId = selectedFolderId ?? folders[0]?.id ?? null;
   const folderBinderIds = new Set(
-    library.folderBinders
-      .filter((link) => link.folder_id === activeFolderId)
-      .map((link) => link.binder_id),
+    library.folderBinders.filter((link) => link.folder_id === activeFolderId).map((link) => link.binder_id),
   );
   const folderBinders = library.binders.filter((binder) => folderBinderIds.has(binder.id));
   const unfiledBinders =
@@ -680,10 +781,13 @@ function WhiteboardSourceLessonPicker({
               key={folder.id}
               onClick={() => {
                 setSelectedFolderId(folder.id);
-                const firstBinderId = library.folderBinders.find((link) => link.folder_id === folder.id)?.binder_id ?? null;
+                const firstBinderId =
+                  library.folderBinders.find((link) => link.folder_id === folder.id)?.binder_id ?? null;
                 setSelectedBinderId(firstBinderId);
                 const firstLesson = firstBinderId
-                  ? sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === firstBinderId))[0] ?? null
+                  ? (sortLessonsByOrder(
+                      library.lessons.filter((lesson) => lesson.binder_id === firstBinderId),
+                    )[0] ?? null)
                   : null;
                 setSelectedLessonId(firstLesson?.id ?? null);
               }}
@@ -712,7 +816,10 @@ function WhiteboardSourceLessonPicker({
               key={binder.id}
               onClick={() => {
                 setSelectedBinderId(binder.id);
-                setSelectedLessonId(sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === binder.id))[0]?.id ?? null);
+                setSelectedLessonId(
+                  sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === binder.id))[0]
+                    ?.id ?? null,
+                );
               }}
               type="button"
             >
@@ -793,13 +900,7 @@ function WhiteboardSourceSummary({
   );
 }
 
-function WhiteboardFormulaSheetLauncher({
-  lesson,
-  onOpen,
-}: {
-  lesson: BinderLesson;
-  onOpen: () => void;
-}) {
+function WhiteboardFormulaSheetLauncher({ lesson, onOpen }: { lesson: BinderLesson; onOpen: () => void }) {
   const mathBlocks = lesson.math_blocks ?? [];
   if (mathBlocks.length === 0) {
     return null;
@@ -857,11 +958,11 @@ function WhiteboardObjectOverlay({
         const confirmedSource = sourceScoped ? isSourceConfirmed(moduleElement) : true;
         const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
         const alwaysLive = isAlwaysLiveWhiteboardModule(moduleElement.moduleId);
-        const visible = alwaysLive ? true : isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
+        const visible = alwaysLive
+          ? true
+          : isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
         const presentation = getEmbeddedModulePresentation(moduleElement, viewportTransform, visible);
-        const live =
-          presentation === "live" &&
-          shouldRenderWhiteboardModuleLive(moduleElement, { visible });
+        const live = presentation === "live" && shouldRenderWhiteboardModuleLive(moduleElement, { visible });
         const liveContent =
           live && confirmedSource ? (
             <WhiteboardLiveModuleContent
@@ -874,7 +975,7 @@ function WhiteboardObjectOverlay({
           presentation === "chip"
             ? "Zoom in to reopen this board tool."
             : moduleElement.mode !== "live"
-              ? definition?.description ?? "Open this module live when you need it."
+              ? (definition?.description ?? "Open this module live when you need it.")
               : "Zoom in or enlarge this card to run the live module.";
 
         return (
@@ -904,7 +1005,8 @@ function WhiteboardObjectOverlay({
                 : undefined
             }
             onOpenFormulaSheet={
-              moduleElement.moduleId === "lesson" && (embeddedContext.selectedLesson?.math_blocks?.length ?? 0) > 0
+              moduleElement.moduleId === "lesson" &&
+              (embeddedContext.selectedLesson?.math_blocks?.length ?? 0) > 0
                 ? () =>
                     onAddLinkedModule?.({
                       moduleId: "formula-sheet",
@@ -953,7 +1055,9 @@ function WhiteboardObjectOverlay({
                 }
               />
             ) : null}
-            {confirmedSource && liveContent ? liveContent : confirmedSource ? (
+            {confirmedSource && liveContent ? (
+              liveContent
+            ) : confirmedSource ? (
               <EmptyState
                 description={previewDescription}
                 title={definition?.label ?? moduleElement.title ?? "BinderNotes module"}
@@ -993,6 +1097,7 @@ export function WhiteboardPinnedObjectLayer({
   context,
   fixed = false,
   getViewportTransform,
+  layerRef,
   modules,
   onAddLinkedModule,
   renderModule,
@@ -1002,15 +1107,25 @@ export function WhiteboardPinnedObjectLayer({
   viewportTransform = defaultWhiteboardViewportTransform,
 }: WhiteboardPinnedObjectLayerProps) {
   const normalizedFloatingCommitRef = useRef(new Set<string>());
+  const renderViewportTransform = getViewportTransform?.() ?? viewportTransform;
+  const latestViewportTransformForCallbacksRef = useRef(renderViewportTransform);
+  latestViewportTransformForCallbacksRef.current = renderViewportTransform;
   const maxZIndex = modules.reduce((max, moduleElement) => Math.max(max, moduleElement.zIndex), 0);
-  const pinnedTransform = getLayerTransform(viewportTransform, fixed);
+  const pinnedTransform = getLayerTransform(renderViewportTransform, fixed);
   const floatingTransform = useMemo(
-    () => getFloatingTransform(viewportTransform),
-    [viewportTransform.viewportWidth, viewportTransform.viewportHeight],
+    () => getFloatingTransform(renderViewportTransform),
+    [renderViewportTransform.viewportWidth, renderViewportTransform.viewportHeight],
+  );
+  const getLatestRawViewportTransform = useCallback(
+    () => getViewportTransform?.() ?? latestViewportTransformForCallbacksRef.current,
+    [getViewportTransform],
+  );
+  const getPinnedViewportTransform = useCallback(
+    () => getLayerTransform(getLatestRawViewportTransform(), fixed),
+    [fixed, getLatestRawViewportTransform],
   );
   const floatingNormalizationResults = useMemo(
-    () =>
-      modules.map((moduleElement) => normalizeFloatingToolModule(moduleElement, floatingTransform)),
+    () => modules.map((moduleElement) => normalizeFloatingToolModule(moduleElement, floatingTransform)),
     [floatingTransform, modules],
   );
   const normalizedModules = useMemo(
@@ -1026,7 +1141,9 @@ export function WhiteboardPinnedObjectLayer({
   );
   const viewportModules = useMemo(
     () =>
-      normalizedModules.filter((moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) === "viewport"),
+      normalizedModules.filter(
+        (moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) === "viewport",
+      ),
     [normalizedModules],
   );
   const pendingFloatingNormalizations = useMemo(
@@ -1051,10 +1168,15 @@ export function WhiteboardPinnedObjectLayer({
   return (
     <div
       className={cn("pointer-events-none inset-0 z-[55]", fixed ? "fixed" : "absolute")}
-      data-whiteboard-viewport-scroll-x={viewportTransform.scrollX}
-      data-whiteboard-viewport-scroll-y={viewportTransform.scrollY}
-      data-whiteboard-viewport-zoom={viewportTransform.zoom}
+      data-whiteboard-layer-fixed={fixed ? "true" : "false"}
+      data-whiteboard-window-layer="modules"
+      data-whiteboard-viewport-scroll-x={pinnedTransform.scrollX}
+      data-whiteboard-viewport-scroll-y={pinnedTransform.scrollY}
+      data-whiteboard-viewport-zoom={pinnedTransform.zoom}
+      data-whiteboard-viewport-offset-left={pinnedTransform.offsetLeft ?? 0}
+      data-whiteboard-viewport-offset-top={pinnedTransform.offsetTop ?? 0}
       data-testid="whiteboard-pinned-object-layer"
+      ref={layerRef}
     >
       <WhiteboardBoardObjectOverlay
         className="pointer-events-none absolute inset-0"
@@ -1068,7 +1190,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="board"
         testId="whiteboard-board-object-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={pinnedTransform}
       />
       <WhiteboardViewportToolOverlay
@@ -1083,7 +1205,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="viewport"
         testId="whiteboard-floating-board-tool-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={pinnedTransform}
       />
       <WhiteboardViewportToolOverlay
@@ -1098,7 +1220,7 @@ export function WhiteboardPinnedObjectLayer({
         renderModule={renderModule}
         renderLayer="viewport"
         testId="whiteboard-viewport-tool-overlay"
-        getViewportTransform={getViewportTransform}
+        getViewportTransform={getPinnedViewportTransform}
         viewportTransform={floatingTransform}
       />
     </div>

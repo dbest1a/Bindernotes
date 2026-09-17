@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeTimelineEvents } from "@/components/history/history-suite-modules";
 import { extractRenderablePlainText } from "@/lib/highlights";
-import {
-  demoBinders,
-  demoConceptNodes,
-  demoFolderBinders,
-  demoFolders,
-  demoLessons,
-} from "@/lib/demo-data";
+import { demoBinders, demoConceptNodes, demoFolderBinders, demoFolders, demoLessons } from "@/lib/demo-data";
 import {
   russianRevolutionEventTemplates,
   russianRevolutionMythCheckTemplates,
@@ -183,10 +177,12 @@ describe("Russian Revolution history binder", () => {
         "binder-russian-revolution",
       ]),
     );
-    expect(payload.lessons.filter((lesson) => lesson.binder_id === "binder-russian-revolution")).toHaveLength(15);
-    expect(payload.historyEventTemplates.filter((event) => event.binder_id === "binder-russian-revolution")).toHaveLength(
-      russianRevolutionEventTemplates.length,
+    expect(payload.lessons.filter((lesson) => lesson.binder_id === "binder-russian-revolution")).toHaveLength(
+      15,
     );
+    expect(
+      payload.historyEventTemplates.filter((event) => event.binder_id === "binder-russian-revolution"),
+    ).toHaveLength(russianRevolutionEventTemplates.length);
     expect(payload.folderBinders).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

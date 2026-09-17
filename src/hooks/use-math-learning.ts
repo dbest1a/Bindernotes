@@ -17,48 +17,60 @@ import {
 } from "@/services/math-learning-service";
 import type { QuestionBankItem, QuizSet } from "@/types/math-learning";
 import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/hooks/use-auth";
 
 export function useMathCourses() {
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ["math", "courses"],
+    enabled: Boolean(profile),
+    queryKey: queryKeys.math.coursesForProfile(profile?.id),
     queryFn: listMathCourses,
   });
 }
 
 export function useMathCourseBundle(courseSlug?: string) {
+  const { profile } = useAuth();
   return useQuery({
-    enabled: Boolean(courseSlug),
-    queryKey: ["math", "course", courseSlug],
+    enabled: Boolean(courseSlug && profile),
+    queryKey: queryKeys.math.course(courseSlug, profile?.id),
     queryFn: () => getMathCourseBundle(courseSlug!),
   });
 }
 
 export function useMathModules() {
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ["math", "modules"],
+    enabled: Boolean(profile),
+    queryKey: queryKeys.math.modulesForProfile(profile?.id),
     queryFn: () => listMathModules(),
   });
 }
 
 export function useMathModuleBundle(moduleSlug?: string, userId?: string) {
+  const { profile } = useAuth();
+  const ownerId = userId ?? profile?.id;
   return useQuery({
-    enabled: Boolean(moduleSlug),
-    queryKey: ["math", "module", moduleSlug, userId ?? "guest"],
-    queryFn: () => getMathModuleBundle(moduleSlug!, userId),
+    enabled: Boolean(moduleSlug && ownerId && ownerId === profile?.id),
+    queryKey: queryKeys.math.module(moduleSlug, ownerId ?? "guest"),
+    queryFn: () => getMathModuleBundle(moduleSlug!, ownerId),
   });
 }
 
 export function useQuestionBank(filters: Parameters<typeof listQuestions>[0] = {}) {
+  const { profile } = useAuth();
   return useQuery({
-    queryKey: ["math", "questions", filters],
+    enabled: Boolean(profile),
+    queryKey: queryKeys.math.questions(filters, profile?.id),
     queryFn: () => listQuestions(filters),
   });
 }
 
 export function useQuizSet(quizId?: string) {
+  const { profile } = useAuth();
   return useQuery({
-    enabled: Boolean(quizId),
-    queryKey: ["math", "quiz", quizId],
+    enabled: Boolean(quizId && profile),
+    queryKey: queryKeys.math.quiz(quizId, profile?.id),
     queryFn: () => getQuizSet(quizId!),
   });
 }
@@ -70,10 +82,10 @@ export function useSaveMathGraphState() {
     mutationFn: (input: SaveGraphStateInput) => saveGraphState(input),
     onSuccess: (graphState) => {
       void queryClient.invalidateQueries({
-        queryKey: ["math", "module"],
+        queryKey: queryKeys.math.moduleBundles,
       });
       void queryClient.invalidateQueries({
-        queryKey: ["math", "graph-states", graphState.module_id],
+        queryKey: queryKeys.math.graphStates(graphState.module_id, graphState.user_id ?? undefined),
       });
     },
   });
@@ -85,9 +97,9 @@ export function useSaveQuestion() {
   return useMutation({
     mutationFn: (input: QuestionInput) => saveQuestion(input),
     onSuccess: (question) => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "questions"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.questionBanks });
       if (question.module_id) {
-        void queryClient.invalidateQueries({ queryKey: ["math", "module"] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.math.moduleBundles });
       }
     },
   });
@@ -99,7 +111,7 @@ export function useCreateQuizSet() {
   return useMutation({
     mutationFn: createQuizSet,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "quiz"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.quizzes });
     },
   });
 }
@@ -132,7 +144,7 @@ export function useCompleteQuizAttempt() {
       scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
     }) => completeQuizAttempt(input),
     onSuccess: (_attempt, input) => {
-      void queryClient.invalidateQueries({ queryKey: ["math", "quiz", input.quizSet.id] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.math.quiz(input.quizSet.id, input.userId) });
     },
   });
 }

@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { demoBinders, demoConceptEdges, demoConceptNodes, demoLessons } from "@/lib/demo-data";
 import {
-  demoBinders,
-  demoConceptEdges,
-  demoConceptNodes,
-  demoLessons,
-} from "@/lib/demo-data";
+  chemistryShowcaseBinder,
+  chemistryShowcaseFolder,
+  chemistryShowcaseFolderLink,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 import {
   buildSystemFolderFromSuite,
   frenchRevolutionBinder,
@@ -95,24 +96,14 @@ export type SystemSeedCounts = {
   lessons: number;
 };
 
-type SeedableTable =
-  | "suite_templates"
-  | "seed_versions"
-  | "folders"
-  | "folder_binders"
-  | "binders"
-  | "binder_lessons"
-  | "concept_nodes"
-  | "concept_edges"
-  | "workspace_presets"
-  | "history_event_templates"
-  | "history_source_templates"
-  | "history_myth_check_templates";
+export type CatalogSeedClient = {
+  rpc(
+    name: "apply_catalog_seed",
+    args: { p_payload: Record<string, unknown> },
+  ): PromiseLike<{ error: { message: string } | null }>;
+};
 
-const SYSTEM_DEMO_BINDER_IDS = new Set<string>([
-  SYSTEM_BINDER_IDS.algebra,
-  SYSTEM_BINDER_IDS.riseOfRome,
-]);
+const SYSTEM_DEMO_BINDER_IDS = new Set<string>([SYSTEM_BINDER_IDS.algebra, SYSTEM_BINDER_IDS.riseOfRome]);
 
 function systemNow() {
   return new Date().toISOString();
@@ -135,9 +126,7 @@ function getSeededDemoBinders(ownerId: string) {
       ...binder,
       owner_id: ownerId,
       suite_template_id:
-        binder.id === SYSTEM_BINDER_IDS.algebra
-          ? SYSTEM_SUITE_IDS.algebra
-          : SYSTEM_SUITE_IDS.riseOfRome,
+        binder.id === SYSTEM_BINDER_IDS.algebra ? SYSTEM_SUITE_IDS.algebra : SYSTEM_SUITE_IDS.riseOfRome,
       updated_at: systemNow(),
     }));
 }
@@ -159,9 +148,11 @@ function buildWorkspacePresetRows(now: string): SeedWorkspacePresetRow[] {
     .filter((suite) => suite.history_mode)
     .flatMap((suite) =>
       historyPresetDefinitions.flatMap((preset) =>
-        (Object.entries(preset.breakpoints) as Array<
-          [WorkspaceBreakpoint, (typeof preset.breakpoints)[WorkspaceBreakpoint]]
-        >)
+        (
+          Object.entries(preset.breakpoints) as Array<
+            [WorkspaceBreakpoint, (typeof preset.breakpoints)[WorkspaceBreakpoint]]
+          >
+        )
           .filter(([, layout]) => Boolean(layout))
           .map(([breakpoint, layout]) => ({
             id: `workspace-preset:${suite.id}:${preset.id}:${breakpoint}`,
@@ -251,10 +242,18 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
       created_by: profile.id,
       status: "current",
     })),
-    folders,
-    folderBinders,
-    binders,
-    lessons: [...getSeededDemoLessons(), ...frenchRevolutionLessons, ...russianRevolutionLessons].map((lesson) => ({
+    folders: [...folders, { ...chemistryShowcaseFolder, owner_id: profile.id, updated_at: now }],
+    folderBinders: [
+      ...folderBinders,
+      { ...chemistryShowcaseFolderLink, owner_id: profile.id, updated_at: now },
+    ],
+    binders: [...binders, { ...chemistryShowcaseBinder, owner_id: profile.id, updated_at: now }],
+    lessons: [
+      ...getSeededDemoLessons(),
+      ...frenchRevolutionLessons,
+      ...russianRevolutionLessons,
+      ...chemistryShowcaseLessons,
+    ].map((lesson) => ({
       ...lesson,
       updated_at: now,
     })),
@@ -289,65 +288,26 @@ export function buildSystemSeedPayload(profile: Profile): SystemSeedPayload {
 }
 
 export async function seedSystemSuitesWithClient(
-  client: SupabaseClient,
+  client: CatalogSeedClient,
   payload: SystemSeedPayload,
 ): Promise<SystemSeedResult> {
-  const upsert = async (table: SeedableTable, rows: Record<string, unknown>[], onConflict = "id") => {
-    if (rows.length === 0) {
-      return;
-    }
-
-    const { error } = await client.from(table).upsert(rows, { onConflict });
-    if (error) {
-      const message = error.message.toLowerCase();
-      if (
-        error.code === "PGRST205" ||
-        error.code === "PGRST204" ||
-        message.includes("column") ||
-        message.includes("relation") ||
-        message.includes("workspace_presets") ||
-        message.includes("suite_template_id") ||
-        message.includes("could not find the table")
-      ) {
-        throw new Error(`Run the latest Supabase migrations before seeding system suites. Supabase said: ${error.message}`);
-      }
-      throw error;
-    }
-  };
-
-  await upsert("suite_templates", payload.suites as unknown as Record<string, unknown>[]);
-  await upsert("folders", payload.folders as unknown as Record<string, unknown>[]);
-  await upsert("binders", payload.binders as unknown as Record<string, unknown>[]);
-  await upsert("binder_lessons", payload.lessons as unknown as Record<string, unknown>[]);
-  await upsert(
-    "folder_binders",
-    payload.folderBinders as unknown as Record<string, unknown>[],
-    "owner_id,folder_id,binder_id",
-  );
-  await upsert("concept_nodes", payload.conceptNodes as unknown as Record<string, unknown>[]);
-  await upsert("concept_edges", payload.conceptEdges as unknown as Record<string, unknown>[]);
-  await upsert(
-    "workspace_presets",
-    payload.workspacePresets as unknown as Record<string, unknown>[],
-    "suite_template_id,preset_id,breakpoint",
-  );
-  await upsert(
-    "history_event_templates",
-    payload.historyEventTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "history_source_templates",
-    payload.historySourceTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "history_myth_check_templates",
-    payload.historyMythCheckTemplates as unknown as Record<string, unknown>[],
-  );
-  await upsert(
-    "seed_versions",
-    payload.seedVersions as unknown as Record<string, unknown>[],
-    "suite_template_id,version",
-  );
+  const { error } = await client.rpc("apply_catalog_seed", {
+    p_payload: {
+      suite_templates: payload.suites,
+      folders: payload.folders,
+      binders: payload.binders,
+      binder_lessons: payload.lessons,
+      folder_binders: payload.folderBinders,
+      concept_nodes: payload.conceptNodes,
+      concept_edges: payload.conceptEdges,
+      workspace_presets: payload.workspacePresets,
+      history_event_templates: payload.historyEventTemplates,
+      history_source_templates: payload.historySourceTemplates,
+      history_myth_check_templates: payload.historyMythCheckTemplates,
+      seed_versions: payload.seedVersions,
+    },
+  });
+  if (error) throw new Error(`Transactional system seed failed: ${error.message}`);
 
   return {
     suiteCount: payload.suites.length,
@@ -397,9 +357,15 @@ export async function resolveSystemSeedProfile(
 
 export async function getSystemSeedCounts(client: SupabaseClient): Promise<SystemSeedCounts> {
   const suiteIds = systemSuiteTemplates.map((suite) => suite.id);
-  const binderIds = Object.values(SYSTEM_BINDER_IDS);
+  const binderIds = [...Object.values(SYSTEM_BINDER_IDS), chemistryShowcaseBinder.id];
+  const folderIds = [
+    ...systemSuiteTemplates.map((suite) => buildSystemFolderFromSuite(suite).id),
+    chemistryShowcaseFolder.id,
+  ];
 
-  const exactCount = async (promise: PromiseLike<{ count: number | null; error: { message: string } | null }>) => {
+  const exactCount = async (
+    promise: PromiseLike<{ count: number | null; error: { message: string } | null }>,
+  ) => {
     const { count, error } = await promise;
     if (error) {
       throw error;
@@ -407,55 +373,39 @@ export async function getSystemSeedCounts(client: SupabaseClient): Promise<Syste
     return count ?? 0;
   };
 
-  const [
-    suiteTemplates,
-    seedVersions,
-    workspacePresets,
-    folders,
-    folderBinders,
-    binders,
-    lessons,
-  ] = await Promise.all([
-    exactCount(client.from("suite_templates").select("id", { count: "exact", head: true }).in("id", suiteIds)),
-    exactCount(
-      client
-        .from("seed_versions")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "current")
-        .in("suite_template_id", suiteIds),
-    ),
-    exactCount(
-      client
-        .from("workspace_presets")
-        .select("id", { count: "exact", head: true })
-        .in("suite_template_id", suiteIds),
-    ),
-    exactCount(
-      client
-        .from("folders")
-        .select("id", { count: "exact", head: true })
-        .eq("source", "system")
-        .in("suite_template_id", suiteIds),
-    ),
-    exactCount(
-      client
-        .from("folder_binders")
-        .select("id", { count: "exact", head: true })
-        .in("binder_id", binderIds),
-    ),
-    exactCount(
-      client
-        .from("binders")
-        .select("id", { count: "exact", head: true })
-        .in("id", binderIds),
-    ),
-    exactCount(
-      client
-        .from("binder_lessons")
-        .select("id", { count: "exact", head: true })
-        .in("binder_id", binderIds),
-    ),
-  ]);
+  const [suiteTemplates, seedVersions, workspacePresets, folders, folderBinders, binders, lessons] =
+    await Promise.all([
+      exactCount(
+        client.from("suite_templates").select("id", { count: "exact", head: true }).in("id", suiteIds),
+      ),
+      exactCount(
+        client
+          .from("seed_versions")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "current")
+          .in("suite_template_id", suiteIds),
+      ),
+      exactCount(
+        client
+          .from("workspace_presets")
+          .select("id", { count: "exact", head: true })
+          .in("suite_template_id", suiteIds),
+      ),
+      exactCount(
+        client
+          .from("folders")
+          .select("id", { count: "exact", head: true })
+          .eq("source", "system")
+          .in("id", folderIds),
+      ),
+      exactCount(
+        client.from("folder_binders").select("id", { count: "exact", head: true }).in("binder_id", binderIds),
+      ),
+      exactCount(client.from("binders").select("id", { count: "exact", head: true }).in("id", binderIds)),
+      exactCount(
+        client.from("binder_lessons").select("id", { count: "exact", head: true }).in("binder_id", binderIds),
+      ),
+    ]);
 
   return {
     suiteTemplates,
@@ -468,13 +418,10 @@ export async function getSystemSeedCounts(client: SupabaseClient): Promise<Syste
   };
 }
 
+/** Browser entry retained only to give old callers an explicit safe failure. */
 export async function seedSystemSuites(profile: Profile): Promise<SystemSeedResult> {
   requireAdmin(profile);
-
-  const { supabase } = await import("@/lib/supabase");
-  if (!supabase) {
-    throw new Error("Supabase must be configured before seeding system suites.");
-  }
-
-  return seedSystemSuitesWithClient(supabase, buildSystemSeedPayload(profile));
+  throw new Error(
+    "System seeding requires the trusted server CLI and service-role credentials. Browser seeding is disabled.",
+  );
 }

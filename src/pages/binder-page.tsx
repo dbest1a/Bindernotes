@@ -1,30 +1,59 @@
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { BookCopy, ChevronRight, FileText, FolderTree, NotebookPen } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { SeedHealthPanel } from "@/components/ui/seed-health-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceDiagnosticsPanel } from "@/components/ui/workspace-diagnostics-panel";
 import { useAuth } from "@/hooks/use-auth";
-import { useBinderOverview } from "@/hooks/use-binders";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { useBinderOverview, useDashboardWorkspaceMutations } from "@/hooks/use-binders";
+import { useWorkspacePresentationPreference } from "@/hooks/use-workspace-presentation-preference";
 import { isMissingSeedError } from "@/lib/seed-health";
 import { classifyRuntimeError } from "@/lib/workspace-diagnostics";
 import { getBinderDocumentSummaries } from "@/lib/workspace-structure";
+import { scheduleUserRecentItem } from "@/services/activity-service";
 
 export function BinderPage() {
   const { binderId } = useParams();
   const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { data, isLoading, error } = useBinderOverview(binderId, profile);
+  const betaFeatures = useBetaFeatures(profile?.id);
+  const workspaceMutations = useDashboardWorkspaceMutations(profile);
+  const workspacePresentation = useWorkspacePresentationPreference();
+  const [createDocumentOpen, setCreateDocumentOpen] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("New document");
+  const [notice, setNotice] = useState<string | null>(null);
   const debugModeEnabled = searchParams.get("debug") === "system";
-  const showSystemDiagnostics =
-    debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
-  const runtimeDiagnostics =
-    error && showSystemDiagnostics
-      ? classifyRuntimeError("binders", error)
-      : [];
+  const showSystemDiagnostics = debugModeEnabled && (import.meta.env.DEV || profile?.role === "admin");
+  const runtimeDiagnostics = error && showSystemDiagnostics ? classifyRuntimeError("binders", error) : [];
+  const primaryFolder = data?.folders[0] ?? null;
+  const profileId = profile?.id ?? null;
+  const canManageWorkspace = profile?.role === "admin";
+
+  useEffect(() => {
+    if (!profileId || !data) {
+      return;
+    }
+
+    scheduleUserRecentItem({
+      userId: profileId,
+      itemType: "binder",
+      itemId: data.binder.id,
+      binderId: data.binder.id,
+      folderId: primaryFolder?.id ?? null,
+      titleSnapshot: data.binder.title,
+      metadata: {
+        route: "binder",
+        subject: data.binder.subject,
+      },
+    });
+  }, [data, primaryFolder?.id, profileId]);
 
   if (!profile) {
     return <Navigate replace to="/auth" />;
@@ -59,17 +88,46 @@ export function BinderPage() {
         ) : null}
         <EmptyState
           description={error instanceof Error ? error.message : "This binder is unavailable."}
-          title="Binder unavailable"
+          title="Binder could not open"
         />
       </main>
     );
   }
 
-  const primaryFolder = data.folders[0];
   const documents = getBinderDocumentSummaries(data.lessons, data.notes);
+  const revampBetaEnabled = betaFeatures.revampBetaEnabled;
+
+  const submitCreateDocument = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canManageWorkspace) {
+      return;
+    }
+    const title = draftTitle.trim();
+    if (!title) {
+      setNotice("Add a document title before creating it.");
+      return;
+    }
+
+    try {
+      await workspaceMutations.createDocument.mutateAsync({
+        binderId: data.binder.id,
+        orderIndex: data.lessons.length + 1,
+        title,
+      });
+      setNotice(`Created document "${title}".`);
+      setCreateDocumentOpen(false);
+      setDraftTitle("New document");
+    } catch (createError) {
+      setNotice(
+        createError instanceof Error
+          ? createError.message
+          : "BinderNotes could not create that document. Try again.",
+      );
+    }
+  };
 
   return (
-    <main className="app-page">
+    <main className="app-page" data-workspace-presentation={workspacePresentation}>
       <Breadcrumbs
         items={[
           { label: "Workspace", to: "/dashboard" },
@@ -89,14 +147,34 @@ export function BinderPage() {
             <Badge variant="outline">Binder</Badge>
             <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">{data.binder.title}</h1>
             <p className="mt-4 max-w-2xl page-copy">{data.binder.description}</p>
+            {canManageWorkspace ? (
+              <div className="mt-6">
+                <Button onClick={() => setCreateDocumentOpen(true)} type="button">
+                  <FileText className="size-4" />
+                  New document
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
 
         <aside className="hero-aside">
           <div className="grid gap-3">
-            <Stat label="Documents" value={String(data.lessons.length)} icon={<BookCopy className="size-4" />} />
-            <Stat label="Private notes" value={String(data.notes.length)} icon={<NotebookPen className="size-4" />} />
-            <Stat label="Location" value={primaryFolder?.name ?? "Workspace"} icon={<FolderTree className="size-4" />} />
+            <Stat
+              label="Documents"
+              value={String(data.lessons.length)}
+              icon={<BookCopy className="size-4" />}
+            />
+            <Stat
+              label="Private notes"
+              value={String(data.notes.length)}
+              icon={<NotebookPen className="size-4" />}
+            />
+            <Stat
+              label="Location"
+              value={primaryFolder?.name ?? "Workspace"}
+              icon={<FolderTree className="size-4" />}
+            />
           </div>
           {showSystemDiagnostics && data.seedHealth ? (
             <div className="mt-4">
@@ -111,6 +189,43 @@ export function BinderPage() {
           ) : null}
         </aside>
       </section>
+
+      {createDocumentOpen ? (
+        <form
+          className="page-shell grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end"
+          onSubmit={submitCreateDocument}
+        >
+          <label>
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Document title
+            </span>
+            <Input
+              aria-label="Document title"
+              autoFocus
+              className="mt-2"
+              onChange={(event) => setDraftTitle(event.target.value)}
+              value={draftTitle}
+            />
+          </label>
+          <div className="flex gap-2">
+            <Button disabled={workspaceMutations.createDocument.isPending} type="submit">
+              {workspaceMutations.createDocument.isPending ? "Creating..." : "Create document"}
+            </Button>
+            <Button onClick={() => setCreateDocumentOpen(false)} type="button" variant="outline">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : null}
+
+      {notice ? (
+        <div
+          className="rounded-lg border border-border/80 bg-background/85 px-4 py-3 text-sm text-muted-foreground"
+          role="status"
+        >
+          {notice}
+        </div>
+      ) : null}
 
       <section className="grid gap-4">
         <div>
@@ -132,13 +247,19 @@ export function BinderPage() {
                   <h3 className="mt-2 text-xl font-semibold tracking-tight">{document.lesson.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {document.hasPrivateNote
-                      ? `Private note: ${document.note?.title ?? "Saved"}`
+                      ? revampBetaEnabled
+                        ? formatPrivateNoteCardPreview(document.note?.title)
+                        : `Private note: ${document.note?.title ?? "Saved"}`
                       : "No private note yet. Open the document to start one."}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   {document.lesson.is_preview ? <Badge variant="secondary">Preview</Badge> : null}
-                  {document.hasPrivateNote ? <Badge>Has notes</Badge> : <Badge variant="outline">New note</Badge>}
+                  {document.hasPrivateNote ? (
+                    <Badge>Has notes</Badge>
+                  ) : (
+                    <Badge variant="outline">New note</Badge>
+                  )}
                   <ChevronRight className="text-muted-foreground" />
                 </div>
               </div>
@@ -146,6 +267,13 @@ export function BinderPage() {
           ))}
           {documents.length === 0 ? (
             <EmptyState
+              action={
+                canManageWorkspace ? (
+                  <Button onClick={() => setCreateDocumentOpen(true)} type="button">
+                    Create document
+                  </Button>
+                ) : undefined
+              }
               description="Add binder lessons first so this binder can contain actual documents."
               title="No documents in this binder"
             />
@@ -167,7 +295,9 @@ export function BinderPage() {
               </div>
               <h3 className="text-lg font-semibold tracking-tight">{document.lesson.title}</h3>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {document.hasPrivateNote ? "Continue your note and annotations." : "Open and create your first note."}
+                {document.hasPrivateNote
+                  ? "Continue your note and annotations."
+                  : "Open and create your first note."}
               </p>
             </Link>
           ))}
@@ -177,15 +307,17 @@ export function BinderPage() {
   );
 }
 
-function Stat({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
+function formatPrivateNoteCardPreview(value: string | null | undefined) {
+  const normalized = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "Notes started.";
+  }
+
+  const excerpt = normalized.length > 96 ? `${normalized.slice(0, 93).trimEnd()}...` : normalized;
+  return `Notes started: ${excerpt}`;
+}
+
+function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border/75 bg-background/72 p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">

@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyGlobalAppearanceToWorkspace,
   applyFocusModeToViewport,
+  applyCanvasReworkStarterLayoutToViewport,
   applyPresetToViewport,
+  applyFaceliftSurfaceModeToViewport,
+  applyWorkspacePresentationModeToViewport,
   applyWorkspaceMode,
   applyThemeSettings,
+  beginCanvasReworkLayoutEdit,
+  cancelCanvasReworkLayoutEdit,
+  commitCanvasReworkLayout,
   applyPreset,
   applyWorkspaceStyle,
   createDefaultWorkspacePreferences,
@@ -15,22 +21,34 @@ import {
   fitWorkspaceToViewport,
   getTopbarWorkspacePresetRecommendations,
   getVisibleWorkspacePresets,
+  recordCanvasReworkLayoutChange,
   loadWorkspacePreferences,
   normalizeWorkspacePreferences,
   resolveWorkspacePresetLayout,
   saveWorkspacePreferences,
   simplePresentationThemeOptions,
+  tidyCanvasReworkLayoutToViewport,
   tidyWorkspaceLayout,
+  fitCanvasReworkLayoutToViewport,
   updateWorkspaceAppearance,
   workspaceModules,
+  workspacePresentationModeOptions,
   workspacePresets,
+  workspaceThemes,
+  workspaceViewModeOptions,
 } from "@/lib/workspace-preferences";
 import {
   getWorkspaceModuleMinimumSize,
   getWorkspacePresetDesign,
   selectWorkspacePresetVisibleModules,
 } from "@/lib/workspace-preset-designs";
-import type { WorkspaceModuleId, WorkspacePresetId, WorkspaceStyle, WorkspaceWindowFrame } from "@/types";
+import type {
+  WorkspaceModuleId,
+  WorkspacePreferences,
+  WorkspacePresetId,
+  WorkspaceStyle,
+  WorkspaceWindowFrame,
+} from "@/types";
 
 beforeEach(() => {
   vi.stubEnv("VITE_DESMOS_API_KEY", "test-desmos-key");
@@ -41,6 +59,283 @@ afterEach(() => {
 });
 
 describe("workspace preferences", () => {
+  it("creates Canvas Rework ownership metadata with committed starter frames", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+
+    expect(preferences.canvas.layoutSource).toBe("preset");
+    expect(preferences.canvas.layoutMode).toBe("study");
+    expect(preferences.canvas.userHasEditedLayout).toBe(false);
+    expect(preferences.canvas.activePresetId).toBe(preferences.preset);
+    expect(preferences.canvas.committedFrames).toEqual(preferences.windowLayout);
+    expect(preferences.canvas.editDraftFrames).toEqual({});
+  });
+
+  it("selects a Canvas Rework starter by applying and fitting that starter exactly once", () => {
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+
+    const next = applyCanvasReworkStarterLayoutToViewport(preferences, "split-study", {
+      width: 1200,
+      height: 720,
+    });
+
+    expect(next.preset).toBe("split-study");
+    expect(next.canvas.layoutSource).toBe("preset");
+    expect(next.canvas.activePresetId).toBe("split-study");
+    expect(next.canvas.userHasEditedLayout).toBe(false);
+    expect(next.canvas.lastExplicitLayoutAction).toBe("select-preset");
+    expect(next.canvas.presetAppliedAtViewport).toEqual(
+      expect.objectContaining({ width: 1200, height: 720 }),
+    );
+    expect(next.windowLayout.lesson).toEqual(expect.objectContaining({ x: 0, y: 0, w: 600, h: 720 }));
+    expect(next.windowLayout["private-notes"]).toEqual(
+      expect.objectContaining({ x: 600, y: 0, w: 600, h: 720 }),
+    );
+    expect(next.canvas.committedFrames).toEqual(next.windowLayout);
+  });
+
+  it("enters Canvas Rework edit mode without changing committed frames or running a layout action", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 44, y: 640, w: 620, h: 420, z: 1 },
+      "private-notes": { x: 720, y: 640, w: 500, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      locked: true,
+      preset: "split-study",
+      windowLayout: committedFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames,
+        canvasHeight: 1500,
+      },
+    };
+
+    const editing = beginCanvasReworkLayoutEdit(preferences);
+
+    expect(editing.locked).toBe(false);
+    expect(editing.canvas.layoutMode).toBe("edit");
+    expect(editing.windowLayout).toEqual(committedFrames);
+    expect(editing.canvas.committedFrames).toEqual(committedFrames);
+    expect(editing.canvas.editDraftFrames).toEqual(committedFrames);
+    expect(editing.canvas.lastExplicitLayoutAction).toBe(preferences.canvas.lastExplicitLayoutAction);
+  });
+
+  it("records Canvas Rework manual moves as custom draft changes for only the active module", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 0, y: 0, w: 600, h: 720, z: 1 },
+      "private-notes": { x: 600, y: 0, w: 600, h: 720, z: 2 },
+    };
+    const editing = beginCanvasReworkLayoutEdit({
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      windowLayout: committedFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        committedFrames,
+      },
+    });
+    const movedLesson = { x: 132, y: 860, w: 640, h: 440, z: 5 };
+
+    const changed = recordCanvasReworkLayoutChange(
+      {
+        ...editing,
+        windowLayout: {
+          ...editing.windowLayout,
+          lesson: movedLesson,
+        },
+      },
+      "manual-drag",
+    );
+
+    expect(changed.canvas.layoutSource).toBe("custom");
+    expect(changed.canvas.userHasEditedLayout).toBe(true);
+    expect(changed.canvas.lastExplicitLayoutAction).toBe("manual-drag");
+    expect(changed.windowLayout.lesson).toEqual(movedLesson);
+    expect(changed.windowLayout["private-notes"]).toEqual(committedFrames["private-notes"]);
+    expect(changed.canvas.committedFrames).toEqual(committedFrames);
+    expect(changed.canvas.editDraftFrames.lesson).toEqual(movedLesson);
+    expect(changed.canvas.editDraftFrames["private-notes"]).toEqual(committedFrames["private-notes"]);
+  });
+
+  it("saves and cancels Canvas Rework edits without snapping back to a starter", () => {
+    const committedFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 0, y: 0, w: 600, h: 720, z: 1 },
+      "private-notes": { x: 600, y: 0, w: 600, h: 720, z: 2 },
+    };
+    const draftFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 120, y: 1300, w: 660, h: 460, z: 7 },
+      "private-notes": { x: 820, y: 1320, w: 500, h: 460, z: 8 },
+    };
+    const editing = recordCanvasReworkLayoutChange(
+      {
+        ...beginCanvasReworkLayoutEdit({
+          ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+          locked: true,
+          enabledModules: ["lesson", "private-notes"],
+          windowLayout: committedFrames,
+          canvas: {
+            ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+            committedFrames,
+            canvasHeight: 2000,
+          },
+        }),
+        windowLayout: draftFrames,
+        canvas: {
+          ...beginCanvasReworkLayoutEdit({
+            ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+            windowLayout: committedFrames,
+            canvas: {
+              ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+              committedFrames,
+              canvasHeight: 2000,
+            },
+          }).canvas,
+          canvasHeight: 2200,
+        },
+      },
+      "manual-resize",
+    );
+
+    const saved = commitCanvasReworkLayout(editing);
+    expect(saved.locked).toBe(true);
+    expect(saved.canvas.layoutMode).toBe("study");
+    expect(saved.canvas.layoutSource).toBe("custom");
+    expect(saved.canvas.committedFrames).toEqual(draftFrames);
+    expect(saved.canvas.editDraftFrames).toEqual({});
+    expect(saved.canvas.canvasHeight).toBe(2200);
+
+    const canceled = cancelCanvasReworkLayoutEdit(editing);
+    expect(canceled.locked).toBe(true);
+    expect(canceled.windowLayout).toEqual(committedFrames);
+    expect(canceled.canvas.committedFrames).toEqual(committedFrames);
+    expect(canceled.canvas.editDraftFrames).toEqual({});
+    expect(canceled.canvas.lastExplicitLayoutAction).toBe("cancel-edit");
+  });
+
+  it("keeps Canvas Rework fit and tidy explicit while preserving custom ownership", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 120, y: 1240, w: 640, h: 420, z: 1 },
+      "private-notes": { x: 820, y: 1260, w: 520, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      preset: "split-study",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames: customFrames,
+        canvasHeight: 2100,
+      },
+    };
+
+    const fitted = fitCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+    const tidied = tidyCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+
+    expect(fitted.canvas.layoutSource).toBe("custom");
+    expect(fitted.canvas.lastExplicitLayoutAction).toBe("fit");
+    expect(tidied.canvas.layoutSource).toBe("custom");
+    expect(tidied.canvas.lastExplicitLayoutAction).toBe("tidy");
+  });
+
+  it("fits a custom Canvas Rework layout to the visible width instead of leaving a right-side mystery gap", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      lesson: { x: 360, y: 220, w: 520, h: 420, z: 1 },
+      "private-notes": { x: 900, y: 220, w: 420, h: 420, z: 2 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["lesson", "private-notes"],
+      preset: "split-study",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "split-study",
+        committedFrames: customFrames,
+        panelPositions: customFrames,
+        canvasHeight: 1600,
+      },
+    };
+
+    const fitted = fitCanvasReworkLayoutToViewport(preferences, { width: 1440, height: 820 });
+
+    expect(fitted.windowLayout.lesson?.x).toBe(0);
+    expect(fitted.windowLayout.lesson?.y).toBe(0);
+    expect(fitted.windowLayout["private-notes"]?.x).toBe(810);
+    expect(
+      Math.round(
+        (fitted.windowLayout["private-notes"]?.x ?? 0) + (fitted.windowLayout["private-notes"]?.w ?? 0),
+      ),
+    ).toBe(1440);
+    expect(fitted.canvas.layoutSource).toBe("custom");
+    expect(fitted.canvas.lastExplicitLayoutAction).toBe("fit");
+  });
+
+  it("tidies a custom Canvas Rework layout from current module size instead of preset priority", () => {
+    const customFrames: WorkspacePreferences["windowLayout"] = {
+      "desmos-graph": { x: 460, y: 40, w: 760, h: 560, z: 1 },
+      "private-notes": { x: 40, y: 40, w: 360, h: 280, z: 2 },
+      "formula-sheet": { x: 40, y: 340, w: 360, h: 260, z: 3 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas"),
+      enabledModules: ["desmos-graph", "private-notes", "formula-sheet"],
+      preset: "math-practice-mode",
+      windowLayout: customFrames,
+      canvas: {
+        ...createDefaultWorkspacePreferences("user-1", "binder-1").canvas,
+        layoutSource: "custom",
+        userHasEditedLayout: true,
+        activePresetId: "math-practice-mode",
+        committedFrames: customFrames,
+        panelPositions: customFrames,
+        canvasHeight: 1600,
+      },
+    };
+
+    const tidied = tidyCanvasReworkLayoutToViewport(preferences, { width: 1280, height: 760 });
+    const graph = tidied.windowLayout["desmos-graph"]!;
+    const notes = tidied.windowLayout["private-notes"]!;
+    const formula = tidied.windowLayout["formula-sheet"]!;
+
+    expect(graph.w * graph.h).toBeGreaterThan(notes.w * notes.h);
+    expect(graph.x).toBeGreaterThan(notes.x);
+    expect(Math.max(graph.x + graph.w, notes.x + notes.w, formula.x + formula.w)).toBe(1280);
+    expect(tidied.canvas.layoutSource).toBe("custom");
+    expect(tidied.canvas.lastExplicitLayoutAction).toBe("tidy");
+  });
+
+  it("exposes Canvas, Simple, Facelift, and Study Panels as the user-facing workspace view choices", () => {
+    expect(workspaceViewModeOptions.map((option) => option.id)).toEqual([
+      "canvas",
+      "simple",
+      "facelift",
+      "modular",
+    ]);
+    expect(workspaceViewModeOptions.map((option) => option.name)).toEqual([
+      "Canvas",
+      "Simple",
+      "Facelift",
+      "Study Panels",
+    ]);
+  });
+
+  it("keeps the legacy presentation choices separate from first-class Study Panels", () => {
+    expect(workspacePresentationModeOptions.map((option) => option.id)).toEqual([
+      "simple",
+      "canvas",
+      "facelift",
+    ]);
+  });
+
   it("creates locked defaults for a user and binder", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
 
@@ -51,6 +346,15 @@ describe("workspace preferences", () => {
     expect(preferences.enabledModules).toContain("private-notes");
     expect(preferences.workspaceStyle).toBe("guided");
     expect(preferences.activeMode).toBe("simple");
+    expect(preferences.workspacePresentationMode).toBe("simple");
+    expect(preferences.facelift).toMatchObject({
+      density: "comfortable",
+      moduleChrome: "normal",
+      navigationMode: "map",
+      presetBehavior: "auto-fit",
+      surfaceMode: "simple",
+      mobileBehavior: "tabs",
+    });
     expect(preferences.styleChoiceCompleted).toBe(false);
     expect(preferences.simple.theme).toBe("match");
     expect(preferences.appearance.appTheme).toBe(preferences.theme.id);
@@ -69,17 +373,60 @@ describe("workspace preferences", () => {
     expect(preferences.theme.focusMode).toBe(false);
     expect(preferences.theme.animationLevel).toBe("none");
     expect(preferences.theme.reducedChrome).toBe(true);
+    expect(preferences.modular.showSecondaryPresetStrip).toBe(false);
+  });
+
+  it("keeps the secondary Study Panels preset strip hidden by default while preserving saved choices", () => {
+    const basePreferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const defaultPreferences = normalizeWorkspacePreferences({
+      ...basePreferences,
+      modular: {
+        ...basePreferences.modular,
+        selectedPreset: "split-study",
+      },
+    });
+    const savedPreferences = normalizeWorkspacePreferences({
+      ...basePreferences,
+      modular: {
+        ...basePreferences.modular,
+        showSecondaryPresetStrip: true,
+      },
+    });
+
+    expect(defaultPreferences.modular.showSecondaryPresetStrip).toBe(false);
+    expect(savedPreferences.modular.showSecondaryPresetStrip).toBe(true);
   });
 
   it("registers Whiteboard as a math workspace module without changing Split Study defaults", () => {
     expect(workspaceModules.find((module) => module.id === "whiteboard")).toMatchObject({
       name: "Whiteboard",
     });
-    expect(workspacePresets.find((preset) => preset.id === "math-practice-mode")?.description).toContain("practice");
+    expect(workspacePresets.find((preset) => preset.id === "math-practice-mode")?.description).toContain(
+      "practice",
+    );
     expect(
       // Whiteboard should be available from settings/module launchers but not injected into the core two-pane preset.
       createDefaultWorkspacePreferences("user-1", "binder-1").enabledModules,
     ).not.toContain("whiteboard");
+  });
+
+  it("registers Recall Lab as a beta-ready full-screen recall preset", () => {
+    expect(workspaceModules.find((module) => module.id === "flashcards")).toMatchObject({
+      name: "Recall Lab",
+    });
+    expect(workspacePresets.find((preset) => preset.id === "recall-lab")?.description).toContain(
+      "source-linked",
+    );
+
+    const layout = resolveWorkspacePresetLayout("recall-lab", "guided");
+    expect(layout.enabledModules[0]).toBe("flashcards");
+    expect(layout.moduleLayout?.flashcards).toMatchObject({ span: "full", pinned: true });
+    expect(getWorkspacePresetDesign("recall-lab").defaultVisible).toEqual([
+      "flashcards",
+      "lesson",
+      "private-notes",
+      "recent-highlights",
+    ]);
   });
 
   it("can switch workspace styles without replacing the shared engine", () => {
@@ -132,6 +479,63 @@ describe("workspace preferences", () => {
     expect(canvas.windowLayout.lesson).toBeDefined();
   });
 
+  it("switches presentation modes while keeping old canvas state separate from Facelift settings", () => {
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+    const oldCanvasFrame: WorkspaceWindowFrame = { x: 444, y: 88, w: 720, h: 640, z: 22 };
+    const faceliftCanvasFrame: WorkspaceWindowFrame = { x: 0, y: 0, w: 900, h: 720, z: 1 };
+    const withCanvasMemory = {
+      ...preferences,
+      canvas: {
+        ...preferences.canvas,
+        panelPositions: {
+          lesson: oldCanvasFrame,
+        },
+      },
+      facelift: {
+        ...preferences.facelift,
+        density: "compact" as const,
+        canvas: {
+          ...preferences.facelift.canvas,
+          panelPositions: {
+            lesson: faceliftCanvasFrame,
+          },
+        },
+      },
+    };
+
+    const facelift = applyWorkspacePresentationModeToViewport(withCanvasMemory, "facelift", {
+      width: 1440,
+      height: 860,
+    });
+    const faceliftCanvas = applyFaceliftSurfaceModeToViewport(facelift, "canvas", {
+      width: 1440,
+      height: 860,
+    });
+    const classicCanvas = applyWorkspacePresentationModeToViewport(faceliftCanvas, "canvas", {
+      width: 1440,
+      height: 860,
+    });
+    const classicSimple = applyWorkspacePresentationModeToViewport(classicCanvas, "simple", {
+      width: 1440,
+      height: 860,
+    });
+
+    expect(facelift.workspacePresentationMode).toBe("facelift");
+    expect(facelift.activeMode).toBe("simple");
+    expect(facelift.facelift.density).toBe("compact");
+    expect(faceliftCanvas.workspacePresentationMode).toBe("facelift");
+    expect(faceliftCanvas.facelift.surfaceMode).toBe("canvas");
+    expect(faceliftCanvas.activeMode).toBe("canvas");
+    expect(faceliftCanvas.canvas.panelPositions.lesson).toEqual(oldCanvasFrame);
+    expect(faceliftCanvas.facelift.canvas.panelPositions.lesson).toEqual(faceliftCanvasFrame);
+    expect(classicCanvas.workspacePresentationMode).toBe("canvas");
+    expect(classicCanvas.activeMode).toBe("canvas");
+    expect(classicCanvas.canvas.panelPositions.lesson).toEqual(oldCanvasFrame);
+    expect(classicSimple.workspacePresentationMode).toBe("simple");
+    expect(classicSimple.activeMode).toBe("simple");
+    expect(classicSimple.facelift.surfaceMode).toBe("canvas");
+  });
+
   it("keeps appearance shared across simple, modular, and canvas settings", () => {
     const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
     const withAppearance = updateWorkspaceAppearance(preferences, {
@@ -174,6 +578,24 @@ describe("workspace preferences", () => {
     expect(next.theme.accent).toBe("193 86% 32%");
   });
 
+  it("offers Prism Ink as an interactive built-in color scheme", () => {
+    const prismInk = workspaceThemes.find((theme) => theme.id === "prism-ink");
+    const next = updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+      appTheme: "prism-ink",
+    });
+
+    expect(prismInk).toMatchObject({
+      name: "Prism Ink",
+      vars: expect.objectContaining({
+        accent: "286 42% 23%",
+        primary: "167 82% 48%",
+      }),
+    });
+    expect(next.appearance.appTheme).toBe("prism-ink");
+    expect(next.theme.id).toBe("prism-ink");
+    expect(next.theme.accentColor).toBe("teal");
+  });
+
   it("preserves unlocked edit draft frames below the first viewport instead of clamping them back", () => {
     const preferences = applyWorkspaceMode(
       applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "history-guided"),
@@ -207,10 +629,9 @@ describe("workspace preferences", () => {
   });
 
   it("clones a built-in app theme into Custom when the accent changes", () => {
-    const preferences = updateWorkspaceAppearance(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      { appTheme: "space" },
-    );
+    const preferences = updateWorkspaceAppearance(createDefaultWorkspacePreferences("user-1", "binder-1"), {
+      appTheme: "space",
+    });
 
     const next = updateWorkspaceAppearance(preferences, { accent: "amber" });
 
@@ -315,7 +736,10 @@ describe("workspace preferences", () => {
 
   it("filters presets by subject and mode without duplicate Math Graph Lab titles", () => {
     const math = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "modular");
-    const history = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-history"), "modular");
+    const history = applyWorkspaceMode(
+      createDefaultWorkspacePreferences("user-1", "binder-history"),
+      "modular",
+    );
     const simple = createDefaultWorkspacePreferences("user-1", "binder-1");
     const mathPresets = getVisibleWorkspacePresets(math, { binderSubject: "Mathematics" });
     const historyPresets = getVisibleWorkspacePresets(history, {
@@ -346,9 +770,7 @@ describe("workspace preferences", () => {
 
     expect(recommendations).toHaveLength(2);
     expect(recommendations[0]?.id).toBe("math-graph-lab");
-    expect(recommendations.map((preset) => preset.id)).toEqual(
-      expect.arrayContaining(["math-graph-lab"]),
-    );
+    expect(recommendations.map((preset) => preset.id)).toEqual(expect.arrayContaining(["math-graph-lab"]));
     expect(
       recommendations.every((preset) =>
         [
@@ -377,18 +799,13 @@ describe("workspace preferences", () => {
   });
 
   it("applies preset selection through the same viewport-aware fit path as the Fit button", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1180, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "math-proof-concept", viewport);
-    const manuallyFitted = fitWorkspaceToViewport(
-      applyPreset(preferences, "math-proof-concept"),
-      viewport,
-      { force: true },
-    );
+    const manuallyFitted = fitWorkspaceToViewport(applyPreset(preferences, "math-proof-concept"), viewport, {
+      force: true,
+    });
     const visibleModules = selected.enabledModules.filter(
       (moduleId) => !selected.moduleLayout[moduleId]?.collapsed,
     );
@@ -400,7 +817,9 @@ describe("workspace preferences", () => {
       const frame = selected.windowLayout[moduleId]!;
       const minimum = getWorkspaceModuleMinimumSize(
         moduleId,
-        (getWorkspacePresetDesign("math-proof-concept").primary as readonly WorkspaceModuleId[]).includes(moduleId)
+        (getWorkspacePresetDesign("math-proof-concept").primary as readonly WorkspaceModuleId[]).includes(
+          moduleId,
+        )
           ? "primary"
           : "secondary",
       );
@@ -413,10 +832,7 @@ describe("workspace preferences", () => {
   });
 
   it("auto-fits Split Study with lesson and notes stretched to the usable viewport bottom", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1366, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "split-study", viewport);
@@ -433,10 +849,7 @@ describe("workspace preferences", () => {
   });
 
   it("fits Split Study as two edge-to-edge panes meeting at the center", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const viewport = { width: 1366, height: 760 };
 
     const selected = applyPresetToViewport(preferences, "split-study", viewport);
@@ -451,6 +864,40 @@ describe("workspace preferences", () => {
     expect(lessonWindow.h).toBe(viewport.height);
     expect(privateNotesWindow.h).toBe(viewport.height);
     expect(selected.canvas.canvasHeight).toBe(viewport.height);
+  });
+
+  it("ignores stale manual canvas frames for Revamp Beta preset selection", () => {
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const preferences = {
+      ...base,
+      preset: "math-practice-mode" as const,
+      canvas: {
+        ...base.canvas,
+        panelPositions: {
+          whiteboard: { x: 0, y: 0, w: 920, h: 680, z: 1 },
+          "private-notes": { x: 940, y: 0, w: 360, h: 680, z: 2 },
+        },
+      },
+      enabledModules: ["whiteboard", "private-notes", "formula-sheet"] as WorkspaceModuleId[],
+      windowLayout: {
+        whiteboard: { x: 0, y: 0, w: 920, h: 680, z: 1 },
+        "private-notes": { x: 940, y: 0, w: 360, h: 680, z: 2 },
+        "formula-sheet": { x: 0, y: 700, w: 500, h: 320, z: 3 },
+      },
+    };
+    const viewport = { width: 1366, height: 760 };
+
+    const selected = applyPresetToViewport(preferences, "split-study", viewport, {
+      preserveManualCanvasComposition: false,
+    });
+    const lessonWindow = selected.windowLayout.lesson!;
+    const privateNotesWindow = selected.windowLayout["private-notes"]!;
+
+    expect(selected.preset).toBe("split-study");
+    expect(selected.enabledModules).toEqual(expect.arrayContaining(["lesson", "private-notes"]));
+    expect(selected.enabledModules).not.toContain("whiteboard");
+    expect(lessonWindow).toMatchObject({ x: 0, y: 0, w: 683, h: 760 });
+    expect(privateNotesWindow).toMatchObject({ x: 683, y: 0, w: 683, h: 760 });
   });
 
   it("fits Split Study to the focus viewport when focus mode is enabled", () => {
@@ -558,14 +1005,15 @@ describe("workspace preferences", () => {
       "math-proof-concept",
       "math-practice-mode",
       "full-math-canvas",
+      "chemistry-lab",
       "annotation-mode",
     ];
 
     presets.forEach((presetId) => {
       styles.forEach((style) => {
         const layout = resolveWorkspacePresetLayout(presetId, style);
-        const frames = Object.entries(layout.windowLayout ?? {}).filter((entry): entry is [string, WorkspaceWindowFrame] =>
-          Boolean(entry[1]),
+        const frames = Object.entries(layout.windowLayout ?? {}).filter(
+          (entry): entry is [string, WorkspaceWindowFrame] => Boolean(entry[1]),
         );
 
         for (let index = 0; index < frames.length; index += 1) {
@@ -627,6 +1075,11 @@ describe("workspace preferences", () => {
       const annotation = resolveWorkspacePresetLayout("annotation-mode", style);
       expect(frameArea(annotation.windowLayout!.lesson!)).toBeGreaterThan(
         frameArea(annotation.windowLayout!["private-notes"]!) * 3,
+      );
+
+      const chemistryLab = resolveWorkspacePresetLayout("chemistry-lab", style);
+      expect(frameArea(chemistryLab.windowLayout!["chem-titration-lab"]!)).toBeGreaterThan(
+        frameArea(chemistryLab.windowLayout!.lesson!),
       );
     });
   });
@@ -693,6 +1146,22 @@ describe("workspace preferences", () => {
     );
   });
 
+  it("keeps chemistry lab work lab-first with optional tools collapsed", () => {
+    expect(visiblePresetModules("chemistry-lab")).toEqual([
+      "lesson",
+      "chem-titration-lab",
+      "chem-lab-notebook",
+    ]);
+    expect(collapsedPresetModules("chemistry-lab")).toEqual(
+      expect.arrayContaining([
+        "chem-stoichiometry-coach",
+        "chem-reference-safety",
+        "private-notes",
+        "recent-highlights",
+      ]),
+    );
+  });
+
   it("tidies math presets into semantic zones instead of a tiny bottom strip", () => {
     const presets: WorkspacePresetId[] = [
       "math-proof-concept",
@@ -724,9 +1193,7 @@ describe("workspace preferences", () => {
         expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(1440);
         expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(900);
         expect(frame.w, `${presetId}/${moduleId} too narrow`).toBeGreaterThanOrEqual(
-          moduleId === "lesson" || moduleId === "private-notes" || moduleId === "desmos-graph"
-            ? 420
-            : 300,
+          moduleId === "lesson" || moduleId === "private-notes" || moduleId === "desmos-graph" ? 420 : 300,
         );
         expect(frame.h, `${presetId}/${moduleId} too short`).toBeGreaterThanOrEqual(220);
       });
@@ -789,11 +1256,31 @@ describe("workspace preferences", () => {
       primary: WorkspaceModuleId;
       secondary: WorkspaceModuleId[];
     }> = [
-      { presetId: "history-guided", primary: "lesson", secondary: ["history-timeline", "history-evidence", "private-notes"] },
-      { presetId: "history-timeline-focus", primary: "history-timeline", secondary: ["lesson", "private-notes"] },
-      { presetId: "history-source-evidence", primary: "history-evidence", secondary: ["lesson", "private-notes"] },
-      { presetId: "history-argument-builder", primary: "history-argument", secondary: ["history-evidence", "lesson"] },
-      { presetId: "history-full-studio", primary: "history-argument", secondary: ["lesson", "history-timeline", "history-evidence"] },
+      {
+        presetId: "history-guided",
+        primary: "lesson",
+        secondary: ["history-timeline", "history-evidence", "private-notes"],
+      },
+      {
+        presetId: "history-timeline-focus",
+        primary: "history-timeline",
+        secondary: ["lesson", "private-notes"],
+      },
+      {
+        presetId: "history-source-evidence",
+        primary: "history-evidence",
+        secondary: ["lesson", "private-notes"],
+      },
+      {
+        presetId: "history-argument-builder",
+        primary: "history-argument",
+        secondary: ["history-evidence", "lesson"],
+      },
+      {
+        presetId: "history-full-studio",
+        primary: "history-argument",
+        secondary: ["lesson", "history-timeline", "history-evidence"],
+      },
     ];
 
     expectations.forEach(({ presetId, primary, secondary }) => {
@@ -820,7 +1307,9 @@ describe("workspace preferences", () => {
         expect(frame.w, `${presetId}/${moduleId} width`).toBeGreaterThanOrEqual(minimum.width);
         expect(frame.h, `${presetId}/${moduleId} height`).toBeGreaterThanOrEqual(minimum.height);
       });
-      expect(hasTinyBottomStrip(visibleModules.map((moduleId) => tidied.windowLayout[moduleId]!))).toBe(false);
+      expect(hasTinyBottomStrip(visibleModules.map((moduleId) => tidied.windowLayout[moduleId]!))).toBe(
+        false,
+      );
 
       if (
         presetId !== "history-guided" &&
@@ -848,6 +1337,7 @@ describe("workspace preferences", () => {
       "math-proof-concept",
       "math-practice-mode",
       "full-math-canvas",
+      "chemistry-lab",
       "history-guided",
       "history-timeline-focus",
       "history-source-evidence",
@@ -886,8 +1376,12 @@ describe("workspace preferences", () => {
           );
           expect(frame.x, `${presetId}/${moduleId} x`).toBeGreaterThanOrEqual(0);
           expect(frame.y, `${presetId}/${moduleId} y`).toBeGreaterThanOrEqual(0);
-          expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(viewport.width);
-          expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(viewport.height);
+          expect(frame.x + frame.w, `${presetId}/${moduleId} offscreen x`).toBeLessThanOrEqual(
+            viewport.width,
+          );
+          expect(frame.y + frame.h, `${presetId}/${moduleId} offscreen y`).toBeLessThanOrEqual(
+            viewport.height,
+          );
           expect(frame.w, `${presetId}/${moduleId} too narrow`).toBeGreaterThanOrEqual(minimum.width);
           expect(frame.h, `${presetId}/${moduleId} too short`).toBeGreaterThanOrEqual(minimum.height);
         });
@@ -920,14 +1414,81 @@ describe("workspace preferences", () => {
     const visibleFrames = visibleModules.map((moduleId) => fitted.windowLayout[moduleId]!);
 
     expect(visibleModules).toEqual(["history-timeline", "lesson", "private-notes"]);
-    expect(fitted.windowLayout["history-timeline"]!.w).toBeGreaterThan(
-      fitted.windowLayout.lesson!.w,
-    );
+    expect(fitted.windowLayout["history-timeline"]!.w).toBeGreaterThan(fitted.windowLayout.lesson!.w);
     expect(hasTinyBottomStrip(visibleFrames)).toBe(false);
   });
 
+  it("fits visible canvas windows without snapping manual placements back to the preset recipe", () => {
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const manualWindowLayout: WorkspacePreferences["windowLayout"] = {
+      "math-blocks": { x: 40, y: 40, w: 460, h: 380, z: 1 },
+      "private-notes": { x: 40, y: 444, w: 460, h: 380, z: 2 },
+      whiteboard: { x: 540, y: 72, w: 620, h: 520, z: 3 },
+      "formula-sheet": { x: 1180, y: 72, w: 360, h: 380, z: 4 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...base,
+      preset: "math-practice-mode",
+      enabledModules: ["math-blocks", "private-notes", "whiteboard", "formula-sheet"],
+      moduleLayout: {
+        ...base.moduleLayout,
+        "math-blocks": { span: "medium", collapsed: false },
+        "private-notes": { span: "medium", collapsed: false },
+        whiteboard: { span: "wide", collapsed: false },
+        "formula-sheet": { span: "medium", collapsed: false },
+      },
+      canvas: {
+        ...base.canvas,
+        panelPositions: manualWindowLayout,
+      },
+      windowLayout: manualWindowLayout,
+    };
+
+    const fitted = fitWorkspaceToViewport(preferences, { width: 1440, height: 900 }, { force: true });
+
+    expect(fitted.windowLayout.whiteboard!.x).toBeGreaterThan(fitted.windowLayout["math-blocks"]!.x);
+    expect(fitted.windowLayout.whiteboard!.x).toBeGreaterThan(fitted.windowLayout["private-notes"]!.x);
+    expect(fitted.canvas.panelPositions.whiteboard).toEqual(fitted.windowLayout.whiteboard);
+  });
+
+  it("tidies visible canvas windows without snapping manual placements back to the preset recipe", () => {
+    const base = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
+    const manualWindowLayout: WorkspacePreferences["windowLayout"] = {
+      "math-blocks": { x: 40, y: 40, w: 460, h: 380, z: 1 },
+      "private-notes": { x: 40, y: 444, w: 460, h: 380, z: 2 },
+      whiteboard: { x: 540, y: 72, w: 620, h: 520, z: 3 },
+      "formula-sheet": { x: 1180, y: 72, w: 360, h: 380, z: 4 },
+    };
+    const preferences: WorkspacePreferences = {
+      ...base,
+      preset: "math-practice-mode",
+      enabledModules: ["math-blocks", "private-notes", "whiteboard", "formula-sheet"],
+      moduleLayout: {
+        ...base.moduleLayout,
+        "math-blocks": { span: "medium", collapsed: false },
+        "private-notes": { span: "medium", collapsed: false },
+        whiteboard: { span: "wide", collapsed: false },
+        "formula-sheet": { span: "medium", collapsed: false },
+      },
+      canvas: {
+        ...base.canvas,
+        panelPositions: manualWindowLayout,
+      },
+      windowLayout: manualWindowLayout,
+    };
+
+    const tidied = tidyWorkspaceLayout(preferences, { width: 1440, height: 900 });
+
+    expect(tidied.windowLayout.whiteboard!.x).toBeGreaterThan(tidied.windowLayout["math-blocks"]!.x);
+    expect(tidied.windowLayout.whiteboard!.x).toBeGreaterThan(tidied.windowLayout["private-notes"]!.x);
+    expect(tidied.canvas.panelPositions.whiteboard).toEqual(tidied.windowLayout.whiteboard);
+  });
+
   it("fits tall preset layouts into the visible viewport without unreadable panels", () => {
-    const preferences = applyPreset(createDefaultWorkspacePreferences("user-1", "binder-1"), "annotation-mode");
+    const preferences = applyPreset(
+      createDefaultWorkspacePreferences("user-1", "binder-1"),
+      "annotation-mode",
+    );
     const fitted = fitWorkspaceToViewport(preferences, { width: 1280, height: 820 }, { force: true });
     const lessonWindow = fitted.windowLayout.lesson;
     const notesWindow = fitted.windowLayout["private-notes"];
@@ -956,10 +1517,7 @@ describe("workspace preferences", () => {
   });
 
   it("tidies a broken layout instead of returning the same broken frames", () => {
-    const preferences = applyWorkspaceMode(
-      createDefaultWorkspacePreferences("user-1", "binder-1"),
-      "canvas",
-    );
+    const preferences = applyWorkspaceMode(createDefaultWorkspacePreferences("user-1", "binder-1"), "canvas");
     const broken = {
       ...preferences,
       preset: "split-study" as WorkspacePresetId,

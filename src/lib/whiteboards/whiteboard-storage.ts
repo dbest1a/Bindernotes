@@ -1,3 +1,4 @@
+import { databaseJson } from "@/lib/database-client";
 import { MAX_WHITEBOARDS_PER_USER } from "@/lib/whiteboards/whiteboard-limits";
 import { supabase } from "@/lib/supabase";
 import {
@@ -15,7 +16,7 @@ import type {
 
 const STORAGE_PREFIX = "bindernotes:whiteboards";
 export const WHITEBOARD_LIMIT_MESSAGE =
-  "You can save up to 3 whiteboards in this beta. Archive one to create another.";
+  "Your plan’s active whiteboard limit has been reached. Archive a board to make room; existing work is preserved.";
 const WHITEBOARD_SELECT = [
   "id",
   "owner_id",
@@ -25,9 +26,7 @@ const WHITEBOARD_SELECT = [
   "subject",
   "module_context",
   "scene_json",
-  "scene",
   "module_elements",
-  "modules",
   "thumbnail_path",
   "scene_size_bytes",
   "asset_size_bytes",
@@ -35,7 +34,55 @@ const WHITEBOARD_SELECT = [
   "created_at",
   "updated_at",
   "archived_at",
+  "revision",
 ].join(", ");
+
+export type WhiteboardVersionSummary = { id: string; version: number; createdAt: string; kind: string };
+export async function listWhiteboardVersions(board: BinderWhiteboard): Promise<WhiteboardVersionSummary[]> {
+  if (!supabase) throw new Error("Sign in to load saved whiteboard history.");
+  const { data, error } = await supabase
+    .from("whiteboard_versions")
+    .select("id,version,created_at,version_kind")
+    .eq("whiteboard_id", board.id)
+    .eq("owner_id", board.ownerId)
+    .order("version", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    version: Number(row.version),
+    createdAt: String(row.created_at),
+    kind: String(row.version_kind),
+  }));
+}
+export async function restoreWhiteboardVersion(
+  board: BinderWhiteboard,
+  versionId: string,
+  expectedRevision: number,
+  operationId: string,
+): Promise<BinderWhiteboard> {
+  if (!supabase) throw new Error("Sign in to restore saved whiteboard history.");
+  const { data, error } = await supabase.rpc("restore_whiteboard_version", {
+    p_board_id: board.id,
+    p_version_id: versionId,
+    p_expected_revision: expectedRevision,
+    p_operation_id: operationId,
+  });
+  if (error) {
+    if (error.code === "40001")
+      throw new Error("This board changed. Load the saved version before restoring history.");
+    throw error;
+  }
+  if (
+    !data ||
+    typeof data !== "object" ||
+    Array.isArray(data) ||
+    data.owner_id !== board.ownerId ||
+    data.id !== board.id
+  )
+    throw new Error("The restore response did not match this board.");
+  return mapWhiteboardRecord(data as Record<string, unknown>);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -64,18 +111,13 @@ function isMissingWhiteboardTableError(error: unknown) {
   const message = record?.message?.toLowerCase() ?? "";
   return (
     record?.code === "42P01" ||
-    record?.code === "42703" && message.includes("whiteboard") ||
-    message.includes("whiteboards") && message.includes("does not exist")
+    (record?.code === "42703" && message.includes("whiteboard")) ||
+    (message.includes("whiteboards") && message.includes("does not exist"))
   );
 }
 
 export function getWhiteboardStorageKey(scope: WhiteboardScope) {
-  return [
-    STORAGE_PREFIX,
-    scope.ownerId,
-    scope.binderId,
-    scope.lessonId ?? "binder",
-  ].join(":");
+  return [STORAGE_PREFIX, scope.ownerId, scope.binderId, scope.lessonId ?? "binder"].join(":");
 }
 
 function readBoards(scope: WhiteboardScope): BinderWhiteboard[] {
@@ -100,20 +142,20 @@ function mapWhiteboardRecord(record: Record<string, unknown>): BinderWhiteboard 
   return sanitizeWhiteboardForStorage({
     id: String(record.id),
     ownerId: String(record.owner_id),
-    binderId: String(record.binder_id),
+    binderId: typeof record.binder_id === "string" ? record.binder_id : "math-lab",
     lessonId: typeof record.lesson_id === "string" ? record.lesson_id : null,
     title: typeof record.title === "string" ? record.title : "Math Whiteboard",
     subject: typeof record.subject === "string" ? record.subject : "Math",
     moduleContext:
-      record.module_context === "binder" || record.module_context === "lesson" || record.module_context === "math-lab"
+      record.module_context === "binder" ||
+      record.module_context === "lesson" ||
+      record.module_context === "math-lab"
         ? record.module_context
         : "lesson",
-    scene: (record.scene_json ?? record.scene ?? { elements: [], appState: {}, files: {} }) as BinderWhiteboard["scene"],
+    scene: (record.scene_json ?? { elements: [], appState: {}, files: {} }) as BinderWhiteboard["scene"],
     modules: Array.isArray(record.module_elements)
       ? (record.module_elements as BinderWhiteboard["modules"])
-      : Array.isArray(record.modules)
-        ? (record.modules as BinderWhiteboard["modules"])
-        : [],
+      : [],
     thumbnailDataUrl: null,
     objectCount: typeof record.object_count === "number" ? record.object_count : 0,
     sceneSizeBytes: typeof record.scene_size_bytes === "number" ? record.scene_size_bytes : 0,
@@ -122,6 +164,8 @@ function mapWhiteboardRecord(record: Record<string, unknown>): BinderWhiteboard 
     createdAt: typeof record.created_at === "string" ? record.created_at : nowIso(),
     updatedAt: typeof record.updated_at === "string" ? record.updated_at : nowIso(),
     archivedAt: typeof record.archived_at === "string" ? record.archived_at : null,
+    revision:
+      typeof record.revision === "number" && Number.isSafeInteger(record.revision) ? record.revision : 0,
   });
 }
 
@@ -130,44 +174,70 @@ function buildWhiteboardRecord(board: BinderWhiteboard) {
   return {
     id: sanitized.id,
     owner_id: sanitized.ownerId,
-    binder_id: sanitized.binderId,
-    lesson_id: sanitized.lessonId,
+    binder_id: sanitized.binderId === "math-lab" ? null : sanitized.binderId,
+    lesson_id: sanitized.binderId === "math-lab" ? null : sanitized.lessonId,
     title: sanitized.title,
     subject: sanitized.subject,
     module_context: sanitized.moduleContext,
     scene_json: sanitized.scene,
-    scene: sanitized.scene,
     module_elements: sanitized.modules,
-    modules: sanitized.modules,
     thumbnail_path: null,
     scene_size_bytes: sanitized.sceneSizeBytes,
     asset_size_bytes: sanitized.assetSizeBytes,
     object_count: sanitized.objectCount,
     archived_at: sanitized.archivedAt,
-    updated_at: nowIso(),
   };
 }
 
-async function listSupabaseWhiteboards(scope: WhiteboardScope): Promise<BinderWhiteboard[]> {
+type WhiteboardListOptions = { metadataOnly?: boolean; offset?: number; limit?: number };
+async function listSupabaseWhiteboards(
+  scope: WhiteboardScope,
+  options: WhiteboardListOptions = {},
+): Promise<BinderWhiteboard[]> {
   if (!supabase) {
     throw new Error("Supabase is not configured for whiteboard sync.");
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("whiteboards")
-    .select(WHITEBOARD_SELECT)
+    .select(
+      options.metadataOnly
+        ? WHITEBOARD_SELECT.split(", ")
+            .filter((field) => field !== "scene_json" && field !== "module_elements")
+            .join(", ")
+        : WHITEBOARD_SELECT,
+    )
     .eq("owner_id", scope.ownerId)
     .is("archived_at", null)
     .order("updated_at", { ascending: false });
+  if (options.metadataOnly) {
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0));
+    const limit = Math.max(1, Math.min(100, Math.trunc(options.limit ?? 20)));
+    query = query.order("id", { ascending: true }).range(offset, offset + limit - 1);
+  }
+  const { data, error } = await query;
 
   if (error) {
     throw error;
   }
 
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapWhiteboardRecord);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((record) => ({
+    ...mapWhiteboardRecord(record),
+    ...(options.metadataOnly
+      ? {
+          metadataOnly: true,
+          objectCount: Number(record.object_count ?? 0),
+          sceneSizeBytes: Number(record.scene_size_bytes ?? 0),
+          assetSizeBytes: Number(record.asset_size_bytes ?? 0),
+        }
+      : {}),
+  }));
 }
 
-async function loadSupabaseWhiteboard(scope: WhiteboardScope, boardId: string): Promise<BinderWhiteboard | null> {
+async function loadSupabaseWhiteboard(
+  scope: WhiteboardScope,
+  boardId: string,
+): Promise<BinderWhiteboard | null> {
   if (!supabase) {
     throw new Error("Supabase is not configured for whiteboard sync.");
   }
@@ -187,63 +257,24 @@ async function loadSupabaseWhiteboard(scope: WhiteboardScope, boardId: string): 
   return data ? mapWhiteboardRecord(data as unknown as Record<string, unknown>) : null;
 }
 
-async function countActiveSupabaseWhiteboards(ownerId: string) {
-  if (!supabase) {
-    throw new Error("Supabase is not configured for whiteboard sync.");
+async function saveSupabaseWhiteboard(
+  board: BinderWhiteboard,
+  createVersion: boolean,
+  operationId: string = crypto.randomUUID(),
+  expectedRevision = board.revision ?? 0,
+) {
+  if (!supabase) throw new Error("Supabase is not configured for whiteboard sync.");
+  const { data, error } = await supabase.rpc("save_whiteboard_snapshot", {
+    p_board: databaseJson(buildWhiteboardRecord(board)),
+    p_expected_revision: expectedRevision,
+    p_create_version: createVersion,
+    p_operation_id: operationId,
+  });
+  if (error) throw error;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Invalid whiteboard save response.");
   }
-
-  const { count, error } = await supabase
-    .from("whiteboards")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_id", ownerId)
-    .is("archived_at", null);
-
-  if (error) {
-    throw error;
-  }
-
-  return count ?? 0;
-}
-
-async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: boolean) {
-  if (!supabase) {
-    throw new Error("Supabase is not configured for whiteboard sync.");
-  }
-
-  const record = buildWhiteboardRecord(board);
-  const { data, error } = await supabase
-    .from("whiteboards")
-    .upsert(record, { onConflict: "id" })
-    .select(WHITEBOARD_SELECT)
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  if (createVersion) {
-    const { count } = await supabase
-      .from("whiteboard_versions")
-      .select("id", { count: "exact", head: true })
-      .eq("whiteboard_id", board.id);
-    const version = (count ?? 0) + 1;
-    const { error: versionError } = await supabase.from("whiteboard_versions").insert({
-      whiteboard_id: board.id,
-      owner_id: board.ownerId,
-      version,
-      scene_json: record.scene_json,
-      scene: record.scene_json,
-      module_elements: record.module_elements,
-      modules: record.module_elements,
-      scene_size_bytes: record.scene_size_bytes,
-      created_by: board.ownerId,
-    });
-    if (versionError) {
-      throw versionError;
-    }
-  }
-
-  return mapWhiteboardRecord(data as unknown as Record<string, unknown>);
+  return mapWhiteboardRecord(data);
 }
 
 async function archiveSupabaseWhiteboard(scope: WhiteboardScope, boardId: string) {
@@ -286,7 +317,48 @@ export function createLocalWhiteboard(
     scene: {
       elements: options.template?.starterElements ?? [],
       appState: {
-        viewBackgroundColor: "#11131a",
+        viewBackgroundColor: "#ffffff",
+      },
+      files: {},
+    },
+    modules: [],
+    thumbnailDataUrl: null,
+    objectCount: 0,
+    sceneSizeBytes: 0,
+    assetSizeBytes: 0,
+    storageMode: "local-draft",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    archivedAt: null,
+  });
+}
+
+export function isScratchWhiteboard(board: Pick<BinderWhiteboard, "id">) {
+  return board.id.startsWith("scratch-whiteboard-");
+}
+
+export function createScratchWhiteboard(
+  scope: WhiteboardScope,
+  options: {
+    title?: string;
+    subject?: string;
+    template?: WhiteboardTemplate;
+  } = {},
+): BinderWhiteboard {
+  const timestamp = nowIso();
+
+  return sanitizeWhiteboardForStorage({
+    id: randomId("scratch-whiteboard"),
+    ownerId: scope.ownerId,
+    binderId: scope.binderId,
+    lessonId: scope.lessonId ?? null,
+    title: options.title ?? "Scratch board",
+    subject: options.subject ?? options.template?.subject ?? "Math",
+    moduleContext: scope.lessonId ? "lesson" : "binder",
+    scene: {
+      elements: options.template?.starterElements ?? [],
+      appState: {
+        viewBackgroundColor: "#ffffff",
       },
       files: {},
     },
@@ -385,7 +457,9 @@ export async function createWhiteboard(
         board: created,
         backend: "local",
         status: isWhiteboardLimitError(error) ? "limit" : "error",
-        message: isWhiteboardLimitError(error) ? WHITEBOARD_LIMIT_MESSAGE : "Could not create this whiteboard.",
+        message: isWhiteboardLimitError(error)
+          ? WHITEBOARD_LIMIT_MESSAGE
+          : "Could not create this whiteboard.",
         savedAt,
         error: getErrorMessage(error),
       };
@@ -393,17 +467,6 @@ export async function createWhiteboard(
   }
 
   try {
-    const activeCount = await countActiveSupabaseWhiteboards(scope.ownerId);
-    if (activeCount >= MAX_WHITEBOARDS_PER_USER) {
-      return {
-        board: created,
-        backend: "supabase",
-        status: "limit",
-        message: WHITEBOARD_LIMIT_MESSAGE,
-        savedAt,
-      };
-    }
-
     const remoteBoard = await saveSupabaseWhiteboard(
       {
         ...created,
@@ -449,7 +512,10 @@ export async function createWhiteboard(
   }
 }
 
-export async function listWhiteboards(scope: WhiteboardScope): Promise<WhiteboardListResult> {
+export async function listWhiteboards(
+  scope: WhiteboardScope,
+  options: WhiteboardListOptions = {},
+): Promise<WhiteboardListResult> {
   const localBoards = listLocalWhiteboards(scope);
   if (!supabase) {
     return {
@@ -461,7 +527,7 @@ export async function listWhiteboards(scope: WhiteboardScope): Promise<Whiteboar
   }
 
   try {
-    const boards = await listSupabaseWhiteboards(scope);
+    const boards = await listSupabaseWhiteboards(scope, options);
     return {
       boards,
       backend: "supabase",
@@ -513,10 +579,30 @@ export async function loadWhiteboard(scope: WhiteboardScope, boardId: string): P
 
 export async function saveWhiteboard(
   board: BinderWhiteboard,
-  options: { backend?: "auto" | "local" | "supabase"; createVersion?: boolean } = {},
+  options: {
+    backend?: "auto" | "local" | "supabase";
+    createVersion?: boolean;
+    operationId?: string;
+    expectedRevision?: number;
+  } = {},
 ): Promise<WhiteboardSaveResult> {
   const backend = options.backend ?? "auto";
+  if (board.metadataOnly) throw new Error("Load the full whiteboard before saving; a list row has no scene.");
   const savedAt = nowIso();
+  if (isScratchWhiteboard(board)) {
+    return {
+      board: sanitizeWhiteboardForStorage({
+        ...board,
+        storageMode: "local-draft",
+        updatedAt: nowIso(),
+      }),
+      backend: "local",
+      status: "local-draft",
+      message: "Scratch board - not saved yet",
+      savedAt,
+    };
+  }
+
   const validation = validateWhiteboardForStorage(board);
   if (!validation.valid) {
     return {
@@ -529,7 +615,8 @@ export async function saveWhiteboard(
     };
   }
 
-  const localBoard = backend === "supabase" && supabase ? sanitizeWhiteboardForStorage(board) : saveLocalWhiteboard(board);
+  const localBoard =
+    backend === "supabase" && supabase ? sanitizeWhiteboardForStorage(board) : saveLocalWhiteboard(board);
 
   if (backend === "local" || !supabase) {
     return {
@@ -542,7 +629,12 @@ export async function saveWhiteboard(
   }
 
   try {
-    const remoteBoard = await saveSupabaseWhiteboard(localBoard, Boolean(options.createVersion));
+    const remoteBoard = await saveSupabaseWhiteboard(
+      localBoard,
+      Boolean(options.createVersion),
+      options.operationId,
+      options.expectedRevision,
+    );
     return {
       board: remoteBoard,
       backend: "supabase",
@@ -558,6 +650,18 @@ export async function saveWhiteboard(
       } catch {
         // Keep the sanitized board and report the original remote failure.
       }
+    }
+
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "40001") {
+      return {
+        board: fallbackBoard,
+        backend: "supabase",
+        status: "conflict",
+        savedAt,
+        message:
+          "This board changed elsewhere. Your draft is preserved; reload the saved board or keep your changes as a copy.",
+        error: "CONTENT_REVISION_CONFLICT",
+      };
     }
 
     if (isWhiteboardLimitError(error)) {
@@ -584,7 +688,10 @@ export async function saveWhiteboard(
   }
 }
 
-export async function archiveWhiteboard(scope: WhiteboardScope, boardId: string): Promise<WhiteboardArchiveResult> {
+export async function archiveWhiteboard(
+  scope: WhiteboardScope,
+  boardId: string,
+): Promise<WhiteboardArchiveResult> {
   if (!supabase) {
     const archivedAt = archiveLocalWhiteboard(scope, boardId);
     return {

@@ -1,4 +1,7 @@
-import type { WhiteboardViewportTransform, WhiteboardFrame } from "@/lib/whiteboards/whiteboard-coordinate-utils";
+import type {
+  WhiteboardViewportTransform,
+  WhiteboardFrame,
+} from "@/lib/whiteboards/whiteboard-coordinate-utils";
 
 export const MODULE_CREATION_UNSAFE_MIN_ZOOM = 0.5;
 export const MODULE_CREATION_UNSAFE_MAX_ZOOM = 1.5;
@@ -32,7 +35,11 @@ export function computeViewportTransformForNewModule(
   return {
     ...currentTransform,
     zoom: desiredZoom,
-    scrollX: (currentTransform.viewportWidth / 2 - (currentTransform.offsetLeft ?? 0)) / desiredZoom - moduleCenter.x,
-    scrollY: (currentTransform.viewportHeight / 2 - (currentTransform.offsetTop ?? 0)) / desiredZoom - moduleCenter.y,
+    scrollX:
+      (currentTransform.viewportWidth / 2 - (currentTransform.offsetLeft ?? 0)) / desiredZoom -
+      moduleCenter.x,
+    scrollY:
+      (currentTransform.viewportHeight / 2 - (currentTransform.offsetTop ?? 0)) / desiredZoom -
+      moduleCenter.y,
   };
 }

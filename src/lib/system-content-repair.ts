@@ -13,14 +13,7 @@ import {
   isPlaceholderTitle,
   noteHasMeaningfulContent,
 } from "@/lib/workspace-records";
-import type {
-  Binder,
-  BinderLesson,
-  Folder,
-  FolderBinderLink,
-  Highlight,
-  LearnerNote,
-} from "@/types";
+import type { Binder, BinderLesson, Folder, FolderBinderLink, Highlight, LearnerNote } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type RepairComment = {
@@ -66,10 +59,7 @@ export type SystemRepairPlan = {
 };
 
 type RepairableClient = Pick<SupabaseClient, "from">;
-const CANONICAL_DEMO_BINDER_IDS = new Set<string>([
-  SYSTEM_BINDER_IDS.algebra,
-  SYSTEM_BINDER_IDS.riseOfRome,
-]);
+const CANONICAL_DEMO_BINDER_IDS = new Set<string>([SYSTEM_BINDER_IDS.algebra, SYSTEM_BINDER_IDS.riseOfRome]);
 
 const CANONICAL_SYSTEM_BINDERS = new Map<string, Binder>(
   [...demoBinders.filter((binder) => CANONICAL_DEMO_BINDER_IDS.has(binder.id)), frenchRevolutionBinder].map(
@@ -92,9 +82,7 @@ export function planSystemContentRepair(dataset: SystemRepairDataset): SystemRep
   }, {});
 
   const canonicalOwnerIds = new Set(
-    dataset.binders
-      .filter((binder) => SYSTEM_BINDER_IDS_SET.has(binder.id))
-      .map((binder) => binder.owner_id),
+    dataset.binders.filter((binder) => SYSTEM_BINDER_IDS_SET.has(binder.id)).map((binder) => binder.owner_id),
   );
 
   const actions: SystemRepairAction[] = [];
@@ -126,9 +114,7 @@ export function planSystemContentRepair(dataset: SystemRepairDataset): SystemRep
         }),
     );
     const hasPrivateActivity =
-      notes.some((note) => noteHasMeaningfulContent(note)) ||
-      highlights.length > 0 ||
-      comments.length > 0;
+      notes.some((note) => noteHasMeaningfulContent(note)) || highlights.length > 0 || comments.length > 0;
 
     if (isPlaceholderTitle(binder.title)) {
       const canonical = CANONICAL_SYSTEM_BINDERS.get(binder.id);
@@ -166,12 +152,14 @@ export function planSystemContentRepair(dataset: SystemRepairDataset): SystemRep
 
   const placeholderSystemBinders = dataset.binders.filter((binder) => {
     const folderIds = folderIdsByBinderId[binder.id] ?? [];
-    return isSystemScopedBinderCandidate(
-      binder,
-      folderIds,
-      canonicalOwnerIds,
-      SYSTEM_BINDER_IDS_SET.has(binder.id),
-    ) && isPlaceholderTitle(binder.title);
+    return (
+      isSystemScopedBinderCandidate(
+        binder,
+        folderIds,
+        canonicalOwnerIds,
+        SYSTEM_BINDER_IDS_SET.has(binder.id),
+      ) && isPlaceholderTitle(binder.title)
+    );
   }).length;
 
   const placeholderSystemLessons = dataset.lessons.filter((lesson) => {
@@ -274,19 +262,17 @@ function isEmptySystemPlaceholderBinder(
   highlights: Highlight[],
   hasPrivateActivity: boolean,
 ) {
-  if (
-    !isPlaceholderTitle(binder.title) ||
-    hasPrivateActivity
-  ) {
+  if (!isPlaceholderTitle(binder.title) || hasPrivateActivity) {
     return false;
   }
 
-  const hasMeaningfulLessons = lessons.some((lesson) =>
-    !isPlaceholderDocument({
-      lesson,
-      notes: notes.filter((note) => note.lesson_id === lesson.id),
-      highlights: highlights.filter((highlight) => highlight.lesson_id === lesson.id),
-    }),
+  const hasMeaningfulLessons = lessons.some(
+    (lesson) =>
+      !isPlaceholderDocument({
+        lesson,
+        notes: notes.filter((note) => note.lesson_id === lesson.id),
+        highlights: highlights.filter((highlight) => highlight.lesson_id === lesson.id),
+      }),
   );
 
   return (
@@ -296,6 +282,7 @@ function isEmptySystemPlaceholderBinder(
       lessons,
       notes,
       highlights,
-    }) || (!binder.pinned && lessons.length === 0 && notes.length === 0 && highlights.length === 0))
+    }) ||
+      (!binder.pinned && lessons.length === 0 && notes.length === 0 && highlights.length === 0))
   );
 }

@@ -10,12 +10,5 @@ export const DesmosScientificCalculator = memo(function DesmosScientificCalculat
   fallback?: ReactNode;
   height?: string;
 }) {
-  return (
-    <DesmosSurface
-      className={className}
-      fallback={fallback}
-      height={height}
-      kind="scientific"
-    />
-  );
+  return <DesmosSurface className={className} fallback={fallback} height={height} kind="scientific" />;
 });

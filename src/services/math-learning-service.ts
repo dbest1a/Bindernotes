@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import { databaseJson } from "@/lib/database-client";
 import {
   getSeedModuleBySlug,
-  getSeedQuestionChoices,
   mathSeedChoices,
   mathSeedCourses,
   mathSeedModules,
@@ -9,6 +9,11 @@ import {
   mathSeedTopics,
 } from "@/lib/math-learning-seeds";
 import { scoreQuestion, type SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import {
+  savedQuestionAttemptSchema,
+  savedQuizAttemptSchema,
+  snapshotQuestion,
+} from "@/services/quiz-attempt-results-service";
 import type {
   CalculatorMode,
   MathCourse,
@@ -127,15 +132,10 @@ export async function getMathCourseBundle(courseSlug: string): Promise<MathCours
 
 export async function listMathTopics(courseId?: string): Promise<MathTopic[]> {
   if (!supabase) {
-    return mathSeedTopics
-      .filter((topic) => !courseId || topic.course_id === courseId)
-      .sort(byOrder);
+    return mathSeedTopics.filter((topic) => !courseId || topic.course_id === courseId).sort(byOrder);
   }
 
-  let query = supabase
-    .from("math_topics")
-    .select("*")
-    .order("order_index", { ascending: true });
+  let query = supabase.from("math_topics").select("*").order("order_index", { ascending: true });
 
   if (courseId) {
     query = query.eq("course_id", courseId);
@@ -144,9 +144,7 @@ export async function listMathTopics(courseId?: string): Promise<MathTopic[]> {
   const { data, error } = await query;
   if (error) {
     console.warn("Falling back to bundled math topics.", error.message);
-    return mathSeedTopics
-      .filter((topic) => !courseId || topic.course_id === courseId)
-      .sort(byOrder);
+    return mathSeedTopics.filter((topic) => !courseId || topic.course_id === courseId).sort(byOrder);
   }
 
   return (data ?? []) as MathTopic[];
@@ -283,7 +281,8 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
     calculator_mode: input.calculatorMode,
     title: input.title,
     desmos_state: input.desmosState,
-    expressions: input.expressions ?? null,
+    expressions:
+      input.expressions?.map(({ id, latex }) => ({ ...(id === undefined ? {} : { id }), latex })) ?? null,
     thumbnail_url: null,
     created_at: now,
     updated_at: now,
@@ -300,7 +299,10 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
 
   const { data, error } = await supabase
     .from("math_graph_states")
-    .upsert(row, { onConflict: "id" })
+    .upsert(
+      { ...row, desmos_state: databaseJson(row.desmos_state), expressions: databaseJson(row.expressions) },
+      { onConflict: "id" },
+    )
     .select("*")
     .single();
 
@@ -313,10 +315,10 @@ export async function saveGraphState(input: SaveGraphStateInput): Promise<MathGr
 
 export async function listQuestions(filters: QuestionFilters = {}): Promise<QuestionBankItem[]> {
   if (!supabase) {
-    return attachChoices([...mathSeedQuestions, ...loadLocalState().questions], [
-      ...mathSeedChoices,
-      ...loadLocalState().choices,
-    ]).filter((question) => questionMatchesFilters(question, filters));
+    return attachChoices(
+      [...mathSeedQuestions, ...loadLocalState().questions],
+      [...mathSeedChoices, ...loadLocalState().choices],
+    ).filter((question) => questionMatchesFilters(question, filters));
   }
 
   let query = supabase.from("question_bank").select("*, question_choices(*)");
@@ -349,7 +351,7 @@ export async function getQuestion(questionId: string): Promise<QuestionBankItem 
 export async function saveQuestion(input: QuestionInput): Promise<QuestionBankItem> {
   const now = new Date().toISOString();
   const id = input.id ?? crypto.randomUUID();
-  const questionRow: QuestionBankItem = {
+  const questionRow = {
     id,
     course_id: input.courseId ?? null,
     topic_id: input.topicId ?? null,
@@ -371,7 +373,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     created_by: input.userId,
     created_at: now,
     updated_at: now,
-  };
+  } satisfies QuestionBankItem;
   const choices: QuestionChoice[] = (input.choices ?? []).map((choice, index) => ({
     id: choice.id ?? crypto.randomUUID(),
     question_id: id,
@@ -388,17 +390,14 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     saveLocalState({
       ...local,
       questions: [questionRow, ...local.questions.filter((question) => question.id !== id)],
-      choices: [
-        ...choices,
-        ...local.choices.filter((choice) => choice.question_id !== id),
-      ],
+      choices: [...choices, ...local.choices.filter((choice) => choice.question_id !== id)],
     });
     return { ...questionRow, choices };
   }
 
   const { data, error } = await supabase
     .from("question_bank")
-    .upsert(questionRow, { onConflict: "id" })
+    .upsert({ ...questionRow, answer_json: databaseJson(questionRow.answer_json) }, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -406,10 +405,7 @@ export async function saveQuestion(input: QuestionInput): Promise<QuestionBankIt
     throw new Error(`Could not save question: ${error.message}`);
   }
 
-  const { error: deleteError } = await supabase
-    .from("question_choices")
-    .delete()
-    .eq("question_id", id);
+  const { error: deleteError } = await supabase.from("question_choices").delete().eq("question_id", id);
   if (deleteError) {
     throw new Error(`Could not replace question choices: ${deleteError.message}`);
   }
@@ -433,7 +429,7 @@ export async function createQuizSet(input: {
   moduleId?: string | null;
 }): Promise<QuizSet> {
   const now = new Date().toISOString();
-  const quiz: QuizSet = {
+  const quiz = {
     id: crypto.randomUUID(),
     user_id: input.userId,
     course_id: input.courseId ?? null,
@@ -444,7 +440,7 @@ export async function createQuizSet(input: {
     settings_json: { mode: "practice" },
     created_at: now,
     updated_at: now,
-  };
+  } satisfies QuizSet;
 
   if (!supabase) {
     const local = loadLocalState();
@@ -465,7 +461,7 @@ export async function createQuizSet(input: {
 
   const { data, error } = await supabase
     .from("quiz_sets")
-    .insert(quiz)
+    .insert({ ...quiz, settings_json: databaseJson(quiz.settings_json) })
     .select("*")
     .single();
 
@@ -500,18 +496,14 @@ export async function getQuizSet(quizId: string): Promise<QuizSet | null> {
       .filter((link) => link.quiz_set_id === quizId)
       .sort((left, right) => left.order_index - right.order_index)
       .map((link) => link.question_id);
-    const questions = attachChoices([...mathSeedQuestions, ...local.questions], [
-      ...mathSeedChoices,
-      ...local.choices,
-    ]).filter((question) => questionIds.includes(question.id));
+    const questions = attachChoices(
+      [...mathSeedQuestions, ...local.questions],
+      [...mathSeedChoices, ...local.choices],
+    ).filter((question) => questionIds.includes(question.id));
     return { ...quiz, questions };
   }
 
-  const { data, error } = await supabase
-    .from("quiz_sets")
-    .select("*")
-    .eq("id", quizId)
-    .maybeSingle();
+  const { data, error } = await supabase.from("quiz_sets").select("*").eq("id", quizId).maybeSingle();
 
   if (error) {
     throw new Error(`Could not load quiz: ${error.message}`);
@@ -543,7 +535,9 @@ export async function getQuizSet(quizId: string): Promise<QuizSet | null> {
 export async function startQuizAttempt(input: {
   quizSetId: string;
   userId: string;
+  quizTitle?: string;
 }): Promise<QuizAttempt> {
+  if (!supabase) throw new Error("Account storage is unavailable. Your quiz attempt was not saved.");
   const attempt: QuizAttempt = {
     id: crypto.randomUUID(),
     quiz_set_id: input.quizSetId,
@@ -552,25 +546,19 @@ export async function startQuizAttempt(input: {
     completed_at: null,
     score: null,
     total_points: null,
-    metadata_json: null,
+    metadata_json: { schema: "quiz_attempt_v1", quizTitle: input.quizTitle ?? null },
   };
-
-  if (!supabase) {
-    const local = loadLocalState();
-    saveLocalState({ ...local, attempts: [attempt, ...local.attempts] });
-    return attempt;
-  }
 
   const { data, error } = await supabase
     .from("quiz_attempts")
-    .insert(attempt)
+    .insert({ ...attempt, metadata_json: databaseJson(attempt.metadata_json) })
     .select("*")
     .single();
   if (error) {
     throw new Error(`Could not start quiz attempt: ${error.message}`);
   }
 
-  return data as QuizAttempt;
+  return savedQuizAttemptSchema.parse(data);
 }
 
 export async function submitQuestionAttempt(input: {
@@ -579,26 +567,31 @@ export async function submitQuestionAttempt(input: {
   question: QuestionBankItem;
   answer: SubmittedQuestionAnswer;
 }) {
+  if (!supabase) throw new Error("Account storage is unavailable. Your answer was not saved.");
   const score = scoreQuestion(input.question, input.answer);
   const row = {
-    id: crypto.randomUUID(),
+    id: `${input.attemptId}:${input.question.id}`,
     quiz_attempt_id: input.attemptId,
     question_id: input.question.id,
     user_id: input.userId,
-    submitted_answer_json: input.answer as Record<string, unknown>,
+    submitted_answer_json: databaseJson(
+      Object.fromEntries(Object.entries(input.answer).filter(([, value]) => value !== undefined)),
+    ),
     is_correct: score.isCorrect,
     points_awarded: score.pointsAwarded,
-    feedback_json: score.feedback,
+    feedback_json: databaseJson({
+      message: score.feedback.message,
+      ...(score.feedback.expected === undefined ? {} : { expected: score.feedback.expected }),
+      totalPoints: score.totalPoints,
+      autoGraded: score.autoGraded,
+      questionSnapshot: snapshotQuestion(input.question),
+    }),
     created_at: new Date().toISOString(),
   };
 
-  if (!supabase) {
-    return { attempt: row, score };
-  }
-
   const { data, error } = await supabase
     .from("question_attempts")
-    .insert(row)
+    .upsert(row, { onConflict: "id" })
     .select("*")
     .single();
 
@@ -606,7 +599,7 @@ export async function submitQuestionAttempt(input: {
     throw new Error(`Could not submit answer: ${error.message}`);
   }
 
-  return { attempt: data, score };
+  return { attempt: savedQuestionAttemptSchema.parse(data), score };
 }
 
 export async function completeQuizAttempt(input: {
@@ -615,33 +608,25 @@ export async function completeQuizAttempt(input: {
   userId: string;
   scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
 }): Promise<QuizAttempt> {
+  if (!supabase) throw new Error("Account storage is unavailable. Your quiz result was not saved.");
+  if (
+    input.scores.some(
+      (item) =>
+        !Number.isFinite(item.totalPoints) ||
+        item.totalPoints < 0 ||
+        (item.pointsAwarded !== null &&
+          (!Number.isFinite(item.pointsAwarded) ||
+            item.pointsAwarded < 0 ||
+            item.pointsAwarded > item.totalPoints)),
+    )
+  ) {
+    throw new Error("The quiz contains invalid scoring data and could not be completed.");
+  }
   const score = input.scores.reduce((sum, item) => sum + (item.pointsAwarded ?? 0), 0);
   const totalPoints = input.scores.reduce((sum, item) => sum + item.totalPoints, 0);
+  if (!Number.isFinite(score) || !Number.isFinite(totalPoints))
+    throw new Error("The quiz score is outside the supported numeric range.");
   const completedAt = new Date().toISOString();
-
-  if (!supabase) {
-    const local = loadLocalState();
-    const attempt =
-      local.attempts.find((candidate) => candidate.id === input.attemptId) ??
-      ({
-        id: input.attemptId,
-        quiz_set_id: input.quizSet.id,
-        user_id: input.userId,
-        started_at: completedAt,
-        metadata_json: null,
-      } as QuizAttempt);
-    const completed: QuizAttempt = {
-      ...attempt,
-      completed_at: completedAt,
-      score,
-      total_points: totalPoints,
-    };
-    saveLocalState({
-      ...local,
-      attempts: [completed, ...local.attempts.filter((item) => item.id !== input.attemptId)],
-    });
-    return completed;
-  }
 
   const { data, error } = await supabase
     .from("quiz_attempts")
@@ -652,6 +637,7 @@ export async function completeQuizAttempt(input: {
     })
     .eq("id", input.attemptId)
     .eq("user_id", input.userId)
+    .eq("quiz_set_id", input.quizSet.id)
     .select("*")
     .single();
 
@@ -659,7 +645,7 @@ export async function completeQuizAttempt(input: {
     throw new Error(`Could not complete quiz: ${error.message}`);
   }
 
-  return data as QuizAttempt;
+  return savedQuizAttemptSchema.parse(data);
 }
 
 function normalizeQuestionRows(rows: Array<Record<string, unknown>>): QuestionBankItem[] {
@@ -667,7 +653,8 @@ function normalizeQuestionRows(rows: Array<Record<string, unknown>>): QuestionBa
     const question_choices = Array.isArray(row.question_choices)
       ? (row.question_choices as QuestionChoice[])
       : [];
-    const { question_choices: _choices, ...question } = row;
+    const question = { ...row };
+    delete question.question_choices;
     return {
       ...(question as QuestionBankItem),
       choices: question_choices.sort((left, right) => left.order_index - right.order_index),

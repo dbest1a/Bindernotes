@@ -1,4 +1,4 @@
-import { CSSProperties, PointerEvent, useState } from "react";
+import { CSSProperties, PointerEvent, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/ui/logo-mark";
+import { useAuth } from "@/hooks/use-auth";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { openBillingPortal, startCheckout, type Plan } from "@/services/stripe-service";
 
 const pricingProof = [
   "View pricing before sign-in",
@@ -60,7 +63,7 @@ const planCards = [
       "3 Math Whiteboards",
       "Desmos PowerGraphs",
       "Graph states and formula study",
-      "No Admin Studio",
+      "Private study workspace",
     ],
   },
   {
@@ -74,10 +77,10 @@ const planCards = [
     href: "/auth",
     badge: "Best value",
     features: [
-      "Admin Studio",
+      "Creator workspace for your own content",
       "Publish your own notes",
       "Control your own files",
-      "Upload and annotate PDFs",
+      "Manage your published materials",
       "20 Math Whiteboards",
     ],
   },
@@ -87,16 +90,15 @@ const planCards = [
     name: "Everything",
     price: "$35",
     cadence: "per month",
-    summary: "For the full BinderNotes setup: studying, publishing, files, whiteboards, and premium controls.",
+    summary: "Support continued development with all current Studio features.",
     cta: "Get Everything",
     href: "/auth",
     badge: "All access",
     features: [
       "Everything in Studio",
-      "Full Admin Studio controls",
-      "Expanded whiteboard capacity",
-      "All Desmos, PDF, and publishing tools",
-      "Premium workspace customization",
+      "20 Math Whiteboards",
+      "Publish and manage your own content",
+      "Same current product limits as Studio",
     ],
   },
 ];
@@ -105,17 +107,19 @@ const comparisonRows = [
   ["Source lessons + private notes", "Included", "Included", "Included", "Included"],
   ["Highlights, comments, and quote capture", "Included", "Included", "Included", "Included"],
   ["Binders", "Starter access", "Unlimited", "Unlimited", "Unlimited"],
-  ["Math Whiteboards", "Starter access", "3 boards", "20 boards", "Expanded capacity"],
+  ["Math Whiteboards", "3 boards", "3 boards", "20 boards", "20 boards"],
   ["Desmos PowerGraphs", "Basic graphing", "Included", "Included", "Included"],
-  ["Admin Studio", "Not included", "Not included", "Included", "Full controls"],
+  ["Create and publish your own materials", "Not included", "Not included", "Included", "Included"],
   ["Publish your own notes", "Not included", "Not included", "Included", "Included"],
-  ["Upload and annotate PDFs", "Not included", "Not included", "Included", "Included"],
 ];
 
 function renderComparisonValue(value: string) {
   if (value === "Included") {
     return (
-      <span aria-label="Included" className="pricing-comparison-table__icon pricing-comparison-table__icon--included">
+      <span
+        aria-label="Included"
+        className="pricing-comparison-table__icon pricing-comparison-table__icon--included"
+      >
         <Check aria-hidden="true" />
       </span>
     );
@@ -123,7 +127,10 @@ function renderComparisonValue(value: string) {
 
   if (value === "Not included") {
     return (
-      <span aria-label="Not included" className="pricing-comparison-table__icon pricing-comparison-table__icon--missing">
+      <span
+        aria-label="Not included"
+        className="pricing-comparison-table__icon pricing-comparison-table__icon--missing"
+      >
         <X aria-hidden="true" />
       </span>
     );
@@ -158,15 +165,18 @@ const workflowCards = [
 const faqs = [
   {
     question: "Do I need to sign in to see pricing?",
-    answer: "No. This page is public so students and parents can understand the options before creating an account.",
+    answer:
+      "No. This page is public so students and parents can understand the options before creating an account.",
   },
   {
     question: "What is the best plan for one student?",
-    answer: "Start with Free if you are exploring. Plus is the clean upgrade for students who want unlimited binders, 3 whiteboards, and stronger graphing.",
+    answer:
+      "Start with Free if you are exploring. Plus is the clean upgrade for students who want unlimited binders, 3 whiteboards, and stronger graphing.",
   },
   {
-    question: "Which plan includes Admin Studio?",
-    answer: "Studio includes Admin Studio at $20/month. Everything includes the full admin, publishing, PDF, graph, and workspace feature set.",
+    question: "Which plan includes publishing?",
+    answer:
+      "Studio and Everything include publishing for your own materials and 20 whiteboards. Operator administration is reserved for the BinderNotes team. Everything has the same current product limits as Studio.",
   },
   {
     question: "Is Desmos included?",
@@ -174,11 +184,57 @@ const faqs = [
   },
   {
     question: "What is open source here?",
-    answer: "The whiteboard drawing foundation builds on open-source Excalidraw, with BinderNotes adding study-native modules and storage.",
+    answer:
+      "The whiteboard drawing foundation builds on open-source Excalidraw, with BinderNotes adding study-native modules and storage.",
   },
 ];
 
 export function PricingPage() {
+  return <ClassicPricingPage />;
+}
+
+export function PricingBetaPage() {
+  const { profile } = useAuth();
+  const betaFeatures = useBetaFeatures(profile?.id);
+
+  if (!betaFeatures.isFeatureEnabled("betaRevampCalmStudyHomepage")) {
+    return <ClassicPricingPage />;
+  }
+
+  return <BetaRevampPricingPage />;
+}
+
+function ClassicPricingPage() {
+  const { profile } = useAuth();
+  const account = useRef(profile?.id);
+  account.current = profile?.id;
+  const requestIds = useRef(new Map<string, string>());
+  const [billingMessage, setBillingMessage] = useState("");
+  const [billingPending, setBillingPending] = useState(false);
+  const beginBilling = async (plan?: Plan["id"]) => {
+    const owner = profile?.id;
+    setBillingPending(true);
+    setBillingMessage("");
+    try {
+      if (plan) {
+        const key = `${owner}:${plan}`;
+        const requestId = requestIds.current.get(key) ?? crypto.randomUUID();
+        requestIds.current.set(key, requestId);
+        const result = await startCheckout(plan, requestId);
+        if (account.current === owner && result.kind === "checkout") window.location.assign(result.url);
+      } else {
+        const url = await openBillingPortal();
+        if (account.current === owner) window.location.assign(url);
+      }
+    } catch (error) {
+      if (account.current === owner)
+        setBillingMessage(
+          error instanceof Error ? error.message : "Billing is temporarily unavailable. Please retry.",
+        );
+    } finally {
+      if (account.current === owner) setBillingPending(false);
+    }
+  };
   const [heroPointer, setHeroPointer] = useState({
     x: "0px",
     y: "0px",
@@ -224,8 +280,8 @@ export function PricingPage() {
             </div>
             <h1>Pricing for the study workspace you actually use.</h1>
             <p>
-              Simple student-first pricing with the same premium product system: source lessons,
-              private notes, Desmos graphing, whiteboards, highlights, and real cloud accounts.
+              Simple student-first pricing with the same premium product system: source lessons, private
+              notes, Desmos graphing, whiteboards, highlights, and real cloud accounts.
             </p>
             <div className="pricing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
@@ -234,7 +290,12 @@ export function PricingPage() {
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
-              <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
+              <Button
+                asChild
+                className="marketing-button marketing-button--ghost"
+                size="lg"
+                variant="outline"
+              >
                 <a href="#plans">Compare plans</a>
               </Button>
             </div>
@@ -257,8 +318,8 @@ export function PricingPage() {
           <span className="marketing-kicker">Plans</span>
           <h2>Four clear paths. No maze of hidden packages.</h2>
           <p>
-            Start free, upgrade to deeper study tools at $8, publish your own work at $20, or
-            unlock the full BinderNotes setup at $35.
+            Start free, upgrade to deeper study tools at $8, publish your own work at $20, or unlock the full
+            BinderNotes setup at $35.
           </p>
         </div>
         <div className="pricing-plan-grid">
@@ -275,10 +336,26 @@ export function PricingPage() {
                 <span>{plan.price}</span>
                 <small>{plan.cadence}</small>
               </div>
-              <Link className="pricing-plan-card__cta" to={plan.href}>
-                {plan.cta}
-                <ArrowRight data-icon="inline-end" />
-              </Link>
+              {profile && plan.id !== "free" ? (
+                <button
+                  className="pricing-plan-card__cta"
+                  disabled={billingPending}
+                  onClick={() => {
+                    const selected = plan.id;
+                    if (selected === "plus" || selected === "studio" || selected === "everything")
+                      void beginBilling(selected);
+                  }}
+                  type="button"
+                >
+                  {billingPending ? "Opening billing…" : plan.cta}
+                  <ArrowRight data-icon="inline-end" />
+                </button>
+              ) : (
+                <Link className="pricing-plan-card__cta" to={plan.href}>
+                  {plan.cta}
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              )}
               <div className="pricing-plan-card__features">
                 {plan.features.map((feature) => (
                   <span key={feature}>
@@ -292,6 +369,16 @@ export function PricingPage() {
         </div>
       </section>
 
+      {profile && (
+        <Button disabled={billingPending} onClick={() => void beginBilling()} type="button" variant="outline">
+          Manage billing
+        </Button>
+      )}
+      {billingMessage && <p role="alert">{billingMessage}</p>}
+      <p>
+        Paid checkout is available only after billing activation. Your plan changes after payment is
+        confirmed. A canceled checkout leaves your current plan unchanged.
+      </p>
       <section className="pricing-story pricing-section">
         <div className="pricing-story__visual">
           <div className="pricing-story__track" aria-hidden="true">
@@ -300,7 +387,11 @@ export function PricingPage() {
             <span />
           </div>
           {workflowCards.map((card, index) => (
-            <article className="pricing-workflow-card" key={card.title} style={{ "--pricing-card-index": index } as CSSProperties}>
+            <article
+              className="pricing-workflow-card"
+              key={card.title}
+              style={{ "--pricing-card-index": index } as CSSProperties}
+            >
               <div>{card.icon}</div>
               <h3>{card.title}</h3>
               <p>{card.body}</p>
@@ -311,8 +402,8 @@ export function PricingPage() {
           <span className="marketing-kicker">What you are paying for</span>
           <h2>A study system, not another subscription badge.</h2>
           <p>
-            The value is context: every note, graph, formula, highlight, and board stays attached
-            to what you were learning when you made it.
+            The value is context: every note, graph, formula, highlight, and board stays attached to what you
+            were learning when you made it.
           </p>
           <div className="pricing-story__badges">
             <span>
@@ -361,16 +452,16 @@ export function PricingPage() {
           <LockKeyhole data-icon="inline-start" />
           <h2>Real accounts. Real saving. No demo pricing fog.</h2>
           <p>
-            Pricing is visible before sign-in, but the actual study workspace still uses real
-            Supabase auth and user-owned data paths.
+            Pricing is visible before sign-in, but the actual study workspace still uses real Supabase auth
+            and user-owned data paths.
           </p>
         </article>
         <article className="pricing-trust-card">
           <CreditCard data-icon="inline-start" />
           <h2>Payment boundary stays clean.</h2>
           <p>
-            The paid plans are priced publicly while checkout activation stays isolated from the
-            learning app, so the product can stay stable as billing evolves.
+            The paid plans are priced publicly while checkout activation stays isolated from the learning app,
+            so the product can stay stable as billing evolves.
           </p>
         </article>
       </section>
@@ -404,9 +495,182 @@ export function PricingPage() {
         <div className="pricing-final__content">
           <span className="marketing-kicker marketing-kicker--bright">Ready when you are</span>
           <h2>Start free, then upgrade when BinderNotes becomes your main study desk.</h2>
+          <p>See the product, compare the plans, and create a real account only when the value is clear.</p>
+          <Button asChild className="marketing-button marketing-button--primary" size="lg">
+            <Link to="/auth">
+              Start studying now
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+const betaPricingPlans = [
+  {
+    badge: "Start here",
+    cta: "Start free",
+    features: [
+      "Source-linked notes",
+      "Private account workspace",
+      "Starter review habits",
+      "Math notes and formula context",
+    ],
+    name: "Free",
+    price: "$0",
+    summary: "For students proving the habit with real notes, sources, and review.",
+  },
+  {
+    badge: "Student upgrade",
+    cta: "Start Plus",
+    features: [
+      "More binders and study space",
+      "Saved graph and formula context",
+      "Review queue and mistake tracking as they mature",
+      "Calmer workspace controls",
+    ],
+    name: "Plus",
+    price: "$8",
+    summary: "For students who want BinderNotes as their main math-heavy study desk.",
+  },
+  {
+    badge: "Later",
+    cta: "Join with a real account",
+    features: [
+      "Tutor and small-group workflows",
+      "Student source packets",
+      "Shared review routines",
+      "Studio publishing can wait until the student loop is proven",
+    ],
+    name: "Studio later / for tutors",
+    price: "Later",
+    summary: "For tutors and creators after the core student study habit is working.",
+  },
+];
+
+function BetaRevampPricingPage() {
+  return (
+    <main
+      className="pricing-page beta-pricing-page"
+      data-beta-pricing-model="simple"
+      data-testid="beta-pricing-page"
+    >
+      <section className="beta-pricing-hero">
+        <PricingNav />
+        <div className="beta-pricing-hero__inner">
+          <div className="beta-pricing-hero__copy">
+            <span className="marketing-kicker marketing-kicker--bright">Beta Revamp pricing</span>
+            <h1>Pricing that keeps the study habit simple.</h1>
+            <p>
+              Start free, upgrade when BinderNotes becomes the place you keep source-linked notes, graphs,
+              formulas, review cards, and mistake patterns. Studio can come later for tutors.
+            </p>
+            <div className="pricing-hero__actions">
+              <Button asChild className="marketing-button marketing-button--primary" size="lg">
+                <Link to="/auth">
+                  Start studying
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                className="marketing-button marketing-button--ghost"
+                size="lg"
+                variant="outline"
+              >
+                <a href="#plans">See plans</a>
+              </Button>
+            </div>
+          </div>
+          <div className="beta-pricing-hero__visual" aria-label="Simple pricing preview">
+            <article>
+              <span>Free</span>
+              <strong>{"Source -> note -> review"}</strong>
+            </article>
+            <article>
+              <span>Plus</span>
+              <strong>Graphs, formulas, mistakes</strong>
+            </article>
+            <article>
+              <span>Studio later</span>
+              <strong>Tutors after the student loop works</strong>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="pricing-plans pricing-section beta-pricing-plans" id="plans">
+        <div className="pricing-section__intro">
+          <span className="marketing-kicker">Plans</span>
+          <h2>Three choices while the study loop proves itself.</h2>
+          <p>Students should not need to compare four complex tiers before the product habit is clear.</p>
+        </div>
+        <div className="beta-pricing-plan-grid">
+          {betaPricingPlans.map((plan) => (
+            <article
+              className="pricing-plan-card beta-pricing-plan-card"
+              data-featured={plan.name === "Plus"}
+              key={plan.name}
+            >
+              <div className="pricing-plan-card__top">
+                <span>{plan.badge}</span>
+                <strong>{plan.name === "Plus" ? "Core" : "Simple"}</strong>
+              </div>
+              <h3>{plan.name}</h3>
+              <p>{plan.summary}</p>
+              <div className="pricing-plan-card__price">
+                <span>{plan.price}</span>
+                <small>
+                  {plan.price === "Later"
+                    ? "for tutor workflows"
+                    : plan.name === "Free"
+                      ? "forever"
+                      : "per month"}
+                </small>
+              </div>
+              <Link className="pricing-plan-card__cta" to="/auth">
+                {plan.cta}
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+              <div className="pricing-plan-card__features">
+                {plan.features.map((feature) => (
+                  <span key={feature}>
+                    <Check data-icon="inline-start" />
+                    {feature}
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="beta-pricing-trust pricing-section">
+        <article className="pricing-trust-card">
+          <LockKeyhole data-icon="inline-start" />
+          <h2>Real accounts, not demo workspaces.</h2>
           <p>
-            See the product, compare the plans, and create a real account only when the value is clear.
+            Pricing stays public, but account areas continue to use real Supabase auth and real user-owned
+            data paths.
           </p>
+        </article>
+        <article className="pricing-trust-card">
+          <BookOpenCheck data-icon="inline-start" />
+          <h2>Notes are user-owned.</h2>
+          <p>
+            BinderNotes should sell trust: private study records, source context, and portability as export
+            controls mature.
+          </p>
+        </article>
+      </section>
+
+      <section className="pricing-final beta-pricing-final">
+        <div className="pricing-final__content">
+          <span className="marketing-kicker marketing-kicker--bright">Simple until the habit is proven</span>
+          <h2>Free, Plus, and Studio later.</h2>
+          <p>No billing or checkout behavior changed in this beta copy path.</p>
           <Button asChild className="marketing-button marketing-button--primary" size="lg">
             <Link to="/auth">
               Start studying now
@@ -435,7 +699,9 @@ function PricingNav() {
         <a href="#pricing-faq">Questions</a>
       </div>
       <div className="marketing-nav__actions">
-        <Link className="marketing-nav__signin" to="/auth">Sign in</Link>
+        <Link className="marketing-nav__signin" to="/auth">
+          Sign in
+        </Link>
         <Link className="marketing-nav__start" to="/auth">
           Start
           <ArrowRight data-icon="inline-end" />

@@ -1,6 +1,7 @@
-import { Clock3, FlaskConical, ListChecks, Search, Sparkles, StickyNote } from "lucide-react";
+import { Clock3, FlaskConical, ListChecks, Pin, Search, Send, Sparkles, StickyNote, X } from "lucide-react";
 import { Suspense, lazy, useMemo, type ReactElement, type ReactNode } from "react";
 import type { JSONContent } from "@tiptap/react";
+import { preloadRichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import type { MathWorkspaceModuleBindings } from "@/components/math/math-workspace-modules";
 import {
   BinderNotebookModule,
@@ -8,6 +9,7 @@ import {
   SourceLessonModule,
 } from "@/components/workspace/study-core-modules";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import { LearningAcceleratorsModule } from "@/components/workspace/learning-accelerators";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,10 +48,14 @@ import type {
 } from "@/types";
 
 const LazyDesmosGraphModule = lazy(() =>
-  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.DesmosGraphModule })),
+  import("@/components/math/math-workspace-modules").then((module) => ({
+    default: module.DesmosGraphModule,
+  })),
 );
 const LazySavedGraphsModule = lazy(() =>
-  import("@/components/math/math-workspace-modules").then((module) => ({ default: module.SavedGraphsModule })),
+  import("@/components/math/math-workspace-modules").then((module) => ({
+    default: module.SavedGraphsModule,
+  })),
 );
 const LazyScientificCalculatorModule = lazy(() =>
   import("@/components/math/math-workspace-modules").then((module) => ({
@@ -72,14 +78,198 @@ const LazyArgumentBuilderModule = lazy(() =>
   })),
 );
 const LazyMythHistoryModule = lazy(() =>
-  import("@/components/history/history-suite-modules").then((module) => ({ default: module.MythHistoryModule })),
+  import("@/components/history/history-suite-modules").then((module) => ({
+    default: module.MythHistoryModule,
+  })),
 );
 const LazyMathBlocks = lazy(() =>
   import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
 );
 const LazyWhiteboardModule = lazy(() =>
-  import("@/components/whiteboard/whiteboard-module").then((module) => ({ default: module.WhiteboardModule })),
+  import("@/components/whiteboard/whiteboard-module").then((module) => ({
+    default: module.WhiteboardModule,
+  })),
 );
+const LazyChemistryStoichiometryCoachModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryStoichiometryCoachModule,
+  })),
+);
+const LazyChemistryLabCoachModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryLabCoachModule,
+  })),
+);
+const LazyChemistryTitrationLabModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryTitrationLabModule,
+  })),
+);
+const LazyChemistryLabNotebookModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryLabNotebookModule,
+  })),
+);
+const LazyChemistryReferenceSafetyModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryReferenceSafetyModule,
+  })),
+);
+const LazyInteractivePeriodicTableModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.InteractivePeriodicTableModule,
+  })),
+);
+const LazyElementBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ElementBuilderModule,
+  })),
+);
+const LazyElectronConfigurationBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ElectronConfigurationBuilderModule,
+  })),
+);
+const LazyPeriodicTrendsGraphModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.PeriodicTrendsGraphModule,
+  })),
+);
+const LazyMoleculeLewisBuilderModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.MoleculeLewisBuilderModule,
+  })),
+);
+const LazyReactionBalancerModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ReactionBalancerModule,
+  })),
+);
+const LazyTriRepresentationReactionViewModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.TriRepresentationReactionViewModule,
+  })),
+);
+const LazyChemistryMolarMassCalculatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryMolarMassCalculatorModule,
+  })),
+);
+const LazySolutionMixerModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.SolutionMixerModule,
+  })),
+);
+const LazyAcidBaseCalculatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.AcidBaseCalculatorModule,
+  })),
+);
+const LazyChemistryGraphModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryGraphModule,
+  })),
+);
+const LazyKineticsSimulatorModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.KineticsSimulatorModule,
+  })),
+);
+const LazyThermochemistryModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ThermochemistryModule,
+  })),
+);
+const LazyChemistryConceptCardsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryConceptCardsModule,
+  })),
+);
+const LazyChemistryQuickToolsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryQuickToolsModule,
+  })),
+);
+const LazySafetyReagentCardsModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.SafetyReagentCardsModule,
+  })),
+);
+const LazyChemistryChallengeReviewModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryChallengeReviewModule,
+  })),
+);
+const LazyChemistryDataTableModule = lazy(() =>
+  import("@/components/chemistry/chemistry-workspace-modules").then((module) => ({
+    default: module.ChemistryDataTableModule,
+  })),
+);
+const LazyRecallLab = lazy(() =>
+  import("@/components/workspace/recall-lab").then((module) => ({ default: module.RecallLab })),
+);
+
+const preloadWorkspaceModuleChunks: Partial<Record<WorkspaceModuleId, () => void>> = {
+  "private-notes": preloadRichTextEditor,
+  "binder-notebook": preloadRichTextEditor,
+  "formula-sheet": () => void import("@/components/math/math-blocks"),
+  "math-blocks": () => void import("@/components/math/math-blocks"),
+  "graph-panel": () => void import("@/components/math/math-workspace-modules"),
+  "desmos-graph": () => void import("@/components/math/math-workspace-modules"),
+  "scientific-calculator": () => void import("@/components/math/math-workspace-modules"),
+  "saved-graphs": () => void import("@/components/math/math-workspace-modules"),
+  whiteboard: () => void import("@/components/whiteboard/whiteboard-module"),
+  "history-timeline": () => void import("@/components/history/history-suite-modules"),
+  "history-evidence": () => void import("@/components/history/history-suite-modules"),
+  "history-argument": () => void import("@/components/history/history-suite-modules"),
+  "history-myth-checks": () => void import("@/components/history/history-suite-modules"),
+  flashcards: () => void import("@/components/workspace/recall-lab"),
+};
+
+const chemistryWorkspaceModuleIds = new Set<WorkspaceModuleId>([
+  "chem-concept-cards",
+  "chem-lab-coach",
+  "chem-quick-tools",
+  "chem-periodic-table",
+  "chem-element-builder",
+  "chem-electron-config-builder",
+  "chem-periodic-trends-graph",
+  "chem-molecule-builder",
+  "chem-geometry-viewer",
+  "chem-reaction-balancer",
+  "chem-tri-reaction-view",
+  "chem-stoichiometry-coach",
+  "chem-molar-mass-calculator",
+  "chem-solution-mixer",
+  "chem-molarity-calculator",
+  "chem-desmos-concentration-graph",
+  "chem-ph-calculator",
+  "chem-titration-lab",
+  "chem-desmos-titration-curve",
+  "chem-kinetics-simulator",
+  "chem-desmos-kinetics-plot",
+  "chem-data-table",
+  "chem-calorimetry-lab",
+  "chem-energy-diagram",
+  "chem-calculation-sheet",
+  "chem-safety-cards",
+  "chem-review-queue",
+  "chem-lab-notebook",
+  "chem-reference-safety",
+]);
+
+export function preloadWorkspaceModule(moduleId: WorkspaceModuleId | null | undefined) {
+  if (!moduleId) {
+    return;
+  }
+
+  if (chemistryWorkspaceModuleIds.has(moduleId)) {
+    void import("@/components/chemistry/chemistry-workspace-modules");
+    return;
+  }
+
+  preloadWorkspaceModuleChunks[moduleId]?.();
+}
 
 export type WorkspaceLibraryContext = {
   folders: Folder[];
@@ -130,6 +320,18 @@ export type WorkspaceModuleContext = {
   whiteboardCardDensity?: "compact" | "comfortable";
   whiteboardTextSize?: "small" | "normal" | "large";
   whiteboardShowMathInline?: boolean;
+  whiteboardSidebarDefaultCollapsed?: boolean;
+  compactWhiteboardTools?: boolean;
+  canvasStarterLayouts?: boolean;
+  graphKeypad?: boolean;
+  mathPerformanceLazyLoading?: boolean;
+  recallLabEnabled?: boolean;
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
+  studentCalmMode?: boolean;
+  studyPanelsV2?: boolean;
+  onEnterWhiteboardFocus?: () => void;
+  onExitWhiteboardFocus?: () => void;
   stickyManagerVisible: boolean;
   hasUnsavedNoteChanges: boolean;
   history: {
@@ -173,6 +375,7 @@ export type WorkspaceModuleContext = {
   onDeleteComment: (commentId: string) => void;
   onUpdateComment: (commentId: string, body: string) => void;
   onAddHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) => void;
   onSaveSelectionAsEvidence: (selection: LessonTextSelection) => void;
   onStickyMove: (commentId: string, layout: StickyNoteLayout) => void;
@@ -211,6 +414,7 @@ export type WorkspaceModuleContext = {
   ) => void;
   onUseHistoryEvidencePrompt: () => void;
   onCreateHistoryMythCheck: () => void;
+  onOpenWorkspaceTool?: (moduleId: WorkspaceModuleId) => void;
 };
 
 type WorkspaceModuleDefinition = {
@@ -248,6 +452,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         highlights={context.highlights}
         highlightStatus={context.highlightStatus}
         lesson={context.selectedLesson}
+        lessons={context.lessons}
+        onAddSelectionToReview={context.onAddSelectionToReview}
         onHighlight={context.onAddHighlight}
         onJumpToMathSource={context.onJumpToMathSource}
         onRemoveHighlight={context.onRemoveHighlight}
@@ -257,12 +463,15 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         onSendToNotes={context.onSendSelectionToNotes}
+        reviewQueueBeta={context.reviewQueueBeta}
+        sourceLinkedNotesBeta={context.sourceLinkedNotesBeta}
         surface={context.surface ?? "workspace"}
         whiteboardDensity={context.whiteboardCardDensity}
         whiteboardDisplayMode={context.whiteboardSourceDisplayMode}
         whiteboardModuleId={context.whiteboardModuleId}
         whiteboardShowMathInline={context.whiteboardShowMathInline}
         whiteboardTextSize={context.whiteboardTextSize}
+        onSelectLesson={context.onSelectLesson}
         onStickyNote={context.onPrepareComment}
       />
     ),
@@ -310,6 +519,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         onOpenGraphBlock={context.onOpenGraphBlock}
         onSendToGraph={context.mathModules?.pushExpressionToGraph}
         surface={context.surface ?? "workspace"}
+        studentCalmMode={context.studentCalmMode}
       />
     ),
   },
@@ -336,20 +546,22 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="History timeline">
           <LazyHistoryTimelineModule
-          activeEventId={context.history.activeEventId}
-          evidenceCards={context.history.evidenceCards}
-          events={context.history.events}
-          onCreateStarterEvent={context.onCreateHistoryStarterEvent}
-          onReplayTimeline={context.onReplayHistoryTimeline}
-          onSelectEvent={context.onSelectHistoryEvent}
-          status={context.history.status.timeline}
-          templateEvents={context.history.templateEvents}
+            activeEventId={context.history.activeEventId}
+            evidenceCards={context.history.evidenceCards}
+            events={context.history.events}
+            onCreateStarterEvent={context.onCreateHistoryStarterEvent}
+            onReplayTimeline={context.onReplayHistoryTimeline}
+            onSelectEvent={context.onSelectHistoryEvent}
+            status={context.history.status.timeline}
+            templateEvents={context.history.templateEvents}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="History timeline">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to use timeline study tools."}
+            description={
+              context.history.seedHealthMessage ?? "Open a history-enabled suite to use timeline study tools."
+            }
             title="Timeline unavailable"
           />
         </WorkspacePanel>
@@ -363,20 +575,22 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Source evidence">
           <LazySourceEvidenceModule
-          activeSourceId={context.history.activeSourceId}
-          evidenceCards={context.history.evidenceCards}
-          onCreateEvidenceFromActiveSource={context.onCreateHistoryEvidenceFromSource}
-          onSelectSource={context.onSelectHistorySource}
-          onUseSourceInArgument={context.onUseHistorySourceInArgument}
-          sources={context.history.sources}
-          status={context.history.status.evidence}
-          templateSources={context.history.templateSources}
+            activeSourceId={context.history.activeSourceId}
+            evidenceCards={context.history.evidenceCards}
+            onCreateEvidenceFromActiveSource={context.onCreateHistoryEvidenceFromSource}
+            onSelectSource={context.onSelectHistorySource}
+            onUseSourceInArgument={context.onUseHistorySourceInArgument}
+            sources={context.history.sources}
+            status={context.history.status.evidence}
+            templateSources={context.history.templateSources}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Source evidence">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to use evidence cards."}
+            description={
+              context.history.seedHealthMessage ?? "Open a history-enabled suite to use evidence cards."
+            }
             title="Evidence unavailable"
           />
         </WorkspacePanel>
@@ -390,26 +604,29 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Argument builder">
           <LazyArgumentBuilderModule
-          activeChain={context.history.argumentChains[0] ?? null}
-          edges={context.history.argumentEdges}
-          nodes={context.history.argumentNodes}
-          onCreateStarterChain={context.onCreateHistoryStarterChain}
-          onUpdateChain={context.onUpdateHistoryArgumentChain}
-          onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
-          starterTopic={
-            context.binder.id === "binder-rise-of-rome"
-              ? "rome"
-              : context.binder.id === "binder-russian-revolution"
-                ? "russian"
-                : "french"
-          }
-          status={context.history.status.argument}
+            activeChain={context.history.argumentChains[0] ?? null}
+            edges={context.history.argumentEdges}
+            nodes={context.history.argumentNodes}
+            onCreateStarterChain={context.onCreateHistoryStarterChain}
+            onUpdateChain={context.onUpdateHistoryArgumentChain}
+            onUseEvidencePrompt={context.onUseHistoryEvidencePrompt}
+            starterTopic={
+              context.binder.id === "binder-rise-of-rome"
+                ? "rome"
+                : context.binder.id === "binder-russian-revolution"
+                  ? "russian"
+                  : "french"
+            }
+            status={context.history.status.argument}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Argument builder">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to build historical arguments."}
+            description={
+              context.history.seedHealthMessage ??
+              "Open a history-enabled suite to build historical arguments."
+            }
             title="Argument builder unavailable"
           />
         </WorkspacePanel>
@@ -423,16 +640,19 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       context.history.enabled ? (
         <LazyModuleBoundary title="Myth vs history">
           <LazyMythHistoryModule
-          mythChecks={context.history.mythChecks}
-          onCreateStarterMythCheck={context.onCreateHistoryMythCheck}
-          status={context.history.status.myth}
-          templateMythChecks={context.history.templateMythChecks}
+            mythChecks={context.history.mythChecks}
+            onCreateStarterMythCheck={context.onCreateHistoryMythCheck}
+            status={context.history.status.myth}
+            templateMythChecks={context.history.templateMythChecks}
           />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Available in history-enabled binders" title="Myth vs history">
           <EmptyState
-            description={context.history.seedHealthMessage ?? "Open a history-enabled suite to compare myth and evidence."}
+            description={
+              context.history.seedHealthMessage ??
+              "Open a history-enabled suite to compare myth and evidence."
+            }
             title="Myth checks unavailable"
           />
         </WorkspacePanel>
@@ -443,23 +663,25 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     title: "Sticky-note manager",
     description: "Floating sticky notes and quick capture",
     render: (context) => (
-      <WorkspacePanel description="Sticky notes now float above the workspace" title="Sticky-note manager">
-        <div className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
-            <div className="flex items-start justify-between gap-3">
+      <WorkspacePanel description="Create, review, and clean up lesson stickies" title="Sticky-note manager">
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Sticky notes live above the workspace now</p>
+                <p className="text-sm font-semibold">Floating notes for this lesson</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Create a free-floating note, or select lesson text to anchor one directly from the source module.
+                  Pin a reminder, anchor a question to source text, or send a sticky into your lesson notes.
                 </p>
               </div>
-              <Button onClick={context.onCreateLooseSticky} size="sm" type="button">
-                <StickyNote data-icon="inline-start" />
-                New sticky
-              </Button>
-              <Button onClick={context.onToggleStickyManager} size="sm" type="button" variant="outline">
-                {context.stickyManagerVisible ? "Hide manager" : "Show manager"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={context.onCreateLooseSticky} size="sm" type="button">
+                  <StickyNote data-icon="inline-start" />
+                  New sticky
+                </Button>
+                <Button onClick={context.onToggleStickyManager} size="sm" type="button" variant="outline">
+                  {context.stickyManagerVisible ? "Hide manager" : "Show manager"}
+                </Button>
+              </div>
             </div>
             {context.commentAnchor ? (
               <div className="mt-3 rounded-xl border border-border/60 bg-card/85 px-3 py-2 text-xs text-muted-foreground">
@@ -468,26 +690,58 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
             ) : null}
           </div>
 
-          <div className="grid gap-3">
-            {context.comments.slice(0, 4).map((comment) => (
-              <article className="rounded-2xl border border-border/70 bg-card/88 p-3 shadow-sm" key={comment.id}>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">{comment.body || "Sticky note"}</p>
+          <div className="grid gap-2">
+            {context.comments.map((comment) => (
+              <article
+                className="rounded-2xl border border-border/70 bg-card/88 p-3 shadow-sm"
+                key={comment.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-medium">
+                      {comment.body.trim() || "New sticky note"}
+                    </p>
                     {comment.anchor_text ? (
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Anchored to "{comment.anchor_text}"
+                      <p className="mt-1 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                        <Pin className="mt-0.5 size-3.5 shrink-0" />
+                        <span className="break-words">Anchored to "{comment.anchor_text}"</span>
                       </p>
                     ) : (
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Free-floating workspace note</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Free-floating workspace note
+                      </p>
                     )}
                   </div>
-                  <Badge variant="secondary">Floating</Badge>
+                  <Badge variant={comment.anchor_text ? "default" : "secondary"}>
+                    {comment.anchor_text ? "Anchored" : "Loose"}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => context.onSendStickyToNotes(comment)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Send data-icon="inline-start" />
+                    Send to notes
+                  </Button>
+                  <Button
+                    onClick={() => context.onDeleteComment(comment.id)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <X data-icon="inline-start" />
+                    Dismiss
+                  </Button>
                 </div>
               </article>
             ))}
             {context.comments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sticky notes yet. Create one or pin a passage from the source.</p>
+              <div className="rounded-2xl border border-dashed border-border/70 bg-background/55 p-4 text-sm text-muted-foreground">
+                No sticky notes yet. Create one or pin a passage from the source.
+              </div>
             ) : null}
           </div>
         </div>
@@ -527,7 +781,10 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) => (
       <WorkspacePanel description="Within this binder" title="Search">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" data-icon="inline-start" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            data-icon="inline-start"
+          />
           <Input
             className="pl-10"
             onChange={(event) => context.onQueryChange(event.target.value)}
@@ -550,7 +807,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         <WorkspacePanel description="Reusable equations" title="Formula sheet">
           <div className="formula-sheet-readable">
             <LazyModuleBoundary title="Formula sheet">
-              <LazyMathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+              <LazyMathBlocks
+                blocks={formulaBlocks}
+                onJumpToSource={context.onJumpToMathSource}
+                onSendFormulaToNotes={context.onSendSelectionToNotes}
+              />
             </LazyModuleBoundary>
           </div>
           {formulaBlocks.length === 0 ? (
@@ -571,6 +832,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
             blocks={context.selectedLesson.math_blocks}
             onJumpToSource={context.onJumpToMathSource}
             onOpenGraphBlock={context.onOpenGraphBlock}
+            onSendFormulaToNotes={context.onSendSelectionToNotes}
             onSendToGraph={context.mathModules ? context.mathModules.pushExpressionToGraph : undefined}
           />
         </LazyModuleBoundary>
@@ -590,6 +852,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           <LazyDesmosGraphModule
             bindings={context.mathModules}
             description="Legacy graph cards now route through a real Desmos graphing surface."
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
             surface={context.surface ?? "workspace"}
             title="Interactive graph"
           />
@@ -610,7 +873,12 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Desmos graph">
-          <LazyDesmosGraphModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazyDesmosGraphModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            showKeypad={context.graphKeypad !== false}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Desmos graph">
@@ -628,7 +896,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Scientific calculator">
-          <LazyScientificCalculatorModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazyScientificCalculatorModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Scientific calculator">
@@ -646,7 +918,11 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: (context) =>
       context.mathModules ? (
         <LazyModuleBoundary title="Saved graphs">
-          <LazySavedGraphsModule bindings={context.mathModules} surface={context.surface ?? "workspace"} />
+          <LazySavedGraphsModule
+            bindings={context.mathModules}
+            mathPerformanceLazyLoading={context.mathPerformanceLazyLoading}
+            surface={context.surface ?? "workspace"}
+          />
         </LazyModuleBoundary>
       ) : (
         <WorkspacePanel description="Math workspace only" title="Saved graphs">
@@ -676,6 +952,300 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       </LazyModuleBoundary>
     ),
   },
+  "chem-concept-cards": {
+    id: "chem-concept-cards",
+    title: "Chemistry concept cards",
+    description: "Concept, formula, misconception, and alignment cards",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry concept cards">
+        <LazyChemistryConceptCardsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-quick-tools": {
+    id: "chem-quick-tools",
+    title: "Chemistry quick tools",
+    description: "Molar mass, ions, solubility, pH, and sig-fig helpers",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry quick tools">
+        <LazyChemistryQuickToolsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-periodic-table": {
+    id: "chem-periodic-table",
+    title: "Interactive periodic table",
+    description: "Search, compare, and explore periodic trends",
+    render: (context) => (
+      <LazyModuleBoundary title="Interactive periodic table">
+        <LazyInteractivePeriodicTableModule
+          onOpenPractice={() => context.onOpenWorkspaceTool?.("chem-review-queue")}
+          onSendToNotes={context.onCreateQuoteExcerpt}
+          onSendToWhiteboard={context.onPrepareComment}
+        />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-element-builder": {
+    id: "chem-element-builder",
+    title: "Element builder",
+    description: "Build isotopes, ions, charge, and shell models",
+    render: () => (
+      <LazyModuleBoundary title="Element builder">
+        <LazyElementBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-electron-config-builder": {
+    id: "chem-electron-config-builder",
+    title: "Electron configuration builder",
+    description: "Aufbau-style orbital filling practice",
+    render: () => (
+      <LazyModuleBoundary title="Electron configuration builder">
+        <LazyElectronConfigurationBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-periodic-trends-graph": {
+    id: "chem-periodic-trends-graph",
+    title: "Periodic trends graph",
+    description: "Desmos-ready trend graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Periodic trends graph">
+        <LazyPeriodicTrendsGraphModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molecule-builder": {
+    id: "chem-molecule-builder",
+    title: "Molecule / Lewis builder",
+    description: "Lewis structures, valence, formal charge, and VSEPR MVP",
+    render: () => (
+      <LazyModuleBoundary title="Molecule / Lewis builder">
+        <LazyMoleculeLewisBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-geometry-viewer": {
+    id: "chem-geometry-viewer",
+    title: "Geometry viewer",
+    description: "Simple VSEPR geometry suggestions",
+    render: () => (
+      <LazyModuleBoundary title="Geometry viewer">
+        <LazyMoleculeLewisBuilderModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-reaction-balancer": {
+    id: "chem-reaction-balancer",
+    title: "Reaction balancer",
+    description: "Balance equations with conservation feedback",
+    render: () => (
+      <LazyModuleBoundary title="Reaction balancer">
+        <LazyReactionBalancerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-tri-reaction-view": {
+    id: "chem-tri-reaction-view",
+    title: "Tri-representation reaction view",
+    description: "Symbolic, particle, and macroscopic reaction views",
+    render: () => (
+      <LazyModuleBoundary title="Tri-representation reaction view">
+        <LazyTriRepresentationReactionViewModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-lab-coach": {
+    id: "chem-lab-coach",
+    title: "Chemistry Lab Coach",
+    description: "Guided lab steps with safety, observations, calculations, and tool handoffs",
+    render: (context) => (
+      <LazyModuleBoundary title="Chemistry Lab Coach">
+        <LazyChemistryLabCoachModule onOpenTool={context.onOpenWorkspaceTool} />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-stoichiometry-coach": {
+    id: "chem-stoichiometry-coach",
+    title: "Chemistry Stoichiometry Coach",
+    description: "Deterministic equation, mole ratio, and unit ladder practice",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry Stoichiometry Coach">
+        <LazyChemistryStoichiometryCoachModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molar-mass-calculator": {
+    id: "chem-molar-mass-calculator",
+    title: "Molar mass calculator",
+    description: "Fast formula mass calculator",
+    render: () => (
+      <LazyModuleBoundary title="Molar mass calculator">
+        <LazyChemistryMolarMassCalculatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-solution-mixer": {
+    id: "chem-solution-mixer",
+    title: "Solution mixer",
+    description: "Molarity and dilution bench",
+    render: () => (
+      <LazyModuleBoundary title="Solution mixer">
+        <LazySolutionMixerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-molarity-calculator": {
+    id: "chem-molarity-calculator",
+    title: "Molarity calculator",
+    description: "M1V1 and molarity calculations",
+    render: () => (
+      <LazyModuleBoundary title="Molarity calculator">
+        <LazySolutionMixerModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-concentration-graph": {
+    id: "chem-desmos-concentration-graph",
+    title: "Desmos concentration graph",
+    description: "Concentration graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Desmos concentration graph">
+        <LazyChemistryGraphModule kind="concentration" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-ph-calculator": {
+    id: "chem-ph-calculator",
+    title: "pH calculator",
+    description: "Strong acid/base pH and buffer preview",
+    render: () => (
+      <LazyModuleBoundary title="pH calculator">
+        <LazyAcidBaseCalculatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-titration-lab": {
+    id: "chem-titration-lab",
+    title: "Acid-base titration lab",
+    description: "Controlled strong acid and base titration simulation",
+    render: () => (
+      <LazyModuleBoundary title="Acid-base titration lab">
+        <LazyChemistryTitrationLabModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-titration-curve": {
+    id: "chem-desmos-titration-curve",
+    title: "Desmos titration curve",
+    description: "Titration curve with compact fallback",
+    render: () => (
+      <LazyModuleBoundary title="Desmos titration curve">
+        <LazyChemistryGraphModule kind="titration" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-kinetics-simulator": {
+    id: "chem-kinetics-simulator",
+    title: "Kinetics simulator",
+    description: "Reaction order and concentration-time simulator",
+    render: () => (
+      <LazyModuleBoundary title="Kinetics simulator">
+        <LazyKineticsSimulatorModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-desmos-kinetics-plot": {
+    id: "chem-desmos-kinetics-plot",
+    title: "Desmos kinetics plot",
+    description: "Kinetics graph with fallback chart",
+    render: () => (
+      <LazyModuleBoundary title="Desmos kinetics plot">
+        <LazyChemistryGraphModule kind="kinetics" />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-data-table": {
+    id: "chem-data-table",
+    title: "Chemistry data table",
+    description: "Compact lab data table",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry data table">
+        <LazyChemistryDataTableModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-calorimetry-lab": {
+    id: "chem-calorimetry-lab",
+    title: "Calorimetry lab",
+    description: "q = mc delta T calculator and energy behavior",
+    render: () => (
+      <LazyModuleBoundary title="Calorimetry lab">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-energy-diagram": {
+    id: "chem-energy-diagram",
+    title: "Energy diagram",
+    description: "Endothermic and exothermic energy view",
+    render: () => (
+      <LazyModuleBoundary title="Energy diagram">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-calculation-sheet": {
+    id: "chem-calculation-sheet",
+    title: "Calculation sheet",
+    description: "Thermochemistry calculation sheet",
+    render: () => (
+      <LazyModuleBoundary title="Calculation sheet">
+        <LazyThermochemistryModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-safety-cards": {
+    id: "chem-safety-cards",
+    title: "Safety + reagent cards",
+    description: "Safety cards for virtual lab reagents",
+    render: () => (
+      <LazyModuleBoundary title="Safety + reagent cards">
+        <LazySafetyReagentCardsModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-review-queue": {
+    id: "chem-review-queue",
+    title: "Chem challenge queue",
+    description: "Deterministic review challenges",
+    render: () => (
+      <LazyModuleBoundary title="Chem challenge queue">
+        <LazyChemistryChallengeReviewModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-lab-notebook": {
+    id: "chem-lab-notebook",
+    title: "Chemistry lab notebook",
+    description: "Structured hypothesis, data, calculations, and conclusion sections",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry lab notebook">
+        <LazyChemistryLabNotebookModule />
+      </LazyModuleBoundary>
+    ),
+  },
+  "chem-reference-safety": {
+    id: "chem-reference-safety",
+    title: "Chemistry reference",
+    description: "Safety, conservation, and misconception tags",
+    render: () => (
+      <LazyModuleBoundary title="Chemistry reference">
+        <LazyChemistryReferenceSafetyModule />
+      </LazyModuleBoundary>
+    ),
+  },
   "recent-highlights": {
     id: "recent-highlights",
     title: "Recent highlights",
@@ -694,12 +1264,17 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
     render: () => (
       <WorkspacePanel description="Local checklist placeholder" title="Tasks">
         <div className="flex flex-col gap-2">
-          {["Review lesson", "Write one explanation", "Graph one example", "Create two recall prompts"].map((task) => (
-            <label className="flex items-center gap-2 rounded-xl bg-secondary/80 px-3 py-2 text-sm" key={task}>
-              <input type="checkbox" />
-              {task}
-            </label>
-          ))}
+          {["Review lesson", "Write one explanation", "Graph one example", "Create two recall prompts"].map(
+            (task) => (
+              <label
+                className="flex items-center gap-2 rounded-xl bg-secondary/80 px-3 py-2 text-sm"
+                key={task}
+              >
+                <input type="checkbox" />
+                {task}
+              </label>
+            ),
+          )}
         </div>
       </WorkspacePanel>
     ),
@@ -738,8 +1313,7 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
           return linked > 0 || hasDescription;
         })
         .sort((left, right) => {
-          const degreeDelta =
-            (degreeByNodeId.get(right.id) ?? 0) - (degreeByNodeId.get(left.id) ?? 0);
+          const degreeDelta = (degreeByNodeId.get(right.id) ?? 0) - (degreeByNodeId.get(left.id) ?? 0);
           if (degreeDelta !== 0) {
             return degreeDelta;
           }
@@ -788,17 +1362,32 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
       );
     },
   },
+  "learning-accelerators": {
+    id: "learning-accelerators",
+    title: "Learning Accelerators",
+    description: "Non-AI transfer, evidence, mistake-repair, and representation tools",
+    render: (context) => <LearningAcceleratorsModule context={context} />,
+  },
   flashcards: {
     id: "flashcards",
-    title: "Flashcards",
-    description: "Recall practice",
-    render: () => (
-      <WorkspacePanel description="Future recall module" title="Flashcards">
-        <EmptyState
-          description="Turn highlights and private notes into recall cards in a later pass."
-          title="Flashcards placeholder"
+    title: "Recall Lab",
+    description: "Source-linked active recall",
+    render: (context) => (
+      <LazyModuleBoundary title="Recall Lab">
+        <LazyRecallLab
+          betaEnabled={context.recallLabEnabled}
+          binder={context.binder}
+          comments={context.comments}
+          highlights={context.highlights}
+          lesson={context.selectedLesson}
+          lessons={context.lessons}
+          noteContent={context.noteContent}
+          noteTitle={context.noteTitle}
+          onOpenSource={() => context.onOpenWorkspaceTool?.("lesson")}
+          subject={context.binder.subject}
+          userId={context.ownerId}
         />
-      </WorkspacePanel>
+      </LazyModuleBoundary>
     ),
   },
   "mini-tools": {
@@ -831,11 +1420,26 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
 };
 
 const highlightGroupMeta: Record<HighlightColor, { label: string; tone: string }> = {
-  yellow: { label: "Important", tone: "border-amber-300/50 bg-amber-100/70 text-amber-950 dark:border-amber-300/20 dark:bg-amber-300/15 dark:text-amber-50" },
-  blue: { label: "Definitions", tone: "border-sky-300/50 bg-sky-100/70 text-sky-950 dark:border-sky-300/20 dark:bg-sky-300/15 dark:text-sky-50" },
-  green: { label: "Methods", tone: "border-emerald-300/50 bg-emerald-100/70 text-emerald-950 dark:border-emerald-300/20 dark:bg-emerald-300/15 dark:text-emerald-50" },
-  pink: { label: "Review later", tone: "border-rose-300/50 bg-rose-100/70 text-rose-950 dark:border-rose-300/20 dark:bg-rose-300/15 dark:text-rose-50" },
-  orange: { label: "Questions", tone: "border-orange-300/50 bg-orange-100/70 text-orange-950 dark:border-orange-300/20 dark:bg-orange-300/15 dark:text-orange-50" },
+  yellow: {
+    label: "Important",
+    tone: "border-amber-300/50 bg-amber-100/70 text-amber-950 dark:border-amber-300/20 dark:bg-amber-300/15 dark:text-amber-50",
+  },
+  blue: {
+    label: "Definitions",
+    tone: "border-sky-300/50 bg-sky-100/70 text-sky-950 dark:border-sky-300/20 dark:bg-sky-300/15 dark:text-sky-50",
+  },
+  green: {
+    label: "Methods",
+    tone: "border-emerald-300/50 bg-emerald-100/70 text-emerald-950 dark:border-emerald-300/20 dark:bg-emerald-300/15 dark:text-emerald-50",
+  },
+  pink: {
+    label: "Review later",
+    tone: "border-rose-300/50 bg-rose-100/70 text-rose-950 dark:border-rose-300/20 dark:bg-rose-300/15 dark:text-rose-50",
+  },
+  orange: {
+    label: "Questions",
+    tone: "border-orange-300/50 bg-orange-100/70 text-orange-950 dark:border-orange-300/20 dark:bg-orange-300/15 dark:text-orange-50",
+  },
 };
 
 function HighlightsCollectionModule({

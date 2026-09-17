@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eraser, MessageSquareText, Quote, Scale, Send, Sparkles, StickyNote } from "lucide-react";
+import {
+  BookOpenText,
+  Eraser,
+  MessageSquareText,
+  Quote,
+  Scale,
+  Send,
+  Sparkles,
+  StickyNote,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,22 +35,28 @@ export function LessonSelectionToolbar({
   containerSelector = "[data-lesson-content='true']",
   defaultHighlightColor,
   highlights,
+  onAddSelectionToReview,
   onHighlight,
   onRemoveHighlight,
   onSaveAsEvidence,
   onQuoteToNotes,
   onSendToNotes,
+  reviewQueueBeta = false,
+  sourceLinkedNotesBeta = false,
   onStickyNote,
   onCommentSelection,
 }: {
   containerSelector?: string;
   defaultHighlightColor: HighlightColor;
   highlights: Highlight[];
+  onAddSelectionToReview?: (selection: LessonTextSelection) => void;
   onHighlight: (selection: LessonTextSelection, color: HighlightColor) => void;
   onRemoveHighlight: (selection: LessonTextSelection, highlightIds: string[]) => void;
   onSaveAsEvidence?: (selection: LessonTextSelection) => void;
   onQuoteToNotes: (anchorText: string) => void;
   onSendToNotes: (anchorText: string) => void;
+  reviewQueueBeta?: boolean;
+  sourceLinkedNotesBeta?: boolean;
   onStickyNote: (anchorText: string) => void;
   onCommentSelection?: (selection: LessonTextSelection, body: string) => void;
 }) {
@@ -155,9 +170,7 @@ export function LessonSelectionToolbar({
   }
 
   const toolbarTransform =
-    selection.anchor.placement === "above"
-      ? "translate(-50%, calc(-100% - 12px))"
-      : "translate(-50%, 12px)";
+    selection.anchor.placement === "above" ? "translate(-50%, calc(-100% - 12px))" : "translate(-50%, 12px)";
 
   const runSelectionAction = (action: (currentSelection: LessonTextSelection) => void) => {
     const currentSelection = selectionRef.current?.selection ?? selection.selection;
@@ -222,10 +235,7 @@ export function LessonSelectionToolbar({
             onPointerDown={preserveSelection}
             onClick={() => {
               runSelectionAction((currentSelection) =>
-                onRemoveHighlight(
-                  currentSelection,
-                  selectionHighlightIds,
-                ),
+                onRemoveHighlight(currentSelection, selectionHighlightIds),
               );
             }}
             size="sm"
@@ -270,7 +280,7 @@ export function LessonSelectionToolbar({
           variant="outline"
         >
           <Send data-icon="inline-start" />
-          Add note
+          {sourceLinkedNotesBeta ? "Send highlight to notes" : "Add note"}
         </Button>
         <Button
           onMouseDown={preserveSelection}
@@ -297,6 +307,21 @@ export function LessonSelectionToolbar({
           <Sparkles data-icon="inline-start" />
           Explain this
         </Button>
+        {reviewQueueBeta && onAddSelectionToReview ? (
+          <Button
+            onMouseDown={preserveSelection}
+            onPointerDown={preserveSelection}
+            onClick={() => {
+              runSelectionAction((currentSelection) => onAddSelectionToReview(currentSelection));
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <BookOpenText data-icon="inline-start" />
+            Add to Review
+          </Button>
+        ) : null}
         {onSaveAsEvidence ? (
           <Button
             onMouseDown={preserveSelection}
@@ -332,12 +357,7 @@ export function LessonSelectionToolbar({
               placeholder="Write a comment..."
               value={commentDraft}
             />
-            <Button
-              disabled={!commentDraft.trim()}
-              onClick={submitComment}
-              size="sm"
-              type="button"
-            >
+            <Button disabled={!commentDraft.trim()} onClick={submitComment} size="sm" type="button">
               Save comment
             </Button>
           </div>
@@ -407,7 +427,7 @@ function refreshSelectionState(
     return null;
   }
 
-  let anchor: SelectionAnchor | null = null;
+  let anchor: SelectionAnchor | null;
   try {
     anchor = measureSelectionAnchor(selection.range);
     if (!anchor) {
@@ -434,9 +454,7 @@ function isRangeInsideRoot(range: Range, root: Element) {
 }
 
 function measureSelectionAnchor(range: Range): SelectionAnchor | null {
-  const clientRects = Array.from(range.getClientRects()).filter(
-    (rect) => rect.width > 0 || rect.height > 0,
-  );
+  const clientRects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0 || rect.height > 0);
   const primaryRect = clientRects
     .slice()
     .sort((left, right) => left.top - right.top || left.left - right.left)[0];
@@ -594,21 +612,20 @@ function getIntersectingHighlightIds(range: Range, containerSelector: string) {
     return [];
   }
 
-  return Array.from(root.querySelectorAll<HTMLElement>("[data-highlight-id]"))
-    .flatMap((element) => {
-      const highlightId = element.dataset.highlightId;
-      if (!highlightId) {
-        return [];
-      }
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-highlight-id]")).flatMap((element) => {
+    const highlightId = element.dataset.highlightId;
+    if (!highlightId) {
+      return [];
+    }
 
-      try {
-        return range.intersectsNode(element) ? [highlightId] : [];
-      } catch {
-        const elementRange = document.createRange();
-        elementRange.selectNodeContents(element);
-        return rangesIntersect(range, elementRange) ? [highlightId] : [];
-      }
-    });
+    try {
+      return range.intersectsNode(element) ? [highlightId] : [];
+    } catch {
+      const elementRange = document.createRange();
+      elementRange.selectNodeContents(element);
+      return rangesIntersect(range, elementRange) ? [highlightId] : [];
+    }
+  });
 }
 
 function rangesIntersect(left: Range, right: Range) {

@@ -2,6 +2,8 @@ node_modules/
 dist/
 build/
 .env
+.env.*
+!.env.example
 .env.local
 .env.production
 .env.development.local
@@ -16,6 +18,7 @@ supabase/.temp/
 *.log
 *.tsbuildinfo
 vite.config.d.ts
+vite.config.js
 playwright-*.png
 reader-*.png
 *-check.png

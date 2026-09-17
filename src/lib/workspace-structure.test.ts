@@ -4,13 +4,7 @@ import {
   getBinderDocumentSummaries,
   getUnfiledBinders,
 } from "@/lib/workspace-structure";
-import {
-  demoBinders,
-  demoFolderBinders,
-  demoFolders,
-  demoLessons,
-  demoNotes,
-} from "@/lib/demo-data";
+import { demoBinders, demoFolderBinders, demoFolders, demoLessons, demoNotes } from "@/lib/demo-data";
 
 describe("workspace structure", () => {
   it("groups binders and documents into a folder summary", () => {

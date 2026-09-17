@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CatalogSeedClient } from "@/services/system-seed-service";
 import {
   mathSeedChoices,
   mathSeedCourses,
@@ -17,21 +18,19 @@ export type MathSeedCounts = {
 
 export type MathSeedResult = MathSeedCounts;
 
-type SeedTable =
-  | "math_courses"
-  | "math_topics"
-  | "math_modules"
-  | "question_bank"
-  | "question_choices";
+type SeedTable = "math_courses" | "math_topics" | "math_modules" | "question_bank" | "question_choices";
 
-export async function seedMathLearningWithClient(
-  client: SupabaseClient,
-): Promise<MathSeedResult> {
-  await upsertRows(client, "math_courses", mathSeedCourses, "id");
-  await upsertRows(client, "math_topics", mathSeedTopics, "id");
-  await upsertRows(client, "math_modules", mathSeedModules, "id");
-  await upsertRows(client, "question_bank", mathSeedQuestions, "id");
-  await upsertRows(client, "question_choices", mathSeedChoices, "id");
+export async function seedMathLearningWithClient(client: CatalogSeedClient): Promise<MathSeedResult> {
+  const { error } = await client.rpc("apply_catalog_seed", {
+    p_payload: {
+      math_courses: mathSeedCourses,
+      math_topics: mathSeedTopics,
+      math_modules: mathSeedModules,
+      question_bank: mathSeedQuestions,
+      question_choices: mathSeedChoices,
+    },
+  });
+  if (error) throw new Error(`Transactional math seed failed: ${error.message}`);
 
   return {
     courses: mathSeedCourses.length,
@@ -60,29 +59,8 @@ export async function getMathSeedCounts(client: SupabaseClient): Promise<MathSee
   };
 }
 
-async function upsertRows(
-  client: SupabaseClient,
-  table: SeedTable,
-  rows: Array<Record<string, unknown>>,
-  onConflict: string,
-) {
-  if (rows.length === 0) {
-    return;
-  }
-
-  const { error } = await client.from(table).upsert(rows, {
-    onConflict,
-  });
-
-  if (error) {
-    throw new Error(`Failed to seed ${table}: ${error.message}`);
-  }
-}
-
 async function countRows(client: SupabaseClient, table: SeedTable) {
-  const { count, error } = await client
-    .from(table)
-    .select("id", { count: "exact", head: true });
+  const { count, error } = await client.from(table).select("id", { count: "exact", head: true });
 
   if (error) {
     throw new Error(`Failed to count ${table}: ${error.message}`);

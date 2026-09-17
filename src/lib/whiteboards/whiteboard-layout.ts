@@ -35,8 +35,14 @@ function getViewportSize(): ViewportSize {
 }
 
 function intersectionArea(left: Frame, right: Frame) {
-  const xOverlap = Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x));
-  const yOverlap = Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
+  const xOverlap = Math.max(
+    0,
+    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
+  );
   return xOverlap * yOverlap;
 }
 

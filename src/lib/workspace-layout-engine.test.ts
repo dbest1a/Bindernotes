@@ -15,9 +15,7 @@ function frame(x: number, y: number, w = 300, h = 240, z = 1): WorkspaceWindowFr
 }
 
 function visibleFrames(layout: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>) {
-  return Object.values(layout).filter((candidate): candidate is WorkspaceWindowFrame =>
-    Boolean(candidate),
-  );
+  return Object.values(layout).filter((candidate): candidate is WorkspaceWindowFrame => Boolean(candidate));
 }
 
 function framesOverlap(left: WorkspaceWindowFrame, right: WorkspaceWindowFrame) {
@@ -116,6 +114,20 @@ describe("workspace layout engine", () => {
     expect(bottomRight.frame.y).toBe(viewport.height - bottomRight.frame.h);
   });
 
+  it("prioritizes the canvas edge over nearby module alignment at the right corner", () => {
+    const result = snapWindowFrame({
+      frame: frame(890, 40, 300, 240),
+      peerFrames: [frame(888, 360, 300, 240, 2)],
+      viewport,
+      snapBehavior: "modules",
+      safeEdgePadding: false,
+    });
+
+    expect(result.frame.x).toBe(viewport.width - result.frame.w);
+    expect(result.frame.x + result.frame.w).toBe(viewport.width);
+    expect(result.guides.some((guide) => guide.kind === "canvas-edge")).toBe(true);
+  });
+
   it("does not double-count safe edge padding when workspace bounds are already safe", () => {
     const result = snapWindowFrame({
       frame: frame(14, 14),
@@ -203,6 +215,22 @@ describe("workspace layout engine", () => {
     expect(result.frames["private-notes"]!.w * result.frames["private-notes"]!.h).toBeGreaterThan(
       result.frames.lesson!.w * result.frames.lesson!.h,
     );
+  });
+
+  it("keeps Split Study as two readable full-height panes on tablet landscape", () => {
+    const result = tidyWorkspaceFrames({
+      frames: {
+        lesson: frame(180, 80, 460, 360),
+        "private-notes": frame(760, 100, 460, 360, 2),
+      },
+      moduleIds: ["lesson", "private-notes"],
+      presetId: "split-study",
+      viewport: { width: 1024, height: 768 },
+      safeEdgePadding: false,
+    });
+
+    expect(result.frames.lesson).toMatchObject({ x: 0, y: 0, w: 512, h: 768 });
+    expect(result.frames["private-notes"]).toMatchObject({ x: 512, y: 0, w: 512, h: 768 });
   });
 
   it("validates layouts with huge unused space and offscreen modules", () => {

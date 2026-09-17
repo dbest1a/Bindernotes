@@ -20,16 +20,27 @@ function getStorage() {
   return hasWindow() ? window.localStorage : undefined;
 }
 
-function writeRootAttributes(preference: AdminDashboardPreference, isAdmin: boolean) {
+function getDashboardAttribute(viewMode: DashboardViewMode) {
+  if (viewMode === "admin-makeover") {
+    return "makeover";
+  }
+  return viewMode;
+}
+
+function resolveEffectiveViewMode(preference: AdminDashboardPreference, isAdmin: boolean | undefined) {
+  return isAdmin === false ? "normal" : preference.viewMode;
+}
+
+function writeRootAttributes(preference: AdminDashboardPreference, isAdmin: boolean | undefined) {
   if (typeof document === "undefined") {
     return;
   }
 
-  document.documentElement.dataset.adminDashboard =
-    isAdmin && preference.viewMode === "admin-makeover" ? "makeover" : "normal";
+  const effectiveViewMode = resolveEffectiveViewMode(preference, isAdmin);
+  document.documentElement.dataset.adminDashboard = getDashboardAttribute(effectiveViewMode);
 }
 
-export function useDashboardExperience(isAdmin: boolean) {
+export function useDashboardExperience(isAdmin: boolean | undefined) {
   const [preference, setPreference] = useState<AdminDashboardPreference>(() =>
     loadAdminDashboardPreference(getStorage()),
   );
@@ -75,9 +86,7 @@ export function useDashboardExperience(isAdmin: boolean) {
   const publish = useCallback((nextPreference: AdminDashboardPreference) => {
     saveAdminDashboardPreference(nextPreference, getStorage());
     if (hasWindow()) {
-      window.dispatchEvent(
-        new CustomEvent(adminDashboardPreferenceChangeEvent, { detail: nextPreference }),
-      );
+      window.dispatchEvent(new CustomEvent(adminDashboardPreferenceChangeEvent, { detail: nextPreference }));
     }
   }, []);
 
@@ -95,12 +104,14 @@ export function useDashboardExperience(isAdmin: boolean) {
     [publish],
   );
 
-  const effectiveViewMode: DashboardViewMode = isAdmin ? preference.viewMode : "normal";
+  const effectiveViewMode: DashboardViewMode = resolveEffectiveViewMode(preference, isAdmin);
 
   return useMemo(
     () => ({
+      dashboardAttribute: getDashboardAttribute(effectiveViewMode),
       effectiveViewMode,
       isAdminMakeoverActive: effectiveViewMode === "admin-makeover",
+      isMinimalActive: effectiveViewMode === "minimal",
       preference,
       setViewMode,
     }),

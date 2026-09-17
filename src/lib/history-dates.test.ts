@@ -16,7 +16,15 @@ const baseEvent = {
   updated_at: new Date(0).toISOString(),
 } satisfies Omit<
   HistoryEventTemplate,
-  "id" | "title" | "date_label" | "sort_year" | "sort_month" | "sort_day" | "era" | "precision" | "approximate"
+  | "id"
+  | "title"
+  | "date_label"
+  | "sort_year"
+  | "sort_month"
+  | "sort_day"
+  | "era"
+  | "precision"
+  | "approximate"
 >;
 
 describe("history-dates", () => {
@@ -60,11 +68,7 @@ describe("history-dates", () => {
       },
     ];
 
-    expect(sortHistoryEvents(events).map((event) => event.id)).toEqual([
-      "later-bce",
-      "ce",
-      "ce-2",
-    ]);
+    expect(sortHistoryEvents(events).map((event) => event.id)).toEqual(["later-bce", "ce", "ce-2"]);
   });
 
   it("treats approximate dates as later than exact dates on the same day", () => {

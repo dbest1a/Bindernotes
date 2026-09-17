@@ -61,9 +61,7 @@ describe("highlight helpers", () => {
     };
 
     expect(selectionMatchesHighlight(selection, highlight)).toBe(true);
-    expect(
-      selectionMatchesHighlight(createLessonSelection("same phrase", 41, 52), highlight),
-    ).toBe(false);
+    expect(selectionMatchesHighlight(createLessonSelection("same phrase", 41, 52), highlight)).toBe(false);
   });
 
   it("builds distinct segments for repeated phrases when offsets are present", () => {
@@ -132,9 +130,9 @@ describe("highlight helpers", () => {
     ];
 
     expect(dedupeHighlights(highlights)).toEqual([highlights[1]]);
-    expect(
-      selectionExactlyMatchesHighlight(createLessonSelection("like term", 10, 19), highlights[1]),
-    ).toBe(true);
+    expect(selectionExactlyMatchesHighlight(createLessonSelection("like term", 10, 19), highlights[1])).toBe(
+      true,
+    );
   });
 
   it("resolves overlapping ranges without duplicating rendered text", () => {
@@ -173,16 +171,11 @@ describe("highlight helpers", () => {
   });
 
   it("reanchors a highlight from selector metadata when offsets are unavailable", () => {
-    const selection = createLessonSelection(
-      "Storming of the Bastille",
-      48,
-      72,
-      {
-        prefixText: "The ",
-        suffixText: " became",
-        blockId: "lesson-french-revolution-overview",
-      },
-    );
+    const selection = createLessonSelection("Storming of the Bastille", 48, 72, {
+      prefixText: "The ",
+      suffixText: " became",
+      blockId: "lesson-french-revolution-overview",
+    });
     const plainText =
       "Chronology matters. The Storming of the Bastille became a symbol of revolutionary momentum.";
     const highlight: Highlight = {
@@ -385,10 +378,12 @@ describe("highlight helpers", () => {
       });
 
       const raw = globalThis.window?.localStorage.getItem("binder-notes:highlight-metadata:v1");
-      expect(raw).toContain("\"color\":\"blue\"");
+      expect(raw).toContain('"color":"blue"');
 
       removeStoredHighlightMetadata(highlight.id);
-      expect(globalThis.window?.localStorage.getItem("binder-notes:highlight-metadata:v1")).not.toContain("hl-color");
+      expect(globalThis.window?.localStorage.getItem("binder-notes:highlight-metadata:v1")).not.toContain(
+        "hl-color",
+      );
     });
   });
 
@@ -431,12 +426,11 @@ describe("highlight helpers", () => {
   });
 
   it("renders selector_json-only highlights without legacy offsets", () => {
-    const selection = createLessonSelection(
-      "Storming of the Bastille",
-      24,
-      48,
-      { prefixText: "The ", suffixText: " became", blockId: "block-1" },
-    );
+    const selection = createLessonSelection("Storming of the Bastille", 24, 48, {
+      prefixText: "The ",
+      suffixText: " became",
+      blockId: "block-1",
+    });
     const highlight: Highlight = {
       id: "hl-selector",
       owner_id: "user-1",

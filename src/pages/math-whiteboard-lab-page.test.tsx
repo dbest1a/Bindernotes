@@ -2,8 +2,15 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveQueue } from "@/lib/save-queue";
+import { WhiteboardModule } from "@/components/whiteboard/whiteboard-module";
 import { MathWhiteboardLabPage } from "@/pages/math-whiteboard-lab-page";
+import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
+import type { WorkspaceModuleId } from "@/types";
+
+beforeEach(() => saveQueue.setAccount("user-1"));
+afterEach(() => saveQueue.setAccount(null));
 
 const mocks = vi.hoisted(() => ({
   setGraphExpanded: vi.fn(),
@@ -49,47 +56,45 @@ vi.mock("@/hooks/use-math-workspace", () => ({
   useMathWorkspace: (userId?: string, scopeId?: string) => {
     mocks.mathWorkspaceCalls.push({ userId, scopeId });
     return {
-    state: {
-      graphVisible: true,
-      graphExpanded: false,
-      graphMode: "2d",
-      calculatorExpression: "x^2",
-      calculatorResult: null,
-      calculatorError: null,
-      angleMode: "rad",
-      history: [],
-      savedGraphs: [],
-      savedFunctions: [],
-      currentGraphState: null,
-    },
-    setGraphExpanded: mocks.setGraphExpanded,
-    setGraphVisible: mocks.setGraphVisible,
-    setGraphMode: mocks.setGraphMode,
-    savedFunctionMap: {},
-    clearCurrentGraph: vi.fn(),
-    setCurrentGraphState: vi.fn(),
-    setExpression: vi.fn(),
-    appendToken: vi.fn(),
-    backspace: vi.fn(),
-    clearExpression: vi.fn(),
-    clearHistory: vi.fn(),
-    deleteHistoryItem: vi.fn(),
-    evaluate: vi.fn(),
-    reuseHistoryExpression: vi.fn(),
-    reuseSavedFunction: vi.fn(),
-    setAngleMode: vi.fn(),
-    deleteSavedFunction: vi.fn(),
-    deleteGraphSnapshot: vi.fn(),
-    loadGraphSnapshot: vi.fn(),
-    saveGraphSnapshot: vi.fn(),
+      state: {
+        graphVisible: true,
+        graphExpanded: false,
+        graphMode: "2d",
+        calculatorExpression: "x^2",
+        calculatorResult: null,
+        calculatorError: null,
+        angleMode: "rad",
+        history: [],
+        savedGraphs: [],
+        savedFunctions: [],
+        currentGraphState: null,
+      },
+      setGraphExpanded: mocks.setGraphExpanded,
+      setGraphVisible: mocks.setGraphVisible,
+      setGraphMode: mocks.setGraphMode,
+      savedFunctionMap: {},
+      clearCurrentGraph: vi.fn(),
+      setCurrentGraphState: vi.fn(),
+      setExpression: vi.fn(),
+      appendToken: vi.fn(),
+      backspace: vi.fn(),
+      clearExpression: vi.fn(),
+      clearHistory: vi.fn(),
+      deleteHistoryItem: vi.fn(),
+      evaluate: vi.fn(),
+      reuseHistoryExpression: vi.fn(),
+      reuseSavedFunction: vi.fn(),
+      setAngleMode: vi.fn(),
+      deleteSavedFunction: vi.fn(),
+      deleteGraphSnapshot: vi.fn(),
+      loadGraphSnapshot: vi.fn(),
+      saveGraphSnapshot: vi.fn(),
     };
   },
 }));
 
 vi.mock("@/components/math/math-workspace-modules", () => ({
-  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => (
-    <section>{title}</section>
-  ),
+  DesmosGraphModule: ({ title = "Desmos graph" }: { title?: string }) => <section>{title}</section>,
   ScientificCalculatorModule: () => <section>Scientific calculator</section>,
   SavedGraphsModule: () => <section>Saved graphs</section>,
 }));
@@ -134,6 +139,77 @@ function renderLab(options: { seedBoard?: boolean } = {}) {
   );
 }
 
+function seedWorkspaceBoard(context: Pick<WorkspaceModuleContext, "binder" | "selectedLesson" | "ownerId">) {
+  const ownerId = context.ownerId ?? "user-1";
+  window.localStorage.setItem(
+    `bindernotes:whiteboards:${ownerId}:${context.binder.id}:${context.selectedLesson.id}`,
+    JSON.stringify([
+      {
+        id: "board-workspace",
+        ownerId,
+        binderId: context.binder.id,
+        lessonId: context.selectedLesson.id,
+        title: "Lesson whiteboard",
+        subject: context.binder.subject ?? "Math",
+        moduleContext: "lesson",
+        scene: { elements: [], appState: { viewBackgroundColor: "#11131a" }, files: {} },
+        modules: [],
+        objectCount: 0,
+        sceneSizeBytes: 0,
+        assetSizeBytes: 0,
+        storageMode: "local-draft",
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+        archivedAt: null,
+      },
+    ]),
+  );
+}
+
+function renderWorkspaceWhiteboard(contextOverrides: Partial<WorkspaceModuleContext> = {}) {
+  const context = {
+    ownerId: "user-1",
+    binder: {
+      id: "binder-1",
+      title: "Jacob Math Notes",
+      subject: "Math",
+    },
+    selectedLesson: {
+      id: "lesson-1",
+      title: "Vectors and Probability",
+    },
+    lessons: [{ id: "lesson-1", title: "Vectors and Probability" }],
+    library: {
+      binders: [],
+      folders: [],
+      folderBinders: [],
+    },
+    history: {
+      enabled: false,
+    },
+    noteSaveLabel: "Saved",
+    ...contextOverrides,
+  } as unknown as WorkspaceModuleContext;
+  seedWorkspaceBoard(context);
+
+  const moduleLabels: Partial<Record<WorkspaceModuleId, string>> = {
+    lesson: "Source Lesson module",
+    "private-notes": "Private Notes module",
+    comments: "Annotations module",
+    "desmos-graph": "Desmos Graph module",
+    "scientific-calculator": "Scientific Calculator module",
+    "history-timeline": "Timeline module",
+    "history-evidence": "Evidence module",
+  };
+
+  return render(
+    <WhiteboardModule
+      context={context}
+      renderModule={(moduleId) => <section>{moduleLabels[moduleId] ?? `${moduleId} module`}</section>}
+    />,
+  );
+}
+
 describe("MathWhiteboardLabPage", () => {
   afterEach(() => {
     cleanup();
@@ -154,6 +230,8 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.queryByText("Workspace setup")).toBeNull();
     expect(screen.getByTestId("whiteboard-corner-fullscreen")).toBeTruthy();
     expect(screen.getByTestId("whiteboard-corner-back")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-focus-exit")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /back to workspace/i })).toBeTruthy();
   });
 
   it("keeps the module drawer in the screen-fixed floating UI layer", () => {
@@ -203,11 +281,11 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.queryByText("19 objects")).toBeNull();
   });
 
-  it("offers a two-click delete path for an oversized or broken active board", async () => {
+  it("offers a two-click delete path for the active board", async () => {
     renderLab();
 
-    const deleteButton = screen.getByTestId("whiteboard-delete-broken-board");
-    expect(deleteButton.textContent).toContain("Delete broken board");
+    const deleteButton = screen.getByTestId("whiteboard-delete-board");
+    expect(deleteButton.textContent).toContain("Delete board");
 
     fireEvent.click(deleteButton);
     expect(deleteButton.textContent).toContain("Confirm delete board");
@@ -215,8 +293,9 @@ describe("MathWhiteboardLabPage", () => {
     fireEvent.click(deleteButton);
     await waitFor(() => expect(screen.getByTestId("whiteboard-start-panel")).toBeTruthy());
     expect(
-      JSON.parse(window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]")[0]
-        ?.archivedAt,
+      JSON.parse(
+        window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]",
+      )[0]?.archivedAt,
     ).toBeTruthy();
   });
 
@@ -259,6 +338,61 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.getByTestId("whiteboard-module-drawer-toggle")).toBeTruthy();
   });
 
+  it("collapses and restores the workspace whiteboard sidebar without resetting the board", async () => {
+    renderWorkspaceWhiteboard();
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy());
+    expect(screen.getByTestId("whiteboard-sidebar")).toBeTruthy();
+    expect(screen.getByLabelText(/whiteboard modules/i)).toBeTruthy();
+    expect(screen.queryByText("Private Notes module")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("whiteboard-sidebar-collapse"));
+
+    expect(screen.queryByTestId("whiteboard-sidebar")).toBeNull();
+    expect(screen.getByTestId("whiteboard-sidebar-rail")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("whiteboard-sidebar-expand"));
+
+    expect(screen.getByTestId("whiteboard-sidebar")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy();
+  });
+
+  it("opens whiteboard sidebar modules without leaving or resetting the whiteboard", async () => {
+    renderWorkspaceWhiteboard();
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /private notes/i }));
+
+    expect(screen.getByText("Private Notes module")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("whiteboard-sidebar-collapse"));
+    fireEvent.click(screen.getByTestId("whiteboard-sidebar-rail-desmos-graph"));
+
+    expect(screen.getByText("Desmos Graph module")).toBeTruthy();
+    expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy();
+  });
+
+  it("uses subject-aware whiteboard module launchers for history work", async () => {
+    renderWorkspaceWhiteboard({
+      binder: {
+        id: "binder-history",
+        title: "History binder",
+        subject: "History",
+      } as WorkspaceModuleContext["binder"],
+      history: {
+        enabled: true,
+      } as WorkspaceModuleContext["history"],
+    });
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host")).toBeTruthy());
+
+    expect(screen.getByRole("button", { name: /^timeline/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^evidence/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /desmos graph/i })).toBeNull();
+  });
+
   it("adds Desmos as a live card from the lab drawer instead of a confusing preview-only card", () => {
     const { container } = renderLab();
 
@@ -267,7 +401,11 @@ describe("MathWhiteboardLabPage", () => {
 
     expect(screen.getByText("Desmos graph")).toBeTruthy();
     expect(screen.queryByText(/preview/i)).toBeNull();
-    expect(container.querySelector('[data-whiteboard-module="desmos-graph"]')?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
+    expect(
+      container
+        .querySelector('[data-whiteboard-module="desmos-graph"]')
+        ?.getAttribute("data-whiteboard-module-anchor"),
+    ).toBe("board-fixed-size");
   });
 
   it("adds multiple independent Desmos cards from the toolbox", () => {
@@ -441,6 +579,98 @@ describe("MathWhiteboardLabPage", () => {
     });
   });
 
+  it("keeps board-pinned Desmos at the synced camera position when a module drop rerenders before viewport state catches up", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 47);
+    window.localStorage.setItem(
+      "bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard",
+      JSON.stringify([
+        {
+          id: "board-test",
+          ownerId: "user-1",
+          binderId: "math-lab",
+          lessonId: "math-lab-whiteboard",
+          title: "Math Whiteboard Lab whiteboard",
+          subject: "Math",
+          moduleContext: "lesson",
+          scene: { elements: [], appState: { viewBackgroundColor: "#11131a" }, files: {} },
+          modules: [
+            {
+              id: "module-desmos",
+              type: "bindernotes-module",
+              moduleId: "desmos-graph",
+              x: 100,
+              y: 120,
+              width: 420,
+              height: 320,
+              zIndex: 1,
+              mode: "live",
+              anchorMode: "board",
+              pinned: true,
+              createdAt: new Date(0).toISOString(),
+              updatedAt: new Date(0).toISOString(),
+            },
+          ],
+          objectCount: 1,
+          sceneSizeBytes: 0,
+          assetSizeBytes: 0,
+          storageMode: "local-draft",
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+          archivedAt: null,
+        },
+      ]),
+    );
+    const { container } = renderLab({ seedBoard: false });
+
+    await waitFor(() => expect(screen.getByTestId("whiteboard-module-card-module-desmos")).toBeTruthy());
+    await waitFor(() => expect(mocks.whiteboardCanvasProps).toBeTruthy());
+    act(() => {
+      (
+        mocks.whiteboardCanvasProps?.onViewportChange as (transform: {
+          scrollX: number;
+          scrollY: number;
+          zoom: number;
+          viewportWidth: number;
+          viewportHeight: number;
+          offsetLeft: number;
+          offsetTop: number;
+        }) => void
+      )({
+        scrollX: 0,
+        scrollY: 40,
+        zoom: 1,
+        viewportWidth: 1200,
+        viewportHeight: 800,
+        offsetLeft: 0,
+        offsetTop: 0,
+      });
+    });
+
+    const card = screen.getByTestId("whiteboard-module-card-module-desmos");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(100px, 160px, 0) scale(1)");
+
+    const chrome = card.querySelector<HTMLElement>(".whiteboard-module-card__chrome");
+    expect(chrome).not.toBeNull();
+    fireEvent.pointerDown(chrome!, { clientX: 100, clientY: 160, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 100, clientY: 160, pointerId: 1 });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const rerenderedCard = container.querySelector('[data-testid="whiteboard-module-card-module-desmos"]');
+    expect(rerenderedCard?.getAttribute("style")).toContain(
+      "transform: translate3d(100px, 160px, 0) scale(1)",
+    );
+    expect(rerenderedCard?.getAttribute("style")).not.toContain("translate3d(100px, 120px");
+    expect(
+      (
+        (mocks.whiteboardCanvasProps?.board as { scene?: { appState?: { scrollY?: number } } } | undefined)
+          ?.scene?.appState ?? {}
+      ).scrollY,
+    ).toBe(40);
+    rafSpy.mockRestore();
+  });
+
   it("adds source lesson cards as choose-source modules instead of locking them to the synthetic lab source", async () => {
     renderLab();
 
@@ -450,8 +680,12 @@ describe("MathWhiteboardLabPage", () => {
     await waitFor(() => {
       const savedBoards = JSON.parse(
         window.localStorage.getItem("bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard") ?? "[]",
-      ) as Array<{ modules: Array<{ moduleId: string; binderId?: string; lessonId?: string; sourceConfirmed?: boolean }> }>;
-      const sourceModule = savedBoards[0]?.modules.find((moduleElement) => moduleElement.moduleId === "lesson");
+      ) as Array<{
+        modules: Array<{ moduleId: string; binderId?: string; lessonId?: string; sourceConfirmed?: boolean }>;
+      }>;
+      const sourceModule = savedBoards[0]?.modules.find(
+        (moduleElement) => moduleElement.moduleId === "lesson",
+      );
       expect(sourceModule).toBeTruthy();
       expect(sourceModule?.sourceConfirmed).toBe(false);
       expect(sourceModule?.binderId).toBeUndefined();
@@ -489,9 +723,9 @@ describe("MathWhiteboardLabPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /source lesson/i }));
 
     await waitFor(() => {
-      expect(container.querySelector('[data-whiteboard-module="lesson"]')?.getAttribute("data-card-anchor")).toBe(
-        "board-fixed-size",
-      );
+      expect(
+        container.querySelector('[data-whiteboard-module="lesson"]')?.getAttribute("data-card-anchor"),
+      ).toBe("board-fixed-size");
     });
 
     fireEvent.click(screen.getByTestId("whiteboard-card-pin-button"));

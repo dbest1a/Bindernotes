@@ -54,11 +54,7 @@ describe("preset-validator", () => {
       ],
     };
 
-    const result = validateGridLayout(
-      overlapping,
-      preset.requiredPanels,
-      new Set(allowedPanelTypes),
-    );
+    const result = validateGridLayout(overlapping, preset.requiredPanels, new Set(allowedPanelTypes));
 
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.includes("overlaps another panel"))).toBe(true);
@@ -136,8 +132,14 @@ describe("preset-validator", () => {
 
       const lesson = desktop.items.find((item) => item.panelId === "lesson");
       const notes = desktop.items.find((item) => item.panelId === "private-notes");
-      expect((lesson?.w ?? 0) * (lesson?.h ?? 0), `${preset.id} source should not be tiny`).toBeGreaterThanOrEqual(20);
-      expect((notes?.w ?? 0) * (notes?.h ?? 0), `${preset.id} notes should not be tiny`).toBeGreaterThanOrEqual(15);
+      expect(
+        (lesson?.w ?? 0) * (lesson?.h ?? 0),
+        `${preset.id} source should not be tiny`,
+      ).toBeGreaterThanOrEqual(20);
+      expect(
+        (notes?.w ?? 0) * (notes?.h ?? 0),
+        `${preset.id} notes should not be tiny`,
+      ).toBeGreaterThanOrEqual(15);
     }
   });
 

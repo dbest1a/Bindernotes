@@ -1,4 +1,4 @@
-import { Suspense, lazy, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, memo, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   ArrowDown,
@@ -13,7 +13,6 @@ import {
   PanelBottom,
   Save,
   Search,
-  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -22,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdminMutations, useBinderBundle, useDashboard } from "@/hooks/use-binders";
@@ -35,12 +33,11 @@ import {
   isPlaceholderTitle,
   lessonHasMeaningfulContent,
 } from "@/lib/workspace-records";
-import { emptyDoc, slugify } from "@/lib/utils";
+import { cn, emptyDoc, slugify } from "@/lib/utils";
 import type {
   Binder,
   BinderLesson,
   MathBlock,
-  Profile,
   PublishStatus,
   SeedHealth,
   WorkspaceDiagnostic,
@@ -57,20 +54,43 @@ const TAB_LABELS: Array<{ id: StudioTab; label: string }> = [
   { id: "publish", label: "Publish" },
 ];
 
-const LazyRichTextEditor = lazy(() =>
-  import("@/components/editor/rich-text-editor").then((module) => ({ default: module.RichTextEditor })),
-);
-const LazyMathBlocks = lazy(() =>
-  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
-);
-const LazyWorkspaceDiagnosticsPanel = lazy(() =>
+const EMPTY_LESSONS: BinderLesson[] = [];
+const EMPTY_SEED_HEALTH: SeedHealth[] = [];
+
+const loadRichTextEditor = () =>
+  import("@/components/editor/rich-text-editor").then((module) => ({ default: module.RichTextEditor }));
+const loadMathBlocks = () =>
+  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks }));
+const loadWorkspaceDiagnosticsPanel = () =>
   import("@/components/ui/workspace-diagnostics-panel").then((module) => ({
     default: module.WorkspaceDiagnosticsPanel,
-  })),
-);
-const LazySeedHealthPanel = lazy(() =>
-  import("@/components/ui/seed-health-panel").then((module) => ({ default: module.SeedHealthPanel })),
-);
+  }));
+const loadSeedHealthPanel = () =>
+  import("@/components/ui/seed-health-panel").then((module) => ({ default: module.SeedHealthPanel }));
+
+const LazyRichTextEditor = lazy(loadRichTextEditor);
+const LazyMathBlocks = lazy(loadMathBlocks);
+const LazyWorkspaceDiagnosticsPanel = lazy(loadWorkspaceDiagnosticsPanel);
+const LazySeedHealthPanel = lazy(loadSeedHealthPanel);
+
+function scheduleAdminIdleTask(task: () => void, fallbackDelayMs = 900) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+
+  if (typeof idleWindow.requestIdleCallback === "function") {
+    const handle = idleWindow.requestIdleCallback(task, { timeout: Math.max(1500, fallbackDelayMs * 2) });
+    return () => idleWindow.cancelIdleCallback?.(handle);
+  }
+
+  const handle = window.setTimeout(task, fallbackDelayMs);
+  return () => window.clearTimeout(handle);
+}
 
 export function AdminStudioPage() {
   const { profile } = useAuth();
@@ -87,14 +107,22 @@ export function AdminStudioPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
-  const { data: dashboard, isLoading, error } = useDashboard(profile, {
+  const {
+    data: dashboard,
+    isLoading,
+    error,
+  } = useDashboard(profile, {
     includeSystemStatus: false,
   });
   const diagnosticsQuery = useDashboard(profile, {
     includeSystemStatus: true,
     enabled: diagnosticsOpen,
   });
-  const mutations = useAdminMutations(profile);
+  const rawMutations = useAdminMutations(profile);
+  const mutations = useMemo(
+    () => rawMutations,
+    [rawMutations.binder, rawMutations.deleteLesson, rawMutations.lesson, rawMutations.seedSystemSuites],
+  );
 
   if (profile?.role !== "admin") {
     return <Navigate replace to="/dashboard" />;
@@ -102,8 +130,10 @@ export function AdminStudioPage() {
 
   const binders = dashboard?.binders ?? [];
   const subjects = useMemo(
-    () =>
-      ["all", ...new Set(binders.map((binder) => binder.subject).filter((subject) => subject.trim().length > 0))],
+    () => [
+      "all",
+      ...new Set(binders.map((binder) => binder.subject).filter((subject) => subject.trim().length > 0)),
+    ],
     [binders],
   );
 
@@ -124,22 +154,20 @@ export function AdminStudioPage() {
         if (!normalized) {
           return true;
         }
-        return `${binder.title} ${binder.description} ${binder.subject}`
-          .toLowerCase()
-          .includes(normalized);
+        return `${binder.title} ${binder.description} ${binder.subject}`.toLowerCase().includes(normalized);
       })
       .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at));
   }, [binders, deferredSearch, recentOnly, statusFilter, subjectFilter]);
 
   useEffect(() => {
-    if (!filteredBinders.length) {
+    if (!binders.length) {
       setSelectedBinderId(undefined);
       return;
     }
-    if (!selectedBinderId || !filteredBinders.some((binder) => binder.id === selectedBinderId)) {
-      setSelectedBinderId(filteredBinders[0].id);
+    if (!selectedBinderId || !binders.some((binder) => binder.id === selectedBinderId)) {
+      setSelectedBinderId(filteredBinders[0]?.id ?? binders[0].id);
     }
-  }, [filteredBinders, selectedBinderId]);
+  }, [binders, filteredBinders, selectedBinderId]);
 
   const selectedBinder = useMemo(
     () =>
@@ -152,17 +180,18 @@ export function AdminStudioPage() {
   );
   const { data: bundle } = useBinderBundle(selectedBinder?.id, profile);
 
-  const saveStatus = mutations.binder.isPending || mutations.lesson.isPending || mutations.deleteLesson.isPending
-    ? "Saving..."
-    : lastSavedAt
-      ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-      : "All changes saved";
+  const saveStatus =
+    mutations.binder.isPending || mutations.lesson.isPending || mutations.deleteLesson.isPending
+      ? "Saving..."
+      : lastSavedAt
+        ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+        : "All changes saved";
 
-  const openCreateDraft = () => {
+  const openCreateDraft = useCallback(() => {
     setCreateDraftOpen(true);
     setCreateBinderError(null);
     setCreateBinderNotice(null);
-  };
+  }, []);
 
   const createBinder = async () => {
     if (!profile) {
@@ -204,12 +233,9 @@ export function AdminStudioPage() {
         return;
       } catch (error) {
         lastError = error;
-        const message =
-          error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
         const duplicateSlug =
-          message.includes("duplicate") ||
-          message.includes("unique") ||
-          message.includes("slug");
+          message.includes("duplicate") || message.includes("unique") || message.includes("slug");
         if (!duplicateSlug || attempt === 3) {
           break;
         }
@@ -231,16 +257,38 @@ export function AdminStudioPage() {
     () => (diagnosticsQuery.error ? classifyRuntimeError("workspace", diagnosticsQuery.error) : []),
     [diagnosticsQuery.error],
   );
-  const seedHealth = diagnosticsQuery.data?.seedHealth ?? [];
+  const seedHealth = diagnosticsQuery.data?.seedHealth ?? EMPTY_SEED_HEALTH;
   const hasSystemWarnings = diagnostics.length > 0 || runtimeDiagnostics.length > 0;
 
+  const handleSaved = useCallback((timestamp: string) => {
+    setLastSavedAt(timestamp);
+  }, []);
+
+  const prefetchContentTools = useCallback(() => {
+    void loadRichTextEditor();
+    void loadMathBlocks();
+  }, []);
+
+  const prefetchDiagnosticsTools = useCallback(() => {
+    void loadWorkspaceDiagnosticsPanel();
+    void loadSeedHealthPanel();
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !dashboard) {
+      return undefined;
+    }
+
+    const cancelContentPrefetch = scheduleAdminIdleTask(prefetchContentTools, 700);
+    const cancelDiagnosticsPrefetch = scheduleAdminIdleTask(prefetchDiagnosticsTools, 2200);
+    return () => {
+      cancelContentPrefetch();
+      cancelDiagnosticsPrefetch();
+    };
+  }, [dashboard, isLoading, prefetchContentTools, prefetchDiagnosticsTools]);
+
   if (isLoading) {
-    return (
-      <main className="app-page max-w-[1540px]">
-        <Skeleton className="h-20" />
-        <Skeleton className="h-[720px]" />
-      </main>
-    );
+    return <AdminStudioLoadingShell />;
   }
 
   if (error || !dashboard) {
@@ -255,7 +303,7 @@ export function AdminStudioPage() {
   }
 
   return (
-    <main className="app-page max-w-[1540px] gap-5">
+    <main className="admin-studio-page app-page max-w-[1540px] gap-5">
       <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="page-shell h-fit p-3 lg:sticky lg:top-24">
           <div className="p-2">
@@ -378,7 +426,9 @@ export function AdminStudioPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium">{getDisplayTitle(binder.title, "Recovered Binder")}</span>
-                  <Badge variant={binder.status === "published" ? "secondary" : "outline"}>{binder.status}</Badge>
+                  <Badge variant={binder.status === "published" ? "secondary" : "outline"}>
+                    {binder.status}
+                  </Badge>
                 </div>
                 <span className="mt-1 block text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {binder.subject}
@@ -395,16 +445,18 @@ export function AdminStudioPage() {
         </aside>
 
         {selectedBinder ? (
-          <StudioWorkspace
+          <MemoizedStudioWorkspace
             binder={selectedBinder}
             diagnostics={diagnostics}
             diagnosticsOpen={diagnosticsOpen}
             diagnosticsRuntime={runtimeDiagnostics}
             diagnosticsLoading={diagnosticsQuery.isFetching}
             hasSystemWarnings={hasSystemWarnings}
-            lessons={bundle?.lessons ?? []}
+            lessons={bundle?.lessons ?? EMPTY_LESSONS}
             mutations={mutations}
-            onSaved={(timestamp) => setLastSavedAt(timestamp)}
+            onSaved={handleSaved}
+            onPrefetchContentTools={prefetchContentTools}
+            onPrefetchDiagnosticsTools={prefetchDiagnosticsTools}
             seedHealth={seedHealth}
             setDiagnosticsOpen={setDiagnosticsOpen}
             setSelectedBinderId={setSelectedBinderId}
@@ -435,6 +487,8 @@ function StudioWorkspace({
   seedHealth,
   hasSystemWarnings,
   onSaved,
+  onPrefetchContentTools,
+  onPrefetchDiagnosticsTools,
   setSelectedBinderId,
 }: {
   binder: Binder;
@@ -449,6 +503,8 @@ function StudioWorkspace({
   seedHealth: SeedHealth[];
   hasSystemWarnings: boolean;
   onSaved: (timestamp: string) => void;
+  onPrefetchContentTools: () => void;
+  onPrefetchDiagnosticsTools: () => void;
   setSelectedBinderId: (binderId: string | undefined) => void;
 }) {
   const [activeTab, setActiveTab] = useState<StudioTab>("overview");
@@ -458,9 +514,14 @@ function StudioWorkspace({
     () => [...lessons].sort((left, right) => left.order_index - right.order_index),
     [lessons],
   );
-  const selectedLesson =
-    orderedLessons.find((lesson) => lesson.id === selectedLessonId) ?? orderedLessons[0] ?? null;
-  const previewLesson = orderedLessons.find((lesson) => lesson.is_preview) ?? orderedLessons[0] ?? null;
+  const selectedLesson = useMemo(
+    () => orderedLessons.find((lesson) => lesson.id === selectedLessonId) ?? orderedLessons[0] ?? null,
+    [orderedLessons, selectedLessonId],
+  );
+  const previewLesson = useMemo(
+    () => orderedLessons.find((lesson) => lesson.is_preview) ?? orderedLessons[0] ?? null,
+    [orderedLessons],
+  );
 
   const [title, setTitle] = useState(binder.title);
   const [description, setDescription] = useState(binder.description);
@@ -472,6 +533,7 @@ function StudioWorkspace({
   const [lessonTitle, setLessonTitle] = useState(selectedLesson?.title ?? "");
   const [lessonContent, setLessonContent] = useState<JSONContent>(selectedLesson?.content ?? emptyDoc(""));
   const [lessonMathBlocks, setLessonMathBlocks] = useState<MathBlock[]>(selectedLesson?.math_blocks ?? []);
+  const deferredLessonContent = useDeferredValue(lessonContent);
 
   useEffect(() => {
     setActiveTab("overview");
@@ -513,9 +575,7 @@ function StudioWorkspace({
   const overviewSummary = useMemo(() => {
     const lessonCount = orderedLessons.length;
     const words = orderedLessons.reduce((total, lesson) => {
-      const wordCount = extractPlainText(lesson.content)
-        .split(/\s+/)
-        .filter(Boolean).length;
+      const wordCount = extractPlainText(lesson.content).split(/\s+/).filter(Boolean).length;
       return total + wordCount;
     }, 0);
     const avgMinutes = lessonCount === 0 ? 0 : Math.max(1, Math.round(words / 220));
@@ -534,6 +594,10 @@ function StudioWorkspace({
       { id: "preview", label: "Preview reviewed", done: previewReviewed },
     ];
   }, [orderedLessons, previewReviewed, title]);
+  const lessonWordCount = useMemo(
+    () => extractPlainText(deferredLessonContent).split(/\s+/).filter(Boolean).length,
+    [deferredLessonContent],
+  );
 
   const saveBinder = async (nextStatus?: PublishStatus) => {
     const trimmedTitle = title.trim();
@@ -648,12 +712,14 @@ function StudioWorkspace({
     if (!selectedLesson) {
       return;
     }
-    const nextTitle = lessonTitle.trim() || deriveLessonTitle({
-      ...selectedLesson,
-      title: lessonTitle,
-      content: lessonContent,
-      math_blocks: lessonMathBlocks,
-    });
+    const nextTitle =
+      lessonTitle.trim() ||
+      deriveLessonTitle({
+        ...selectedLesson,
+        title: lessonTitle,
+        content: lessonContent,
+        math_blocks: lessonMathBlocks,
+      });
     await mutations.lesson.mutateAsync({
       id: selectedLesson.id,
       binder_id: selectedLesson.binder_id,
@@ -716,6 +782,8 @@ function StudioWorkspace({
             </Button>
             <Button
               aria-label="Open studio menu"
+              onFocus={onPrefetchDiagnosticsTools}
+              onMouseEnter={onPrefetchDiagnosticsTools}
               onClick={() => setDiagnosticsOpen(!diagnosticsOpen)}
               size="icon"
               type="button"
@@ -729,7 +797,14 @@ function StudioWorkspace({
         {hasSystemWarnings && !diagnosticsOpen ? (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300/55 bg-amber-100/70 px-3 py-2 text-sm text-amber-950 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
             <p>Some system content is unavailable. Publishing may be limited.</p>
-            <Button onClick={() => setDiagnosticsOpen(true)} size="sm" type="button" variant="outline">
+            <Button
+              onFocus={onPrefetchDiagnosticsTools}
+              onMouseEnter={onPrefetchDiagnosticsTools}
+              onClick={() => setDiagnosticsOpen(true)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
               View diagnostics
             </Button>
           </div>
@@ -743,6 +818,8 @@ function StudioWorkspace({
               <Button
                 aria-label={`Open ${tab.label} tab`}
                 key={tab.id}
+                onFocus={tab.id === "content" ? onPrefetchContentTools : undefined}
+                onMouseEnter={tab.id === "content" ? onPrefetchContentTools : undefined}
                 onClick={() => setActiveTab(tab.id)}
                 type="button"
                 variant={activeTab === tab.id ? "secondary" : "ghost"}
@@ -756,7 +833,11 @@ function StudioWorkspace({
             <section className="grid gap-4">
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Title
-                <Input aria-label="Binder title" onChange={(event) => setTitle(event.target.value)} value={title} />
+                <Input
+                  aria-label="Binder title"
+                  onChange={(event) => setTitle(event.target.value)}
+                  value={title}
+                />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Description
@@ -769,11 +850,19 @@ function StudioWorkspace({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Subject
-                  <Input aria-label="Binder subject" onChange={(event) => setSubject(event.target.value)} value={subject} />
+                  <Input
+                    aria-label="Binder subject"
+                    onChange={(event) => setSubject(event.target.value)}
+                    value={subject}
+                  />
                 </label>
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Level
-                  <Input aria-label="Binder level" onChange={(event) => setLevel(event.target.value)} value={level} />
+                  <Input
+                    aria-label="Binder level"
+                    onChange={(event) => setLevel(event.target.value)}
+                    value={level}
+                  />
                 </label>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -839,10 +928,20 @@ function StudioWorkspace({
                   <FilePlus2 data-icon="inline-start" />
                   Add lesson
                 </Button>
-                <Button disabled={!selectedLesson} onClick={() => void duplicateLesson()} type="button" variant="outline">
+                <Button
+                  disabled={!selectedLesson}
+                  onClick={() => void duplicateLesson()}
+                  type="button"
+                  variant="outline"
+                >
                   Duplicate lesson
                 </Button>
-                <Button disabled={!selectedLesson} onClick={() => void archiveLesson()} type="button" variant="outline">
+                <Button
+                  disabled={!selectedLesson}
+                  onClick={() => void archiveLesson()}
+                  type="button"
+                  variant="outline"
+                >
                   Archive lesson
                 </Button>
               </div>
@@ -898,14 +997,14 @@ function StudioWorkspace({
               {selectedLesson ? (
                 <>
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_190px]">
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  Lesson title
-                  <Input
-                    aria-label="Lesson title"
-                    onChange={(event) => setLessonTitle(event.target.value)}
-                    value={lessonTitle}
-                  />
-                </label>
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Lesson title
+                      <Input
+                        aria-label="Lesson title"
+                        onChange={(event) => setLessonTitle(event.target.value)}
+                        value={lessonTitle}
+                      />
+                    </label>
                     <Button
                       onClick={() => void setLessonPreviewIncluded(!selectedLesson.is_preview)}
                       type="button"
@@ -921,10 +1020,10 @@ function StudioWorkspace({
                     </Button>
                   </div>
 
-                  <Suspense fallback={<Skeleton className="min-h-[360px]" />}>
+                  <Suspense fallback={<AdminEditorFallback />}>
                     <LazyRichTextEditor onChange={setLessonContent} value={lessonContent} />
                   </Suspense>
-                  <Suspense fallback={<Skeleton className="h-[180px]" />}>
+                  <Suspense fallback={<AdminMathBlocksFallback />}>
                     <LazyMathBlocks blocks={lessonMathBlocks} editable onChange={setLessonMathBlocks} />
                   </Suspense>
 
@@ -1079,10 +1178,16 @@ function StudioWorkspace({
           {activeTab === "lessons" ? (
             <ContextFacts
               entries={[
-                { label: "Selected lesson", value: selectedLesson ? deriveLessonTitle(selectedLesson) : "None" },
+                {
+                  label: "Selected lesson",
+                  value: selectedLesson ? deriveLessonTitle(selectedLesson) : "None",
+                },
                 { label: "Order", value: selectedLesson ? String(selectedLesson.order_index) : "-" },
                 { label: "Preview", value: selectedLesson?.is_preview ? "Included" : "Not included" },
-                { label: "Est. read", value: selectedLesson ? `${estimateReadingMinutes(selectedLesson)} min` : "-" },
+                {
+                  label: "Est. read",
+                  value: selectedLesson ? `${estimateReadingMinutes(selectedLesson)} min` : "-",
+                },
               ]}
               title="Lesson metadata"
             />
@@ -1093,7 +1198,7 @@ function StudioWorkspace({
               entries={[
                 {
                   label: "Word count",
-                  value: extractPlainText(lessonContent).split(/\s+/).filter(Boolean).length.toLocaleString(),
+                  value: lessonWordCount.toLocaleString(),
                 },
                 { label: "Math blocks", value: String(lessonMathBlocks.length) },
                 { label: "Lesson title", value: lessonTitle.trim() || "Untitled lesson draft" },
@@ -1133,6 +1238,8 @@ function StudioWorkspace({
         <button
           aria-label="Toggle system diagnostics drawer"
           className="flex w-full items-center justify-between gap-3 border-b border-border/70 px-4 py-3 text-left"
+          onFocus={onPrefetchDiagnosticsTools}
+          onMouseEnter={onPrefetchDiagnosticsTools}
           onClick={() => setDiagnosticsOpen(!diagnosticsOpen)}
           type="button"
         >
@@ -1149,19 +1256,16 @@ function StudioWorkspace({
         {diagnosticsOpen ? (
           <div className="grid gap-4 p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                disabled={mutations.seedSystemSuites.isPending}
-                onClick={() => void mutations.seedSystemSuites.mutateAsync()}
-                type="button"
-                variant="outline"
-              >
-                <Sparkles data-icon="inline-start" />
-                {mutations.seedSystemSuites.isPending ? "Seeding..." : "Run system seed"}
-              </Button>
-              {diagnosticsLoading ? <span className="text-sm text-muted-foreground">Loading diagnostics…</span> : null}
+              <p className="text-sm text-muted-foreground">
+                Catalog updates are applied by the trusted deployment process. This panel shows their current
+                status.
+              </p>
+              {diagnosticsLoading ? (
+                <span className="text-sm text-muted-foreground">Loading diagnostics…</span>
+              ) : null}
             </div>
 
-            <Suspense fallback={<Skeleton className="h-[180px]" />}>
+            <Suspense fallback={<AdminDiagnosticsFallback />}>
               {diagnostics.length ? <LazyWorkspaceDiagnosticsPanel diagnostics={diagnostics} /> : null}
               {diagnosticsRuntime.length ? (
                 <LazyWorkspaceDiagnosticsPanel diagnostics={diagnosticsRuntime} />
@@ -1175,7 +1279,10 @@ function StudioWorkspace({
                 />
               ) : null}
             </Suspense>
-            {!diagnostics.length && !diagnosticsRuntime.length && !seedHealth.length && !diagnosticsLoading ? (
+            {!diagnostics.length &&
+            !diagnosticsRuntime.length &&
+            !seedHealth.length &&
+            !diagnosticsLoading ? (
               <p className="text-sm text-muted-foreground">No diagnostics to report right now.</p>
             ) : null}
           </div>
@@ -1183,6 +1290,148 @@ function StudioWorkspace({
       </section>
     </section>
   );
+}
+
+const MemoizedStudioWorkspace = memo(StudioWorkspace);
+
+export function AdminStudioLoadingShell() {
+  return (
+    <main
+      className="admin-studio-page app-page max-w-[1540px] gap-5"
+      data-testid="admin-studio-loading-shell"
+    >
+      <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="page-shell h-fit p-3 lg:sticky lg:top-24">
+          <div className="p-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Admin Studio
+            </p>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">Publishing queue</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Preparing binder controls without blanking the studio.
+            </p>
+          </div>
+          <div className="mt-4 space-y-3 rounded-lg border border-border/70 bg-background/80 p-3">
+            <AdminSkeletonLine className="h-11" />
+            <div className="flex flex-wrap gap-2">
+              <AdminSkeletonLine className="h-8 w-16" />
+              <AdminSkeletonLine className="h-8 w-20" />
+              <AdminSkeletonLine className="h-8 w-24" />
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2">
+            <AdminSkeletonLine className="h-16" />
+            <AdminSkeletonLine className="h-16" />
+            <AdminSkeletonLine className="h-16" />
+          </div>
+        </aside>
+
+        <section className="grid gap-4">
+          <header className="page-shell p-4 sm:p-5">
+            <AdminSkeletonLine className="h-3 w-32" />
+            <AdminSkeletonLine className="mt-4 h-8 w-full max-w-md" />
+            <AdminSkeletonLine className="mt-3 h-4 w-full max-w-sm" />
+          </header>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_290px]">
+            <div className="page-shell p-4 sm:p-5">
+              <div className="mb-4 flex flex-wrap gap-2 border-b border-border/70 pb-4">
+                <AdminSkeletonLine className="h-10 w-24" />
+                <AdminSkeletonLine className="h-10 w-24" />
+                <AdminSkeletonLine className="h-10 w-24" />
+              </div>
+              <div className="grid gap-4">
+                <AdminSkeletonLine className="h-12" />
+                <AdminSkeletonLine className="h-28" />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AdminSkeletonLine className="h-12" />
+                  <AdminSkeletonLine className="h-12" />
+                </div>
+              </div>
+            </div>
+            <aside className="page-shell h-fit p-4">
+              <AdminSkeletonLine className="h-3 w-32" />
+              <div className="mt-3 grid gap-2">
+                <AdminSkeletonLine className="h-14" />
+                <AdminSkeletonLine className="h-14" />
+                <AdminSkeletonLine className="h-14" />
+              </div>
+            </aside>
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+export function AdminEditorFallback() {
+  return (
+    <AdminPanelFallback
+      description="Opening the writing surface..."
+      lineHeights={["h-4", "h-4", "h-4", "h-4", "h-4"]}
+      minHeightClassName="min-h-[360px]"
+      testId="admin-editor-loading"
+      title="Lesson editor"
+    />
+  );
+}
+
+export function AdminMathBlocksFallback() {
+  return (
+    <AdminPanelFallback
+      description="Preparing math blocks..."
+      lineHeights={["h-10", "h-10"]}
+      minHeightClassName="min-h-[180px]"
+      testId="admin-math-loading"
+      title="Math blocks"
+    />
+  );
+}
+
+export function AdminDiagnosticsFallback() {
+  return (
+    <AdminPanelFallback
+      description="Loading system checks..."
+      lineHeights={["h-12", "h-12"]}
+      minHeightClassName="min-h-[180px]"
+      testId="admin-diagnostics-loading"
+      title="System diagnostics"
+    />
+  );
+}
+
+function AdminPanelFallback({
+  testId,
+  title,
+  description,
+  minHeightClassName,
+  lineHeights,
+}: {
+  testId: string;
+  title: string;
+  description: string;
+  minHeightClassName: string;
+  lineHeights: string[];
+}) {
+  return (
+    <section
+      aria-busy="true"
+      aria-label={`${title} loading`}
+      className={cn("rounded-lg border border-border/70 bg-card/88 p-4 shadow-sm", minHeightClassName)}
+      data-testid={testId}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <div className="mt-4 grid gap-3">
+        {lineHeights.map((height, index) => (
+          <AdminSkeletonLine className={cn(height, index % 2 === 0 ? "w-full" : "w-10/12")} key={index} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdminSkeletonLine({ className }: { className?: string }) {
+  return <div aria-hidden="true" className={cn("admin-themed-skeleton rounded-lg", className)} />;
 }
 
 function ContextFacts({

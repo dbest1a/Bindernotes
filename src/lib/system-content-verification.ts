@@ -1,8 +1,4 @@
-import {
-  SYSTEM_BINDER_IDS,
-  SYSTEM_SEED_VERSION,
-  systemSuiteTemplates,
-} from "@/lib/history-suite-seeds";
+import { SYSTEM_BINDER_IDS, SYSTEM_SEED_VERSION, systemSuiteTemplates } from "@/lib/history-suite-seeds";
 import { planSystemContentRepair, type SystemRepairDataset } from "@/lib/system-content-repair";
 import { isPlaceholderTitle } from "@/lib/workspace-records";
 import type { Binder } from "@/types";
@@ -74,8 +70,7 @@ export function buildSystemVerificationReport(input: VerificationInput): SystemV
 
   if (
     !input.seedVersions.some(
-      (seedVersion) =>
-        seedVersion.version === SYSTEM_SEED_VERSION && seedVersion.status === "current",
+      (seedVersion) => seedVersion.version === SYSTEM_SEED_VERSION && seedVersion.status === "current",
     )
   ) {
     issues.push(`${SYSTEM_SEED_VERSION} is missing from public.seed_versions.`);
@@ -124,7 +119,10 @@ function isSystemScopedBinder(binder: Binder, dataset: SystemRepairDataset) {
     return true;
   }
 
-  if (binder.suite_template_id && systemSuiteTemplates.some((suite) => suite.id === binder.suite_template_id)) {
+  if (
+    binder.suite_template_id &&
+    systemSuiteTemplates.some((suite) => suite.id === binder.suite_template_id)
+  ) {
     return true;
   }
 

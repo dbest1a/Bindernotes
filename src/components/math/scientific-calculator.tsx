@@ -81,6 +81,7 @@ export function ScientificCalculator({
 
       <div className="mt-5 rounded-lg border border-border/75 bg-background/90 p-4">
         <Input
+          aria-label="Calculator expression"
           className="h-12 border-0 bg-transparent px-0 text-lg font-medium shadow-none focus-visible:ring-0"
           onChange={(event) => onExpressionChange(event.target.value)}
           onKeyDown={(event) => {
@@ -93,14 +94,20 @@ export function ScientificCalculator({
           value={expression}
         />
         <p className="mt-2 text-xs leading-5 text-muted-foreground">
-          Function notation is supported for graphing and saved reusable functions like <code>f(x)=x^2+1</code>.
+          Function notation is supported for graphing and saved reusable functions like{" "}
+          <code>f(x)=x^2+1</code>.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Result
             </p>
-            <p className={cn("mt-1 text-2xl font-semibold tracking-tight", error && "text-destructive")}>
+            <p
+              aria-label="Calculator result"
+              aria-live="polite"
+              className={cn("mt-1 text-2xl font-semibold tracking-tight", error && "text-destructive")}
+              role="status"
+            >
               {error ?? result ?? "Ready"}
             </p>
             {typeof lastAnswer === "number" ? (
@@ -185,7 +192,8 @@ export function ScientificCalculator({
           ))}
           {savedFunctions.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/70 bg-secondary/40 p-4 text-sm leading-6 text-muted-foreground">
-              Save reusable functions by evaluating entries like <code>f(x)=x^2+1</code> or <code>g(x)=sin(x)</code>.
+              Save reusable functions by evaluating entries like <code>f(x)=x^2+1</code> or{" "}
+              <code>g(x)=sin(x)</code>.
             </div>
           ) : null}
         </div>
@@ -214,11 +222,21 @@ export function ScientificCalculator({
                 <p className="mt-1 text-lg font-semibold tracking-tight">{item.result}</p>
               </button>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button onClick={() => onReuseExpression(item.expression)} size="sm" type="button" variant="outline">
+                <Button
+                  onClick={() => onReuseExpression(item.expression)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
                   Reuse
                 </Button>
                 {item.kind === "value" ? (
-                  <Button onClick={() => onSendFunctionToGraph(item.expression)} size="sm" type="button" variant="outline">
+                  <Button
+                    onClick={() => onSendFunctionToGraph(item.expression)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
                     <FunctionSquare data-icon="inline-start" />
                     Graph
                   </Button>
@@ -243,11 +261,7 @@ export function ScientificCalculator({
     return <div>{content}</div>;
   }
 
-  return (
-    <section className="page-shell p-5">
-      {content}
-    </section>
-  );
+  return <section className="page-shell p-5">{content}</section>;
 }
 
 function handleKey(
@@ -282,15 +296,7 @@ function handleKey(
   controls.onAppendToken(value);
 }
 
-function Toggle({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function Toggle({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
       className={cn(

@@ -19,20 +19,20 @@ const PLACEHOLDER_TITLES = new Set([
   "new document",
 ]);
 
-const PLACEHOLDER_BINDER_DESCRIPTIONS = new Set([
-  "",
-  "write a clear promise for this binder.",
-]);
+const PLACEHOLDER_BINDER_DESCRIPTIONS = new Set(["", "write a clear promise for this binder."]);
 
 const LEGACY_EMPTY_FOLDER_TITLES = new Set(["course notes", "problem sets"]);
-const GENERIC_LOOSE_BINDER_TITLES = new Set(["general", "history", "math", "notes", "course notes", "problem sets"]);
+const GENERIC_LOOSE_BINDER_TITLES = new Set([
+  "general",
+  "history",
+  "math",
+  "notes",
+  "course notes",
+  "problem sets",
+]);
 
 export type WorkspaceContainerId =
-  | "folder-math"
-  | "folder-history"
-  | "folder-study-skills"
-  | "folder-chemistry"
-  | "folder-other";
+  "folder-math" | "folder-history" | "folder-study-skills" | "folder-chemistry" | "folder-other";
 
 type WorkspaceContainerDefinition = {
   id: WorkspaceContainerId;
@@ -90,7 +90,11 @@ export function extractPlainText(content: JSONContent | JSONContent[] | null | u
   }
 
   if (Array.isArray(content)) {
-    return content.map((node) => extractPlainText(node)).join(" ").replace(/\s+/g, " ").trim();
+    return content
+      .map((node) => extractPlainText(node))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   const direct = typeof content.text === "string" ? content.text : "";
@@ -98,7 +102,9 @@ export function extractPlainText(content: JSONContent | JSONContent[] | null | u
   return `${direct} ${nested}`.replace(/\s+/g, " ").trim();
 }
 
-export function deriveLessonTitle(lesson: Pick<BinderLesson, "title" | "content" | "math_blocks" | "order_index">) {
+export function deriveLessonTitle(
+  lesson: Pick<BinderLesson, "title" | "content" | "math_blocks" | "order_index">,
+) {
   const normalizedTitle = normalizeText(lesson.title);
   if (!isPlaceholderTitle(normalizedTitle)) {
     return normalizedTitle;
@@ -222,14 +228,14 @@ function isUnpolishedLoosePublishedBinder(input: {
   const looksLikeUnreviewedGeneralContent =
     subject === "general" || GENERIC_LOOSE_BINDER_TITLES.has(title) || !/[aeiou].*[aeiou]/i.test(title);
 
-  return looksLikeUnreviewedGeneralContent && !hasUserActivity && (!hasMeaningfulLessons || description.length < 24);
+  return (
+    looksLikeUnreviewedGeneralContent &&
+    !hasUserActivity &&
+    (!hasMeaningfulLessons || description.length < 24)
+  );
 }
 
-export function isPlaceholderFolder(input: {
-  folder: Folder;
-  binders?: Binder[];
-  notes?: LearnerNote[];
-}) {
+export function isPlaceholderFolder(input: { folder: Folder; binders?: Binder[]; notes?: LearnerNote[] }) {
   const binders = input.binders ?? [];
   const notes = input.notes ?? [];
 
@@ -285,17 +291,20 @@ export function sortBindersForWorkspace(
 }
 
 export function filterActionableDiagnostics(diagnostics: WorkspaceDiagnostic[]) {
-  return diagnostics.filter((diagnostic) => diagnostic.severity === "warning" || diagnostic.severity === "error");
+  return diagnostics.filter(
+    (diagnostic) => diagnostic.severity === "warning" || diagnostic.severity === "error",
+  );
 }
 
 export function selectPrimaryWorkspaceDiagnostic(diagnostics: WorkspaceDiagnostic[]) {
-  return filterActionableDiagnostics(diagnostics)
-    .sort((left, right) => {
+  return (
+    filterActionableDiagnostics(diagnostics).sort((left, right) => {
       if (left.severity !== right.severity) {
         return left.severity === "error" ? -1 : 1;
       }
       return left.scope.localeCompare(right.scope);
-    })[0] ?? null;
+    })[0] ?? null
+  );
 }
 
 export function filterVisibleWorkspaceData(input: {
@@ -362,7 +371,9 @@ export function normalizeWorkspaceFolderId(folderId: string | null | undefined):
   return LEGACY_FOLDER_ID_TO_CONTAINER[folderId] ?? null;
 }
 
-export function isWorkspaceContainerId(folderId: string | null | undefined): folderId is WorkspaceContainerId {
+export function isWorkspaceContainerId(
+  folderId: string | null | undefined,
+): folderId is WorkspaceContainerId {
   return Boolean(normalizeWorkspaceFolderId(folderId));
 }
 

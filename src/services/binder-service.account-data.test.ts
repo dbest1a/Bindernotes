@@ -16,12 +16,13 @@ import { emptyDoc } from "@/lib/utils";
 const mocks = vi.hoisted(() => {
   type QueryFilter = {
     column: string;
-    operator: "eq" | "in";
+    operator: "eq" | "in" | "publishedOrOwner";
     value: unknown;
   };
 
   type QueryState = {
     filters: QueryFilter[];
+    range?: [number, number];
   };
 
   const state = {
@@ -29,6 +30,8 @@ const mocks = vi.hoisted(() => {
     folders: [] as Folder[],
     folderBinders: [] as FolderBinderLink[],
     lessons: [] as BinderLesson[],
+    summaries: [] as Record<string, unknown>[],
+    metadataError: null as { message: string } | null,
     notes: [] as LearnerNote[],
     comments: [] as Comment[],
     highlights: [] as Highlight[],
@@ -39,6 +42,8 @@ const mocks = vi.hoisted(() => {
   function applyFilters<T extends Record<string, unknown>>(rows: T[], filters: QueryFilter[]) {
     return rows.filter((row) =>
       filters.every((filter) => {
+        if (filter.operator === "publishedOrOwner")
+          return row.status === "published" || row.owner_id === filter.value;
         if (filter.operator === "eq") {
           return row[filter.column] === filter.value;
         }
@@ -51,20 +56,37 @@ const mocks = vi.hoisted(() => {
   function resolveTable(table: string, query: QueryState) {
     switch (table) {
       case "binders":
-        return { data: applyFilters(state.binders as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.binders as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "folders":
-        return { data: applyFilters(state.folders as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.folders as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "folder_binders":
         return {
           data: applyFilters(state.folderBinders as unknown as Record<string, unknown>[], query.filters),
           error: null,
         };
       case "binder_lessons":
-        return { data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.lessons as unknown as Record<string, unknown>[], query.filters),
+          error: state.metadataError,
+        };
+      case "dashboard_lesson_summaries":
+        return { data: applyFilters(state.summaries, query.filters), error: null };
       case "learner_notes":
-        return { data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.notes as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "comments":
-        return { data: applyFilters(state.comments as unknown as Record<string, unknown>[], query.filters), error: null };
+        return {
+          data: applyFilters(state.comments as unknown as Record<string, unknown>[], query.filters),
+          error: null,
+        };
       case "highlights":
         return {
           data: applyFilters(state.highlights as unknown as Record<string, unknown>[], query.filters),
@@ -100,12 +122,32 @@ const mocks = vi.hoisted(() => {
         return builder;
       }),
       order: vi.fn(() => builder),
+      or: vi.fn((filter: string) => {
+        query.filters.push({
+          column: "owner_id",
+          operator: "publishedOrOwner",
+          value: filter.split("owner_id.eq.")[1],
+        });
+        return builder;
+      }),
+      range: vi.fn((from: number, to: number) => {
+        query.range = [from, to];
+        return builder;
+      }),
       maybeSingle: vi.fn(() => {
         const rows = resolveTable(table, query).data;
         return Promise.resolve({ data: rows[0] ?? null, error: null });
       }),
       then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-        Promise.resolve(resolveTable(table, query)).then(resolve, reject),
+        Promise.resolve(
+          (() => {
+            const result = resolveTable(table, query);
+            return {
+              ...result,
+              data: query.range ? result.data.slice(query.range[0], query.range[1] + 1) : result.data,
+            };
+          })(),
+        ).then(resolve, reject),
     };
 
     return builder;
@@ -125,7 +167,11 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import { getBinderBundle, getDashboard } from "@/services/binder-service";
+import { getBinderBundle, getDashboard, getFolderWorkspace } from "@/services/binder-service";
+import {
+  CHEMISTRY_SHOWCASE_BINDER_ID,
+  chemistryShowcaseLessons,
+} from "@/lib/chemistry/chemistry-showcase-content";
 
 describe("binder-service account dashboard data", () => {
   const profile: Profile = {
@@ -139,6 +185,8 @@ describe("binder-service account dashboard data", () => {
 
   beforeEach(() => {
     mocks.from.mockClear();
+    mocks.state.summaries = [];
+    mocks.state.metadataError = null;
     mocks.state.binders = [
       {
         id: "binder-jacob-math-notes",
@@ -208,11 +256,94 @@ describe("binder-service account dashboard data", () => {
     const dashboard = await getDashboard(profile, { includeSystemStatus: false });
 
     expect(dashboard.binders.map((binder) => binder.id)).toEqual([
+      CHEMISTRY_SHOWCASE_BINDER_ID,
       "binder-jacob-math-notes",
       "binder-user-real",
     ]);
-    expect(dashboard.lessons.map((lesson) => lesson.id)).toEqual(["lesson-demo", "lesson-real"]);
-    expect(dashboard.recentLessons.map((lesson) => lesson.id)).toEqual(["lesson-real", "lesson-demo"]);
+    expect(dashboard.lessons.map((lesson) => lesson.id)).toEqual([
+      ...chemistryShowcaseLessons.map((lesson) => lesson.id),
+      "lesson-demo",
+      "lesson-real",
+    ]);
+    expect(dashboard.recentLessons.map((lesson) => lesson.id)).toEqual(
+      chemistryShowcaseLessons.slice(0, 6).map((lesson) => lesson.id),
+    );
+  });
+
+  it("does not omit lessons when nonempty summaries are partial or stale", async () => {
+    mocks.state.summaries = [
+      {
+        ...mocks.state.lessons[0],
+        lesson_id: "lesson-demo",
+        title: "Outdated title",
+        updated_at: "2020-01-01",
+        plain_text_excerpt: "Stale body",
+      },
+    ];
+    const dashboard = await getDashboard(profile, { includeSystemStatus: false });
+    expect(dashboard.lessons.find((lesson) => lesson.id === "lesson-demo")?.title).toBe("Demo lesson");
+    expect(dashboard.lessons.some((lesson) => lesson.id === "lesson-real")).toBe(true);
+    expect(JSON.stringify(dashboard.lessons)).not.toContain("Stale body");
+  });
+
+  it("includes the learner's private imported sources without showing another owner's draft", async () => {
+    mocks.state.binders[0].status = "draft";
+    mocks.state.binders[1].status = "draft";
+    const dashboard = await getDashboard(profile, { includeSystemStatus: false });
+    expect(dashboard.binders.some((binder) => binder.id === "binder-user-real")).toBe(true);
+    expect(dashboard.binders.some((binder) => binder.id === "binder-jacob-math-notes")).toBe(false);
+  });
+
+  it("surfaces authoritative metadata failure instead of accepting an unverified partial summary", async () => {
+    mocks.state.metadataError = { message: "network failed" };
+    await expect(getDashboard(profile, { includeSystemStatus: false })).rejects.toThrow(
+      "complete lesson list",
+    );
+  });
+
+  it("shows the bundled Chemistry 101 + AP Chemistry course in account Chemistry folders without a Supabase seed mirror", async () => {
+    mocks.state.binders.push({
+      id: "binder-user-chemistry",
+      owner_id: profile.id,
+      title: "Chemistry binder",
+      slug: "chemistry-binder",
+      description: "Personal workspace binder.",
+      subject: "Chemistry",
+      level: "Personal",
+      status: "published",
+      price_cents: 0,
+      cover_url: null,
+      pinned: false,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    });
+    mocks.state.lessons.push({
+      id: "lesson-user-chemistry",
+      binder_id: "binder-user-chemistry",
+      title: "New document",
+      order_index: 1,
+      content: emptyDoc("Personal chemistry notes."),
+      math_blocks: [],
+      is_preview: false,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    });
+
+    const workspace = await getFolderWorkspace("folder-chemistry", profile);
+
+    expect(workspace.binders.map((binder) => binder.id)).toContain(CHEMISTRY_SHOWCASE_BINDER_ID);
+    expect(workspace.binders.map((binder) => binder.id)).toContain("binder-user-chemistry");
+    expect(
+      workspace.lessons.filter((lesson) => lesson.binder_id === CHEMISTRY_SHOWCASE_BINDER_ID),
+    ).toHaveLength(77);
+  });
+
+  it("opens the bundled Chemistry 101 + AP Chemistry course even when account Supabase rows are absent", async () => {
+    const bundle = await getBinderBundle(CHEMISTRY_SHOWCASE_BINDER_ID, profile);
+
+    expect(bundle.binder.title).toBe("Chemistry 101 + AP Chemistry");
+    expect(bundle.lessons).toHaveLength(77);
+    expect(bundle.folders.map((folder) => folder.id)).toContain("folder-chemistry");
   });
 
   it("opens a Supabase-backed Jacob binder instead of blocking it as a local sample", async () => {

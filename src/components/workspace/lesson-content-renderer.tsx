@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
-import { Fragment, useMemo, type JSX, type ReactNode } from "react";
+import { Fragment, memo, useMemo, type JSX, type ReactNode } from "react";
 import { buildHighlightSegments, extractRenderablePlainText, type HighlightSegment } from "@/lib/highlights";
 import { buildLessonSectionAnchorId, normalizeReferenceText } from "@/lib/study-references";
 import type { Highlight, HighlightColor } from "@/types";
@@ -14,7 +14,7 @@ export function buildLessonContentSelector(lessonId?: string, whiteboardModuleId
     : selector;
 }
 
-export function LessonContentRenderer({
+export const LessonContentRenderer = memo(function LessonContentRenderer({
   content,
   highlights,
   lessonId,
@@ -47,7 +47,7 @@ export function LessonContentRenderer({
       {renderNode(content, segments, cursor, lessonId, headingOccurrences)}
     </div>
   );
-}
+});
 
 function escapeSelectorAttribute(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -94,16 +94,13 @@ function renderNode(
       const Tag = `h${level}` as keyof JSX.IntrinsicElements;
       const headingText = extractRenderablePlainText(node).trim();
       const normalizedHeading = normalizeReferenceText(headingText);
-      const occurrence = headingOccurrences && headingText
-        ? (headingOccurrences.get(normalizedHeading) ?? 0)
-        : 0;
+      const occurrence =
+        headingOccurrences && headingText ? (headingOccurrences.get(normalizedHeading) ?? 0) : 0;
       if (headingOccurrences && headingText) {
         headingOccurrences.set(normalizedHeading, occurrence + 1);
       }
       const anchorId =
-        lessonId && headingText
-          ? buildLessonSectionAnchorId(lessonId, headingText, occurrence)
-          : undefined;
+        lessonId && headingText ? buildLessonSectionAnchorId(lessonId, headingText, occurrence) : undefined;
 
       return (
         <Tag
@@ -135,11 +132,7 @@ function renderNode(
   }
 }
 
-function renderTextNode(
-  node: JSONContent,
-  segments: HighlightSegment[],
-  cursor: { value: number },
-) {
+function renderTextNode(node: JSONContent, segments: HighlightSegment[], cursor: { value: number }) {
   const text = node.text ?? "";
   if (!text) {
     return null;
@@ -187,9 +180,7 @@ function renderTextNode(
 
   if (localCursor < text.length) {
     pieces.push(
-      <Fragment key={`${textStart}-tail`}>
-        {applyMarks(text.slice(localCursor), node.marks)}
-      </Fragment>,
+      <Fragment key={`${textStart}-tail`}>{applyMarks(text.slice(localCursor), node.marks)}</Fragment>,
     );
   }
 

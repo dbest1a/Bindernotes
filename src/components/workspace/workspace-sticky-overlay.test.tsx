@@ -2,7 +2,10 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkspaceStickyOverlay } from "@/components/workspace/workspace-sticky-overlay";
+import {
+  WorkspaceStickyLayer,
+  WorkspaceStickyOverlay,
+} from "@/components/workspace/workspace-sticky-overlay";
 import type { Comment, StickyNoteLayout } from "@/types";
 
 const comment: Comment = {
@@ -118,5 +121,58 @@ describe("WorkspaceStickyOverlay", () => {
 
     expect(onDeleteSticky).toHaveBeenCalledWith(comment.id);
     expect(onLayoutChange).not.toHaveBeenCalled();
+  });
+
+  it("saves the current draft before sending a sticky into private notes", () => {
+    const onSendToNotes = vi.fn();
+    const onUpdateSticky = vi.fn();
+
+    render(
+      <WorkspaceStickyOverlay
+        canvasHeight={800}
+        canvasWidth={1000}
+        comments={[comment]}
+        stickyLayouts={{ [comment.id]: stickyLayout }}
+        onDeleteSticky={vi.fn()}
+        onLayoutChange={vi.fn()}
+        onSendToNotes={onSendToNotes}
+        onUpdateSticky={onUpdateSticky}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/write a quick idea/i), {
+      target: { value: "Use this in tomorrow's review sheet." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /send to notes/i }));
+
+    expect(onUpdateSticky).toHaveBeenCalledWith(comment.id, "Use this in tomorrow's review sheet.");
+    expect(onSendToNotes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: comment.id,
+        body: "Use this in tomorrow's review sheet.",
+      }),
+    );
+  });
+
+  it("can mount a sticky layer over non-canvas study views", () => {
+    render(
+      <WorkspaceStickyLayer
+        comments={[comment]}
+        stickyLayouts={{ [comment.id]: stickyLayout }}
+        onDeleteSticky={vi.fn()}
+        onLayoutChange={vi.fn()}
+        onSendToNotes={vi.fn()}
+        onUpdateSticky={vi.fn()}
+        surface="page"
+      >
+        <section>Facelift or simple lesson surface</section>
+      </WorkspaceStickyLayer>,
+    );
+
+    expect(screen.getByText(/facelift or simple lesson surface/i)).toBeTruthy();
+    expect(screen.getByDisplayValue("Connect this to epsilon-delta later.")).toBeTruthy();
+    expect(document.querySelector(".workspace-sticky-layer")?.getAttribute("data-sticky-surface")).toBe(
+      "page",
+    );
   });
 });

@@ -1,4 +1,5 @@
 import type { QuestionBankItem, QuestionChoice, QuestionType } from "@/types/math-learning";
+import { parseFiniteDecimal, withinDecimalTolerance } from "@/lib/finite-number";
 
 export type SubmittedQuestionAnswer = {
   selectedChoiceId?: string;
@@ -30,29 +31,38 @@ export function scoreQuestion(
   const totalPoints = 1;
 
   switch (question.type) {
-    case "multiple_choice":
+    case "multiple_choice": {
+      const expected = resolveCorrectChoiceId(question);
+      if (!expected?.trim()) return invalidAnswerKey(totalPoints);
       return scoreBooleanResult(
-        submitted.selectedChoiceId === resolveCorrectChoiceId(question),
+        submitted.selectedChoiceId === expected,
         totalPoints,
         "Choose the single correct answer.",
-        resolveCorrectChoiceId(question),
+        expected,
       );
+    }
 
-    case "multiple_select":
+    case "multiple_select": {
+      const expected = resolveCorrectChoiceIds(question);
+      if (!isNonemptyStringArray(expected)) return invalidAnswerKey(totalPoints);
       return scoreBooleanResult(
-        sameStringSet(submitted.selectedChoiceIds ?? [], resolveCorrectChoiceIds(question)),
+        sameStringSet(submitted.selectedChoiceIds ?? [], expected),
         totalPoints,
         "Choose every correct answer and no extra answers.",
-        resolveCorrectChoiceIds(question),
+        [...new Set(expected)],
       );
+    }
 
-    case "true_false":
+    case "true_false": {
+      const expected = question.answer_json.expectedBoolean;
+      if (typeof expected !== "boolean") return invalidAnswerKey(totalPoints);
       return scoreBooleanResult(
-        submitted.booleanAnswer === resolveExpectedBoolean(question),
+        submitted.booleanAnswer === expected,
         totalPoints,
         "Choose true or false.",
-        resolveExpectedBoolean(question),
+        expected,
       );
+    }
 
     case "numeric":
       return scoreNumeric(question, submitted, totalPoints);
@@ -61,25 +71,34 @@ export function scoreQuestion(
     case "fill_blank":
       return scoreShortAnswer(question, submitted, totalPoints);
 
-    case "step_ordering":
+    case "step_ordering": {
+      const expected = question.answer_json.correctOrder;
+      if (!isNonemptyStringArray(expected) || new Set(expected).size !== expected.length)
+        return invalidAnswerKey(totalPoints);
       return scoreBooleanResult(
-        arraysEqual(submitted.orderedStepIds ?? [], resolveCorrectOrder(question)),
+        arraysEqual(submitted.orderedStepIds ?? [], expected),
         totalPoints,
         "Put the steps in the exact correct order.",
-        resolveCorrectOrder(question),
+        expected,
       );
+    }
 
     case "free_response":
       return {
         autoGraded: false,
         isCorrect: null,
         pointsAwarded:
-          typeof question.answer_json.completionPoints === "number"
+          typeof question.answer_json.completionPoints === "number" &&
+          Number.isFinite(question.answer_json.completionPoints) &&
+          question.answer_json.completionPoints >= 0 &&
+          question.answer_json.completionPoints <= totalPoints &&
+          Boolean((submitted.freeResponse ?? submitted.text ?? "").trim())
             ? question.answer_json.completionPoints
             : null,
         totalPoints,
         feedback: {
-          message: "Free responses are saved for review. No AI grading is used.",
+          message:
+            "Free responses are saved for review. Completion credit is for a non-empty response, not mathematical correctness. No AI grading is used.",
           expected: question.answer_json.rubric,
         },
       };
@@ -105,13 +124,13 @@ function scoreNumeric(
   submitted: SubmittedQuestionAnswer,
   totalPoints: number,
 ): QuestionScoreResult {
-  const expected = Number(question.answer_json.expected);
+  const expected = parseFiniteDecimal(question.answer_json.expected);
   const tolerance =
-    typeof question.answer_json.tolerance === "number" ? question.answer_json.tolerance : 0;
-  const submittedValue =
-    typeof submitted.numeric === "number" ? submitted.numeric : Number(String(submitted.numeric ?? "").trim());
+    question.answer_json.tolerance === undefined ? 0 : parseFiniteDecimal(question.answer_json.tolerance);
+  if (expected === null || tolerance === null || tolerance < 0) return invalidAnswerKey(totalPoints);
+  const submittedValue = parseFiniteDecimal(submitted.numeric);
 
-  if (!Number.isFinite(expected) || !Number.isFinite(submittedValue)) {
+  if (submittedValue === null) {
     return {
       autoGraded: true,
       isCorrect: false,
@@ -125,7 +144,7 @@ function scoreNumeric(
   }
 
   return scoreBooleanResult(
-    Math.abs(submittedValue - expected) <= tolerance,
+    withinDecimalTolerance(submittedValue, expected, tolerance),
     totalPoints,
     `Answer within ${tolerance} of the expected value.`,
     expected,
@@ -137,9 +156,8 @@ function scoreShortAnswer(
   submitted: SubmittedQuestionAnswer,
   totalPoints: number,
 ): QuestionScoreResult {
-  const acceptedAnswers = Array.isArray(question.answer_json.acceptedAnswers)
-    ? question.answer_json.acceptedAnswers
-    : [];
+  const acceptedAnswers = question.answer_json.acceptedAnswers;
+  if (!isNonemptyStringArray(acceptedAnswers)) return invalidAnswerKey(totalPoints);
   const normalizeWhitespace = question.answer_json.normalizeWhitespace !== false;
   const caseSensitive = question.answer_json.caseSensitive === true;
   const submittedText = normalizeText(submitted.text ?? submitted.freeResponse ?? "", {
@@ -156,7 +174,7 @@ function scoreShortAnswer(
   return scoreBooleanResult(
     accepted.includes(submittedText),
     totalPoints,
-    "Match one of the accepted answers.",
+    "This is an exact-text check against accepted forms, not a symbolic or meaning-based check. Compare the explanation if an equivalent answer was not matched.",
     acceptedAnswers,
   );
 }
@@ -188,7 +206,7 @@ function resolveCorrectChoiceId(
     return question.answer_json.correctChoiceId;
   }
 
-  return question.choices?.find((choice) => choice.is_correct)?.id;
+  return question.choices?.find((choice) => choice.is_correct === true)?.id;
 }
 
 function resolveCorrectChoiceIds(
@@ -200,17 +218,7 @@ function resolveCorrectChoiceIds(
     return question.answer_json.correctChoiceIds;
   }
 
-  return question.choices?.filter((choice) => choice.is_correct).map((choice) => choice.id) ?? [];
-}
-
-function resolveExpectedBoolean(question: Pick<QuestionBankItem, "answer_json">) {
-  return Boolean(question.answer_json.expectedBoolean);
-}
-
-function resolveCorrectOrder(question: Pick<QuestionBankItem, "answer_json">) {
-  return Array.isArray(question.answer_json.correctOrder)
-    ? question.answer_json.correctOrder
-    : [];
+  return question.choices?.filter((choice) => choice.is_correct === true).map((choice) => choice.id) ?? [];
 }
 
 function normalizeText(
@@ -225,12 +233,28 @@ function normalizeText(
 }
 
 function sameStringSet(left: string[], right: string[]) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
+  if (!isNonemptyStringArray(left)) return false;
+  const leftSet = new Set(left);
   const rightSet = new Set(right);
-  return left.every((value) => rightSet.has(value));
+  return leftSet.size === rightSet.size && [...leftSet].every((value) => rightSet.has(value));
+}
+
+function isNonemptyStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item: unknown) => typeof item === "string" && item.trim().length > 0)
+  );
+}
+
+function invalidAnswerKey(totalPoints: number): QuestionScoreResult {
+  return {
+    autoGraded: false,
+    isCorrect: null,
+    pointsAwarded: null,
+    totalPoints,
+    feedback: { message: "This question needs a valid answer key before it can be scored." },
+  };
 }
 
 function arraysEqual(left: string[], right: string[]) {

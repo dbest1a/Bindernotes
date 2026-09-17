@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BinderOverviewData, Profile, SeedHealth } from "@/types";
@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
     authState: {
       profile: learner,
     },
+    createDocumentMutation: vi.fn(),
     binderState: {
       data,
       isLoading: false,
@@ -76,6 +77,11 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 vi.mock("@/hooks/use-binders", () => ({
+  useDashboardWorkspaceMutations: () => ({
+    createBinder: { mutateAsync: vi.fn(), isPending: false },
+    createDocument: { mutateAsync: mocks.createDocumentMutation, isPending: false },
+    createFolder: { mutateAsync: vi.fn(), isPending: false },
+  }),
   useBinderOverview: () => mocks.binderState,
 }));
 
@@ -86,6 +92,21 @@ describe("BinderPage", () => {
     mocks.authState.profile = mocks.learner;
     mocks.binderState.error = null;
     mocks.binderState.isLoading = false;
+    mocks.binderState.data.lessons = [];
+    mocks.binderState.data.notes = [];
+    window.localStorage.clear();
+    mocks.createDocumentMutation.mockReset();
+    mocks.createDocumentMutation.mockResolvedValue({
+      id: "lesson-created",
+      binder_id: "binder-algebra-foundations",
+      title: "Chemistry Warmup",
+      order_index: 1,
+      content: { type: "doc", content: [] },
+      math_blocks: [],
+      is_preview: false,
+      created_at: new Date(0).toISOString(),
+      updated_at: new Date(0).toISOString(),
+    });
   });
 
   it("hides seed status from normal users by default", () => {
@@ -115,5 +136,88 @@ describe("BinderPage", () => {
 
     expect(screen.getAllByText("Seed status").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Expected version").length).toBeGreaterThan(0);
+  });
+
+  it("lets admins create a document directly inside the open binder", async () => {
+    mocks.authState.profile = mocks.admin;
+
+    render(
+      <MemoryRouter initialEntries={["/binders/binder-algebra-foundations"]}>
+        <Routes>
+          <Route path="/binders/:binderId" element={<BinderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "New document" })[0]);
+    fireEvent.change(screen.getByLabelText("Document title"), {
+      target: { value: "Chemistry Warmup" },
+    });
+    fireEvent.submit(screen.getByLabelText("Document title").closest("form")!);
+
+    await waitFor(() => {
+      expect(mocks.createDocumentMutation).toHaveBeenCalledWith({
+        binderId: "binder-algebra-foundations",
+        orderIndex: 1,
+        title: "Chemistry Warmup",
+      });
+    });
+    expect(await screen.findByText('Created document "Chemistry Warmup".')).toBeTruthy();
+  });
+
+  it("truncates private note previews on binder cards when Revamp Beta is on", () => {
+    window.localStorage.setItem(
+      "bindernotes:beta-features:user-1",
+      JSON.stringify({ enabled: true, revampBeta: true }),
+    );
+    mocks.binderState.data.lessons = [
+      {
+        id: "lesson-with-note",
+        binder_id: "binder-algebra-foundations",
+        title: "Like Terms and Expressions",
+        order_index: 1,
+        content: { type: "doc", content: [] },
+        math_blocks: [],
+        is_preview: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+    ];
+    mocks.binderState.data.notes = [
+      {
+        id: "note-with-long-title",
+        owner_id: "user-1",
+        binder_id: "binder-algebra-foundations",
+        lesson_id: "lesson-with-note",
+        folder_id: null,
+        title:
+          "Like terms note with a private detail that keeps going and should never fully spill into navigation cards or blow out the binder page layout.",
+        content: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Full private body stays in the lesson context." }],
+            },
+          ],
+        },
+        math_blocks: [],
+        pinned: false,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+      },
+    ];
+
+    render(
+      <MemoryRouter initialEntries={["/binders/binder-algebra-foundations"]}>
+        <Routes>
+          <Route path="/binders/:binderId" element={<BinderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Notes started:/i)).toBeTruthy();
+    expect(document.body.textContent).not.toContain("blow out the binder page layout.");
+    expect(document.body.textContent).not.toContain("Full private body stays in the lesson context.");
   });
 });

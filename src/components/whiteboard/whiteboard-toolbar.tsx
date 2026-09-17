@@ -1,4 +1,4 @@
-import { Download, Save, TriangleAlert } from "lucide-react";
+import { Save, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { WhiteboardSaveStatus } from "@/lib/whiteboards/whiteboard-types";
@@ -15,11 +15,12 @@ type WhiteboardToolbarProps = {
 const saveLabels: Record<WhiteboardSaveStatus, string> = {
   saved: "Saved",
   saving: "Saving...",
-  "offline-draft": "Offline draft",
+  "offline-draft": "Local draft",
   error: "Save error",
   limit: "Limit reached",
   "storage-limit": "Storage limit",
-  unavailable: "Supabase unavailable",
+  unavailable: "Sync unavailable",
+  conflict: "Conflicting changes - draft preserved",
 };
 
 export function WhiteboardToolbar({
@@ -31,31 +32,40 @@ export function WhiteboardToolbar({
   onSaveNow,
 }: WhiteboardToolbarProps) {
   return (
-    <div className="pointer-events-auto absolute left-4 right-4 top-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/88 px-3 py-2 shadow-lg backdrop-blur">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-sm font-semibold">{title}</h3>
-          <Badge variant="secondary">{saveLabels[saveStatus]}</Badge>
-          <Badge variant="outline">{storageLabel}</Badge>
-          <Badge variant="outline">{objectCount} objects</Badge>
-        </div>
-        {warning ? (
-          <p className="mt-1 flex items-center gap-1 text-xs text-amber-200">
-            <TriangleAlert className="size-3.5" />
-            {warning}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={onSaveNow} size="sm" type="button" variant="outline">
+    <div
+      className="pointer-events-none absolute bottom-3 right-3 z-30 flex max-w-[min(20rem,calc(100%-1.5rem))] flex-col items-end gap-2"
+      data-testid="whiteboard-toolbar"
+    >
+      <div
+        className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background/92 px-2 py-1.5 shadow-md backdrop-blur-sm"
+        title={`${title} - ${storageLabel}`}
+      >
+        <h3 className="sr-only">{title}</h3>
+        <span className="sr-only">{storageLabel}</span>
+        <Badge className="shrink-0 px-2 py-0.5 text-[10px]" variant="secondary">
+          {saveLabels[saveStatus]}
+        </Badge>
+        <Badge className="shrink-0 px-2 py-0.5 text-[10px]" variant="outline">
+          {objectCount} objects
+        </Badge>
+        <Button
+          aria-label="Save whiteboard now"
+          className="h-7 shrink-0 px-2 text-xs"
+          onClick={onSaveNow}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
           <Save data-icon="inline-start" />
-          Save now
-        </Button>
-        <Button disabled size="sm" type="button" variant="ghost" title="Export comes after local review">
-          <Download data-icon="inline-start" />
-          Export
+          Save
         </Button>
       </div>
+      {warning ? (
+        <p className="pointer-events-auto flex max-w-full items-center gap-1 rounded-lg border border-amber-300/40 bg-amber-950/80 px-2 py-1 text-xs text-amber-100 shadow-md">
+          <TriangleAlert className="size-3.5 shrink-0" />
+          <span className="truncate">{warning}</span>
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  applyWorkspaceViewModeToViewport,
   applyGlobalAppearanceToWorkspace,
   createDefaultWorkspacePreferences,
+  getWorkspaceViewMode,
   normalizeWorkspacePreferences,
+  saveGlobalThemeSettings,
 } from "@/lib/workspace-preferences";
-import { useTheme } from "@/hooks/use-theme";
 import {
-  getWorkspacePreferencesRecord,
-  upsertWorkspacePreferencesRecord,
-} from "@/services/binder-service";
+  loadWorkspaceViewPreference,
+  saveWorkspaceViewPreference,
+} from "@/lib/workspace-presentation-storage";
+import { useTheme } from "@/hooks/use-theme";
+import { getWorkspacePreferencesRecord, upsertWorkspacePreferencesRecord } from "@/services/binder-service";
 import type { WorkspacePreferences } from "@/types";
 
 function normalizeLoadedWorkspacePreferences(
@@ -30,15 +34,63 @@ function normalizeLoadedWorkspacePreferences(
     : applyGlobalAppearanceToWorkspace(normalized, globalTheme);
 }
 
+function getBootViewport() {
+  if (typeof window === "undefined") {
+    return { width: 1366, height: 768 };
+  }
+
+  return {
+    width: Math.max(320, Math.round(window.innerWidth || 1366)),
+    height: Math.max(360, Math.round((window.innerHeight || 900) - 168)),
+  };
+}
+
+function createBootWorkspacePreferences(
+  userId: string | undefined,
+  binderId: string | undefined,
+  suiteTemplateId?: string | null,
+  globalTheme?: WorkspacePreferences["theme"],
+) {
+  if (!userId || !binderId) {
+    return null;
+  }
+
+  const fallback = createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
+  const bootMode = loadWorkspaceViewPreference();
+  const modeAdjusted = applyWorkspaceViewModeToViewport(fallback, bootMode, getBootViewport());
+
+  return normalizeLoadedWorkspacePreferences(modeAdjusted, userId, binderId, suiteTemplateId, globalTheme);
+}
+
 export function useWorkspacePreferences(
   userId: string | undefined,
   binderId: string | undefined,
   suiteTemplateId?: string | null,
 ) {
-  const [saved, setSaved] = useState<WorkspacePreferences | null>(null);
-  const [draft, setDraft] = useState<WorkspacePreferences | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const { clearThemeOverride, globalTheme, setTheme } = useTheme();
+  const globalThemeRef = useRef(globalTheme);
+  globalThemeRef.current = globalTheme;
+  const scopeKey = JSON.stringify([userId, binderId, suiteTemplateId]);
+  const scopeRef = useRef({ key: scopeKey, userId, binderId });
+  if (scopeRef.current.key !== scopeKey) {
+    scopeRef.current = { key: scopeKey, userId, binderId };
+  }
+  const mountedRef = useRef(true);
+  const saveVersionRef = useRef(0);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      saveVersionRef.current += 1;
+    };
+  }, []);
+  const [saved, setSaved] = useState<WorkspacePreferences | null>(() =>
+    createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
+  );
+  const [draft, setDraft] = useState<WorkspacePreferences | null>(() =>
+    createBootWorkspacePreferences(userId, binderId, suiteTemplateId, globalTheme),
+  );
 
   useEffect(() => {
     if (!userId || !binderId) {
@@ -49,8 +101,10 @@ export function useWorkspacePreferences(
     }
 
     let cancelled = false;
-    setSaved(null);
-    setDraft(null);
+    const loadTheme = globalThemeRef.current;
+    const bootPreferences = createBootWorkspacePreferences(userId, binderId, suiteTemplateId, loadTheme);
+    setSaved(bootPreferences);
+    setDraft(bootPreferences);
     setSaveError(null);
 
     void getWorkspacePreferencesRecord(userId, binderId)
@@ -63,8 +117,9 @@ export function useWorkspacePreferences(
           userId,
           binderId,
           suiteTemplateId,
-          globalTheme,
+          loadTheme,
         );
+        saveWorkspaceViewPreference(getWorkspaceViewMode(normalized));
         setSaved(normalized);
         setDraft(normalized);
       })
@@ -73,7 +128,9 @@ export function useWorkspacePreferences(
         if (cancelled) {
           return;
         }
-        const fallback = createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
+        const fallback =
+          createBootWorkspacePreferences(userId, binderId, suiteTemplateId, loadTheme) ??
+          createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId);
         setSaved(fallback);
         setDraft(fallback);
       });
@@ -107,9 +164,7 @@ export function useWorkspacePreferences(
     setDraft((current) => {
       const base =
         current ??
-        (userId && binderId
-          ? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId)
-          : null);
+        (userId && binderId ? createDefaultWorkspacePreferences(userId, binderId, suiteTemplateId) : null);
       return base && userId && binderId
         ? normalizeLoadedWorkspacePreferences(updater(base), userId, binderId, suiteTemplateId)
         : base;
@@ -117,14 +172,29 @@ export function useWorkspacePreferences(
   };
 
   const persist = useCallback((next: WorkspacePreferences) => {
+    const scope = scopeRef.current;
+    if (!mountedRef.current || next.userId !== scope.userId || next.binderId !== scope.binderId) {
+      return;
+    }
+    const version = ++saveVersionRef.current;
+    const isCurrent = () =>
+      mountedRef.current && scopeRef.current === scope && version === saveVersionRef.current;
     setSaveError(null);
     void upsertWorkspacePreferencesRecord(next)
       .then((persisted) => {
+        if (!isCurrent()) {
+          return;
+        }
+        saveGlobalThemeSettings(persisted.theme);
+        saveWorkspaceViewPreference(getWorkspaceViewMode(persisted));
         setSaveError(null);
         setSaved(persisted);
         setDraft((current) => (current?.updatedAt === next.updatedAt ? persisted : current));
       })
       .catch((error) => {
+        if (!isCurrent()) {
+          return;
+        }
         console.error("Failed to save workspace preferences.", error);
         setSaveError(
           "Workspace layout could not be saved to your account. Try again before leaving this binder.",

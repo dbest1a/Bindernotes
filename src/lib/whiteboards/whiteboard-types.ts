@@ -44,6 +44,10 @@ export type BinderWhiteboardStorageMode = "local-draft" | "supabase";
 export type WhiteboardStorageBackend = "local" | "supabase";
 
 export type BinderWhiteboard = {
+  /** A list row must be hydrated before creating a draft controller or saving. */
+  metadataOnly?: boolean;
+  /** Server revision used for compare-and-swap; older local drafts start at zero. */
+  revision?: number;
   id: string;
   ownerId: string;
   binderId: string;
@@ -78,18 +82,12 @@ export type WhiteboardTemplate = {
 };
 
 export type WhiteboardSaveStatus =
-  | "saved"
-  | "saving"
-  | "offline-draft"
-  | "error"
-  | "limit"
-  | "storage-limit"
-  | "unavailable";
+  "saved" | "saving" | "offline-draft" | "error" | "limit" | "storage-limit" | "conflict" | "unavailable";
 
 export type WhiteboardSaveResult = {
   board: BinderWhiteboard;
   backend: WhiteboardStorageBackend;
-  status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "unavailable";
+  status: "saved" | "local-draft" | "error" | "limit" | "storage-limit" | "conflict" | "unavailable";
   message: string;
   savedAt: string;
   error?: string;

@@ -1,23 +1,24 @@
 import type { ReactNode } from "react";
 import {
   accentOptions,
-  applyWorkspaceModeToViewport,
+  applyWorkspaceViewModeToViewport,
+  getWorkspaceViewMode,
   simplePresentationFontSizeOptions,
   simplePresentationMotionOptions,
   simplePresentationReadingWidthOptions,
   simplePresentationThemeOptions,
   updateWorkspaceAppearance,
-  workspaceModeOptions,
+  workspaceViewModeOptions,
   workspaceThemes,
 } from "@/lib/workspace-preferences";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { saveWorkspaceViewPreference } from "@/lib/workspace-presentation-storage";
 import type {
   AccentColor,
   AppearanceCustomPalette,
   SimplePresentationSettings,
-  WorkspaceMode,
   WorkspacePreferences,
   WorkspaceThemeId,
 } from "@/types";
@@ -52,8 +53,11 @@ export function SimpleSettingsPanel({
     });
   };
 
-  const changeMode = (mode: WorkspaceMode) => {
-    setNext(applyWorkspaceModeToViewport(preferences, mode, getSimpleSettingsViewport()));
+  const activeWorkspaceViewMode = getWorkspaceViewMode(preferences);
+
+  const changeMode = (mode: (typeof workspaceViewModeOptions)[number]["id"]) => {
+    saveWorkspaceViewPreference(mode);
+    setNext(applyWorkspaceViewModeToViewport(preferences, mode, getSimpleSettingsViewport()));
   };
 
   const updateCustomColor = (key: keyof AppearanceCustomPalette, value: string) => {
@@ -80,7 +84,7 @@ export function SimpleSettingsPanel({
       <div className="workspace-settings__header flex items-start justify-between gap-3 p-4">
         <div>
           <Badge variant="outline">Settings</Badge>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Simple View</h2>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight">Simple</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Keep the study screen calm. Change text, color, and helpers without opening layout tools.
           </p>
@@ -101,11 +105,12 @@ export function SimpleSettingsPanel({
             </p>
           </div>
           <div className="grid gap-2">
-            {workspaceModeOptions.map((mode) => (
+            {workspaceViewModeOptions.map((mode) => (
               <button
+                aria-label={`Workspace view ${mode.name}`}
                 className={cn(
                   "rounded-xl border px-3 py-3 text-left transition hover:bg-secondary/80",
-                  preferences.activeMode === mode.id
+                  activeWorkspaceViewMode === mode.id
                     ? "border-primary bg-accent/75"
                     : "border-border/70 bg-background/55",
                 )}
@@ -114,9 +119,7 @@ export function SimpleSettingsPanel({
                 type="button"
               >
                 <span className="block text-sm font-medium">{mode.name}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {mode.description}
-                </span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{mode.description}</span>
               </button>
             ))}
           </div>
@@ -152,7 +155,9 @@ export function SimpleSettingsPanel({
                   active={preferences.appearance.appTheme === theme.id}
                   key={theme.id}
                   onClick={() =>
-                    setNext(updateWorkspaceAppearance(preferences, { appTheme: theme.id as WorkspaceThemeId }))
+                    setNext(
+                      updateWorkspaceAppearance(preferences, { appTheme: theme.id as WorkspaceThemeId }),
+                    )
                   }
                 >
                   <span className="block text-sm font-medium">{theme.name}</span>

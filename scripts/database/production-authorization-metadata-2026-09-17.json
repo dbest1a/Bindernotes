@@ -1,0 +1,779 @@
+{
+  "capturedAt": "2026-09-17",
+  "access": "READ ONLY catalog queries; no user rows or secrets",
+  "authorization_metadata": {
+    "policies": [
+      {
+        "name": "personal_note_binders delete own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_binders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "DELETE"
+      },
+      {
+        "name": "personal_note_binders insert own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_binders",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "personal_note_binders select own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_binders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "SELECT"
+      },
+      {
+        "name": "personal_note_binders update own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_binders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "personal_note_documents delete own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_documents",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "DELETE"
+      },
+      {
+        "name": "personal_note_documents insert own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_documents",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "personal_note_documents select own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_documents",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "SELECT"
+      },
+      {
+        "name": "personal_note_documents update own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_documents",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "personal_note_folders delete own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_folders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "DELETE"
+      },
+      {
+        "name": "personal_note_folders insert own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_folders",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "personal_note_folders select own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_note_folders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "SELECT"
+      },
+      {
+        "name": "personal_note_folders update own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_note_folders",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "personal_notes delete own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_notes",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "DELETE"
+      },
+      {
+        "name": "personal_notes insert own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_notes",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "personal_notes select own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "personal_notes",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "SELECT"
+      },
+      {
+        "name": "personal_notes update own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "personal_notes",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "profiles insert own learner",
+        "check": "((id = ( SELECT auth.uid() AS uid)) AND (role = 'learner'::app_role))",
+        "roles": ["authenticated"],
+        "table": "profiles",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "profiles read own or admin",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "profiles",
+        "using": "((id = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
+        "command": "SELECT"
+      },
+      {
+        "name": "profiles update own safe fields",
+        "check": "(id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "profiles",
+        "using": "(id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "purchases read own or admin",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "purchases",
+        "using": "((user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
+        "command": "SELECT"
+      },
+      {
+        "name": "questions delete own drafts",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "question_bank",
+        "using": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
+        "command": "DELETE"
+      },
+      {
+        "name": "questions insert own drafts",
+        "check": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
+        "roles": ["authenticated"],
+        "table": "question_bank",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "questions readable when published or owned",
+        "check": null,
+        "roles": ["anon", "authenticated"],
+        "table": "question_bank",
+        "using": "((status = 'published'::text) OR (created_by = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin))",
+        "command": "SELECT"
+      },
+      {
+        "name": "questions update own drafts",
+        "check": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
+        "roles": ["authenticated"],
+        "table": "question_bank",
+        "using": "(( SELECT private.is_admin() AS is_admin) OR ((created_by = ( SELECT auth.uid() AS uid)) AND (status = 'draft'::text)))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "choices delete through owned draft question",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "question_choices",
+        "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
+        "command": "DELETE"
+      },
+      {
+        "name": "choices insert through owned draft question",
+        "check": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
+        "roles": ["authenticated"],
+        "table": "question_choices",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "choices readable through visible question",
+        "check": null,
+        "roles": ["anon", "authenticated"],
+        "table": "question_choices",
+        "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND ((q.status = 'published'::text) OR (q.created_by = ( SELECT auth.uid() AS uid)) OR ( SELECT private.is_admin() AS is_admin)))))",
+        "command": "SELECT"
+      },
+      {
+        "name": "choices update through owned draft question",
+        "check": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
+        "roles": ["authenticated"],
+        "table": "question_choices",
+        "using": "(EXISTS ( SELECT 1\n   FROM question_bank q\n  WHERE ((q.id = question_choices.question_id) AND (( SELECT private.is_admin() AS is_admin) OR ((q.created_by = ( SELECT auth.uid() AS uid)) AND (q.status = 'draft'::text))))))",
+        "command": "UPDATE"
+      },
+      {
+        "name": "whiteboards insert own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "whiteboards",
+        "using": null,
+        "command": "INSERT"
+      },
+      {
+        "name": "whiteboards select own",
+        "check": null,
+        "roles": ["authenticated"],
+        "table": "whiteboards",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "SELECT"
+      },
+      {
+        "name": "whiteboards update own",
+        "check": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "roles": ["authenticated"],
+        "table": "whiteboards",
+        "using": "(owner_id = ( SELECT auth.uid() AS uid))",
+        "command": "UPDATE"
+      }
+    ],
+    "column_grants": [
+      {
+        "table": "profiles",
+        "column": "appearance_settings",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "appearance_settings",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "appearance_settings",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "email",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "email",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "email",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "full_name",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "full_name",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "full_name",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "full_name",
+        "grantee": "authenticated",
+        "privilege": "UPDATE"
+      },
+      {
+        "table": "profiles",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "role",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "role",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "role",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "updated_at",
+        "grantee": "authenticated",
+        "privilege": "INSERT"
+      },
+      {
+        "table": "profiles",
+        "column": "updated_at",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "profiles",
+        "column": "updated_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "profiles",
+        "column": "updated_at",
+        "grantee": "authenticated",
+        "privilege": "UPDATE"
+      },
+      {
+        "table": "purchases",
+        "column": "amount_cents",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "amount_cents",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "binder_id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "binder_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "created_at",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "status",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "status",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "stripe_checkout_session_id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "stripe_checkout_session_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "stripe_customer_id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "stripe_customer_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "table": "purchases",
+        "column": "user_id",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "table": "purchases",
+        "column": "user_id",
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      }
+    ],
+    "function_execute": [
+      {
+        "anon": false,
+        "function": "enforce_whiteboard_active_limit()",
+        "authenticated": false
+      },
+      {
+        "anon": false,
+        "function": "is_admin()",
+        "authenticated": false
+      },
+      {
+        "anon": true,
+        "function": "private.is_admin()",
+        "authenticated": true
+      },
+      {
+        "anon": false,
+        "function": "process_summary_refresh_queue(integer)",
+        "authenticated": false
+      }
+    ],
+    "personal_columns": [
+      {
+        "type": "uuid",
+        "table": "personal_note_binders",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_binders",
+        "column": "owner_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_binders",
+        "column": "folder_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_binders",
+        "column": "title",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_binders",
+        "column": "description",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_binders",
+        "column": "color",
+        "nullable": "YES"
+      },
+      {
+        "type": "boolean",
+        "table": "personal_note_binders",
+        "column": "pinned",
+        "nullable": "NO"
+      },
+      {
+        "type": "integer",
+        "table": "personal_note_binders",
+        "column": "sort_order",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_binders",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_binders",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_documents",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_documents",
+        "column": "owner_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_documents",
+        "column": "binder_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_documents",
+        "column": "title",
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "personal_note_documents",
+        "column": "content",
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "personal_note_documents",
+        "column": "math_blocks",
+        "nullable": "NO"
+      },
+      {
+        "type": "ARRAY",
+        "table": "personal_note_documents",
+        "column": "tags",
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "personal_note_documents",
+        "column": "pinned",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_documents",
+        "column": "archived_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_documents",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_documents",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_folders",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_note_folders",
+        "column": "owner_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_folders",
+        "column": "name",
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "personal_note_folders",
+        "column": "color",
+        "nullable": "NO"
+      },
+      {
+        "type": "integer",
+        "table": "personal_note_folders",
+        "column": "sort_order",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_folders",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_note_folders",
+        "column": "updated_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_notes",
+        "column": "id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_notes",
+        "column": "owner_id",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_notes",
+        "column": "folder_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_notes",
+        "column": "binder_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "personal_notes",
+        "column": "document_id",
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "personal_notes",
+        "column": "title",
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "personal_notes",
+        "column": "content",
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "personal_notes",
+        "column": "math_blocks",
+        "nullable": "NO"
+      },
+      {
+        "type": "ARRAY",
+        "table": "personal_notes",
+        "column": "tags",
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "personal_notes",
+        "column": "pinned",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_notes",
+        "column": "archived_at",
+        "nullable": "YES"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_notes",
+        "column": "created_at",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "personal_notes",
+        "column": "updated_at",
+        "nullable": "NO"
+      }
+    ],
+    "whiteboard_constraints": [
+      {
+        "name": "whiteboards_module_context_check",
+        "validated": true,
+        "definition": "CHECK ((module_context = ANY (ARRAY['binder'::text, 'lesson'::text, 'math-lab'::text])))"
+      },
+      {
+        "name": "whiteboards_owner_id_fkey",
+        "validated": true,
+        "definition": "FOREIGN KEY (owner_id) REFERENCES profiles(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "whiteboards_pkey",
+        "validated": true,
+        "definition": "PRIMARY KEY (id)"
+      }
+    ]
+  }
+}

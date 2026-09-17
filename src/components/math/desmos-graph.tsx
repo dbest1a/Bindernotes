@@ -25,6 +25,7 @@ export const DesmosGraph = memo(function DesmosGraph({
   onExpressionApplied,
   onStateChange,
   pendingExpression,
+  showKeypad = true,
   state,
 }: {
   className?: string;
@@ -34,6 +35,7 @@ export const DesmosGraph = memo(function DesmosGraph({
   onExpressionApplied?: (id: string) => void;
   onStateChange?: (state: DesmosState) => void;
   pendingExpression?: GraphExpressionRequest | null;
+  showKeypad?: boolean;
   state: DesmosState | null;
 }) {
   return (
@@ -46,6 +48,7 @@ export const DesmosGraph = memo(function DesmosGraph({
       onExpressionApplied={onExpressionApplied}
       onStateChange={onStateChange}
       pendingExpression={pendingExpression}
+      showKeypad={showKeypad}
       state={state}
     />
   );
@@ -59,6 +62,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
   onExpressionApplied,
   onStateChange,
   pendingExpression,
+  showKeypad = true,
   state,
 }: {
   className?: string;
@@ -68,6 +72,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
   onExpressionApplied?: (id: string) => void;
   onStateChange?: (state: DesmosState) => void;
   pendingExpression?: GraphExpressionRequest | null;
+  showKeypad?: boolean;
   state: DesmosState | null;
 }) {
   return (
@@ -80,6 +85,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
       onExpressionApplied={onExpressionApplied}
       onStateChange={onStateChange}
       pendingExpression={pendingExpression}
+      showKeypad={showKeypad}
       state={state}
     />
   );

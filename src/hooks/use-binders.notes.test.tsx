@@ -11,9 +11,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/services/binder-service", async () => {
-  const actual = await vi.importActual<typeof import("@/services/binder-service")>(
-    "@/services/binder-service",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/services/binder-service")>("@/services/binder-service");
 
   return {
     ...actual,

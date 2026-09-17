@@ -7,6 +7,11 @@ import {
   isDesmosFeatureEnabled,
   loadDesmosApi,
 } from "@/lib/desmos-loader";
+import {
+  isWorkspaceMovementActive,
+  recordWhiteboardPerformanceDiagnostic,
+  workspaceMovementEndEvent,
+} from "@/lib/whiteboard-performance-diagnostics";
 import { cn } from "@/lib/utils";
 
 type GraphExpressionRequest = {
@@ -44,8 +49,16 @@ type DesmosSurfaceProps = {
   onExpressionApplied?: (id: string) => void;
   onStateChange?: (state: DesmosState) => void;
   pendingExpression?: GraphExpressionRequest | null;
+  showKeypad?: boolean;
   state?: DesmosState | null;
 };
+
+let desmosInstanceCounter = 0;
+
+function createDesmosInstanceId(kind: DesmosSurfaceProps["kind"]) {
+  desmosInstanceCounter += 1;
+  return `desmos-v2-${kind}-${desmosInstanceCounter}`;
+}
 
 export const DesmosSurface = memo(function DesmosSurface({
   className,
@@ -57,6 +70,7 @@ export const DesmosSurface = memo(function DesmosSurface({
   onExpressionApplied,
   onStateChange,
   pendingExpression,
+  showKeypad = true,
   state,
 }: DesmosSurfaceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -69,9 +83,14 @@ export const DesmosSurface = memo(function DesmosSurface({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const layoutObserverRef = useRef<ResizeObserver | null>(null);
   const rafRef = useRef<number | null>(null);
+  const resizeTimerRef = useRef<number | null>(null);
+  const pendingResizeAfterMovementRef = useRef(false);
+  const lastResizeSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const instanceIdRef = useRef(createDesmosInstanceId(kind));
   const onStateChangeRef = useRef(onStateChange);
   const onExpressionAppliedRef = useRef(onExpressionApplied);
   const onLoadAppliedRef = useRef(onLoadApplied);
+  const showKeypadRef = useRef(showKeypad);
   const [darkMode, setDarkMode] = useState(() =>
     typeof document !== "undefined" ? resolveDesmosDarkMode(document.documentElement) : false,
   );
@@ -82,6 +101,45 @@ export const DesmosSurface = memo(function DesmosSurface({
     hasDesmosApiKey() ? "loading-script" : "missing-key",
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const flushCalculatorResize = (reason: string) => {
+    const calculator = calculatorRef.current;
+    if (!calculator) {
+      return;
+    }
+
+    calculator.resize();
+    recordWhiteboardPerformanceDiagnostic("desmos-resize", {
+      instanceId: instanceIdRef.current,
+      kind,
+      reason,
+    });
+  };
+
+  const scheduleCalculatorResize = (reason: string, delayMs = 80) => {
+    if (!calculatorRef.current) {
+      return;
+    }
+
+    if (isWorkspaceMovementActive()) {
+      pendingResizeAfterMovementRef.current = true;
+      recordWhiteboardPerformanceDiagnostic("desmos-resize-deferred", {
+        instanceId: instanceIdRef.current,
+        kind,
+        reason,
+      });
+      return;
+    }
+
+    if (resizeTimerRef.current !== null) {
+      window.clearTimeout(resizeTimerRef.current);
+    }
+
+    resizeTimerRef.current = window.setTimeout(() => {
+      resizeTimerRef.current = null;
+      flushCalculatorResize(reason);
+    }, delayMs);
+  };
 
   useEffect(() => {
     onStateChangeRef.current = onStateChange;
@@ -96,8 +154,30 @@ export const DesmosSurface = memo(function DesmosSurface({
   }, [onLoadApplied]);
 
   useEffect(() => {
+    showKeypadRef.current = showKeypad;
+  }, [showKeypad]);
+
+  useEffect(() => {
     latestStateRef.current = state ?? null;
   }, [state]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const flushPendingMovementResize = () => {
+      if (!pendingResizeAfterMovementRef.current) {
+        return;
+      }
+
+      pendingResizeAfterMovementRef.current = false;
+      scheduleCalculatorResize("workspace-movement-end", 40);
+    };
+
+    window.addEventListener(workspaceMovementEndEvent, flushPendingMovementResize);
+    return () => window.removeEventListener(workspaceMovementEndEvent, flushPendingMovementResize);
+  });
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -112,7 +192,12 @@ export const DesmosSurface = memo(function DesmosSurface({
     const observer = new MutationObserver(syncTheme);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ["class", "data-workspace-theme", "data-workspace-graph-appearance", "data-workspace-graph-chrome"],
+      attributeFilter: [
+        "class",
+        "data-workspace-theme",
+        "data-workspace-graph-appearance",
+        "data-workspace-graph-chrome",
+      ],
     });
     syncTheme();
     return () => observer.disconnect();
@@ -148,9 +233,14 @@ export const DesmosSurface = memo(function DesmosSurface({
         }
 
         setStatus("initializing");
+        recordWhiteboardPerformanceDiagnostic("desmos-initialize", {
+          instanceId: instanceIdRef.current,
+          kind,
+        });
         const calculator = createDesmosCalculator(kind, Desmos, container, {
           darkMode,
           graphChrome,
+          showKeypad: showKeypadRef.current,
         });
         calculatorRef.current = calculator;
 
@@ -180,18 +270,34 @@ export const DesmosSurface = memo(function DesmosSurface({
         }
 
         if (typeof ResizeObserver !== "undefined") {
-          resizeObserverRef.current = new ResizeObserver(() => {
-            calculator.resize();
+          resizeObserverRef.current = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (!entry?.contentRect.width || !entry.contentRect.height) {
+              return;
+            }
+
+            const nextSize = {
+              width: Math.round(entry.contentRect.width),
+              height: Math.round(entry.contentRect.height),
+            };
+            const lastSize = lastResizeSizeRef.current;
+            if (lastSize?.width === nextSize.width && lastSize.height === nextSize.height) {
+              return;
+            }
+            lastResizeSizeRef.current = nextSize;
+            scheduleCalculatorResize("resize-observer");
           });
           resizeObserverRef.current.observe(container);
         }
 
-        requestAnimationFrame(() => calculator.resize());
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          scheduleCalculatorResize("initial-layout", 0);
+        });
         setStatus("ready");
       } catch (error) {
         if (!cancelled) {
-          const message =
-            error instanceof Error ? error.message : "Desmos could not initialize.";
+          const message = error instanceof Error ? error.message : "Desmos could not initialize.";
           setErrorMessage(message);
           if (message === "missing-key") {
             setStatus("missing-key");
@@ -214,6 +320,9 @@ export const DesmosSurface = memo(function DesmosSurface({
       if (rafRef.current) {
         window.cancelAnimationFrame(rafRef.current);
       }
+      if (resizeTimerRef.current !== null) {
+        window.clearTimeout(resizeTimerRef.current);
+      }
       resizeObserverRef.current?.disconnect();
       layoutObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
@@ -223,11 +332,26 @@ export const DesmosSurface = memo(function DesmosSurface({
         if (isGraphingCalculator(calculatorRef.current)) {
           calculatorRef.current.unobserveEvent("change");
         }
+        recordWhiteboardPerformanceDiagnostic("desmos-destroy", {
+          instanceId: instanceIdRef.current,
+          kind,
+        });
         calculatorRef.current.destroy();
         calculatorRef.current = null;
       }
     };
   }, [kind]);
+
+  useEffect(() => {
+    if (status !== "ready" || !calculatorRef.current?.updateSettings) {
+      return;
+    }
+
+    calculatorRef.current.updateSettings({
+      keypad: showKeypad,
+    });
+    scheduleCalculatorResize("keypad-settings");
+  }, [showKeypad, status]);
 
   useEffect(() => {
     if (status !== "ready" || !calculatorRef.current?.updateSettings) {
@@ -244,7 +368,7 @@ export const DesmosSurface = memo(function DesmosSurface({
           }
         : {}),
     });
-    calculatorRef.current.resize();
+    scheduleCalculatorResize("appearance-settings");
   }, [darkMode, graphChrome, kind, status]);
 
   useEffect(() => {
@@ -331,25 +455,14 @@ export const DesmosSurface = memo(function DesmosSurface({
 
   return (
     <div
-      className={cn(
-        "relative overflow-hidden rounded-lg border border-border/70 bg-card",
-        className,
-      )}
+      className={cn("relative overflow-hidden rounded-lg border border-border/70 bg-card", className)}
       data-desmos-status={status}
+      data-desmos-instance-id={instanceIdRef.current}
       style={{ height }}
     >
-      <div
-        className="h-full min-h-0 w-full"
-        data-desmos-canvas={kind}
-        ref={containerRef}
-      />
+      <div className="h-full min-h-0 w-full" data-desmos-canvas={kind} ref={containerRef} />
       {status !== "ready" ? (
-        <StatusOverlay
-          errorMessage={errorMessage}
-          fallback={fallback}
-          kind={kind}
-          status={status}
-        />
+        <StatusOverlay errorMessage={errorMessage} fallback={fallback} kind={kind} status={status} />
       ) : null}
     </div>
   );
@@ -362,14 +475,12 @@ function createDesmosCalculator(
   preferences: {
     darkMode: boolean;
     graphChrome: "standard" | "focused";
+    showKeypad: boolean;
   },
 ) {
   if (kind === "graphing") {
     const graphingCalculator = getDesmosGraphingConstructor(api);
-    if (
-      !isDesmosFeatureEnabled(api, "GraphingCalculator") ||
-      !graphingCalculator
-    ) {
+    if (!isDesmosFeatureEnabled(api, "GraphingCalculator") || !graphingCalculator) {
       throw new Error("unsupported");
     }
 
@@ -380,7 +491,7 @@ function createDesmosCalculator(
       expressionsCollapsed: preferences.graphChrome === "focused",
       folders: true,
       invertedColors: preferences.darkMode,
-      keypad: true,
+      keypad: preferences.showKeypad,
       notes: true,
       projectorMode: false,
       settingsMenu: preferences.graphChrome === "standard",
@@ -405,7 +516,7 @@ function createDesmosCalculator(
       expressionsCollapsed: preferences.graphChrome === "focused",
       folders: true,
       invertedColors: preferences.darkMode,
-      keypad: true,
+      keypad: preferences.showKeypad,
       notes: true,
       projectorMode: false,
       settingsMenu: preferences.graphChrome === "standard",
@@ -426,7 +537,7 @@ function createDesmosCalculator(
     autosize: true,
     border: false,
     invertedColors: preferences.darkMode,
-    keypad: true,
+    keypad: preferences.showKeypad,
   });
 }
 
@@ -480,14 +591,14 @@ function StatusOverlay({
             <AlertCircle className="mx-auto mb-3 size-8 text-primary" />
             <h3 className="text-lg font-semibold tracking-tight">
               {kind === "scientific"
-              ? "Scientific calculator is not enabled"
-              : kind === "graphing-3d"
-                ? "Desmos 3D is not enabled"
-                : "This Desmos tool is not enabled"}
+                ? "Scientific calculator is not enabled"
+                : kind === "graphing-3d"
+                  ? "Desmos 3D is not enabled"
+                  : "This Desmos tool is not enabled"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This API key does not currently allow the requested Desmos calculator. Binder Notes
-              can fall back to a local numeric tool instead.
+              This API key does not currently allow the requested Desmos calculator. Binder Notes can fall
+              back to a local numeric tool instead.
             </p>
           </div>
           {fallback}
@@ -527,10 +638,7 @@ function StatusOverlay({
   );
 }
 
-function waitForRenderableLayout(
-  element: HTMLElement,
-  isCancelled: () => boolean,
-) {
+function waitForRenderableLayout(element: HTMLElement, isCancelled: () => boolean) {
   if (hasRenderableLayout(element)) {
     return Promise.resolve();
   }
@@ -587,10 +695,7 @@ function isGraphingCalculator(
   calculator: DesmosBaseCalculator | null,
 ): calculator is DesmosGraphingCalculator {
   return Boolean(
-    calculator &&
-      "getState" in calculator &&
-      "setBlank" in calculator &&
-      "setExpression" in calculator,
+    calculator && "getState" in calculator && "setBlank" in calculator && "setExpression" in calculator,
   );
 }
 

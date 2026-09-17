@@ -4,38 +4,166 @@ import {
   Calculator,
   ChevronDown,
   GraduationCap,
+  Gauge,
   LayoutDashboard,
   LogOut,
+  NotebookTabs,
+  Palette,
   PenTool,
   RotateCcw,
+  Search,
+  Settings,
   Sparkles,
+  UserCircle,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { useCreatorAccess } from "@/hooks/use-creator-access";
+import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { useDashboardExperience } from "@/hooks/use-dashboard-experience";
+import { usePerformanceMode } from "@/hooks/use-performance-mode";
 import { useTheme } from "@/hooks/use-theme";
+import { useTutorialPrompts } from "@/hooks/use-tutorial-prompts";
+import {
+  loadPersonalNotesPreferences,
+  personalNotesPreferencesUpdatedEvent,
+  savePersonalNotesPreferences,
+} from "@/lib/personal-notes";
+import { betaFeatureFlagDefinitions, betaFeatureGroups } from "@/lib/beta-features";
+import { revampBetaQaIssueMap, roleVerificationQaIssues } from "@/lib/revamp-beta-qa-map";
+import { dashboardViewModeOptions } from "@/lib/admin-dashboard-preferences";
 import { cn, initials } from "@/lib/utils";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
+import type { PersonalNotesPreferences } from "@/types";
 
 export function AppShell() {
   const { profile, signOut } = useAuth();
+  const creator = useCreatorAccess(profile);
   const { globalTheme, setThemeId } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = profile?.role === "admin";
-  const dashboardExperience = useDashboardExperience(isAdmin);
-  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(isAdmin);
+  const dashboardExperience = useDashboardExperience(profile ? isAdmin : undefined);
+  const tutorialPrompts = useTutorialPrompts(profile);
+  const performanceMode = usePerformanceMode();
+  const betaFeatures = useBetaFeatures(profile?.id);
+  const isStudyDocumentRoute = /^\/binders\/[^/]+\/documents\/[^/]+/.test(location.pathname);
+  const compactStudyChrome = isStudyDocumentRoute && betaFeatures.isFeatureEnabled("compactStudyChrome");
+  const studentPreviewAdminChromeGuard =
+    isStudyDocumentRoute && betaFeatures.isFeatureEnabled("studentPreviewAdminChromeGuard");
+  const [personalNotesPreferences, setPersonalNotesPreferences] = useState(() =>
+    loadPersonalNotesPreferences(profile?.id),
+  );
+  const { prefersReducedMotion, resetSettings, settings, updateSettings } = useAdminMotionSettings(
+    isAdmin,
+    performanceMode.effectivePerformanceMode,
+  );
+  const effectivePerformanceMode = performanceMode.effectivePerformanceMode || prefersReducedMotion;
+  const enhancedModeRequested = performanceMode.enhancedModeEnabled;
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [settingsWindowOpen, setSettingsWindowOpen] = useState(false);
+  const [settingsSearch, setSettingsSearch] = useState("");
+  const [activeSettingsSection, setActiveSettingsSection] = useState("account");
   const [routeLanding, setRouteLanding] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const settingsScrollRef = useRef<HTMLDivElement | null>(null);
+  const settingsSectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const logout = async () => {
     await signOut();
     navigate("/");
   };
+
+  useEffect(() => {
+    setPersonalNotesPreferences(loadPersonalNotesPreferences(profile?.id));
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (!profile?.id) {
+      return;
+    }
+
+    const onPersonalNotesPreferencesUpdated = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          preferences?: PersonalNotesPreferences;
+          userId?: string;
+        }>
+      ).detail;
+      if (detail?.userId === profile.id && detail.preferences) {
+        setPersonalNotesPreferences(detail.preferences);
+      }
+    };
+
+    window.addEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
+    return () =>
+      window.removeEventListener(personalNotesPreferencesUpdatedEvent, onPersonalNotesPreferencesUpdated);
+  }, [profile?.id]);
+
+  const setQuickAccessVisible = (showQuickAccess: boolean) => {
+    const next = {
+      ...personalNotesPreferences,
+      showQuickAccess,
+    };
+    setPersonalNotesPreferences(next);
+    savePersonalNotesPreferences(profile?.id, next);
+  };
+
+  const openSettingsWindow = () => {
+    setSettingsWindowOpen(true);
+    setProfileMenuOpen(false);
+  };
+
+  const closeSettingsWindow = () => {
+    setSettingsWindowOpen(false);
+    setSettingsSearch("");
+  };
+
+  const jumpToSettingsSection = (sectionId: string) => {
+    setActiveSettingsSection(sectionId);
+    settingsSectionRefs.current[sectionId]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const syncActiveSettingsSection = () => {
+    const scrollContainer = settingsScrollRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    const candidates = Object.entries(settingsSectionRefs.current)
+      .map(([id, element]) => ({
+        id,
+        distance: element
+          ? Math.abs(element.offsetTop - scrollContainer.scrollTop)
+          : Number.POSITIVE_INFINITY,
+      }))
+      .sort((a, b) => a.distance - b.distance);
+
+    if (candidates[0] && candidates[0].id !== activeSettingsSection) {
+      setActiveSettingsSection(candidates[0].id);
+    }
+  };
+
+  const normalizedSettingsSearch = settingsSearch.trim().toLowerCase();
+  const shouldShowSettingSection = (label: string, terms: string) =>
+    !normalizedSettingsSearch || `${label} ${terms}`.toLowerCase().includes(normalizedSettingsSearch);
+  const betaFeatureSearchTerms = betaFeatureFlagDefinitions
+    .flatMap((flag) => [flag.label, flag.description, ...flag.searchAliases])
+    .join(" ");
+  const betaFeatureGroupSearchTerms = betaFeatureGroups
+    .flatMap((group) => [group.label, group.description])
+    .join(" ");
+  const revampBetaQaSearchTerms = Object.entries(revampBetaQaIssueMap)
+    .flatMap(([id, issue]) => [id, issue.area, issue.summary])
+    .join(" ");
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setRouteLanding(false), 300);
@@ -67,18 +195,145 @@ export function AppShell() {
     };
   }, [profileMenuOpen]);
 
+  useEffect(() => {
+    if (!settingsWindowOpen) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeSettingsWindow();
+      }
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [settingsWindowOpen]);
+
+  const showAccountSettings = shouldShowSettingSection(
+    "Account",
+    "profile name email role sign out user learner admin account",
+  );
+  const showAppearanceSettings = shouldShowSettingSection(
+    "Appearance",
+    "theme dashboard view normal minimal admin makeover workspace color display",
+  );
+  const showLearningSettings = shouldShowSettingSection(
+    "Learning",
+    "tutorial prompts first time walkthrough guide lessons help video library",
+  );
+  const showPersonalNotesSettings = shouldShowSettingSection(
+    "Personal Notes",
+    "quick access notes notebook binders folders documents shortcuts home organize",
+  );
+  const showPerformanceSettings = shouldShowSettingSection(
+    "Performance",
+    "performance enhanced visuals enhanced mode fast smooth lag animation motion visual menu whiteboard whiteboard menu drawing canvas reduce glow blur responsiveness speed lower cpu",
+  );
+  const showBetaFeaturesSettings = shouldShowSettingSection(
+    "Beta Features",
+    `beta beta features beta revamp revamp beta experimental preview early access qa cleanup full qa report split study study panels math whiteboard notes history dashboard settings performance desmos calculator autosave save status student study surfaces ${betaFeatureGroupSearchTerms} ${betaFeatureSearchTerms} ${revampBetaQaSearchTerms}`,
+  );
+  const showAdminMotionSettings = isAdmin
+    ? shouldShowSettingSection(
+        "Admin Motion Lab",
+        "motion animations intensity speed premium color effects page transition sparkle admin",
+      )
+    : false;
+  const hasSettingsResults =
+    showAccountSettings ||
+    showAppearanceSettings ||
+    showLearningSettings ||
+    showPersonalNotesSettings ||
+    showPerformanceSettings ||
+    showBetaFeaturesSettings ||
+    showAdminMotionSettings;
+  const settingsSections = [
+    {
+      description: "Profile and session",
+      id: "account",
+      label: "Account",
+      visible: showAccountSettings,
+    },
+    {
+      description: "Theme and dashboard",
+      id: "appearance",
+      label: "Appearance",
+      visible: showAppearanceSettings,
+    },
+    {
+      description: "Tutorial prompts",
+      id: "learning",
+      label: "Learning",
+      visible: showLearningSettings,
+    },
+    {
+      description: "Quick Access",
+      id: "personal-notes",
+      label: "Personal Notes",
+      visible: showPersonalNotesSettings,
+    },
+    {
+      description: "Fast mode",
+      id: "performance",
+      label: "Performance",
+      visible: showPerformanceSettings,
+    },
+    {
+      description: "Early access",
+      id: "beta-features",
+      label: "Beta Features",
+      visible: showBetaFeaturesSettings,
+    },
+    ...(isAdmin
+      ? [
+          {
+            description: "Private polish",
+            id: "admin-motion",
+            label: "Admin Motion",
+            visible: showAdminMotionSettings,
+          },
+        ]
+      : []),
+  ].filter((section) => section.visible);
+
+  useEffect(() => {
+    if (!settingsWindowOpen) {
+      return;
+    }
+    if (settingsSections.some((section) => section.id === activeSettingsSection)) {
+      return;
+    }
+    setActiveSettingsSection(settingsSections[0]?.id ?? "account");
+  }, [activeSettingsSection, settingsSections, settingsWindowOpen]);
+
   return (
     <div
       className="min-h-screen bg-background"
-      data-admin-dashboard={dashboardExperience.isAdminMakeoverActive ? "makeover" : "normal"}
-      data-admin-motion={isAdmin && settings.enabled ? "on" : "off"}
+      data-testid="app-shell-root"
+      data-admin-dashboard={dashboardExperience.dashboardAttribute}
+      data-admin-motion={isAdmin && settings.enabled && !effectivePerformanceMode ? "on" : "off"}
+      data-beta-features={betaFeatures.betaFeaturesEnabled ? "on" : "off"}
+      data-beta-revamp={betaFeatures.betaRevampEnabled ? "true" : "false"}
+      data-compact-study-chrome={compactStudyChrome ? "true" : "false"}
+      data-enhanced-mode={enhancedModeRequested ? "true" : "false"}
+      data-enhanced-visuals={enhancedModeRequested ? "true" : "false"}
       data-motion-intensity={settings.intensity}
       data-motion-speed={settings.speed}
-      data-page-transition={isAdmin && settings.enabled ? settings.pageTransition : "off"}
-      data-premium-color-mode={isAdmin && settings.enabled ? settings.colorMode : "off"}
+      data-page-transition={
+        isAdmin && settings.enabled && !effectivePerformanceMode ? settings.pageTransition : "off"
+      }
+      data-performance-mode={effectivePerformanceMode ? "true" : "false"}
+      data-premium-color-mode={
+        isAdmin && settings.enabled && !effectivePerformanceMode ? settings.colorMode : "off"
+      }
       data-reduced-motion={prefersReducedMotion ? "system" : "none"}
+      data-revamp-beta={betaFeatures.revampBetaEnabled ? "true" : "false"}
+      data-study-route={isStudyDocumentRoute ? "true" : "false"}
+      data-student-preview-admin-chrome={studentPreviewAdminChromeGuard ? "true" : "false"}
+      {...betaFeatures.dataAttributes}
     >
-      <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background/82 backdrop-blur-xl">
+      <header className="app-header sticky top-0 z-20 border-b border-border/70 bg-background">
         <div className="app-header__inner mx-auto flex h-16 max-w-[1540px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             aria-label="BinderNotes dashboard"
@@ -92,15 +347,28 @@ export function AppShell() {
             <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
               Workspace
             </NavItem>
+            <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
+              Personal Notes
+            </NavItem>
+            {betaFeatures.isFeatureEnabled("betaRevampReviewQueue") ? (
+              <NavItem to="/review" icon={<BookOpenCheck data-icon="inline-start" />}>
+                Review
+              </NavItem>
+            ) : null}
             <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
               Math lab
             </NavItem>
             <NavItem to="/tutorial" icon={<BookOpenCheck data-icon="inline-start" />}>
               Tutorial
             </NavItem>
-            {profile?.role === "admin" ? (
+            {profile?.role === "admin" && !studentPreviewAdminChromeGuard ? (
               <NavItem to="/admin" icon={<PenTool data-icon="inline-start" />}>
                 Admin studio
+              </NavItem>
+            ) : null}
+            {creator.access?.allowed && !studentPreviewAdminChromeGuard ? (
+              <NavItem to="/creator" icon={<PenTool data-icon="inline-start" />}>
+                Creator workspace
               </NavItem>
             ) : null}
             <NavItem to="/pricing" icon={<GraduationCap data-icon="inline-start" />}>
@@ -109,7 +377,10 @@ export function AppShell() {
           </nav>
 
           <div className="app-header__actions flex items-center gap-2">
-            <label className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex">
+            <label
+              className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex"
+              data-compact-study-direct-control="theme"
+            >
               <span className="text-xs font-medium text-muted-foreground">Theme</span>
               <select
                 aria-label="App theme"
@@ -124,6 +395,18 @@ export function AppShell() {
                 ))}
               </select>
             </label>
+            <Button
+              aria-label="Open settings"
+              className="xl:hidden"
+              data-testid="compact-open-settings"
+              onClick={openSettingsWindow}
+              size="icon"
+              title="Open settings"
+              type="button"
+              variant="ghost"
+            >
+              <Settings />
+            </Button>
             <div className="relative hidden xl:block" ref={profileMenuRef}>
               <button
                 className="admin-profile-trigger flex items-center gap-2 rounded-lg border border-border/70 bg-card/80 px-2 py-1.5 text-left transition hover:bg-secondary"
@@ -156,8 +439,48 @@ export function AppShell() {
                       <p className="text-xs capitalize text-muted-foreground">{profile?.role ?? "learner"}</p>
                     </div>
                   </div>
+                  <Button
+                    className="mt-3 w-full justify-center"
+                    data-testid="profile-open-settings"
+                    onClick={openSettingsWindow}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Settings data-icon="inline-start" />
+                    Open settings
+                  </Button>
+                  {compactStudyChrome ? (
+                    <section
+                      className="mt-3 rounded-lg border border-border/80 p-3"
+                      data-testid="compact-study-account-controls"
+                    >
+                      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                        Theme
+                        <select
+                          aria-label="App theme"
+                          className="appearance-select h-9 rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none"
+                          onChange={(event) => setThemeId(event.target.value as typeof globalTheme.id)}
+                          value={globalTheme.id}
+                        >
+                          {workspaceThemes.map((workspaceTheme) => (
+                            <option key={workspaceTheme.id} value={workspaceTheme.id}>
+                              {workspaceTheme.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <Button
+                        className="mt-3 w-full justify-center"
+                        onClick={logout}
+                        type="button"
+                        variant="ghost"
+                      >
+                        <LogOut data-icon="inline-start" />
+                        Log out
+                      </Button>
+                    </section>
+                  ) : null}
                   {isAdmin ? (
-                    <>
                     <section
                       className="mt-3 rounded-lg border border-border/80 p-3"
                       data-testid="admin-dashboard-appearance"
@@ -181,12 +504,664 @@ export function AppShell() {
                           }
                           value={dashboardExperience.effectiveViewMode}
                         >
-                          <option value="normal">Normal</option>
-                          <option value="admin-makeover">Admin Makeover</option>
+                          {dashboardViewModeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {
+                          dashboardViewModeOptions.find(
+                            (option) => option.value === dashboardExperience.effectiveViewMode,
+                          )?.description
+                        }
+                      </p>
                     </section>
-                    <section className="mt-3 rounded-lg border border-border/80 p-3" data-testid="admin-motion-lab">
+                  ) : null}
+                  <section
+                    className="mt-3 rounded-lg border border-border/80 p-3"
+                    data-testid="personal-notes-quick-access-section"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <NotebookTabs className="size-4 text-cyan-300" />
+                          Quick Access
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Show the Personal Notes shortcut card in Home and Organize.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Show Quick Access"
+                        aria-pressed={personalNotesPreferences.showQuickAccess}
+                        className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="personal-notes-quick-access-toggle"
+                        onClick={() => setQuickAccessVisible(!personalNotesPreferences.showQuickAccess)}
+                        type="button"
+                      >
+                        <span
+                          className={
+                            personalNotesPreferences.showQuickAccess
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Toggle Personal Notes Quick Access</span>
+                      </button>
+                    </div>
+                    <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {personalNotesPreferences.showQuickAccess
+                        ? "Quick Access is visible for fast notes, binders, documents, and folders."
+                        : "Quick Access is hidden. Navigation and command palette access stay available."}
+                    </p>
+                  </section>
+                  <section
+                    className="mt-3 rounded-lg border border-border/80 p-3"
+                    data-testid="performance-mode-section"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <Sparkles className="size-4 text-cyan-300" />
+                          Enhanced Visuals
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Adds richer motion, shadows, and visual effects. Turn off for the fastest study and
+                          whiteboard experience.
+                        </p>
+                      </div>
+                      <button
+                        aria-label="Enhanced Visuals"
+                        aria-pressed={enhancedModeRequested}
+                        className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                        data-testid="performance-mode-toggle"
+                        onClick={() =>
+                          performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                        }
+                        type="button"
+                      >
+                        <span
+                          className={
+                            enhancedModeRequested
+                              ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                              : "admin-motion-toggle__knob"
+                          }
+                        />
+                        <span className="sr-only">Toggle Enhanced Visuals</span>
+                      </button>
+                    </div>
+                    <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                      {effectivePerformanceMode
+                        ? "Performance Mode active. Whiteboard menus, drawing, and study panels prioritize speed."
+                        : "Enhanced Visuals active. Richer motion and shadows are enabled while core study tools stay usable."}
+                    </p>
+                  </section>
+                </div>
+              ) : null}
+            </div>
+            <Button
+              aria-label="Log out"
+              data-compact-study-direct-control="logout"
+              onClick={logout}
+              type="button"
+              variant="ghost"
+            >
+              <LogOut data-icon="inline-start" />
+              <span className="hidden sm:inline">Log out</span>
+            </Button>
+          </div>
+        </div>
+      </header>
+      <div
+        className="app-route-transition-shell"
+        data-route-transition-active={routeLanding ? "true" : "false"}
+      >
+        <Outlet />
+      </div>
+      {settingsWindowOpen ? (
+        <div className="app-settings-overlay" role="presentation">
+          <section
+            aria-label="BinderNotes settings"
+            aria-modal="true"
+            className="app-settings-window"
+            data-testid="app-settings-window"
+            role="dialog"
+          >
+            <header className="app-settings-window__header">
+              <div className="min-w-0">
+                <span className="page-kicker">Settings</span>
+                <h2>BinderNotes settings</h2>
+                <p>Account, dashboard, learning, notes, and performance controls in one place.</p>
+              </div>
+              <Button
+                aria-label="Close settings"
+                className="shrink-0"
+                onClick={closeSettingsWindow}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <X data-icon="inline-start" />
+                Close
+              </Button>
+            </header>
+
+            <div className="app-settings-window__search">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                aria-label="Search settings"
+                className="appearance-select h-11 w-full rounded-lg border border-border bg-background px-9 text-sm font-semibold outline-none"
+                data-testid="app-settings-search"
+                onChange={(event) => setSettingsSearch(event.target.value)}
+                placeholder="Search settings, tutorials, beta features, motion..."
+                value={settingsSearch}
+              />
+            </div>
+
+            <div className="app-settings-window__body">
+              <aside className="app-settings-window__nav" aria-label="Settings sections">
+                {settingsSections.map((section) => (
+                  <button
+                    aria-label={section.label}
+                    aria-current={activeSettingsSection === section.id ? "page" : undefined}
+                    className="app-settings-window__nav-item"
+                    data-active={activeSettingsSection === section.id ? "true" : "false"}
+                    key={section.id}
+                    onClick={() => jumpToSettingsSection(section.id)}
+                    type="button"
+                  >
+                    <strong>{section.label}</strong>
+                    <small>{section.description}</small>
+                  </button>
+                ))}
+              </aside>
+
+              <div
+                className="app-settings-window__scroll"
+                onScroll={syncActiveSettingsSection}
+                ref={settingsScrollRef}
+              >
+                {showAccountSettings ? (
+                  <SettingsPanel
+                    description="Manage the signed-in account and session controls."
+                    icon={<UserCircle className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current.account = node;
+                    }}
+                    testId="app-settings-section-account"
+                    title="Account"
+                  >
+                    <div className="app-settings-account-card">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold">
+                        {initials(profile?.full_name ?? "BN")}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {profile?.full_name ?? "Binder user"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {profile?.email ?? "Signed in account"}
+                        </p>
+                      </div>
+                      <span className="rounded-md border border-border/70 bg-background px-2 py-1 text-xs capitalize text-muted-foreground">
+                        {profile?.role ?? "learner"}
+                      </span>
+                    </div>
+                    <Link className="text-sm underline" to="/account" onClick={closeSettingsWindow}>
+                      Password, sessions and account deletion
+                    </Link>
+                    {creator.access?.allowed ? (
+                      <Link className="block text-sm underline" to="/creator" onClick={closeSettingsWindow}>
+                        Open creator workspace
+                      </Link>
+                    ) : null}
+                    <Button
+                      className="justify-self-start"
+                      onClick={logout}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <LogOut data-icon="inline-start" />
+                      Log out
+                    </Button>
+                    <Link
+                      className="text-sm underline underline-offset-4"
+                      onClick={closeSettingsWindow}
+                      to="/account/data"
+                    >
+                      Data &amp; backups
+                    </Link>
+                  </SettingsPanel>
+                ) : null}
+
+                {showAppearanceSettings ? (
+                  <SettingsPanel
+                    description="Choose the app theme and dashboard appearance."
+                    icon={<Palette className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current.appearance = node;
+                    }}
+                    testId="app-settings-section-appearance"
+                    title="Appearance"
+                  >
+                    <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                      App theme
+                      <select
+                        aria-label="App theme"
+                        className="appearance-select h-9 rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none"
+                        data-testid="app-settings-theme"
+                        onChange={(event) => setThemeId(event.target.value as typeof globalTheme.id)}
+                        value={globalTheme.id}
+                      >
+                        {workspaceThemes.map((workspaceTheme) => (
+                          <option key={workspaceTheme.id} value={workspaceTheme.id}>
+                            {workspaceTheme.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {isAdmin ? (
+                      <section
+                        className="rounded-lg border border-border/80 p-3"
+                        data-testid="admin-dashboard-appearance"
+                      >
+                        <p className="flex items-center gap-2 text-sm font-semibold">
+                          <LayoutDashboard className="size-4 text-cyan-300" />
+                          Dashboard appearance
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Admin-only preview controls. Learners keep the normal dashboard.
+                        </p>
+                        <label className="mt-3 grid gap-1 text-xs font-medium text-muted-foreground">
+                          Dashboard view
+                          <select
+                            className="appearance-select h-9 rounded-md border border-border bg-background px-2 text-sm font-semibold text-foreground outline-none"
+                            data-testid="admin-dashboard-view-mode"
+                            onChange={(event) =>
+                              dashboardExperience.setViewMode(
+                                event.target.value as typeof dashboardExperience.preference.viewMode,
+                              )
+                            }
+                            value={dashboardExperience.effectiveViewMode}
+                          >
+                            {dashboardViewModeOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                          {
+                            dashboardViewModeOptions.find(
+                              (option) => option.value === dashboardExperience.effectiveViewMode,
+                            )?.description
+                          }
+                        </p>
+                      </section>
+                    ) : null}
+                  </SettingsPanel>
+                ) : null}
+
+                {showLearningSettings ? (
+                  <SettingsPanel
+                    description="Control tutorial prompts and open the full tutorial library."
+                    icon={<BookOpenCheck className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current.learning = node;
+                    }}
+                    testId="app-settings-section-learning"
+                    title="Learning"
+                  >
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="tutorial-prompts-section"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            <BookOpenCheck className="size-4 text-cyan-300" />
+                            Tutorials
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            First-time page prompts are on by default only for accounts created recently.
+                          </p>
+                        </div>
+                        <button
+                          aria-label="Toggle tutorial prompts"
+                          aria-pressed={tutorialPrompts.promptsEnabled}
+                          className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                          data-testid="tutorial-prompts-toggle"
+                          onClick={() => tutorialPrompts.setPromptsEnabled(!tutorialPrompts.promptsEnabled)}
+                          type="button"
+                        >
+                          <span
+                            className={
+                              tutorialPrompts.promptsEnabled
+                                ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                : "admin-motion-toggle__knob"
+                            }
+                          />
+                          <span className="sr-only">Enable first-time tutorial prompts</span>
+                        </button>
+                      </div>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {tutorialPrompts.promptsEnabled
+                          ? "Tutorial prompts can appear once per page until skipped or watched."
+                          : "Tutorial prompts are off. The full Tutorial library stays available from the nav."}
+                      </p>
+                    </section>
+                    <Button asChild className="justify-self-start" size="sm" type="button" variant="outline">
+                      <Link onClick={closeSettingsWindow} to="/tutorial">
+                        <BookOpenCheck data-icon="inline-start" />
+                        Open tutorial library
+                      </Link>
+                    </Button>
+                  </SettingsPanel>
+                ) : null}
+
+                {showPersonalNotesSettings ? (
+                  <SettingsPanel
+                    description="Control fast note and workspace shortcuts."
+                    icon={<NotebookTabs className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current["personal-notes"] = node;
+                    }}
+                    testId="app-settings-section-personal-notes"
+                    title="Personal Notes"
+                  >
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="personal-notes-quick-access-section"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            <NotebookTabs className="size-4 text-cyan-300" />
+                            Quick Access
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Show the Personal Notes shortcut card in Home and Organize.
+                          </p>
+                        </div>
+                        <button
+                          aria-label="Show Quick Access"
+                          aria-pressed={personalNotesPreferences.showQuickAccess}
+                          className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                          data-testid="personal-notes-quick-access-toggle"
+                          onClick={() => setQuickAccessVisible(!personalNotesPreferences.showQuickAccess)}
+                          type="button"
+                        >
+                          <span
+                            className={
+                              personalNotesPreferences.showQuickAccess
+                                ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                : "admin-motion-toggle__knob"
+                            }
+                          />
+                          <span className="sr-only">Toggle Personal Notes Quick Access</span>
+                        </button>
+                      </div>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {personalNotesPreferences.showQuickAccess
+                          ? "Quick Access is visible for fast notes, binders, documents, and folders."
+                          : "Quick Access is hidden. Navigation and command palette access stay available."}
+                      </p>
+                    </section>
+                  </SettingsPanel>
+                ) : null}
+
+                {showPerformanceSettings ? (
+                  <SettingsPanel
+                    description="Keep the app responsive and control enhanced visuals."
+                    icon={<Gauge className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current.performance = node;
+                    }}
+                    testId="app-settings-section-performance"
+                    title="Performance"
+                  >
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="performance-mode-section"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            <Sparkles className="size-4 text-cyan-300" />
+                            Enhanced Visuals
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Adds richer motion, shadows, and visual effects. Turn off for the fastest study
+                            and whiteboard experience.
+                          </p>
+                        </div>
+                        <button
+                          aria-label="Enhanced Visuals"
+                          aria-pressed={enhancedModeRequested}
+                          className="admin-motion-toggle performance-mode-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                          data-testid="performance-mode-toggle"
+                          onClick={() =>
+                            performanceMode.setEnhancedModeEnabled(!performanceMode.enhancedModeEnabled)
+                          }
+                          type="button"
+                        >
+                          <span
+                            className={
+                              enhancedModeRequested
+                                ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                : "admin-motion-toggle__knob"
+                            }
+                          />
+                          <span className="sr-only">Toggle Enhanced Visuals</span>
+                        </button>
+                      </div>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {effectivePerformanceMode
+                          ? "Performance Mode active. Whiteboard menus, drawing, and study panels prioritize speed."
+                          : "Enhanced Visuals active. Richer motion and shadows are enabled while core study tools stay usable."}
+                      </p>
+                    </section>
+                  </SettingsPanel>
+                ) : null}
+
+                {showBetaFeaturesSettings ? (
+                  <SettingsPanel
+                    description="Preview the single BinderNotes QA cleanup switch before it becomes default."
+                    icon={<Sparkles className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current["beta-features"] = node;
+                    }}
+                    testId="app-settings-section-beta-features"
+                    title="Beta Features"
+                  >
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="beta-features-section"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            <Sparkles className="size-4 text-cyan-300" />
+                            Revamp Beta
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Turns on the BinderNotes QA revamp: cleaner study layouts, faster tools, safer
+                            whiteboard flow, improved notes/save states, better search, and calmer student
+                            study surfaces.
+                          </p>
+                        </div>
+                        <button
+                          aria-label="Toggle Revamp Beta"
+                          aria-pressed={betaFeatures.revampBetaEnabled}
+                          className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                          data-testid="revamp-beta-toggle"
+                          onClick={() =>
+                            betaFeatures.setBetaFeatureFlag("revampBeta", !betaFeatures.revampBetaEnabled)
+                          }
+                          type="button"
+                        >
+                          <span
+                            className={
+                              betaFeatures.revampBetaEnabled
+                                ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                : "admin-motion-toggle__knob"
+                            }
+                          />
+                          <span className="sr-only">Toggle Revamp Beta</span>
+                        </button>
+                      </div>
+                      <p className="mt-2 rounded-md border border-border/70 bg-secondary/45 px-2 py-1.5 text-xs leading-5 text-muted-foreground">
+                        {betaFeatures.revampBetaEnabled
+                          ? "Revamp Beta is on. The QA cleanup gate is active for study layouts, tools, notes, search, and performance experiments."
+                          : "Keep this off for current production behavior. Turn it on to test the BinderNotes QA cleanup locally."}
+                      </p>
+                    </section>
+                    <section aria-label="Beta feature gates" className="app-beta-feature-list">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Feature gates
+                      </p>
+                      {betaFeatureGroups.map((group) => (
+                        <section
+                          aria-label={group.label}
+                          className="mt-3 grid gap-2"
+                          data-beta-feature-group={group.id}
+                          data-testid={`beta-feature-group-${group.id}`}
+                          key={group.id}
+                        >
+                          <div>
+                            <p className="text-sm font-semibold">{group.label}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              {group.description}
+                            </p>
+                          </div>
+                          {group.flagKeys.map((flagKey) => {
+                            const flag = betaFeatureFlagDefinitions.find(
+                              (candidate) => candidate.key === flagKey,
+                            );
+                            if (!flag) {
+                              return null;
+                            }
+                            const active = betaFeatures.isFeatureEnabled(flag.key);
+                            return (
+                              <article
+                                className="rounded-lg border border-border/80 bg-secondary/25 p-3"
+                                data-beta-flag-active={active ? "on" : "off"}
+                                data-testid={`beta-flag-${flag.key}`}
+                                key={flag.key}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold">{flag.label}</p>
+                                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                      {flag.description}
+                                    </p>
+                                  </div>
+                                  <button
+                                    aria-label={`Toggle ${flag.label}`}
+                                    aria-pressed={active}
+                                    className="admin-motion-toggle rounded-full border border-border bg-background p-1 text-xs font-semibold"
+                                    data-testid={`beta-flag-toggle-${flag.key}`}
+                                    onClick={() => betaFeatures.setBetaFeatureFlag(flag.key, !active)}
+                                    type="button"
+                                  >
+                                    <span
+                                      className={
+                                        active
+                                          ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                          : "admin-motion-toggle__knob"
+                                      }
+                                    />
+                                    <span className="sr-only">Toggle {flag.label}</span>
+                                  </button>
+                                </div>
+                                <div className="mt-2 flex items-center gap-2 text-xs leading-5 text-muted-foreground">
+                                  <Badge variant={active ? "default" : "outline"}>
+                                    {active ? "On" : "Off"}
+                                  </Badge>
+                                  <span>
+                                    {active
+                                      ? flag.key === "revampBeta"
+                                        ? "Active. All BN-QA-003 through BN-QA-020 cleanup work should check this one gate."
+                                        : "Active for this account. Future work can check this flag before changing behavior."
+                                      : "Off by default. Current production behavior stays unchanged while this is off."}
+                                  </span>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </section>
+                      ))}
+                    </section>
+                    <section className="app-beta-feature-list" aria-label="Revamp Beta QA issue map">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        QA issue map
+                      </p>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        BN-QA-001 and BN-QA-002 are role-verification only because the QA run used an admin
+                        account: {roleVerificationQaIssues.join(", ")}.
+                      </p>
+                      <ul>
+                        {Object.entries(revampBetaQaIssueMap).map(([id, issue]) => (
+                          <li key={id}>
+                            <strong>{id}</strong> {issue.area}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                    <section className="app-beta-feature-list" aria-label="Current beta feature previews">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Current preview coverage
+                      </p>
+                      <ul>
+                        <li>Cleaner study layouts and Split Study cleanup</li>
+                        <li>Faster math, Desmos, whiteboard, and panel switching experiments</li>
+                        <li>
+                          Improved notes/save clarity, settings search, dashboard states, and formula feedback
+                        </li>
+                        <li>
+                          Calmer student-facing study surfaces without removing admin controls for admin
+                          accounts
+                        </li>
+                      </ul>
+                    </section>
+                    {betaFeatures.betaFeaturesEnabled ? (
+                      <section className="app-beta-active-preview" data-testid="beta-features-active-preview">
+                        <span>Beta</span>
+                        <div>
+                          <strong>Revamp Beta is active for this account.</strong>
+                          <p>
+                            Future QA cleanup work should use the single Revamp Beta gate instead of adding
+                            more settings.
+                          </p>
+                        </div>
+                      </section>
+                    ) : null}
+                    <p className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100">
+                      Revamp Beta may change. Safe bug fixes, auth safety, and demo-account guards should
+                      never be hidden behind beta.
+                    </p>
+                  </SettingsPanel>
+                ) : null}
+
+                {showAdminMotionSettings ? (
+                  <SettingsPanel
+                    description="Admin-only motion, color, and page transition controls."
+                    icon={<Sparkles className="size-4" />}
+                    sectionRef={(node) => {
+                      settingsSectionRefs.current["admin-motion"] = node;
+                    }}
+                    testId="app-settings-section-admin-motion"
+                    title="Admin Motion Lab"
+                  >
+                    <section
+                      className="rounded-lg border border-border/80 p-3"
+                      data-testid="admin-motion-lab"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold">
@@ -213,7 +1188,13 @@ export function AppShell() {
                           onClick={() => updateSettings({ enabled: !settings.enabled })}
                           type="button"
                         >
-                          <span className={settings.enabled ? "admin-motion-toggle__knob admin-motion-toggle__knob--on" : "admin-motion-toggle__knob"} />
+                          <span
+                            className={
+                              settings.enabled
+                                ? "admin-motion-toggle__knob admin-motion-toggle__knob--on"
+                                : "admin-motion-toggle__knob"
+                            }
+                          />
                           <span className="sr-only">Enable premium animations</span>
                         </button>
                       </div>
@@ -225,7 +1206,9 @@ export function AppShell() {
                       <div className="mt-3 grid gap-2">
                         <AdminMotionSelect
                           label="Motion intensity"
-                          onChange={(value) => updateSettings({ intensity: value as typeof settings.intensity })}
+                          onChange={(value) =>
+                            updateSettings({ intensity: value as typeof settings.intensity })
+                          }
                           testId="admin-motion-intensity"
                           value={settings.intensity}
                           values={["subtle", "full", "party"]}
@@ -239,14 +1222,18 @@ export function AppShell() {
                         />
                         <AdminMotionSelect
                           label="Premium color effects"
-                          onChange={(value) => updateSettings({ colorMode: value as typeof settings.colorMode })}
+                          onChange={(value) =>
+                            updateSettings({ colorMode: value as typeof settings.colorMode })
+                          }
                           testId="admin-premium-color-mode"
                           value={settings.colorMode}
                           values={["off", "soft-glow", "gradient", "neon-lab"]}
                         />
                         <AdminMotionSelect
                           label="Page transition"
-                          onChange={(value) => updateSettings({ pageTransition: value as typeof settings.pageTransition })}
+                          onChange={(value) =>
+                            updateSettings({ pageTransition: value as typeof settings.pageTransition })
+                          }
                           testId="admin-page-transition"
                           value={settings.pageTransition}
                           values={["off", "soft-land", "slide-pop", "drop-in"]}
@@ -264,22 +1251,51 @@ export function AppShell() {
                         Reset motion settings
                       </Button>
                     </section>
-                    </>
-                  ) : null}
-                </div>
-              ) : null}
+                  </SettingsPanel>
+                ) : null}
+
+                {!hasSettingsResults ? (
+                  <div className="app-settings-empty" data-testid="app-settings-empty">
+                    <Search className="size-5" />
+                    <strong>No settings found</strong>
+                    <p>Try theme, dashboard, tutorial, quick access, performance, or motion.</p>
+                  </div>
+                ) : null}
+              </div>
             </div>
-            <Button onClick={logout} type="button" variant="ghost">
-              <LogOut data-icon="inline-start" />
-              <span className="hidden sm:inline">Log out</span>
-            </Button>
-          </div>
+          </section>
         </div>
-      </header>
-      <main className="app-route-transition-shell" data-route-transition-active={routeLanding ? "true" : "false"}>
-        <Outlet />
-      </main>
+      ) : null}
     </div>
+  );
+}
+
+function SettingsPanel({
+  children,
+  description,
+  icon,
+  sectionRef,
+  testId,
+  title,
+}: {
+  children: ReactNode;
+  description: string;
+  icon: ReactNode;
+  sectionRef?: (node: HTMLElement | null) => void;
+  testId: string;
+  title: string;
+}) {
+  return (
+    <section className="app-settings-panel" data-testid={testId} ref={sectionRef}>
+      <div className="app-settings-panel__heading">
+        <span>{icon}</span>
+        <div>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+      </div>
+      <div className="app-settings-panel__content">{children}</div>
+    </section>
   );
 }
 
@@ -315,15 +1331,7 @@ function AdminMotionSelect({
   );
 }
 
-function NavItem({
-  children,
-  icon,
-  to,
-}: {
-  children: ReactNode;
-  icon: ReactNode;
-  to: string;
-}) {
+function NavItem({ children, icon, to }: { children: ReactNode; icon: ReactNode; to: string }) {
   return (
     <NavLink
       className={({ isActive }) =>

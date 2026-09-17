@@ -13,4 +13,14 @@ describe("auth hydration helpers", () => {
     expect(shouldRefreshProfile("SIGNED_IN")).toBe(true);
     expect(shouldRefreshProfile("USER_UPDATED")).toBe(true);
   });
+
+  it("keeps same-user sign-in broadcasts off the full-page loading path", () => {
+    expect(
+      shouldBlockAuthHydration("SIGNED_IN", {
+        currentUserId: "user-1",
+        hasProfile: true,
+        nextUserId: "user-1",
+      }),
+    ).toBe(false);
+  });
 });

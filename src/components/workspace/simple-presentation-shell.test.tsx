@@ -95,10 +95,10 @@ describe("SimplePresentationShell", () => {
     expect(screen.getByTestId("simple-presentation-shell")).toBeTruthy();
     expect(screen.getByTestId("simple-primary-module")).toBeTruthy();
     expect(screen.getByTestId("simple-lesson-nav")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe(
-      "/dashboard",
+    expect(screen.getByRole("link", { name: "Workspace home" }).getAttribute("href")).toBe("/dashboard");
+    expect((screen.getByRole("combobox", { name: "Study surface" }) as HTMLSelectElement).value).toBe(
+      "match",
     );
-    expect((screen.getByRole("combobox", { name: "Study surface" }) as HTMLSelectElement).value).toBe("match");
     expect(container.querySelector(".workspace-canvas")).toBeNull();
     expect(screen.queryByText(/Drag windows/i)).toBeNull();
   });
@@ -156,7 +156,7 @@ describe("SimplePresentationShell", () => {
     expect(screen.getAllByText("Augustus receives title").length).toBeGreaterThan(0);
   });
 
-  it("renders a math binder in simple presentation mode", () => {
+  it("renders a math binder in simple presentation mode", async () => {
     const preferences = {
       ...createDefaultWorkspacePreferences("user-1", "binder-1"),
       simple: {
@@ -177,7 +177,7 @@ describe("SimplePresentationShell", () => {
     );
 
     expect(screen.getByText("Formula, graph, notes")).toBeTruthy();
-    expect(screen.getAllByText("Slope formula").length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Slope formula")).length).toBeGreaterThan(0);
   });
 
   it("lets simple view change the study surface without opening the settings drawer", () => {
@@ -238,11 +238,13 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Read the source, work the example, and keep your own explanation beside it.")).toBeTruthy();
+    expect(
+      screen.getByText("Read the source, work the example, and keep your own explanation beside it."),
+    ).toBeTruthy();
     expect(screen.getByText("Progress")).toBeTruthy();
-    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
-      "true",
-    );
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space"),
+    ).toBe("true");
 
     rerender(
       <MemoryRouter>
@@ -255,20 +257,47 @@ describe("SimplePresentationShell", () => {
       </MemoryRouter>,
     );
 
-    expect(container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space")).toBe(
-      "false",
-    );
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-maximize-module-space"),
+    ).toBe("false");
     expect(screen.getByRole("link", { name: "Workspace home" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Study surface" })).toBeTruthy();
     expect(screen.getByText("Reading")).toBeTruthy();
     expect(screen.getByText("Highlights")).toBeTruthy();
   });
+
+  it("uses Student Calm Mode to remove duplicate simple Settings and Focus controls while keeping study helpers useful", async () => {
+    const onSendSelectionToNotes = vi.fn();
+    const preferences = createDefaultWorkspacePreferences("user-1", "binder-1");
+
+    const { container } = render(
+      <MemoryRouter>
+        <SimplePresentationShell
+          context={{
+            ...createContext(),
+            onSendSelectionToNotes,
+          }}
+          onChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+          preferences={preferences}
+          studentCalmMode
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      container.querySelector(".simple-presentation-shell")?.getAttribute("data-student-calm-mode"),
+    ).toBe("true");
+    expect(screen.queryByRole("button", { name: /^Settings$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Focus$/i })).toBeNull();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Send formula to notes/i }));
+
+    expect(onSendSelectionToNotes).toHaveBeenCalledWith("m=\\frac{y_2-y_1}{x_2-x_1}");
+  });
 });
 
-function createContext(options?: {
-  binder?: Binder;
-  historyEnabled?: boolean;
-}): WorkspaceModuleContext {
+function createContext(options?: { binder?: Binder; historyEnabled?: boolean }): WorkspaceModuleContext {
   const historyEvent: HistoryEventTemplate = {
     id: "event-1",
     suite_template_id: "suite-history",

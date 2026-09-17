@@ -10,8 +10,20 @@ describe("whiteboard contrast styles", () => {
     expect(css).toContain("--color-primary:");
   });
 
+  it("keeps Excalidraw drawing toolbar above whiteboard module windows", () => {
+    expect(css).toContain("--whiteboard-module-layer: 55");
+    expect(css).toContain("--whiteboard-module-active-layer: 80");
+    expect(css).toContain("--whiteboard-toolbar-layer: 120");
+    expect(css).toContain('[data-whiteboard-window-layer="modules"]');
+    expect(css).toContain('.whiteboard-excalidraw-host[data-board-toolbar-layer="true"] .excalidraw');
+    expect(css).toMatch(/--zIndex-layerUI:\s*var\(--whiteboard-toolbar-layer\)/);
+  });
+
   it("keeps whiteboard module cards opaque and tokenized instead of gray glass", () => {
-    const cardBlock = css.slice(css.indexOf(".whiteboard-module-card {"), css.indexOf(".bindernotes-whiteboard-lab .excalidraw"));
+    const cardBlock = css.slice(
+      css.indexOf(".whiteboard-module-card {"),
+      css.indexOf(".bindernotes-whiteboard-lab .excalidraw"),
+    );
 
     expect(cardBlock).toContain("background-color: hsl(var(--card))");
     expect(cardBlock).toContain("color: hsl(var(--card-foreground))");
@@ -20,8 +32,8 @@ describe("whiteboard contrast styles", () => {
   });
 
   it("gives selected card chrome a solid tokenized active state", () => {
-    expect(css).toContain('background: hsl(var(--accent))');
-    expect(css).toContain('color: hsl(var(--accent-foreground))');
+    expect(css).toContain("background: hsl(var(--accent))");
+    expect(css).toContain("color: hsl(var(--accent-foreground))");
   });
 
   it("uses opaque high-contrast control panels for the whiteboard toolbox", () => {
@@ -32,6 +44,6 @@ describe("whiteboard contrast styles", () => {
     expect(css).toContain(".whiteboard-nav-button");
     expect(css).toContain("whiteboard-nav-sheen");
     expect(css).toContain(".whiteboard-toolbox-panel");
-    expect(css).toContain(".whiteboard-save-status[data-status=\"offline-draft\"]");
+    expect(css).toContain('.whiteboard-save-status[data-status="offline-draft"]');
   });
 });

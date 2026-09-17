@@ -36,7 +36,9 @@ describe("maximize module space styles", () => {
     expect(styles).toMatch(
       /\.simple-presentation-shell\[data-maximize-module-space="true"\] \.simple-presentation-stats\s*{[^}]*display:\s*none/s,
     );
-    expect(styles).not.toContain('.simple-presentation-shell[data-maximize-module-space="false"] .simple-presentation-stats');
+    expect(styles).not.toContain(
+      '.simple-presentation-shell[data-maximize-module-space="false"] .simple-presentation-stats',
+    );
   });
 
   it("lets Split Study private notes fill the available vertical working space", () => {

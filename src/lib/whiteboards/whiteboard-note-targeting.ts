@@ -39,7 +39,10 @@ export type AnnotationOrigin =
       point: WhiteboardPoint;
     };
 
-function centerOfScreenRect(moduleElement: WhiteboardModuleElement, viewportTransform: WhiteboardViewportTransform) {
+function centerOfScreenRect(
+  moduleElement: WhiteboardModuleElement,
+  viewportTransform: WhiteboardViewportTransform,
+) {
   const rect = getWhiteboardModuleScreenRect(moduleElement, viewportTransform);
   return {
     x: rect.x + rect.width / 2,
@@ -64,8 +67,12 @@ export function rankPrivateNotesTargets(
     origin.kind === "screen"
       ? origin.point
       : {
-          x: (origin.point.x + viewportTransform.scrollX) * viewportTransform.zoom + (viewportTransform.offsetLeft ?? 0),
-          y: (origin.point.y + viewportTransform.scrollY) * viewportTransform.zoom + (viewportTransform.offsetTop ?? 0),
+          x:
+            (origin.point.x + viewportTransform.scrollX) * viewportTransform.zoom +
+            (viewportTransform.offsetLeft ?? 0),
+          y:
+            (origin.point.y + viewportTransform.scrollY) * viewportTransform.zoom +
+            (viewportTransform.offsetTop ?? 0),
         };
 
   return notesModules
@@ -93,9 +100,7 @@ export function rankPrivateNotesTargets(
     });
 }
 
-export function getAnnotationOriginFromModule(
-  moduleElement: WhiteboardModuleElement,
-): AnnotationOrigin {
+export function getAnnotationOriginFromModule(moduleElement: WhiteboardModuleElement): AnnotationOrigin {
   return {
     kind: "board",
     point: {
@@ -149,7 +154,9 @@ export function resolvePrivateNotesTarget({
   if (first && second && Math.abs(first.distance - second.distance) < 24) {
     if (
       lastUsedTargetId &&
-      notesModules.some((moduleElement) => moduleElement.id === lastUsedTargetId && moduleElement.mode !== "collapsed")
+      notesModules.some(
+        (moduleElement) => moduleElement.id === lastUsedTargetId && moduleElement.mode !== "collapsed",
+      )
     ) {
       return {
         status: "target-found",

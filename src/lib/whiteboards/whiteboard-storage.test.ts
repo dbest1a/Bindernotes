@@ -3,8 +3,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createLocalWhiteboard,
+  createScratchWhiteboard,
   listLocalWhiteboards,
   loadLocalWhiteboard,
+  saveWhiteboard,
   saveLocalWhiteboard,
 } from "@/lib/whiteboards/whiteboard-storage";
 import {
@@ -165,13 +167,36 @@ describe("whiteboard local review storage", () => {
     expect(() => saveLocalWhiteboard(board({ id: "board-over-cap" }))).toThrow(/3 whiteboards/i);
   });
 
+  it("creates safe scratch boards at the cap without writing or archiving saved boards", async () => {
+    for (let index = 0; index < MAX_WHITEBOARDS_PER_USER; index += 1) {
+      saveLocalWhiteboard(board({ id: `board-${index}` }));
+    }
+
+    const scratch = createScratchWhiteboard(scope, { title: "Scratch board" });
+    const result = await saveWhiteboard(scratch, { backend: "supabase" });
+    const savedBoards = listLocalWhiteboards(scope);
+
+    expect(result.status).toBe("local-draft");
+    expect(result.message).toMatch(/Scratch board - not saved yet/i);
+    expect(savedBoards.map((candidate) => candidate.id)).toEqual(
+      expect.arrayContaining(["board-0", "board-1", "board-2"]),
+    );
+    expect(savedBoards).toHaveLength(3);
+    expect(savedBoards.some((candidate) => candidate.id === scratch.id)).toBe(false);
+    expect(savedBoards.every((candidate) => candidate.archivedAt === null)).toBe(true);
+  });
+
   it("warns near the object limit and rejects hard-cap scenes", () => {
     const warningBoard = board({
-      scene: { elements: Array.from({ length: MAX_OBJECTS_WARNING }, (_, index) => ({ id: `shape-${index}` })) },
+      scene: {
+        elements: Array.from({ length: MAX_OBJECTS_WARNING }, (_, index) => ({ id: `shape-${index}` })),
+      },
       modules: [],
     });
     const hardCapBoard = board({
-      scene: { elements: Array.from({ length: MAX_OBJECTS_HARD_CAP + 1 }, (_, index) => ({ id: `shape-${index}` })) },
+      scene: {
+        elements: Array.from({ length: MAX_OBJECTS_HARD_CAP + 1 }, (_, index) => ({ id: `shape-${index}` })),
+      },
       modules: [],
     });
 
@@ -192,7 +217,9 @@ describe("whiteboard local review storage", () => {
         ],
       }),
     );
-    const raw = window.localStorage.getItem("bindernotes:whiteboards:user-1:binder-jacob-math-notes:lesson-jacob-calculus-limits");
+    const raw = window.localStorage.getItem(
+      "bindernotes:whiteboards:user-1:binder-jacob-math-notes:lesson-jacob-calculus-limits",
+    );
 
     expect(saved.modules[0]).not.toHaveProperty("content");
     expect(saved.modules[0]).not.toHaveProperty("noteContent");

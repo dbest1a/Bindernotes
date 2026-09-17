@@ -2,8 +2,13 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveQueue } from "@/lib/save-queue";
 import { MathWhiteboardLabPage } from "@/pages/math-whiteboard-lab-page";
+import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
+
+beforeEach(() => saveQueue.setAccount("user-1"));
+afterEach(() => saveQueue.setAccount(null));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -70,7 +75,7 @@ vi.mock("@/hooks/use-math-workspace", () => ({
 }));
 
 vi.mock("@/components/whiteboard/whiteboard-module", () => ({
-  WhiteboardModule: ({ context }: { context: any }) => (
+  WhiteboardModule: ({ context }: { context: WorkspaceModuleContext }) => (
     <div>
       <span data-testid="highlight-count">{context.highlights.length}</span>
       <span data-testid="comment-count">{context.comments.length}</span>
@@ -83,8 +88,6 @@ vi.mock("@/components/whiteboard/whiteboard-module", () => ({
               text: "Derivative definition",
               startOffset: 3,
               endOffset: 24,
-              binderId: "binder-jacob-math-notes",
-              lessonId: "lesson-jacob-calculus-limits",
             },
             "blue",
           )

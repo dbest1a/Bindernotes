@@ -55,10 +55,7 @@ export function SeedHealthPanel({
                 </p>
                 <h3 className="mt-1 text-base font-semibold">{item.suiteTitle}</h3>
               </div>
-              <Badge
-                className="capitalize"
-                variant={item.status === "healthy" ? "secondary" : "outline"}
-              >
+              <Badge className="capitalize" variant={item.status === "healthy" ? "secondary" : "outline"}>
                 {item.status}
               </Badge>
             </div>
@@ -85,7 +82,8 @@ export function SeedHealthPanel({
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-100/70 p-3 text-sm text-amber-950 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                 <p>
-                  Some suite content is still loading in this environment. You can keep studying while setup finishes.
+                  Some suite content is still loading in this environment. You can keep studying while setup
+                  finishes.
                 </p>
               </div>
             ) : null}
@@ -99,9 +97,7 @@ export function SeedHealthPanel({
 function FactRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border/60 bg-card/88 px-3 py-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className="mt-1 leading-6 text-foreground">{value}</p>
     </div>
   );

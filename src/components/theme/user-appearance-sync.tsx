@@ -1,10 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/hooks/use-theme";
-import {
-  getUserAppearanceSettings,
-  saveUserAppearanceSettings,
-} from "@/services/appearance-service";
+import { getUserAppearanceSettings, saveUserAppearanceSettings } from "@/services/appearance-service";
 
 export function UserAppearanceSync() {
   const { user } = useAuth();

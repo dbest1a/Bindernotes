@@ -50,9 +50,7 @@ describe("binder-service user data write safety", () => {
     ).rejects.toThrow(expected);
 
     await expect(
-      upsertWorkspacePreferencesRecord(
-        createDefaultWorkspacePreferences("user-1", "binder-1"),
-      ),
+      upsertWorkspacePreferencesRecord(createDefaultWorkspacePreferences("user-1", "binder-1")),
     ).rejects.toThrow(expected);
   });
 });

@@ -11,6 +11,8 @@ const forbiddenText = [
   "Admin demo",
 ];
 
+const forbiddenMarkers = ['data-auth-config-missing="true"'];
+
 const requiredLiveText = [
   "Open Binder Notes",
   "Login",
@@ -57,7 +59,10 @@ async function verifyLiveAuthPage(url) {
 
   const dom = renderDomWithBrowser(browserPath, url);
   const normalizedDom = dom.replace(/\s+/g, " ");
-  const blocked = forbiddenText.filter((text) => normalizedDom.includes(text));
+  const blocked = [
+    ...forbiddenText.filter((text) => normalizedDom.includes(text)),
+    ...forbiddenMarkers.filter((marker) => normalizedDom.includes(marker)),
+  ];
   if (blocked.length > 0) {
     throw new Error(`Auth verification failed: live page contains blocked text: ${blocked.join(", ")}`);
   }

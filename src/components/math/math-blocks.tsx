@@ -1,5 +1,7 @@
+import { useState } from "react";
 import katex from "katex";
-import { ArrowUpRight, FunctionSquare, Link2, Plus, Trash2 } from "lucide-react";
+import "katex/dist/katex.min.css";
+import { ArrowUpRight, Check, Clipboard, FunctionSquare, Link2, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +15,7 @@ export function MathBlocks({
   editable = false,
   onChange,
   onJumpToSource,
+  onSendFormulaToNotes,
   onOpenGraphBlock,
   onSendToGraph,
 }: {
@@ -20,13 +23,12 @@ export function MathBlocks({
   editable?: boolean;
   onChange?: (blocks: MathBlock[]) => void;
   onJumpToSource?: (block: MathBlock) => void;
+  onSendFormulaToNotes?: (latex: string) => void;
   onOpenGraphBlock?: (block: GraphMathBlock) => void;
   onSendToGraph?: (expression: string) => void;
 }) {
   const updateBlock = (id: string, patch: Partial<MathBlock>) => {
-    onChange?.(
-      blocks.map((block) => (block.id === id ? ({ ...block, ...patch } as MathBlock) : block)),
-    );
+    onChange?.(blocks.map((block) => (block.id === id ? ({ ...block, ...patch } as MathBlock) : block)));
   };
 
   const removeBlock = (id: string) => {
@@ -88,7 +90,12 @@ export function MathBlocks({
           </div>
 
           {block.type === "latex" ? (
-            <LatexBlock block={block} editable={editable} onChange={updateBlock} />
+            <LatexBlock
+              block={block}
+              editable={editable}
+              onChange={updateBlock}
+              onSendFormulaToNotes={onSendFormulaToNotes}
+            />
           ) : (
             <GraphBlock
               block={block}
@@ -140,10 +147,7 @@ function BlockHeader({
         />
         <Input
           onChange={(event) =>
-            onUpdate(
-              block.id,
-              { sourceHeading: event.target.value || null } as Partial<MathBlock>,
-            )
+            onUpdate(block.id, { sourceHeading: event.target.value || null } as Partial<MathBlock>)
           }
           placeholder="Linked lesson heading"
           value={block.sourceHeading ?? ""}
@@ -182,15 +186,30 @@ function LatexBlock({
   block,
   editable,
   onChange,
+  onSendFormulaToNotes,
 }: {
   block: Extract<MathBlock, { type: "latex" }>;
   editable: boolean;
   onChange: (id: string, patch: Partial<MathBlock>) => void;
+  onSendFormulaToNotes?: (latex: string) => void;
 }) {
   const html = katex.renderToString(block.latex, {
     throwOnError: false,
     displayMode: true,
   });
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copyFormula = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard unavailable.");
+      }
+      await navigator.clipboard.writeText(block.latex);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2400);
+    } catch {
+      setCopyState("failed");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -205,9 +224,40 @@ function LatexBlock({
         <p className="text-sm leading-6 text-muted-foreground">{block.description}</p>
       ) : null}
       <div
-        className="overflow-x-auto rounded-xl bg-background p-4"
+        className="math-formula-display overflow-x-auto rounded-xl bg-background p-4"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          aria-label={copyState === "copied" ? "Copied formula" : "Copy formula"}
+          onClick={copyFormula}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {copyState === "copied" ? (
+            <Check data-icon="inline-start" />
+          ) : (
+            <Clipboard data-icon="inline-start" />
+          )}
+          {copyState === "copied" ? "Copied" : "Copy formula"}
+        </Button>
+        {onSendFormulaToNotes ? (
+          <Button
+            aria-label="Send formula to notes"
+            onClick={() => onSendFormulaToNotes(block.latex)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <Send data-icon="inline-start" />
+            Send formula to notes
+          </Button>
+        ) : null}
+      </div>
+      <p className="sr-only" aria-live="polite">
+        {copyState === "copied" ? "Copied formula" : copyState === "failed" ? "Formula copy failed" : ""}
+      </p>
     </div>
   );
 }
@@ -285,6 +335,13 @@ function GraphBlock({
               Open in Desmos
             </Button>
           ) : null}
+        </div>
+        <div className="math-graph-card-preview mt-4" aria-hidden="true">
+          <svg viewBox="0 0 240 92">
+            <path d="M12 74H228" />
+            <path d="M40 12V84" />
+            <path d="M30 68C64 46 86 40 112 44C146 50 164 26 210 18" />
+          </svg>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {block.expressions.map((expression) => (

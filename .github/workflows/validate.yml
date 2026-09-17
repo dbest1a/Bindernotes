@@ -1,0 +1,64 @@
+name: Validate BinderNotes
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:functions
+      - run: npm test
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: local-validation-placeholder
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: local-validation-placeholder
+          VITE_RELEASE_SHA: ${{ github.sha }}
+      - run: npm run scan:build
+      - run: npm audit --audit-level=moderate
+  database:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        baseline: [clean, "0015", "0025", production-observed]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Clean or populated upgrade, real roles, concurrent writes and Auth
+        run: node scripts/ci/supabase-check.mjs '${{ matrix.baseline }}'
+      - name: Install test browser
+        if: matrix.baseline == 'clean'
+        run: npx playwright install --with-deps chromium
+      - name: Authenticated browser integration
+        if: matrix.baseline == 'clean'
+        run: npm run test:e2e
+      - name: Stop disposable services
+        if: always()
+        run: supabase stop --workdir .tmp/ci-supabase --no-backup

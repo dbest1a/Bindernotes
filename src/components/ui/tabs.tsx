@@ -4,7 +4,10 @@ import { cn } from "@/lib/utils";
 export function TabsList({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("inline-flex rounded-lg border border-border/80 bg-secondary/85 p-1 shadow-sm", className)}
+      className={cn(
+        "inline-flex rounded-lg border border-border/80 bg-secondary/85 p-1 shadow-sm",
+        className,
+      )}
       {...props}
     />
   );

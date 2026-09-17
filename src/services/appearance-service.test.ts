@@ -15,10 +15,7 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-import {
-  getUserAppearanceSettings,
-  saveUserAppearanceSettings,
-} from "@/services/appearance-service";
+import { getUserAppearanceSettings, saveUserAppearanceSettings } from "@/services/appearance-service";
 
 describe("appearance service", () => {
   beforeEach(() => {

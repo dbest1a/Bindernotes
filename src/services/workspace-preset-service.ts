@@ -1,8 +1,5 @@
 import { systemSuiteTemplates } from "@/lib/history-suite-seeds";
-import {
-  createMissingSeedError,
-  strictSeedHealthMode,
-} from "@/lib/seed-health";
+import { createMissingSeedError, strictSeedHealthMode } from "@/lib/seed-health";
 import {
   getPresetDefinition,
   registerPresetDefinitions,
@@ -28,27 +25,20 @@ type WorkspacePresetRow = {
 const presetLoadCache = new Map<string, Promise<WorkspacePresetDefinition[]>>();
 
 function suiteUsesSeededWorkspacePresets(suiteTemplateId: string) {
-  return systemSuiteTemplates.some(
-    (suite) => suite.id === suiteTemplateId && suite.history_mode,
-  );
+  return systemSuiteTemplates.some((suite) => suite.id === suiteTemplateId && suite.history_mode);
 }
 
 function getBinderIdForSuiteId(suiteTemplateId: string) {
-  return (
-    systemSuiteTemplates.find((suite) => suite.id === suiteTemplateId)?.id === suiteTemplateId
-      ? {
-          "suite-algebra-foundations": "binder-algebra-foundations",
-          "suite-rise-of-rome": "binder-rise-of-rome",
-          "suite-history-demo": "binder-french-revolution-history-suite",
-        }[suiteTemplateId] ?? null
-      : null
-  );
+  return systemSuiteTemplates.find((suite) => suite.id === suiteTemplateId)?.id === suiteTemplateId
+    ? ({
+        "suite-algebra-foundations": "binder-algebra-foundations",
+        "suite-rise-of-rome": "binder-rise-of-rome",
+        "suite-history-demo": "binder-french-revolution-history-suite",
+      }[suiteTemplateId] ?? null)
+    : null;
 }
 
-export function buildWorkspacePresetDefinitionsFromRows(
-  suiteTemplateId: string,
-  rows: WorkspacePresetRow[],
-) {
+export function buildWorkspacePresetDefinitionsFromRows(suiteTemplateId: string, rows: WorkspacePresetRow[]) {
   const rowsByPreset = new Map<WorkspacePresetId, WorkspacePresetRow[]>();
   rows.forEach((row) => {
     const current = rowsByPreset.get(row.preset_id) ?? [];
@@ -120,10 +110,7 @@ export async function loadWorkspacePresetDefinitions(input: {
     return [] satisfies WorkspacePresetDefinition[];
   }
 
-  const definitions = buildWorkspacePresetDefinitionsFromRows(
-    input.suiteTemplateId,
-    rows,
-  );
+  const definitions = buildWorkspacePresetDefinitionsFromRows(input.suiteTemplateId, rows);
   registerPresetDefinitions(definitions);
   return definitions;
 }

@@ -53,7 +53,11 @@ export function LogoMark({ className }: { className?: string }) {
 
         <rect x="5" y="5" width="54" height="54" rx="16.5" fill={`url(#${markFillId})`} />
         <rect x="5.5" y="5.5" width="53" height="53" rx="16" stroke="white" strokeOpacity="0.2" />
-        <path d="M15 5h12.8v54H15A16.5 16.5 0 0 1 5 43.9V21.1A16.5 16.5 0 0 1 15 5Z" fill={`url(#${spineFillId})`} opacity="0.96" />
+        <path
+          d="M15 5h12.8v54H15A16.5 16.5 0 0 1 5 43.9V21.1A16.5 16.5 0 0 1 15 5Z"
+          fill={`url(#${spineFillId})`}
+          opacity="0.96"
+        />
 
         <path
           d="M27.2 9.4h19.6c6.8 0 11.7 4.9 11.7 11.8v21.1c0 9.4-6.8 16.3-16.2 16.3H27.2a8.9 8.9 0 0 1-8.9-8.9V18.3a8.9 8.9 0 0 1 8.9-8.9Z"
@@ -67,12 +71,27 @@ export function LogoMark({ className }: { className?: string }) {
           <path d="M28.8 40.2h16.9" stroke={`url(#${lineFillId})`} strokeLinecap="round" strokeWidth="3.2" />
           <path d="M28.8 48.4h11.5" stroke={`url(#${lineFillId})`} strokeLinecap="round" strokeWidth="3.2" />
 
-          <path d="M46.1 22.6c1.7-.6 2.9-1.8 3.5-3.5.6 1.7 1.7 2.9 3.5 3.5-1.8.6-2.9 1.7-3.5 3.5-.6-1.8-1.8-2.9-3.5-3.5Z" fill="#6D28D9" />
-          <path d="M47.9 32.5c.9-.3 1.5-.9 1.8-1.8.3.9.9 1.5 1.8 1.8-.9.3-1.5.9-1.8 1.8-.3-.9-.9-1.5-1.8-1.8Z" fill="#7C3AED" />
+          <path
+            d="M46.1 22.6c1.7-.6 2.9-1.8 3.5-3.5.6 1.7 1.7 2.9 3.5 3.5-1.8.6-2.9 1.7-3.5 3.5-.6-1.8-1.8-2.9-3.5-3.5Z"
+            fill="#6D28D9"
+          />
+          <path
+            d="M47.9 32.5c.9-.3 1.5-.9 1.8-1.8.3.9.9 1.5 1.8 1.8-.9.3-1.5.9-1.8 1.8-.3-.9-.9-1.5-1.8-1.8Z"
+            fill="#7C3AED"
+          />
         </g>
 
-        <path d="M39.1 58.3c6.2-.9 11.4-6 12.1-12.6l.8-7.9h-7.9a8.2 8.2 0 0 0-8.2 8.2v12c1 .2 2 .3 3.2.3Z" fill={`url(#${foldFillId})`} />
-        <path d="M38.4 56.8c3.4-.7 6.7-2.8 9-5.8" stroke="white" strokeLinecap="round" strokeOpacity="0.9" strokeWidth="2.2" />
+        <path
+          d="M39.1 58.3c6.2-.9 11.4-6 12.1-12.6l.8-7.9h-7.9a8.2 8.2 0 0 0-8.2 8.2v12c1 .2 2 .3 3.2.3Z"
+          fill={`url(#${foldFillId})`}
+        />
+        <path
+          d="M38.4 56.8c3.4-.7 6.7-2.8 9-5.8"
+          stroke="white"
+          strokeLinecap="round"
+          strokeOpacity="0.9"
+          strokeWidth="2.2"
+        />
 
         <path d="M10.3 22h12.4" stroke="white" strokeLinecap="round" strokeWidth="5" />
         <path d="M10.3 22h12.4" stroke="#0B49CE" strokeLinecap="round" strokeWidth="2.2" />

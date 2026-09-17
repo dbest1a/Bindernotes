@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Calculator,
@@ -14,8 +14,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
-import { MathBlocks } from "@/components/math/math-blocks";
+import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,24 +31,27 @@ import {
 } from "@/components/history/history-suite-modules";
 import { formatHistoricalDateLabel } from "@/lib/history-dates";
 import { extractPlainText } from "@/lib/math-detection";
-import {
-  simplePresentationThemeOptions,
-  updateWorkspaceAppearance,
-} from "@/lib/workspace-preferences";
+import { simplePresentationThemeOptions, updateWorkspaceAppearance } from "@/lib/workspace-preferences";
 import { cn } from "@/lib/utils";
 import type { MathBlock, SimplePresentationTheme, WorkspacePreferences } from "@/types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
+
+const LazyMathBlocks = lazy(() =>
+  import("@/components/math/math-blocks").then((module) => ({ default: module.MathBlocks })),
+);
 
 export function SimplePresentationShell({
   context,
   onChange,
   onOpenSettings,
   preferences,
+  studentCalmMode = false,
 }: {
   context: WorkspaceModuleContext;
   preferences: WorkspacePreferences;
   onChange: (preferences: WorkspacePreferences) => void;
   onOpenSettings: () => void;
+  studentCalmMode?: boolean;
 }) {
   const settings = preferences.simple;
   const lessonIndex = Math.max(
@@ -58,12 +60,11 @@ export function SimplePresentationShell({
   );
   const previousLesson = lessonIndex > 0 ? context.lessons[lessonIndex - 1] : null;
   const nextLesson =
-    lessonIndex >= 0 && lessonIndex < context.lessons.length - 1
-      ? context.lessons[lessonIndex + 1]
-      : null;
-  const readingStats = useMemo(() => createReadingStats(context.selectedLesson.content), [
-    context.selectedLesson.content,
-  ]);
+    lessonIndex >= 0 && lessonIndex < context.lessons.length - 1 ? context.lessons[lessonIndex + 1] : null;
+  const readingStats = useMemo(
+    () => createReadingStats(context.selectedLesson.content),
+    [context.selectedLesson.content],
+  );
   const timelineEvents = useMemo(
     () => mergeTimelineEvents(context.history.templateEvents, context.history.events),
     [context.history.events, context.history.templateEvents],
@@ -82,11 +83,15 @@ export function SimplePresentationShell({
     [context.history.mythChecks, context.history.templateMythChecks],
   );
   const mathBlocks = context.selectedLesson.math_blocks;
-  const formulaBlocks = mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> =>
-    block.type === "latex",
+  const formulaBlocks = useMemo(
+    () =>
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "latex" }> => block.type === "latex"),
+    [mathBlocks],
   );
-  const graphBlocks = mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> =>
-    block.type === "graph",
+  const graphBlocks = useMemo(
+    () =>
+      mathBlocks.filter((block): block is Extract<MathBlock, { type: "graph" }> => block.type === "graph"),
+    [mathBlocks],
   );
 
   const setSimple = (patch: Partial<WorkspacePreferences["simple"]>) => {
@@ -115,6 +120,7 @@ export function SimplePresentationShell({
       data-simple-font-size={settings.fontSize}
       data-simple-motion={settings.motion}
       data-simple-reading-width={settings.readingWidth}
+      data-student-calm-mode={studentCalmMode ? "true" : "false"}
       data-simple-theme={settings.theme}
       data-maximize-module-space={preferences.theme.compactMode ? "true" : "false"}
       data-testid="simple-presentation-shell"
@@ -167,19 +173,23 @@ export function SimplePresentationShell({
                       ))}
                     </select>
                   </label>
-                  <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
-                    <Settings2 data-icon="inline-start" />
-                    Settings
-                  </Button>
-                  <Button
-                    onClick={() => setSimple({ focusMode: true })}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Maximize2 data-icon="inline-start" />
-                    Focus
-                  </Button>
+                  {!studentCalmMode ? (
+                    <>
+                      <Button onClick={onOpenSettings} size="sm" type="button" variant="outline">
+                        <Settings2 data-icon="inline-start" />
+                        Settings
+                      </Button>
+                      <Button
+                        onClick={() => setSimple({ focusMode: true })}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Maximize2 data-icon="inline-start" />
+                        Focus
+                      </Button>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
@@ -281,10 +291,7 @@ export function SimplePresentationShell({
                   value={context.noteContent}
                 />
                 <p
-                  className={cn(
-                    "simple-save-note",
-                    context.autosaveStatus === "error" && "text-destructive",
-                  )}
+                  className={cn("simple-save-note", context.autosaveStatus === "error" && "text-destructive")}
                 >
                   {context.noteSaveError ?? context.noteSaveDetail}
                 </p>
@@ -306,6 +313,7 @@ export function SimplePresentationShell({
                     context={context}
                     formulaBlocks={formulaBlocks}
                     graphBlocks={graphBlocks}
+                    studentCalmMode={studentCalmMode}
                   />
                 )}
               </section>
@@ -380,12 +388,7 @@ function HistoryStudyDrawer({
             <Badge variant="outline">{formatHistoricalDateLabel(activeEvent)}</Badge>
           </div>
           <p>{activeEvent.significance || activeEvent.summary}</p>
-          <Button
-            onClick={context.onReplayHistoryTimeline}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
+          <Button onClick={context.onReplayHistoryTimeline} size="sm" type="button" variant="outline">
             <Route data-icon="inline-start" />
             Start timeline
           </Button>
@@ -421,10 +424,12 @@ function MathStudyDrawer({
   context,
   formulaBlocks,
   graphBlocks,
+  studentCalmMode,
 }: {
   context: WorkspaceModuleContext;
   formulaBlocks: Extract<MathBlock, { type: "latex" }>[];
   graphBlocks: Extract<MathBlock, { type: "graph" }>[];
+  studentCalmMode?: boolean;
 }) {
   return (
     <>
@@ -436,19 +441,29 @@ function MathStudyDrawer({
         <Badge variant="secondary">{formulaBlocks.length + graphBlocks.length} blocks</Badge>
       </div>
       {formulaBlocks.length > 0 ? (
-        <div className="simple-reference-card">
+        <div
+          className={cn("simple-reference-card", studentCalmMode && "simple-reference-card--calm-formulas")}
+        >
           <p className="simple-presentation-kicker">Formula cards</p>
-          <MathBlocks blocks={formulaBlocks} onJumpToSource={context.onJumpToMathSource} />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading formula cards...</p>}>
+            <LazyMathBlocks
+              blocks={formulaBlocks}
+              onJumpToSource={context.onJumpToMathSource}
+              onSendFormulaToNotes={context.onSendSelectionToNotes}
+            />
+          </Suspense>
         </div>
       ) : null}
       {graphBlocks.length > 0 ? (
         <div className="simple-reference-card">
           <p className="simple-presentation-kicker">Graphs</p>
-          <MathBlocks
-            blocks={graphBlocks}
-            onOpenGraphBlock={context.onOpenGraphBlock}
-            onSendToGraph={context.mathModules?.pushExpressionToGraph}
-          />
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading graph cards...</p>}>
+            <LazyMathBlocks
+              blocks={graphBlocks}
+              onOpenGraphBlock={context.onOpenGraphBlock}
+              onSendToGraph={context.mathModules?.pushExpressionToGraph}
+            />
+          </Suspense>
         </div>
       ) : (
         <article className="simple-reference-card">
@@ -494,9 +509,7 @@ function SimpleStat({ label, value }: { label: string; value: string }) {
 }
 
 function createReadingStats(content: JSONContent) {
-  const words = extractPlainText(content)
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const words = extractPlainText(content).split(/\s+/).filter(Boolean).length;
 
   return {
     words,

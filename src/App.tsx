@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  Link,
   Navigate,
   Outlet,
   Route,
@@ -9,25 +9,55 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Component, Suspense, lazy, useState, type ErrorInfo, type ReactNode } from "react";
-import { AppShell } from "@/components/layout/app-shell";
-import { AdminMotionRootSync } from "@/hooks/use-admin-motion";
+import { Component, Suspense, lazy, useEffect, type ErrorInfo, type ReactNode } from "react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
-import { ThemeProvider } from "@/components/theme/theme-provider";
-import { UserAppearanceSync } from "@/components/theme/user-appearance-sync";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSyncRecovery } from "@/lib/sync-recovery";
 
+const LazyAppShell = lazy(() =>
+  import("@/components/layout/app-shell").then((module) => ({ default: module.AppShell })),
+);
+const LazyAuthenticatedAppProviders = lazy(() =>
+  import("@/components/system/authenticated-app-providers").then((module) => ({
+    default: module.AuthenticatedAppProviders,
+  })),
+);
+const LazyTutorialPromptHost = lazy(() =>
+  import("@/components/tutorials/tutorial-prompt").then((module) => ({
+    default: module.TutorialPromptHost,
+  })),
+);
 const LandingPage = lazy(() =>
   import("@/pages/landing-page").then((module) => ({ default: module.LandingPage })),
 );
-const AuthPage = lazy(() =>
-  import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })),
+const HomepageBetaPage = lazy(() =>
+  import("@/pages/landing-page").then((module) => ({ default: module.HomepageBetaPage })),
+);
+const OgreDungeonRunnerPage = lazy(() =>
+  import("@/pages/ogre-dungeon-runner-page").then((module) => ({ default: module.OgreDungeonRunnerPage })),
+);
+const AuthPage = lazy(() => import("@/pages/auth-page").then((module) => ({ default: module.AuthPage })));
+const AccountPage = lazy(() =>
+  import("@/pages/account-page").then((module) => ({ default: module.AccountPage })),
+);
+const PasswordRecoveryPage = lazy(() =>
+  import("@/pages/password-recovery-page").then((module) => ({ default: module.PasswordRecoveryPage })),
 );
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })),
+);
+const PersonalNotesPage = lazy(() =>
+  import("@/pages/personal-notes-page").then((module) => ({ default: module.PersonalNotesPage })),
+);
+const AccountDataPage = lazy(() =>
+  import("@/pages/account-data-page").then((module) => ({ default: module.AccountDataPage })),
+);
+const ReviewPage = lazy(() =>
+  import("@/pages/review-page").then((module) => ({ default: module.ReviewPage })),
+);
+const CreatorWorkspacePage = lazy(() =>
+  import("@/pages/creator-workspace-page").then((module) => ({ default: module.CreatorWorkspacePage })),
 );
 const FolderPage = lazy(() =>
   import("@/pages/folder-page").then((module) => ({ default: module.FolderPage })),
@@ -77,55 +107,71 @@ const AdminStudioPage = lazy(() =>
 const PricingPage = lazy(() =>
   import("@/pages/pricing-page").then((module) => ({ default: module.PricingPage })),
 );
+const PricingBetaPage = lazy(() =>
+  import("@/pages/pricing-page").then((module) => ({ default: module.PricingBetaPage })),
+);
 const TutorialPage = lazy(() =>
   import("@/pages/tutorial-page").then((module) => ({ default: module.TutorialPage })),
 );
 
 export function App() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            retry: 1,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-          },
-        },
-      }),
-  );
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <AdminMotionRootSync />
-          <UserAppearanceSync />
-          <SyncRecoveryBridge />
-          <Router>
-            <AppRoutes />
-          </Router>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
   );
 }
 
 function AppRoutes() {
   const location = useLocation();
+  const { validateSession, sessionCheckMessage, user } = useAuth();
+  useEffect(() => {
+    void validateSession?.();
+  }, [location.pathname, location.search, user?.id, validateSession]);
 
   return (
     <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
+      {sessionCheckMessage && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-3 border-b bg-secondary px-4 py-3 text-sm"
+        >
+          <span>{sessionCheckMessage}</span>
+          <Button size="sm" variant="outline" onClick={() => void validateSession()}>
+            Retry session check
+          </Button>
+          <Link className="underline" to={user ? "/account" : "/auth"}>
+            {user ? "Open Account" : "Sign in"}
+          </Link>
+        </div>
+      )}
       <Suspense fallback={<RouteSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/homepage-beta" element={<HomepageBetaPage />} />
+          <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth/recovery" element={<PasswordRecoveryPage />} />
+          <Route path="/account" element={<AccountPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/pricing-beta" element={<PricingBetaPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/math/lab/whiteboard" element={<MathWhiteboardLabPage />} />
-            <Route element={<AppShell />}>
+            <Route element={<LazyAppShell />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/account/data" element={<AccountDataPage />} />
+              <Route path="/notes" element={<PersonalNotesPage />} />
+              <Route path="/notes/:noteId" element={<PersonalNotesPage />} />
+              <Route path="/notes/n/:noteId" element={<PersonalNotesPage />} />
+              <Route path="/notes/binders/:personalBinderId" element={<PersonalNotesPage />} />
+              <Route
+                path="/notes/binders/:personalBinderId/documents/:documentId"
+                element={<PersonalNotesPage />}
+              />
+              <Route path="/review" element={<ReviewPage />} />
+              <Route path="/creator" element={<CreatorWorkspacePage />} />
               <Route path="/folders/:folderId" element={<FolderPage />} />
               <Route path="/binders/:binderId" element={<BinderPage />} />
               <Route path="/math" element={<MathLandingPage />} />
@@ -139,10 +185,7 @@ function AppRoutes() {
               <Route path="/math/quizzes/:quizId" element={<MathQuizPage />} />
               <Route path="/math/quizzes/:quizId/attempt" element={<MathQuizAttemptPage />} />
               <Route path="/math/quizzes/:quizId/results/:attemptId" element={<MathQuizResultsPage />} />
-              <Route
-                path="/binders/:binderId/documents/:lessonId"
-                element={<BinderReaderPage />}
-              />
+              <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
               <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
               <Route path="/admin" element={<AdminStudioPage />} />
               <Route path="/tutorial" element={<TutorialPage />} />
@@ -155,20 +198,6 @@ function AppRoutes() {
   );
 }
 
-function SyncRecoveryBridge() {
-  useSyncRecovery([
-    "highlight",
-    "workspace_layout",
-    "history_event",
-    "history_source",
-    "history_evidence",
-    "history_argument",
-    "myth_check",
-  ]);
-
-  return null;
-}
-
 type RouteErrorBoundaryProps = {
   children: ReactNode;
   resetKey: string;
@@ -179,6 +208,7 @@ type RouteErrorBoundaryState = {
 };
 
 const chunkRecoveryStorageKey = "binder-notes:chunk-recovery:v1";
+const chunkRecoveryQueryParam = "bn_chunk_refresh";
 const dynamicImportFailurePatterns = [
   "failed to fetch dynamically imported module",
   "importing a module script failed",
@@ -222,6 +252,42 @@ export function shouldRecoverFromDynamicImportFailure(
   }
 }
 
+export function clearChunkRecoveryAttempts(
+  storage: Storage | undefined = typeof window === "undefined" ? undefined : window.sessionStorage,
+) {
+  if (!storage) {
+    return;
+  }
+
+  try {
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(chunkRecoveryStorageKey)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => storage.removeItem(key));
+  } catch {
+    // Best effort only. A normal reload is still better than a stuck route.
+  }
+}
+
+function chunkRecoveryUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set(chunkRecoveryQueryParam, String(Date.now()));
+  return url.toString();
+}
+
+function reloadAfterDynamicImportFailure({ clearAttempts = false }: { clearAttempts?: boolean } = {}) {
+  if (clearAttempts) {
+    clearChunkRecoveryAttempts();
+  }
+
+  window.location.replace(chunkRecoveryUrl());
+}
+
 class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
   state: RouteErrorBoundaryState = {
     error: null,
@@ -234,13 +300,8 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Route render failed", error, info);
 
-    if (
-      shouldRecoverFromDynamicImportFailure(
-        error,
-        this.props.resetKey || window.location.pathname,
-      )
-    ) {
-      window.location.reload();
+    if (shouldRecoverFromDynamicImportFailure(error, this.props.resetKey || window.location.pathname)) {
+      reloadAfterDynamicImportFailure();
     }
   }
 
@@ -266,7 +327,10 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
             title={isChunkFailure ? "This page needs a refresh" : "This page could not render"}
             action={
               isChunkFailure ? (
-                <Button onClick={() => window.location.reload()} type="button">
+                <Button
+                  onClick={() => reloadAfterDynamicImportFailure({ clearAttempts: true })}
+                  type="button"
+                >
                   Refresh page
                 </Button>
               ) : null
@@ -282,33 +346,40 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
 
 function RouteSkeleton() {
   return (
-    <main className="mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
-      <Skeleton className="h-16" />
-      <Skeleton className="h-[520px]" />
+    <main className="app-loading-shell mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
+      <Skeleton className="app-loading-shell__bar h-16" />
+      <Skeleton className="app-loading-shell__panel h-[520px]" />
     </main>
   );
 }
 
 function ProtectedRoute({ children }: { children?: ReactNode }) {
-  const { profile, isLoading } = useAuth();
+  const { profile, user, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
     return (
-      <main className="mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
-        <Skeleton className="h-16" />
-        <Skeleton className="h-[520px]" />
+      <main className="app-loading-shell mx-auto grid max-w-6xl gap-4 px-4 py-10 sm:px-6">
+        <Skeleton className="app-loading-shell__bar h-16" />
+        <Skeleton className="app-loading-shell__panel h-[520px]" />
       </main>
     );
   }
 
-  if (!profile) {
+  if (!profile || !user || profile.id !== user.id) {
     const next = `${location.pathname}${location.search}${location.hash}`;
     const nextTarget = next && next !== "/" ? `?next=${encodeURIComponent(next)}` : "";
     return <Navigate replace to={`/auth${nextTarget}`} />;
   }
 
-  return children ? <>{children}</> : <Outlet />;
+  return (
+    <LazyAuthenticatedAppProviders key={user.id}>
+      <Suspense fallback={null}>
+        <LazyTutorialPromptHost />
+      </Suspense>
+      {children ? <>{children}</> : <Outlet />}
+    </LazyAuthenticatedAppProviders>
+  );
 }
 
 function LegacyBinderRoute() {
@@ -317,9 +388,6 @@ function LegacyBinderRoute() {
   const lessonId = searchParams.get("lesson");
 
   return (
-    <Navigate
-      replace
-      to={lessonId ? `/binders/${binderId}/documents/${lessonId}` : `/binders/${binderId}`}
-    />
+    <Navigate replace to={lessonId ? `/binders/${binderId}/documents/${lessonId}` : `/binders/${binderId}`} />
   );
 }

@@ -71,7 +71,9 @@ describe("Jacob Math Notes coverage ledger", () => {
     expect(questions).toHaveLength(54);
     expect(new Set(questions.map((question) => question.id)).size).toBe(54);
     for (const moduleId of buildJacobMathModules("2026-01-01T00:00:00.000Z").map((module) => module.id)) {
-      expect(questions.filter((question) => question.module_id === moduleId).length).toBeGreaterThanOrEqual(2);
+      expect(questions.filter((question) => question.module_id === moduleId).length).toBeGreaterThanOrEqual(
+        2,
+      );
     }
   });
 });

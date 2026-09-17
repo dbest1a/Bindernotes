@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
@@ -8,27 +11,50 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules/@tiptap")) return "editor";
-          if (id.includes("node_modules/@excalidraw")) return "whiteboard-engine";
-          if (id.includes("node_modules/@dnd-kit")) return "drag-drop";
-          if (id.includes("node_modules/katex")) return "math";
-          if (id.includes("node_modules/@supabase")) return "supabase";
-          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react";
+          const normalizedId = id.replace(/\\/g, "/");
+          if (!normalizedId.includes("/node_modules/")) {
+            return undefined;
+          }
+
+          if (normalizedId.includes("/@supabase/")) {
+            return "supabase";
+          }
+
+          if (normalizedId.includes("/katex/")) {
+            return "katex";
+          }
+
+          if (
+            normalizedId.includes("/react/") ||
+            normalizedId.includes("/react-dom/") ||
+            normalizedId.includes("/react-router/") ||
+            normalizedId.includes("/scheduler/")
+          ) {
+            return "react-vendor";
+          }
+
+          if (normalizedId.includes("/@tanstack/react-query/")) {
+            return "query-vendor";
+          }
+
+          return undefined;
         },
       },
     },
   },
   test: {
     exclude: [
+      "e2e/**",
       "**/node_modules/**",
       "**/dist/**",
       "**/.{idea,git,cache,output,temp}/**",
       "**/.tmp/**",
+      "**/.codex-deploy-*/**",
     ],
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(configDir, "./src"),
     },
   },
 });

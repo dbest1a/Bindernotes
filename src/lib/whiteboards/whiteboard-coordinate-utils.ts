@@ -1,9 +1,6 @@
 import type { WorkspaceModuleId } from "@/types";
 import { isAlwaysLiveWhiteboardModule } from "@/lib/whiteboards/whiteboard-module-registry";
-import type {
-  WhiteboardModuleAnchorMode,
-  WhiteboardModuleElement,
-} from "@/lib/whiteboards/whiteboard-types";
+import type { WhiteboardModuleAnchorMode, WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 
 export type WhiteboardViewportTransform = {
   scrollX: number;
@@ -101,7 +98,12 @@ export const normalizeExcalidrawZoom = getZoomValue;
 
 export function extractWhiteboardViewportTransform(
   appState: unknown,
-  viewportSize: { width: number; height: number; offsetLeft?: number; offsetTop?: number } = getWindowWhiteboardViewportSize(),
+  viewportSize: {
+    width: number;
+    height: number;
+    offsetLeft?: number;
+    offsetTop?: number;
+  } = getWindowWhiteboardViewportSize(),
 ): WhiteboardViewportTransform {
   const state = appState && typeof appState === "object" ? (appState as Record<string, unknown>) : {};
 
@@ -337,7 +339,10 @@ export function isWhiteboardModuleVisibleInViewport(
   );
 }
 
-export function getWhiteboardModuleMinimumSize(moduleId: WorkspaceModuleId, mode: WhiteboardModuleElement["mode"]) {
+export function getWhiteboardModuleMinimumSize(
+  moduleId: WorkspaceModuleId,
+  mode: WhiteboardModuleElement["mode"],
+) {
   if (mode === "collapsed") {
     return { width: 180, height: 72 };
   }
@@ -405,7 +410,12 @@ export function getEmbeddedModulePresentation(
     Boolean(liveMinimum && screenFrame) &&
     (screenFrame!.width < liveMinimum!.width || screenFrame!.height < liveMinimum!.height);
 
-  if (!visible || (anchorMode === "board" && transform.zoom < previewZoom) || moduleElement.mode !== "live" || tooSmallForLive) {
+  if (
+    !visible ||
+    (anchorMode === "board" && transform.zoom < previewZoom) ||
+    moduleElement.mode !== "live" ||
+    tooSmallForLive
+  ) {
     return "preview";
   }
 

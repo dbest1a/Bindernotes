@@ -76,8 +76,7 @@ const mocks = vi.hoisted(() => {
 
         const existingIndex = state.workspacePreferences.findIndex(
           (record) =>
-            record.user_id === upsertPayload?.user_id &&
-            record.binder_id === upsertPayload?.binder_id,
+            record.user_id === upsertPayload?.user_id && record.binder_id === upsertPayload?.binder_id,
         );
         if (existingIndex >= 0) {
           state.workspacePreferences[existingIndex] = upsertPayload;
@@ -94,9 +93,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     from: vi.fn((table: string) =>
-      table === "workspace_preferences"
-        ? createWorkspacePreferencesBuilder()
-        : createSelectBuilder(table),
+      table === "workspace_preferences" ? createWorkspacePreferencesBuilder() : createSelectBuilder(table),
     ),
     state,
   };
@@ -110,10 +107,7 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import {
-  getWorkspacePreferencesRecord,
-  upsertWorkspacePreferencesRecord,
-} from "@/services/binder-service";
+import { getWorkspacePreferencesRecord, upsertWorkspacePreferencesRecord } from "@/services/binder-service";
 
 describe("binder-service workspace preference account data", () => {
   beforeEach(() => {

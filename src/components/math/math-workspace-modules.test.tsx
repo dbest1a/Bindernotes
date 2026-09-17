@@ -1,21 +1,36 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DesmosGraphModule,
+  SavedGraphsModule,
   ScientificCalculatorModule,
   type MathWorkspaceModuleBindings,
 } from "@/components/math/math-workspace-modules";
 import type { MathWorkspaceController } from "@/hooks/use-math-workspace";
 
+let mockDesmosApiKeyAvailable = true;
+
+vi.mock("@/components/math/desmos-graph", () => ({
+  Desmos3DGraph: ({ showKeypad }: { showKeypad?: boolean }) => (
+    <div data-testid="desmos-3d-graph" data-show-keypad={String(showKeypad)} />
+  ),
+  DesmosGraph: ({ showKeypad }: { showKeypad?: boolean }) => (
+    <div data-testid="desmos-graph" data-show-keypad={String(showKeypad)} />
+  ),
+}));
+
+vi.mock("@/lib/desmos-loader", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/desmos-loader")>("@/lib/desmos-loader");
+  return {
+    ...actual,
+    hasDesmosApiKey: () => mockDesmosApiKeyAvailable,
+  };
+});
+
 vi.mock("@/components/math/desmos-scientific-calculator", () => ({
-  DesmosScientificCalculator: ({
-    fallback,
-    height,
-  }: {
-    fallback?: React.ReactNode;
-    height?: string;
-  }) => (
+  DesmosScientificCalculator: ({ fallback, height }: { fallback?: React.ReactNode; height?: string }) => (
     <div data-testid="desmos-scientific-calculator" data-height={height ?? ""}>
       {fallback}
     </div>
@@ -69,7 +84,10 @@ function bindings(): MathWorkspaceModuleBindings {
 }
 
 describe("ScientificCalculatorModule", () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    mockDesmosApiKeyAvailable = true;
+  });
 
   it("uses the local calculator directly on whiteboards instead of waiting on the Desmos embed", () => {
     render(<ScientificCalculatorModule bindings={bindings()} surface="whiteboard" />);
@@ -82,6 +100,118 @@ describe("ScientificCalculatorModule", () => {
   it("keeps the Desmos scientific surface available in the full workspace", () => {
     render(<ScientificCalculatorModule bindings={bindings()} />);
 
-    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe("clamp(520px, 68vh, 720px)");
+    expect(screen.getByTestId("desmos-scientific-calculator").getAttribute("data-height")).toBe(
+      "clamp(520px, 68vh, 720px)",
+    );
+  });
+
+  it("Revamp Beta gives the calculator a first-class visible input and does not mount Desmos until needed", () => {
+    const testBindings = bindings();
+    render(<ScientificCalculatorModule bindings={testBindings} mathPerformanceLazyLoading />);
+
+    const input = screen.getByRole("textbox", { name: /calculator expression/i });
+    fireEvent.change(input, { target: { value: "17.5*24" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(testBindings.controller.setExpression).toHaveBeenCalledWith("17.5*24");
+    expect(testBindings.controller.evaluate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status", { name: /calculator result/i })).toBeTruthy();
+    expect(screen.queryByTestId("desmos-scientific-calculator")).toBeNull();
+  });
+});
+
+describe("DesmosGraphModule", () => {
+  afterEach(() => {
+    cleanup();
+    mockDesmosApiKeyAvailable = true;
+  });
+
+  it("Revamp Beta shows an accessible graph expression input before Desmos is opened", () => {
+    const testBindings = bindings();
+    render(<DesmosGraphModule bindings={testBindings} mathPerformanceLazyLoading />);
+
+    const input = screen.getByRole("textbox", { name: /graph expression/i });
+    fireEvent.change(input, { target: { value: "y=x^2" } });
+    fireEvent.click(screen.getByRole("button", { name: /plot expression/i }));
+
+    expect(testBindings.pushExpressionToGraph).toHaveBeenCalledWith("y=x^2");
+    expect(screen.getByText(/queued expression: y=x\^2/i)).toBeTruthy();
+  });
+
+  it("Revamp Beta keeps the missing Desmos key fallback compact and near the graph input", () => {
+    mockDesmosApiKeyAvailable = false;
+
+    render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    expect(screen.getByRole("textbox", { name: /graph expression/i })).toBeTruthy();
+    expect(screen.getAllByText(/desmos is unavailable/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId("desmos-compact-fallback")).toBeTruthy();
+    expect(screen.queryByTestId("desmos-graph")).toBeNull();
+  });
+
+  it("keeps Desmos unmounted until the student opens the graph in math performance mode", () => {
+    render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    expect(screen.queryByTestId("desmos-graph")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Open graph/i }));
+
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
+  });
+
+  it("recreates the graph instance across lesson scopes even when both saved graph states are null", () => {
+    const a = bindings();
+    a.controller.scopeKey = "owner:binder:lesson-A";
+    const view = render(<DesmosGraphModule bindings={a} />);
+    const previousGraph = screen.getByTestId("desmos-graph");
+    const b = bindings();
+    b.controller.scopeKey = "owner:binder:lesson-B";
+    expect(a.controller.state.currentGraphState).toBeNull();
+    expect(b.controller.state.currentGraphState).toBeNull();
+    view.rerender(<DesmosGraphModule bindings={b} />);
+    expect(screen.getByTestId("desmos-graph")).not.toBe(previousGraph);
+    expect(previousGraph.isConnected).toBe(false);
+  });
+
+  it("exposes 2D and 3D graph modes from the module controls", () => {
+    const testBindings = bindings();
+    render(<DesmosGraphModule bindings={testBindings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /show 3d graph/i }));
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("3d");
+
+    fireEvent.click(screen.getByRole("button", { name: /show 2d graph/i }));
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("2d");
+  });
+
+  it("lets performance mode open directly into 3D instead of hiding it behind the 2D graph", () => {
+    const testBindings = bindings();
+    render(<DesmosGraphModule bindings={testBindings} mathPerformanceLazyLoading />);
+
+    fireEvent.click(screen.getByRole("button", { name: /open 3d/i }));
+
+    expect(testBindings.controller.setGraphMode).toHaveBeenCalledWith("3d");
+    expect(testBindings.controller.setGraphVisible).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps the Desmos keypad unmounted until explicitly opened in math performance mode", () => {
+    render(<DesmosGraphModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Open graph/i }));
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: /Show keypad/i }));
+    expect(screen.getByTestId("desmos-graph").getAttribute("data-show-keypad")).toBe("true");
+  });
+});
+
+describe("SavedGraphsModule", () => {
+  afterEach(() => cleanup());
+
+  it("Revamp Beta saved graphs empty state gives a concrete next step", () => {
+    render(<SavedGraphsModule bindings={bindings()} mathPerformanceLazyLoading />);
+
+    expect(screen.getByText(/try y=x\^2-4/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /graph an expression/i })).toBeTruthy();
   });
 });

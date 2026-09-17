@@ -79,6 +79,157 @@ export type LearnerNote = {
   updated_at: string;
 };
 
+export type PersonalNote = {
+  id: string;
+  owner_id: string;
+  title: string;
+  content: JSONContent;
+  math_blocks: MathBlock[];
+  folder_id: string | null;
+  binder_id: string | null;
+  document_id: string | null;
+  tags: string[];
+  pinned: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNoteBinder = {
+  archived_at?: string | null;
+  id: string;
+  owner_id: string;
+  folder_id: string | null;
+  title: string;
+  description: string | null;
+  color: string | null;
+  pinned: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotebookBinder = PersonalNoteBinder;
+
+export type PersonalNoteDocument = {
+  id: string;
+  owner_id: string;
+  binder_id: string;
+  title: string;
+  content: JSONContent;
+  math_blocks: MathBlock[];
+  tags: string[];
+  pinned: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotebookDocument = PersonalNoteDocument;
+
+export type PersonalNoteFolder = {
+  archived_at?: string | null;
+  id: string;
+  owner_id: string;
+  name: string;
+  color: string;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PersonalNotesEntryKind = "binder-note" | "personal-note" | "personal-document";
+export type PersonalNotesSourceFilter = "all" | "main" | "binder-linked" | "personal-binders" | "loose";
+export type PersonalNotesViewMode = "notes" | "home" | "organize";
+export type PersonalNotesVisualStyle = "studio" | "minimal";
+export type PersonalNotesDefaultLocation = "loose" | "last-binder" | "ask";
+export type PersonalNotesEditorWidth = "focused" | "comfortable" | "wide" | "full";
+export type PersonalNotesAnnotatorMode = "off" | "floating" | "hotkeys" | "top" | "both";
+export type PersonalNotesSidebarNavigationMode = "project-tree" | "scope-drill-in";
+
+export type PersonalNotesEntry = {
+  /** False for collection metadata; the editor must load the selected body first. */
+  contentLoaded?: boolean;
+  kind: PersonalNotesEntryKind;
+  id: string;
+  title: string;
+  content: JSONContent;
+  excerpt: string;
+  searchText: string;
+  updated_at: string;
+  pinned: boolean;
+  folderId: string | null;
+  folderName: string;
+  folderColor: string;
+  tags: string[];
+  math_blocks: MathBlock[];
+  sourceType: "Binder private note" | "Loose note" | "Notebook document";
+  sourceBinderId: string | null;
+  sourceBinderTitle: string | null;
+  sourceDocumentId: string | null;
+  sourceDocumentTitle: string | null;
+  personalBinderId: string | null;
+  personalBinderTitle: string | null;
+  quickOpenUrl: string;
+  quickJumpToBinderUrl: string | null;
+  note: LearnerNote | PersonalNote | PersonalNoteDocument;
+  reviewLater: boolean;
+};
+
+export type PersonalNotesLoadIssue = {
+  code: "personal_schema_missing" | "personal_schema_blocked" | "personal_query_failed";
+  severity: "warning" | "error";
+  title: string;
+  message: string;
+  technicalReason: string;
+  table?: string;
+};
+
+export type PersonalNotesData = {
+  entries: PersonalNotesEntry[];
+  learnerNotes: LearnerNote[];
+  personalNotes: PersonalNote[];
+  personalFolders: PersonalNoteFolder[];
+  personalBinders: PersonalNoteBinder[];
+  personalDocuments: PersonalNoteDocument[];
+  binders: Binder[];
+  lessons: BinderLesson[];
+  folders: Folder[];
+  folderBinders: FolderBinderLink[];
+  loadIssues?: PersonalNotesLoadIssue[];
+};
+
+export type PersonalNotesPreferences = {
+  defaultView: PersonalNotesViewMode;
+  style: PersonalNotesVisualStyle;
+  showBinderNotes: boolean;
+  defaultNewNoteLocation: PersonalNotesDefaultLocation;
+  editorWidth: PersonalNotesEditorWidth;
+  autosave: boolean;
+  compactModuleHeaders: boolean;
+  compactMetadata: boolean;
+  maximizeModuleSpace: boolean;
+  showReviewQueue: boolean;
+  showQuickAccess: boolean;
+  showNotebookPane: boolean;
+  showNotesListPane: boolean;
+  showSideMonitorTags: boolean;
+  organizeCardOrder: string[];
+  sidebarNavigationMode: PersonalNotesSidebarNavigationMode;
+  rememberNotebookContext: boolean;
+  showRecentNotesInScope: boolean;
+  fullscreenFocusEnabled: boolean;
+  defaultFocusBehavior: "focus" | "fullscreen";
+  annotatorTools: PersonalNotesAnnotatorMode;
+  showAnnotationColorFilter: boolean;
+  noteLinkAutocomplete: boolean;
+  canvasToolsLazyLoad: boolean;
+  canvasSafeEdgePadding: boolean;
+  canvasSnapMode: "off" | "edges" | "modules";
+  mobileCanvasBehavior: "module-switcher" | "simplified";
+  focusMode: boolean;
+};
+
 export type Comment = {
   id: string;
   owner_id: string;
@@ -293,9 +444,39 @@ export type WorkspaceModuleId =
   | "scientific-calculator"
   | "saved-graphs"
   | "whiteboard"
+  | "chem-concept-cards"
+  | "chem-quick-tools"
+  | "chem-periodic-table"
+  | "chem-element-builder"
+  | "chem-electron-config-builder"
+  | "chem-periodic-trends-graph"
+  | "chem-molecule-builder"
+  | "chem-geometry-viewer"
+  | "chem-reaction-balancer"
+  | "chem-tri-reaction-view"
+  | "chem-lab-coach"
+  | "chem-stoichiometry-coach"
+  | "chem-molar-mass-calculator"
+  | "chem-solution-mixer"
+  | "chem-molarity-calculator"
+  | "chem-desmos-concentration-graph"
+  | "chem-ph-calculator"
+  | "chem-titration-lab"
+  | "chem-desmos-titration-curve"
+  | "chem-kinetics-simulator"
+  | "chem-desmos-kinetics-plot"
+  | "chem-data-table"
+  | "chem-calorimetry-lab"
+  | "chem-energy-diagram"
+  | "chem-calculation-sheet"
+  | "chem-safety-cards"
+  | "chem-review-queue"
+  | "chem-lab-notebook"
+  | "chem-reference-safety"
   | "recent-highlights"
   | "tasks"
   | "related-concepts"
+  | "learning-accelerators"
   | "flashcards"
   | "mini-tools";
 
@@ -331,6 +512,18 @@ export type WorkspacePresetId =
   | "math-proof-concept"
   | "math-practice-mode"
   | "full-math-canvas"
+  | "recall-lab"
+  | "chemistry-lab"
+  | "chem-guided-study"
+  | "chem-element-explorer"
+  | "chem-bonding-studio"
+  | "chem-reaction-studio"
+  | "chem-stoichiometry-lab"
+  | "chem-solutions-molarity-lab"
+  | "chem-acid-base-titration-lab"
+  | "chem-kinetics-graph-lab"
+  | "chem-thermochemistry-studio"
+  | "chem-full-studio"
   | "annotation-mode"
   | "history-guided"
   | "history-timeline-focus"
@@ -340,6 +533,14 @@ export type WorkspacePresetId =
 
 export type WorkspaceStyle = "guided" | "flexible" | "full-studio";
 export type WorkspaceMode = "simple" | "modular" | "canvas";
+export type WorkspacePresentationMode = "simple" | "canvas" | "facelift";
+export type WorkspaceViewMode = WorkspaceMode | "facelift";
+export type FaceliftSurfaceMode = "simple" | "canvas";
+export type FaceliftDensity = "comfortable" | "compact" | "focus";
+export type FaceliftNavigationMode = "map" | "sidebar" | "topline";
+export type FaceliftModuleChrome = "normal" | "compact" | "minimal";
+export type FaceliftPresetBehavior = "auto-fit" | "preserve" | "manual";
+export type FaceliftMobileBehavior = "tabs" | "stack";
 export type WorkspaceBreakpoint = "desktop" | "tablet" | "mobile";
 export type WorkspacePresetLockMode = "locked" | "flexible";
 
@@ -380,6 +581,7 @@ export type WorkspaceThemeId =
   | "ocean"
   | "monochrome-pro"
   | "aurora"
+  | "prism-ink"
   | "custom";
 
 export type WorkspaceDensity = "compact" | "cozy";
@@ -429,9 +631,24 @@ export type ModularStudySettings = {
   motionLevel: WorkspaceAnimationLevel;
   colorPreset: WorkspaceThemeId;
   saveLayoutPerBinder: boolean;
+  showSecondaryPresetStrip: boolean;
 };
 
 export type FullCanvasSnapBehavior = "off" | "edges" | "modules";
+export type CanvasLayoutSource = "preset" | "custom";
+export type CanvasLayoutMode = "study" | "edit";
+export type CanvasLastExplicitLayoutAction =
+  | "select-preset"
+  | "fit"
+  | "tidy"
+  | "reset-to-preset"
+  | "save-custom"
+  | "cancel-edit"
+  | "manual-drag"
+  | "manual-resize"
+  | "add-module"
+  | "remove-module"
+  | "add-space-below";
 
 export type FullCanvasSettings = {
   gridSize: number;
@@ -441,21 +658,44 @@ export type FullCanvasSettings = {
   safeEdgePadding: boolean;
   canvasHeight: number;
   showDiagnostics: boolean;
+  layoutSource: CanvasLayoutSource;
+  activePresetId: WorkspacePresetId;
+  layoutMode: CanvasLayoutMode;
+  userHasEditedLayout: boolean;
+  presetAppliedAtViewport: {
+    width: number;
+    height: number;
+    updatedAt: string;
+  } | null;
+  committedFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  editDraftFrames: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  lastExplicitLayoutAction: CanvasLastExplicitLayoutAction | null;
+  gridEnabled: boolean;
+  guidesEnabled: boolean;
+};
+
+export type FaceliftCanvasSettings = {
+  panelPositions: Partial<Record<WorkspaceModuleId, WorkspaceWindowFrame>>;
+  canvasHeight: number;
+};
+
+export type FaceliftWorkspaceSettings = {
+  surfaceMode: FaceliftSurfaceMode;
+  density: FaceliftDensity;
+  navigationMode: FaceliftNavigationMode;
+  moduleChrome: FaceliftModuleChrome;
+  presetBehavior: FaceliftPresetBehavior;
+  mobileBehavior: FaceliftMobileBehavior;
+  compactControls: boolean;
+  expandedControls: boolean;
+  canvas: FaceliftCanvasSettings;
 };
 
 export type AppTheme = WorkspaceThemeId;
 export type StudySurface = SimplePresentationTheme;
 export type AppearanceMotion = "full" | "reduced" | "minimal";
 export type AccentColor =
-  | "teal"
-  | "blue"
-  | "indigo"
-  | "violet"
-  | "rose"
-  | "amber"
-  | "emerald"
-  | "graphite"
-  | "custom";
+  "teal" | "blue" | "indigo" | "violet" | "rose" | "amber" | "emerald" | "graphite" | "custom";
 
 export type AppearanceCustomPalette = {
   primary: string;
@@ -505,6 +745,8 @@ export type WorkspacePreferences = {
   binderId: string;
   suiteTemplateId?: string | null;
   activeMode: WorkspaceMode;
+  workspacePresentationMode: WorkspacePresentationMode;
+  facelift: FaceliftWorkspaceSettings;
   appearance: AppearanceSettings;
   simple: SimplePresentationSettings;
   modular: ModularStudySettings;
@@ -645,14 +887,7 @@ export type SaveEntityType =
   | "history_argument"
   | "myth_check";
 
-export type SaveStatusState =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "offline"
-  | "retrying"
-  | "failed"
-  | "conflict";
+export type SaveStatusState = "idle" | "saving" | "saved" | "offline" | "retrying" | "failed" | "conflict";
 
 export type SaveStatusSnapshot = {
   state: SaveStatusState;
@@ -665,11 +900,7 @@ export type HistoryDateEra = "bce" | "ce";
 export type HistoryDatePrecision = "year" | "month" | "day" | "season" | "approximate";
 export type HistoryEvidenceStrength = "emerging" | "supported" | "strong";
 export type HistorySourceType = "primary" | "secondary";
-export type MythHistoryStatus =
-  | "myth"
-  | "oversimplification"
-  | "contested"
-  | "evidence_supported";
+export type MythHistoryStatus = "myth" | "oversimplification" | "contested" | "evidence_supported";
 export type HistoryArgumentRelationType =
   | "caused"
   | "triggered"
@@ -786,7 +1017,8 @@ export type HistoryArgumentNode = {
   id: string;
   chain_id: string;
   owner_id: string;
-  node_type: "prompt" | "thesis" | "context" | "cause" | "effect" | "counterargument" | "conclusion" | "evidence";
+  node_type:
+    "prompt" | "thesis" | "context" | "cause" | "effect" | "counterargument" | "conclusion" | "evidence";
   title: string;
   body: string;
   sort_order: number;

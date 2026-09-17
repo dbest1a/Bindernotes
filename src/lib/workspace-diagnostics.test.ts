@@ -45,10 +45,7 @@ describe("workspace diagnostics", () => {
   });
 
   it("turns a missing seed error into a runtime diagnostic", () => {
-    const diagnostics = classifyRuntimeError(
-      "workspace",
-      createMissingSeedError("binder-rise-of-rome"),
-    );
+    const diagnostics = classifyRuntimeError("workspace", createMissingSeedError("binder-rise-of-rome"));
 
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]).toMatchObject({
@@ -181,13 +178,14 @@ describe("workspace diagnostics", () => {
     expect(
       diagnostics.some(
         (diagnostic) =>
-          diagnostic.code === "missing_suite_template" &&
-          diagnostic.scope === "suite-algebra-foundations",
+          diagnostic.code === "missing_suite_template" && diagnostic.scope === "suite-algebra-foundations",
       ),
     ).toBe(false);
     expect(seedHealth.find((item) => item.suiteTemplateId === "suite-algebra-foundations")).toMatchObject({
       status: "healthy",
-      actualVersion: systemSuiteTemplates[0] ? createLegacySeedHealth(systemSuiteTemplates[0]).actualVersion : null,
+      actualVersion: systemSuiteTemplates[0]
+        ? createLegacySeedHealth(systemSuiteTemplates[0]).actualVersion
+        : null,
     });
   });
 });

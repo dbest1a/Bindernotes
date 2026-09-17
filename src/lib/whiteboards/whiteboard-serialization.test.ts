@@ -46,7 +46,9 @@ describe("whiteboard serialization", () => {
   });
 
   it("defaults legacy module records to pinned without changing valid geometry", () => {
-    const sanitized = sanitizeWhiteboardModuleElement(moduleElement({ moduleId: "lesson", pinned: undefined }));
+    const sanitized = sanitizeWhiteboardModuleElement(
+      moduleElement({ moduleId: "lesson", pinned: undefined }),
+    );
     expect(sanitized.pinned).toBe(true);
     expect(sanitized.anchorMode).toBe("board-fixed-size");
     expect(sanitized.x).toBe(410.75);

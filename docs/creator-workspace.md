@@ -1,0 +1,11 @@
+# Creator workspace
+
+`/creator` is an authenticated authoring route separate from the operator-only `/admin` route. A learner needs an active, unexpired Studio or Everything entitlement to use creator tools. Operators may use the route too, but it still lists only their own independent binders. No purchase changes `profiles.role`. App navigation and settings expose the creator link only after an account access check.
+
+The workspace can create, edit, publish and archive owned binders, and create/edit/reorder their lessons with rich text, math blocks and lesson preview settings. It excludes binders attached to system suite templates. Lesson lists load metadata; full content is fetched only for the selected lesson. It provides no catalog seeding, diagnostics, role management or other operator functions.
+
+Mutations recheck access and ownership, then rely on database RLS for actual authority. Existing rows update conditionally on the original `updated_at` value and write a strictly newer timestamp. Concurrent or stale edits do not silently replace current content. Stable draft IDs and complete saved-field comparison recover an uncertain acknowledgement without duplicate creation. Device drafts are saved on each edit and retained across failure, navigation and reload. An explicit recovery action stores a new draft copy before loading the account version. Confirmed saves remove only the exact draft that was saved, leaving a newer draft from another tab intact.
+
+Publishing and editing a published lesson are explicit actions. Archiving keeps the binder and its lessons. This initial workspace does not add permanent deletion or price editing; new binders default to free access and existing prices remain unchanged. Creator drafts remain local until saving is confirmed. Paid entitlement creation still requires the trusted billing/operator boundary and is not simulated by this UI.
+
+Focused checks cover free/expired/active/operator access, own/system/foreign binder boundaries, stale metadata and lesson writes, lost acknowledgements, server denial, unsafe document input, account switches, draft recovery, publishing, and absence of Admin Studio navigation for paid learners. Database role tests independently check creator ownership and permission boundaries; actual browser checks remain a separate release gate.
