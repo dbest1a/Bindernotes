@@ -119,6 +119,9 @@ function getModuleCardStyle(
     top: screenFrame.y,
     width: screenFrame.width,
     height: screenFrame.height,
+    ...(getWhiteboardModuleAnchorMode(moduleElement) === "board-fixed-size" && viewportTransform.viewportWidth <= 640
+      ? { maxWidth: Math.max(1, viewportTransform.viewportWidth - 32), maxHeight: Math.max(72, viewportTransform.viewportHeight - 160) }
+      : {}),
     boxSizing: "border-box",
     transform: "none",
     transformOrigin: "top left",
@@ -651,6 +654,24 @@ export function WhiteboardModuleCard({
     finishPointerActionFromPoint(event.pointerId, event.clientX, event.clientY);
   };
 
+  const fitContentHeight = () => {
+    const root = rootRef.current;
+    const content = root?.querySelector<HTMLElement>(".whiteboard-module-card__content");
+    if (!root || !content) return;
+
+    // Include inner reading overflow as well as the source picker and footer.
+    const readingFlow = content.querySelector<HTMLElement>(".source-reading-flow");
+    const innerOverflow = readingFlow ? Math.max(0, readingFlow.scrollHeight - readingFlow.clientHeight) : 0;
+    const chromeHeight = root.offsetHeight - content.clientHeight;
+    const minimum = getWhiteboardModuleMinimumSize(moduleElement.moduleId, moduleElement.mode);
+    const transform = latestViewportTransform();
+    const scale = zoomScaled ? transform.zoom : 1;
+    const viewportHeight = Math.max(minimum.height, (transform.viewportHeight - 40) / scale);
+    updateModuleSettings({
+      height: Math.round(Math.max(minimum.height, Math.min(viewportHeight, content.scrollHeight + innerOverflow + chromeHeight))),
+    });
+  };
+
   const renderAnchorMenu = () => (
     <div
       className="whiteboard-card-anchor-menu grid max-h-72 w-full gap-1 overflow-auto bg-popover p-1.5 text-xs text-popover-foreground"
@@ -660,6 +681,7 @@ export function WhiteboardModuleCard({
     >
       {(["board", "board-fixed-size", "viewport"] as WhiteboardModuleAnchorMode[]).map((mode) => (
         <button
+          aria-checked={anchorMode === mode}
           aria-pressed={anchorMode === mode}
           className={cn(
             "flex w-full flex-col rounded-md px-2.5 py-2 text-left text-xs transition hover:bg-secondary",
@@ -814,6 +836,18 @@ export function WhiteboardModuleCard({
       data-whiteboard-module-presentation={presentation}
       data-window-module-id={moduleElement.moduleId}
       data-testid={`whiteboard-module-card-${moduleElement.id}`}
+      onKeyDown={(event) => {
+        // Canvas shortcuts must not consume typing, arrows or undo in a module.
+        event.stopPropagation();
+        if (event.key === "Escape" && (anchorMenuOpen || optionsMenuOpen)) {
+          event.preventDefault();
+          const trigger = anchorMenuOpen ? "whiteboard-card-pin-button" : "whiteboard-card-options-button";
+          setAnchorMenuOpen(false);
+          setOptionsMenuOpen(false);
+          rootRef.current?.querySelector<HTMLButtonElement>(`[data-testid="${trigger}"]`)?.focus();
+        }
+      }}
+      onKeyUp={(event) => event.stopPropagation()}
       onDoubleClick={() => {
         if (moduleElement.mode === "live") {
           return;
@@ -851,7 +885,7 @@ export function WhiteboardModuleCard({
         onPointerUp={finishPointerAction}
         style={{ touchAction: "none" }}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="whiteboard-module-card__title flex min-w-0 items-center gap-2">
           <Grip className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate font-semibold">{moduleElement.title ?? definition?.label ?? moduleElement.moduleId}</span>
           {presentation === "chip" ? (
@@ -869,8 +903,8 @@ export function WhiteboardModuleCard({
               screen
             </span>
           ) : anchorMode === "board-fixed-size" ? (
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              board size
+            <span className="whiteboard-module-card__anchor-label shrink-0 whitespace-nowrap rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground" title="Pinned to the board; keeps its screen size when zooming">
+              fixed
             </span>
           ) : (
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -878,7 +912,7 @@ export function WhiteboardModuleCard({
             </span>
           )}
         </div>
-        <div className={cn("relative flex items-center gap-1", presentation === "chip" && "hidden")}>
+        <div className={cn("whiteboard-module-card__actions relative flex shrink-0 items-center gap-1", presentation === "chip" && "hidden")}>
           <Button
             aria-expanded={anchorMenuOpen}
             aria-label={`Card pin mode: ${anchorLabels[anchorMode]}. Change pin mode.`}
@@ -899,6 +933,7 @@ export function WhiteboardModuleCard({
             {pinned ? <Pin className="size-4" /> : <PinOff className="size-4" />}
           </Button>
           <Button
+            aria-label={live ? "Show preview" : "Open live module"}
             data-whiteboard-card-control="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -943,6 +978,7 @@ export function WhiteboardModuleCard({
             </Button>
           ) : null}
           <Button
+            aria-label={moduleElement.mode === "collapsed" ? "Expand module" : "Collapse module"}
             data-whiteboard-card-control="true"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -954,7 +990,7 @@ export function WhiteboardModuleCard({
               });
             }}
             size="icon"
-            title="Collapse module"
+            title={moduleElement.mode === "collapsed" ? "Expand module" : "Collapse module"}
             type="button"
             variant="ghost"
           >
@@ -1005,21 +1041,43 @@ export function WhiteboardModuleCard({
         </div>
       ) : null}
       {moduleElement.mode === "collapsed" || presentation === "chip" ? null : (
-        <div className="whiteboard-module-card__content z-10 flex-1 min-h-0 overflow-hidden bg-card p-0">
+        <div className="whiteboard-module-card__content z-10 flex-1 min-h-0 overflow-auto bg-card p-0">
           {children}
         </div>
       )}
       {moduleElement.mode !== "collapsed" && presentation !== "chip" ? (
-        <div
-          className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-6 cursor-se-resize rounded-tl-lg border-l border-t border-primary/45 bg-primary opacity-95 shadow-[0_0_0_2px_hsl(var(--card)),0_10px_24px_rgb(15_23_42/0.24)] transition hover:opacity-100"
-          data-testid="whiteboard-card-resize-handle"
-          onPointerCancel={finishPointerAction}
-          onPointerDown={(event) => beginPointerAction(event, "resize")}
-          onPointerMove={updatePointerAction}
-          onPointerUp={finishPointerAction}
-          style={{ touchAction: "none" }}
-          title="Resize module"
-        />
+        <div className="whiteboard-module-card__footer relative z-20 flex h-8 shrink-0 items-center border-t border-border px-2 pr-10">
+          {moduleElement.moduleId === "lesson" ? (
+            <button className="whiteboard-module-card__fit-button text-xs font-medium text-primary" onClick={fitContentHeight} type="button">
+              Fit content
+            </button>
+          ) : null}
+          <button
+            aria-label="Resize module. Use arrow keys; hold Shift for larger steps."
+            className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-8 cursor-se-resize rounded-tl-lg border-l border-t border-primary/45 bg-primary text-primary-foreground transition hover:opacity-100"
+            data-testid="whiteboard-card-resize-handle"
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const step = event.shiftKey ? 50 : 10;
+              const minimum = getWhiteboardModuleMinimumSize(moduleElement.moduleId, moduleElement.mode);
+              updateModuleSettings({
+                width: Math.max(minimum.width, moduleElement.width + (event.key === "ArrowRight" ? step : event.key === "ArrowLeft" ? -step : 0)),
+                height: Math.max(minimum.height, moduleElement.height + (event.key === "ArrowDown" ? step : event.key === "ArrowUp" ? -step : 0)),
+              });
+            }}
+            onPointerCancel={finishPointerAction}
+            onPointerDown={(event) => beginPointerAction(event, "resize")}
+            onPointerMove={updatePointerAction}
+            onPointerUp={finishPointerAction}
+            style={{ touchAction: "none" }}
+            title="Resize module"
+            type="button"
+          >
+            <Grip aria-hidden="true" className="mx-auto size-4" />
+          </button>
+        </div>
       ) : null}
     </div>
   );

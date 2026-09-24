@@ -45,7 +45,7 @@ export function WhiteboardToolbar({
           {saveLabels[saveStatus]}
         </Badge>
         <Badge className="shrink-0 px-2 py-0.5 text-[10px]" variant="outline">
-          {objectCount} objects
+          {objectCount} {objectCount === 1 ? "object" : "objects"}
         </Badge>
         <Button
           aria-label="Save whiteboard now"

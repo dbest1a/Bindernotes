@@ -53,6 +53,10 @@ export type BinderWhiteboard = {
   moduleContext: "binder" | "lesson" | "math-lab";
   scene: WhiteboardSceneData;
   modules: WhiteboardModuleElement[];
+  /** False only for a list entry whose scene still needs to be fetched. */
+  contentLoaded?: boolean;
+  /** Recovery exists only in this tab when browser storage could not be written. */
+  recoveryStorage?: "memory";
   thumbnailDataUrl?: string | null;
   objectCount: number;
   sceneSizeBytes: number;
@@ -93,6 +97,7 @@ export type WhiteboardSaveResult = {
   message: string;
   savedAt: string;
   error?: string;
+  warning?: string;
 };
 
 export type WhiteboardListResult = {

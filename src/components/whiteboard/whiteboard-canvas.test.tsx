@@ -9,6 +9,7 @@ import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/wh
 const excalidrawMock = vi.hoisted(() => ({
   props: null as Record<string, unknown> | null,
   refresh: vi.fn(),
+  elements: undefined as unknown[] | undefined,
   apiState: {
     scrollX: 0,
     scrollY: 0,
@@ -25,6 +26,7 @@ vi.mock("@excalidraw/excalidraw", async () => {
         props.excalidrawAPI({
           getAppState: () => excalidrawMock.apiState,
           refresh: excalidrawMock.refresh,
+          ...(excalidrawMock.elements ? { getSceneElements: () => excalidrawMock.elements } : {}),
         });
       }
       return React.createElement("div", { "data-testid": "mock-excalidraw" });
@@ -67,6 +69,7 @@ describe("WhiteboardCanvas", () => {
     cleanup();
     vi.useRealTimers();
     excalidrawMock.props = null;
+    excalidrawMock.elements = undefined;
     excalidrawMock.apiState = {
       scrollX: 0,
       scrollY: 0,
@@ -82,6 +85,43 @@ describe("WhiteboardCanvas", () => {
 
     expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-toolbar-layer")).toBe("true");
     expect(typeof excalidrawMock.props?.onScrollChange).toBe("function");
+  });
+
+  it("uses a contrasting logical background and exports the displayed dark palette", async () => {
+    render(<WhiteboardCanvas board={board({ scene: { elements: [], appState: { viewBackgroundColor: "#11131a" } } })} onSceneChange={vi.fn()} />);
+    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+    expect(excalidrawMock.props?.initialData).toMatchObject({ appState: { viewBackgroundColor: "#ffffff", exportWithDarkMode: true, exportBackground: true } });
+  });
+
+  it("exposes the latest unflushed drawing to backup actions", async () => {
+    const onActionsReady = vi.fn();
+    render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onActionsReady={onActionsReady} />);
+    await waitFor(() => expect(onActionsReady).toHaveBeenCalledWith(expect.objectContaining({ getScene: expect.any(Function), fitAll: expect.any(Function), exportSvg: expect.any(Function) })));
+    act(() => {
+      (excalidrawMock.props?.onChange as (elements: unknown[], appState: unknown, files: unknown) => void)([{ id: "last-stroke", version: 2 }], { viewBackgroundColor: "#ffffff" }, { image: { id: "image" } });
+    });
+    const actions = onActionsReady.mock.calls.at(-1)?.[0];
+    expect(actions.getScene()).toMatchObject({ elements: [{ id: "last-stroke", version: 2 }], files: { image: { id: "image" } } });
+  });
+
+  it("never snapshots Excalidraw's transient empty loading scene over an existing populated board", async () => {
+    const onActionsReady = vi.fn();
+    const existingScene = {
+      elements: [{ id: "saved-drawing", type: "rectangle", x: 10, y: 20, width: 300, height: 200 }],
+      appState: { viewBackgroundColor: "#fff4dc" },
+      files: { savedImage: { id: "savedImage", dataURL: "data:image/png;base64,test" } },
+    };
+    excalidrawMock.elements = [];
+    excalidrawMock.apiState = { ...excalidrawMock.apiState, isLoading: true };
+    render(<WhiteboardCanvas board={board({ scene: existingScene })} onSceneChange={vi.fn()} onActionsReady={onActionsReady} />);
+    await waitFor(() => expect(onActionsReady).toHaveBeenCalledWith(expect.objectContaining({ getScene: expect.any(Function) })));
+    const actions = onActionsReady.mock.calls.at(-1)?.[0];
+    expect(actions.getScene()).toEqual(existingScene);
+
+    // Once the canvas has finished restoring, an intentionally empty scene is
+    // a real edit and must still be saved normally.
+    excalidrawMock.apiState = { ...excalidrawMock.apiState, isLoading: false };
+    expect(actions.getScene().elements).toEqual([]);
   });
 
   it("normalizes onScrollChange zoom.value and emits the latest viewport transform", async () => {

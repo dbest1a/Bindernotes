@@ -199,11 +199,14 @@ export function getWhiteboardModuleScreenRect(
 
   const point = boardToScreenPoint(moduleElement, transform);
   if (anchorMode === "board-fixed-size") {
+    // A desktop-sized reference card must remain readable on a phone without
+    // rewriting its saved dimensions or changing its board-space position.
+    const compactViewport = transform.viewportWidth <= 640;
     return {
       x: point.x,
       y: point.y,
-      width: moduleElement.width,
-      height: visualHeight,
+      width: compactViewport ? Math.min(moduleElement.width, Math.max(1, transform.viewportWidth - 32)) : moduleElement.width,
+      height: compactViewport ? Math.min(visualHeight, Math.max(72, transform.viewportHeight - 160)) : visualHeight,
     };
   }
 

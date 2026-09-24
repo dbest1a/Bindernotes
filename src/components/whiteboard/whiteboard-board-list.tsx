@@ -1,4 +1,5 @@
 import { Archive, Layers3, Plus } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { BinderWhiteboard } from "@/lib/whiteboards/whiteboard-types";
@@ -27,6 +28,8 @@ export function WhiteboardBoardList({
   onSelectBoard,
   showLimitStatus = false,
 }: WhiteboardBoardListProps) {
+  const [query, setQuery] = useState("");
+  const visibleBoards = boards.filter((board) => `${board.title} ${board.subject}`.toLowerCase().includes(query.trim().toLowerCase()));
   const shouldShowLimitStatus = !compact || showLimitStatus;
   const limitReached = boards.length >= MAX_WHITEBOARDS_PER_USER;
   const showScratchOption = compact && limitReached && Boolean(onCreateScratchBoard);
@@ -41,7 +44,7 @@ export function WhiteboardBoardList({
         </p>
         {shouldShowLimitStatus ? (
           <Badge data-testid="whiteboard-board-count" variant="outline">
-            {boards.length} / {MAX_WHITEBOARDS_PER_USER}
+            {boards.length} / {MAX_WHITEBOARDS_PER_USER} saved
           </Badge>
         ) : null}
       </div>
@@ -80,13 +83,15 @@ export function WhiteboardBoardList({
           New board
         </Button>
       ) : null}
+      {(boards.length > 1 || query) && <input aria-label="Search whiteboards" className="rounded-md border border-border bg-background px-2 py-2 text-sm" type="search" placeholder="Find a board…" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()} />}
       <div className={compact ? "grid gap-2" : "grid max-h-48 gap-2 overflow-auto pr-1"}>
         {boards.length === 0 ? (
           <p className="rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
             No saved whiteboards yet.
           </p>
         ) : null}
-        {boards.map((board) => (
+        {boards.length > 0 && visibleBoards.length === 0 && <p role="status">No matching boards.</p>}
+        {visibleBoards.map((board) => (
           <div
             className={`whiteboard-board-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl border p-2 transition ${
               board.id === activeBoardId ? "border-primary/60 bg-primary/10 text-foreground" : "border-border/70 bg-background/70"
@@ -97,10 +102,14 @@ export function WhiteboardBoardList({
               className="min-w-0 overflow-hidden text-left"
               data-testid={`whiteboard-open-${board.id}`}
               onClick={() => onSelectBoard(board.id)}
+              aria-current={board.id === activeBoardId ? "true" : undefined}
+              title={board.title}
               type="button"
             >
+              {board.thumbnailDataUrl?.startsWith("data:image/") && <img src={board.thumbnailDataUrl} alt="" className="mb-1 h-12 w-full rounded object-contain" />}
               <span className="block truncate text-sm font-semibold">{board.title}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{board.objectCount} objects</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{board.objectCount} {board.objectCount === 1 ? "object" : "objects"}</span>
+              <time className="block text-[10px] text-muted-foreground" dateTime={board.updatedAt}>Edited {new Date(board.updatedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
             </button>
             {showArchiveActions && onArchiveBoard ? (
               <button

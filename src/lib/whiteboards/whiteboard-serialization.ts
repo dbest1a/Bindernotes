@@ -27,7 +27,7 @@ export function estimateJsonSizeBytes(value: unknown) {
 }
 
 export function countWhiteboardObjects(board: Pick<BinderWhiteboard, "scene" | "modules">) {
-  return (board.scene.elements?.length ?? 0) + board.modules.length;
+  return (board.scene.elements?.filter((element) => !isRecord(element) || element.isDeleted !== true).length ?? 0) + board.modules.length;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -187,8 +187,8 @@ export function sanitizeWhiteboardForStorage(board: BinderWhiteboard): BinderWhi
     ...board,
     scene,
     modules,
-    objectCount,
-    sceneSizeBytes,
+    objectCount: board.contentLoaded === false ? board.objectCount : objectCount,
+    sceneSizeBytes: board.contentLoaded === false ? board.sceneSizeBytes : sceneSizeBytes,
     storageMode: board.storageMode,
   };
 }
@@ -197,6 +197,10 @@ export function validateWhiteboardForStorage(board: BinderWhiteboard): Whiteboar
   const sanitized = sanitizeWhiteboardForStorage(board);
   const warnings: string[] = [];
   const errors: string[] = [];
+
+  if (board.contentLoaded === false) {
+    errors.push("This board has not finished loading. Wait for its content before saving.");
+  }
 
   if (sanitized.objectCount >= MAX_OBJECTS_WARNING) {
     warnings.push(

@@ -16,12 +16,21 @@ import {
 } from "@/lib/whiteboard-performance-diagnostics";
 import { AUTOSAVE_DEBOUNCE_MS } from "@/lib/whiteboards/whiteboard-limits";
 import type { BinderWhiteboard, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
+import { fitAllWhiteboardContent } from "@/lib/whiteboards/whiteboard-navigation";
+import { composeWhiteboardSvg, downloadWhiteboardFile, getWhiteboardCanvasBackground } from "@/lib/whiteboards/whiteboard-export";
+
+export type WhiteboardCanvasActions = {
+  fitAll: () => void;
+  getScene: () => WhiteboardSceneData;
+  exportSvg: (moduleText?: Record<string, string>) => Promise<void>;
+};
 
 type WhiteboardCanvasProps = {
   board: BinderWhiteboard;
   onSceneChange: (scene: WhiteboardSceneData) => void;
   onViewportChange?: (transform: WhiteboardViewportTransform) => void;
   onViewportRequestReady?: (requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => void;
+  onActionsReady?: (actions: WhiteboardCanvasActions | null) => void;
   fullscreen?: boolean;
 };
 
@@ -29,6 +38,8 @@ type ExcalidrawCameraApi = {
   getAppState?: () => unknown;
   updateScene?: (scene: { appState?: Record<string, unknown> }) => void;
   refresh?: () => void;
+  getSceneElements?: () => readonly unknown[];
+  getFiles?: () => unknown;
 };
 
 type PendingSceneInput = {
@@ -46,6 +57,7 @@ export function WhiteboardCanvas({
   onSceneChange,
   onViewportChange,
   onViewportRequestReady,
+  onActionsReady,
   fullscreen = false,
 }: WhiteboardCanvasProps) {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState<ComponentType<Record<string, unknown>> | null>(null);
@@ -59,6 +71,8 @@ export function WhiteboardCanvas({
   const drawingPointerIdsRef = useRef(new Set<number>());
   const pendingResizeRefreshRef = useRef(false);
   const lastHostSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const latestBoardRef = useRef(board);
+  latestBoardRef.current = board;
 
   const getViewportSize = useCallback(() => {
     const rect = hostRef.current?.getBoundingClientRect();
@@ -272,6 +286,54 @@ export function WhiteboardCanvas({
     [emitViewportChange, onViewportRequestReady],
   );
 
+  useEffect(() => {
+    if (!ExcalidrawComponent) return;
+    const getScene = () => {
+      const api = excalidrawApiRef.current;
+      const apiState = api?.getAppState?.() as Record<string, unknown> | undefined;
+      // Excalidraw exposes an empty scene before it restores initialData. A
+      // pagehide/save/switch during that window must preserve the loaded board.
+      if (apiState?.isLoading === true) {
+        const stored = latestBoardRef.current.scene;
+        return sanitizeExcalidrawInitialData({
+          ...stored,
+          appState: { ...stored.appState, viewBackgroundColor: getWhiteboardCanvasBackground(stored.appState) },
+        });
+      }
+      const pending = pendingSceneRef.current;
+      return sanitizeExcalidrawInitialData({
+        elements: api?.getSceneElements?.() ?? pending?.elements ?? latestBoardRef.current.scene.elements,
+        appState: { ...latestBoardRef.current.scene.appState, ...(apiState ?? pending?.appState as Record<string, unknown> ?? {}), viewBackgroundColor: getWhiteboardCanvasBackground(apiState ?? latestBoardRef.current.scene.appState) },
+        files: api?.getFiles?.() ?? pending?.files ?? latestBoardRef.current.scene.files,
+      });
+    };
+    onActionsReady?.({
+      getScene,
+      fitAll: () => {
+        const current = latestBoardRef.current;
+        const viewport = latestViewportTransformRef.current ?? extractWhiteboardViewportTransform(current.scene.appState, getViewportSize());
+        const next = fitAllWhiteboardContent({ scene: getScene(), modules: current.modules }, viewport);
+        excalidrawApiRef.current?.updateScene?.({ appState: { scrollX: next.scrollX, scrollY: next.scrollY, zoom: { value: next.zoom } } });
+        emitViewportTransform(next);
+      },
+      exportSvg: async (moduleText = {}) => {
+        const current = { ...latestBoardRef.current, scene: getScene() };
+        const viewport = latestViewportTransformRef.current ?? extractWhiteboardViewportTransform(current.scene.appState, getViewportSize());
+        const elements = current.scene.elements.filter((e) => e && typeof e === "object" && !(e as { isDeleted?: boolean }).isDeleted);
+        let drawing = null;
+        if (elements.length) {
+          const { exportToSvg, getCommonBounds } = await import("@excalidraw/excalidraw");
+          const args = { elements, appState: { ...current.scene.appState, exportBackground: false, exportWithDarkMode: true }, files: current.scene.files ?? {}, exportPadding: 0 } as Parameters<typeof exportToSvg>[0];
+          const svg = await exportToSvg(args);
+          const [x, y, right, bottom] = getCommonBounds(args.elements);
+          drawing = { svg: svg.outerHTML, frame: { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) } };
+        }
+        downloadWhiteboardFile(current.title, "svg", composeWhiteboardSvg(current, viewport, drawing, moduleText), "image/svg+xml;charset=utf-8");
+      },
+    });
+    return () => onActionsReady?.(null);
+  }, [ExcalidrawComponent, emitViewportTransform, getViewportSize, onActionsReady]);
+
   useEffect(
     () => () => {
       flushPendingSceneChange();
@@ -367,8 +429,10 @@ export function WhiteboardCanvas({
     () => ({
       elements: initialData.elements as never[],
       appState: {
-        viewBackgroundColor: "#11131a",
         ...(initialData.appState ?? {}),
+        viewBackgroundColor: getWhiteboardCanvasBackground(initialData.appState),
+        exportWithDarkMode: true,
+        exportBackground: true,
       },
       files: (initialData.files ?? {}) as never,
     }),
@@ -414,6 +478,7 @@ export function WhiteboardCanvas({
         initialData={excalidrawInitialData}
         onChange={handleExcalidrawChange}
         onScrollChange={handleScrollChange}
+        UIOptions={{ canvasActions: { export: { saveFileToDisk: true }, saveAsImage: true } }}
         theme="dark"
       />
     </div>

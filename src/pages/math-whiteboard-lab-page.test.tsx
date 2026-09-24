@@ -281,14 +281,14 @@ describe("MathWhiteboardLabPage", () => {
     expect(screen.queryByText("19 objects")).toBeNull();
   });
 
-  it("offers a two-click delete path for the active board", async () => {
+  it("offers a two-click archive path for the active board", async () => {
     renderLab();
 
     const deleteButton = screen.getByTestId("whiteboard-delete-board");
-    expect(deleteButton.textContent).toContain("Delete board");
+    expect(deleteButton.textContent).toContain("Archive board");
 
     fireEvent.click(deleteButton);
-    expect(deleteButton.textContent).toContain("Confirm delete board");
+    expect(deleteButton.textContent).toContain("Confirm archive board");
 
     fireEvent.click(deleteButton);
     await waitFor(() => expect(screen.getByTestId("whiteboard-start-panel")).toBeTruthy());

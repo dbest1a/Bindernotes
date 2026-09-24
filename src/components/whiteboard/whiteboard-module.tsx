@@ -27,7 +27,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
-import { WhiteboardCanvas } from "@/components/whiteboard/whiteboard-canvas";
+import { WhiteboardCanvas, type WhiteboardCanvasActions } from "@/components/whiteboard/whiteboard-canvas";
+import { WhiteboardStudyTools } from "@/components/whiteboard/whiteboard-study-tools";
+import { getWhiteboardModuleExportFrame, whiteboardPlainText } from "@/lib/whiteboards/whiteboard-navigation";
 import { WhiteboardFloatingUiLayer } from "@/components/whiteboard/whiteboard-floating-ui-layer";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
 import {
@@ -92,6 +94,8 @@ import {
   type WhiteboardModuleDefinition,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import { mathWhiteboardTemplates } from "@/lib/whiteboards/whiteboard-templates";
+import { getWhiteboardRecoveryMessage, readWhiteboardRecoveryDraft, writeWhiteboardRecoveryDraft } from "@/lib/whiteboards/whiteboard-recovery";
+import "@/whiteboard-release.css";
 import type { JSONContent } from "@tiptap/react";
 
 type WhiteboardModuleProps = {
@@ -284,7 +288,7 @@ function getInitialWhiteboardSidebarWidth() {
 
 function getWhiteboardLoadedMessage(backend: "local" | "supabase", compactWhiteboardTools: boolean) {
   if (backend === "supabase") {
-    return compactWhiteboardTools ? "Loaded from your account" : "Loaded from Supabase";
+    return "Board loaded";
   }
 
   return "Local draft";
@@ -343,6 +347,28 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const lastCountUpdateRef = useRef(0);
   const saveStatusRef = useRef(saveStatus);
   const saveRequestIdRef = useRef(0);
+  const transitionIdRef = useRef(0);
+  const editGenerationRef = useRef(0);
+  const dirtyRef = useRef(false);
+  const flushBoardRef = useRef<() => void>(() => {});
+  const creatingRef = useRef(false);
+  const moduleHistoryRef = useRef<{ boardId: string | null; past: WhiteboardModuleElement[][]; future: WhiteboardModuleElement[][] }>({ boardId: null, past: [], future: [] });
+  const [moduleHistoryCounts, setModuleHistoryCounts] = useState({ boardId: null as string | null, undo: 0, redo: 0 });
+  const canUndoModules = moduleHistoryCounts.boardId === activeBoard?.id && moduleHistoryCounts.undo > 0;
+  const canRedoModules = moduleHistoryCounts.boardId === activeBoard?.id && moduleHistoryCounts.redo > 0;
+  const canvasActionsRef = useRef<WhiteboardCanvasActions | null>(null);
+  const canvasActionsBoardIdRef = useRef<string | null>(null);
+  const bindCanvasActions = useCallback((boardId: string, actions: WhiteboardCanvasActions | null) => {
+    if (actions && boardRef.current?.id === boardId) {
+      canvasActionsRef.current = actions;
+      canvasActionsBoardIdRef.current = boardId;
+    } else if (!actions && canvasActionsBoardIdRef.current === boardId) {
+      canvasActionsRef.current = null;
+      canvasActionsBoardIdRef.current = null;
+    }
+  }, []);
+  const getCurrentCanvasScene = useCallback(() => canvasActionsBoardIdRef.current === boardRef.current?.id
+    ? canvasActionsRef.current?.getScene() ?? null : null, []);
   const lastUsedPrivateNotesModuleRef = useRef<string | null>(null);
   const requestViewportTransformRef = useRef<((transform: WhiteboardViewportTransform) => void) | null>(null);
   const pendingViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
@@ -490,6 +516,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   }, []);
   const getLatestViewportTransform = useCallback(() => viewportTransformRef.current, []);
 
+  useEffect(() => {
+    const boardId = activeBoard?.id ?? null;
+    if (moduleHistoryRef.current.boardId !== boardId) {
+      moduleHistoryRef.current = { boardId, past: [], future: [] };
+      setModuleHistoryCounts({ boardId, undo: 0, redo: 0 });
+    }
+  }, [activeBoard?.id]);
+
   const activateScratchBoard = useCallback(
     (template: WhiteboardTemplate = mathWhiteboardTemplates[0]) => {
       if (!scope) {
@@ -504,6 +538,10 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         }),
       );
 
+      flushBoardRef.current();
+      transitionIdRef.current += 1;
+      saveRequestIdRef.current += 1;
+      dirtyRef.current = false;
       setActiveBoard(scratchBoard);
       boardRef.current = scratchBoard;
       latestSceneRef.current = scratchBoard.scene;
@@ -530,7 +568,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
 
   const applyWhiteboardListResult = useCallback(
     (boards: BinderWhiteboard[], nextActiveId?: string) => {
-      const repairedBoards = boards.map(repairBoardModules);
+      const current = boardRef.current;
+      const repairedBoards = boards.map((board) => current?.id === board.id && dirtyRef.current ? current : repairBoardModules(board));
+      if (current && dirtyRef.current && !repairedBoards.some((board) => board.id === current.id) && !isScratchWhiteboard(current)) {
+        repairedBoards.unshift(current);
+      }
       setBoards(repairedBoards);
       const requestedBoard = nextActiveId ? repairedBoards.find((board) => board.id === nextActiveId) ?? null : null;
       const documentBoard =
@@ -541,20 +583,47 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         compactWhiteboardTools && boardRef.current && isScratchWhiteboard(boardRef.current)
           ? repairBoardModules(boardRef.current)
           : null;
-      const nextActive =
+      const nextActive = (dirtyRef.current && current && (!nextActiveId || nextActiveId === current.id) ? current : null) ??
         requestedBoard ??
         (compactWhiteboardTools ? documentBoard ?? currentScratchBoard : repairedBoards[0]) ??
         null;
+      if (nextActive?.contentLoaded === false && scope) {
+        const transitionId = ++transitionIdRef.current;
+        const generation = editGenerationRef.current;
+        setSaveMessage("Loading board…");
+        void loadWhiteboard(scope, nextActive.id).then((result) => {
+          if (transitionId !== transitionIdRef.current || generation !== editGenerationRef.current) return;
+          const loaded = result.boards.find((board) => board.id === nextActive.id && board.contentLoaded !== false);
+          if (!loaded) { setWarning(result.message || "Could not load board content."); return; }
+          const repaired = repairBoardModules(loaded);
+          saveRequestIdRef.current += 1;
+          dirtyRef.current = repaired.storageMode === "local-draft";
+          boardRef.current = repaired;
+          latestSceneRef.current = repaired.scene;
+          setActiveBoard(repaired);
+          rememberBoardPinnedGeometry(repaired.modules);
+          handleViewportChange(extractWhiteboardViewportTransform(repaired.scene.appState));
+          setSaveStatus(dirtyRef.current ? "offline-draft" : "saved");
+          setSaveMessage(dirtyRef.current ? getWhiteboardRecoveryMessage(repaired) : "Board loaded");
+          if (repaired.recoveryStorage === "memory") setWarning(getWhiteboardRecoveryMessage(repaired));
+        });
+        return;
+      }
       if (!nextActive && compactWhiteboardTools && scope && repairedBoards.length >= MAX_WHITEBOARDS_PER_USER) {
         activateScratchBoard();
         return;
       }
       setActiveBoard(nextActive);
       boardRef.current = nextActive;
+      dirtyRef.current = Boolean(nextActive && ((nextActive.id === current?.id && dirtyRef.current) ||
+        readWhiteboardRecoveryDraft({ ownerId: nextActive.ownerId }, nextActive.id)));
+      if (nextActive?.id !== current?.id) saveRequestIdRef.current += 1;
       rememberBoardPinnedGeometry(nextActive?.modules ?? []);
       if (nextActive) {
         latestSceneRef.current = nextActive.scene;
         handleViewportChange(extractWhiteboardViewportTransform(nextActive.scene.appState));
+      } else {
+        latestSceneRef.current = null;
       }
     },
     [
@@ -573,7 +642,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      const transitionId = transitionIdRef.current;
       void listWhiteboards(scope).then((result) => {
+        if (transitionId !== transitionIdRef.current) return;
         const currentBoard = boardRef.current;
         if (result.boards.length > 0 || !currentBoard) {
           applyWhiteboardListResult(result.boards, nextActiveId ?? currentBoard?.id);
@@ -588,14 +659,28 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           setSaveStatus("offline-draft");
           setSaveMessage("Scratch board - not saved yet");
         } else {
-          setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-          setSaveMessage(getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
+          const localDraft = activeAfterRefresh?.storageMode === "local-draft" || dirtyRef.current;
+          setSaveStatus(localDraft ? "offline-draft" : result.backend === "supabase" ? "saved" : "offline-draft");
+          setSaveMessage(localDraft && activeAfterRefresh ? getWhiteboardRecoveryMessage(activeAfterRefresh) : getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
         }
-        setWarning(result.error ? result.message : null);
+        setWarning(activeAfterRefresh?.recoveryStorage === "memory" ? getWhiteboardRecoveryMessage(activeAfterRefresh) : result.error ? result.message : null);
       });
     },
     [applyWhiteboardListResult, compactWhiteboardTools, scope],
   );
+
+  useEffect(() => {
+    boardRef.current = null;
+    latestSceneRef.current = null;
+    dirtyRef.current = false;
+    setActiveBoard(null);
+    setBoards([]);
+    return () => {
+      flushBoardRef.current();
+      transitionIdRef.current += 1;
+      saveRequestIdRef.current += 1;
+    };
+  }, [scope]);
 
   useEffect(() => {
     if (!scope) {
@@ -631,8 +716,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           setSaveStatus("offline-draft");
           setSaveMessage("Scratch board - not saved yet");
         } else {
-          setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-          setSaveMessage(getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
+          const localDraft = activeAfterList?.storageMode === "local-draft" || dirtyRef.current;
+          setSaveStatus(localDraft ? "offline-draft" : result.backend === "supabase" ? "saved" : "offline-draft");
+          setSaveMessage(localDraft && activeAfterList ? getWhiteboardRecoveryMessage(activeAfterList) : getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
         }
       } else if (!currentBoard) {
         applyWhiteboardListResult([], undefined);
@@ -647,11 +733,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           setSaveStatus("offline-draft");
           setSaveMessage("Scratch board - not saved yet");
         } else {
-          setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-          setSaveMessage(getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
+          const localDraft = currentBoard.storageMode === "local-draft" || dirtyRef.current;
+          setSaveStatus(localDraft ? "offline-draft" : result.backend === "supabase" ? "saved" : "offline-draft");
+          setSaveMessage(localDraft ? getWhiteboardRecoveryMessage(currentBoard) : getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
         }
       }
-      if (result.error && result.backend === "local") {
+      if (boardRef.current?.recoveryStorage === "memory") {
+        setWarning(getWhiteboardRecoveryMessage(boardRef.current));
+      } else if (result.error && result.backend === "local") {
         setWarning(result.message);
       } else {
         setWarning(null);
@@ -706,9 +795,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const persistBoard = useCallback(
     (board: BinderWhiteboard) => {
       try {
+        if (board.contentLoaded === false || board.id !== boardRef.current?.id) return null;
         const requestId = saveRequestIdRef.current + 1;
         saveRequestIdRef.current = requestId;
-        const saved = board;
+        const generation = editGenerationRef.current;
+        const scene = getCurrentCanvasScene() ?? latestSceneRef.current ?? board.scene;
+        latestSceneRef.current = scene;
+        const saved = { ...board, scene, objectCount: countWhiteboardObjects({ scene, modules: board.modules }) };
+        const recovery = writeWhiteboardRecoveryDraft(saved);
+        saved.recoveryStorage = recovery.memoryToken ? "memory" : undefined;
         setActiveBoard(saved);
         boardRef.current = saved;
         rememberBoardPinnedGeometry(saved.modules);
@@ -721,12 +816,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         setSaveStatus("saving");
         setSaveMessage("Saving...");
         const validation = validateWhiteboardForStorage(saved);
-        setWarning(validation.warnings[0] ?? null);
+        setWarning(recovery.error ?? validation.warnings[0] ?? null);
         void saveWhiteboard(saved, { backend: "supabase", createVersion: saveStatusRef.current !== "saving" }).then(
           (result) => {
-            if (requestId !== saveRequestIdRef.current) {
+            if (requestId !== saveRequestIdRef.current || boardRef.current?.id !== saved.id || result.board.id !== saved.id || generation !== editGenerationRef.current) {
               return;
             }
+            dirtyRef.current = result.status !== "saved";
             const nextBoard = repairBoardModules(result.board);
             setActiveBoard(nextBoard);
             boardRef.current = nextBoard;
@@ -736,7 +832,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             if (result.status !== "saved") {
               setWarning(result.message);
             } else {
-              setWarning(validateWhiteboardForStorage(nextBoard).warnings[0] ?? null);
+              setWarning(result.warning ?? validateWhiteboardForStorage(nextBoard).warnings[0] ?? null);
             }
             setBoards((currentBoards) => {
               const withoutSaved = currentBoards.filter((candidate) => candidate.id !== nextBoard.id);
@@ -744,7 +840,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             });
           },
           (error) => {
-            if (requestId !== saveRequestIdRef.current) {
+            if (requestId !== saveRequestIdRef.current || boardRef.current?.id !== saved.id || generation !== editGenerationRef.current) {
               return;
             }
             setSaveStatus("error");
@@ -762,15 +858,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return null;
       }
     },
-    [compactWhiteboardTools, rememberBoardPinnedGeometry, repairBoardModules],
+    [compactWhiteboardTools, getCurrentCanvasScene, rememberBoardPinnedGeometry, repairBoardModules],
   );
 
   const saveLatestBoard = useCallback(() => {
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = null;
     const current = boardRef.current;
     if (!current) {
       return;
     }
 
+    latestSceneRef.current = getCurrentCanvasScene() ?? latestSceneRef.current;
     const nextBoard = latestSceneRef.current
       ? {
           ...current,
@@ -783,7 +882,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       : current;
     setSaveStatus("saving");
     persistBoard(nextBoard);
-  }, [persistBoard]);
+  }, [getCurrentCanvasScene, persistBoard]);
 
   const scheduleAutosave = useCallback(() => {
     if (autosaveTimerRef.current) {
@@ -795,6 +894,24 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     }
     autosaveTimerRef.current = window.setTimeout(saveLatestBoard, AUTOSAVE_DEBOUNCE_MS);
   }, [saveLatestBoard]);
+
+  flushBoardRef.current = () => {
+    const current = boardRef.current;
+    const scene = getCurrentCanvasScene();
+    if (current && (dirtyRef.current || (scene && hasPersistentWhiteboardSceneChange(current.scene, scene)))) saveLatestBoard();
+  };
+  useEffect(() => {
+    const flush = () => flushBoardRef.current();
+    const hide = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", hide);
+    window.addEventListener("online", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("online", flush);
+    };
+  }, []);
 
   const toggleBrowserFullscreen = useCallback(() => {
     if (typeof document === "undefined") {
@@ -812,9 +929,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   }, []);
 
   const handleSceneChange = useCallback(
-    (scene: WhiteboardSceneData) => {
+    (scene: WhiteboardSceneData, sourceBoardId?: string) => {
       const current = boardRef.current;
-      if (!current) {
+      if (!current || (sourceBoardId && current.id !== sourceBoardId)) {
         return;
       }
       const previousScene = latestSceneRef.current ?? current.scene;
@@ -830,13 +947,31 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (!hasPersistentWhiteboardSceneChange(previousScene, scene)) {
         return;
       }
+      editGenerationRef.current += 1;
+      dirtyRef.current = true;
+      boardRef.current = { ...current, scene, objectCount, updatedAt: new Date().toISOString() };
+      const recovery = writeWhiteboardRecoveryDraft(boardRef.current);
+      boardRef.current.recoveryStorage = recovery.memoryToken ? "memory" : undefined;
+      if (recovery.error) setWarning(recovery.error);
       scheduleAutosave();
     },
     [scheduleAutosave],
   );
 
+  // Keep canvas registrations stable during toolbar, save-status, and camera renders.
+  const activeCanvasBoardId = activeBoard?.id;
+  const handleActiveSceneChange = useCallback((scene: WhiteboardSceneData) => {
+    if (activeCanvasBoardId) handleSceneChange(scene, activeCanvasBoardId);
+  }, [activeCanvasBoardId, handleSceneChange]);
+  const handleActiveCanvasActions = useCallback((actions: WhiteboardCanvasActions | null) => {
+    if (activeCanvasBoardId) bindCanvasActions(activeCanvasBoardId, actions);
+  }, [activeCanvasBoardId, bindCanvasActions]);
+  const handleViewportRequestReady = useCallback((requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => {
+    if (boardRef.current?.id === activeCanvasBoardId) requestViewportTransformRef.current = requestViewport;
+  }, [activeCanvasBoardId]);
+
   const updateBoardModules = useCallback(
-    (updater: (modules: WhiteboardModuleElement[]) => WhiteboardModuleElement[]) => {
+    (updater: (modules: WhiteboardModuleElement[]) => WhiteboardModuleElement[], recordHistory = true) => {
       const current = boardRef.current;
       if (!current) {
         return;
@@ -850,7 +985,20 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         ...current,
         scene: nextScene,
         modules: updater(current.modules),
+        updatedAt: new Date().toISOString(),
       };
+      if (JSON.stringify(current.modules) === JSON.stringify(nextBoard.modules)) return;
+      if (recordHistory) {
+        const history = moduleHistoryRef.current.boardId === current.id
+          ? moduleHistoryRef.current : { boardId: current.id, past: [], future: [] };
+        history.past = [...history.past.slice(-49), JSON.parse(JSON.stringify(current.modules)) as WhiteboardModuleElement[]];
+        history.future = [];
+        moduleHistoryRef.current = history;
+        setModuleHistoryCounts({ boardId: current.id, undo: history.past.length, redo: 0 });
+      }
+      nextBoard.objectCount = countWhiteboardObjects(nextBoard);
+      editGenerationRef.current += 1;
+      dirtyRef.current = true;
       setActiveBoard(nextBoard);
       boardRef.current = nextBoard;
       latestSceneRef.current = nextScene;
@@ -859,6 +1007,26 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     },
     [persistBoard, rememberBoardPinnedGeometry],
   );
+
+  const undoModuleChange = useCallback(() => {
+    const current = boardRef.current;
+    const history = moduleHistoryRef.current;
+    if (!current || history.boardId !== current.id || history.past.length === 0) return;
+    const previous = history.past.pop()!;
+    history.future.push(JSON.parse(JSON.stringify(current.modules)) as WhiteboardModuleElement[]);
+    updateBoardModules(() => previous, false);
+    setModuleHistoryCounts({ boardId: current.id, undo: history.past.length, redo: history.future.length });
+  }, [updateBoardModules]);
+
+  const redoModuleChange = useCallback(() => {
+    const current = boardRef.current;
+    const history = moduleHistoryRef.current;
+    if (!current || history.boardId !== current.id || history.future.length === 0) return;
+    const next = history.future.pop()!;
+    history.past.push(JSON.parse(JSON.stringify(current.modules)) as WhiteboardModuleElement[]);
+    updateBoardModules(() => next, false);
+    setModuleHistoryCounts({ boardId: current.id, undo: history.past.length, redo: history.future.length });
+  }, [updateBoardModules]);
 
   const createBoardFromTemplate = useCallback(
     (template: WhiteboardTemplate) => {
@@ -878,20 +1046,33 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      if (creatingRef.current) return;
+      creatingRef.current = true;
+      flushBoardRef.current();
+      const transitionId = ++transitionIdRef.current;
+      saveRequestIdRef.current += 1;
       setSaveStatus("saving");
-      setSaveMessage("Saving...");
+      setSaveMessage("Creating board…");
+      const baseTitle = template.id === "blank-board" ? context.selectedLesson.title + " whiteboard" : template.name;
+      let uniqueTitle = baseTitle;
+      for (let number = 2; boards.some((board) => board.title === uniqueTitle); number++) uniqueTitle = baseTitle + " " + number;
       void createWhiteboard(scope, {
-        title: template.id === "blank-board" ? `${context.selectedLesson.title} whiteboard` : template.name,
+        title: uniqueTitle,
         subject: context.binder.subject,
         template,
       }).then((result) => {
-        if (result.status === "limit") {
-          setSaveStatus("limit");
+        creatingRef.current = false;
+        if (transitionId !== transitionIdRef.current) return;
+        if (result.status === "limit" || result.status === "error") {
+          setSaveStatus(result.status);
           setSaveMessage(result.message);
           setWarning(result.message);
           return;
         }
 
+        flushBoardRef.current();
+        saveRequestIdRef.current += 1;
+        dirtyRef.current = result.status !== "saved";
         const nextBoard = repairBoardModules(result.board);
         setActiveBoard(nextBoard);
         boardRef.current = nextBoard;
@@ -908,10 +1089,15 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         if (result.backend === "supabase" && result.status === "saved") {
           refreshBoards(nextBoard.id);
         }
+      }).catch((error: unknown) => {
+        creatingRef.current = false;
+        if (transitionId !== transitionIdRef.current) return;
+        setSaveStatus("error");
+        setWarning(error instanceof Error ? error.message : "Could not create the board. Your current board is retained.");
       });
     },
     [
-      boards.length,
+      boards,
       activateScratchBoard,
       compactWhiteboardTools,
       context.binder.subject,
@@ -929,20 +1115,29 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (!scope) {
         return;
       }
-      const cached = boards.find((board) => board.id === boardId);
-      if (cached) {
+      if (boardRef.current?.id === boardId) return;
+      flushBoardRef.current();
+      const transitionId = ++transitionIdRef.current;
+      saveRequestIdRef.current += 1;
+      const generation = editGenerationRef.current;
+      dirtyRef.current = false;
+      const cached = readWhiteboardRecoveryDraft(scope, boardId) ?? boards.find((board) => board.id === boardId);
+      if (cached && cached.contentLoaded !== false) {
         const repaired = repairBoardModules(cached);
         latestSceneRef.current = repaired.scene;
         handleViewportChange(extractWhiteboardViewportTransform(repaired.scene.appState));
         setActiveBoard(repaired);
         boardRef.current = repaired;
+        dirtyRef.current = repaired.storageMode === "local-draft";
         rememberBoardPinnedGeometry(repaired.modules);
         setSaveStatus(repaired.storageMode === "supabase" ? "saved" : "offline-draft");
         setSaveMessage(getWhiteboardLoadedMessage(repaired.storageMode === "supabase" ? "supabase" : "local", compactWhiteboardTools));
       }
       void loadWhiteboard(scope, boardId).then((result) => {
+        if (transitionId !== transitionIdRef.current || generation !== editGenerationRef.current) return;
         const remoteLoaded = result.boards[0];
-        if (!remoteLoaded) {
+        if (!remoteLoaded || remoteLoaded.id !== boardId || remoteLoaded.contentLoaded === false) {
+          setWarning(result.message || "Could not open this board. Your draft is retained.");
           return;
         }
         const nextBoard = repairBoardModules(remoteLoaded);
@@ -950,9 +1145,11 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         handleViewportChange(extractWhiteboardViewportTransform(nextBoard.scene.appState));
         setActiveBoard(nextBoard);
         boardRef.current = nextBoard;
+        dirtyRef.current = nextBoard.storageMode === "local-draft";
         rememberBoardPinnedGeometry(nextBoard.modules);
-        setSaveStatus(result.backend === "supabase" ? "saved" : "offline-draft");
-        setSaveMessage(getWhiteboardLoadedMessage(result.backend, compactWhiteboardTools));
+        setSaveStatus(dirtyRef.current ? "offline-draft" : "saved");
+        setSaveMessage(dirtyRef.current ? getWhiteboardRecoveryMessage(nextBoard) : "Board loaded");
+        if (nextBoard.recoveryStorage === "memory") setWarning(getWhiteboardRecoveryMessage(nextBoard));
       });
     },
     [boards, compactWhiteboardTools, handleViewportChange, rememberBoardPinnedGeometry, repairBoardModules, scope],
@@ -964,21 +1161,33 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         return;
       }
 
+      flushBoardRef.current();
+      const transitionId = ++transitionIdRef.current;
+      saveRequestIdRef.current += 1;
       setSaveStatus("saving");
       setSaveMessage("Archiving...");
       void archiveWhiteboard(scope, boardId).then((result) => {
         if (result.status === "error") {
+          if (transitionId !== transitionIdRef.current) return;
           setSaveStatus("error");
           setSaveMessage(result.message);
           setWarning(result.error ?? result.message);
           return;
         }
 
+        setBoards((currentBoards) => currentBoards.filter((board) => board.id !== boardId));
+        if (transitionId !== transitionIdRef.current) return;
+        const current = boardRef.current;
         const remaining = boards.filter((board) => board.id !== boardId);
-        setBoards(remaining);
-        const nextActive = activeBoard?.id === boardId ? remaining[0] ?? null : activeBoard;
+        const nextActive = current?.id === boardId ? remaining[0] ?? null : current;
+        if (current?.id === boardId && autosaveTimerRef.current) {
+          window.clearTimeout(autosaveTimerRef.current);
+          autosaveTimerRef.current = null;
+        }
+        saveRequestIdRef.current += 1;
         setActiveBoard(nextActive);
         boardRef.current = nextActive;
+        dirtyRef.current = nextActive?.storageMode === "local-draft";
         rememberBoardPinnedGeometry(nextActive?.modules ?? []);
         if (nextActive) {
           latestSceneRef.current = nextActive.scene;
@@ -990,7 +1199,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         refreshBoards(nextActive?.id);
       });
     },
-    [activeBoard, boards, handleViewportChange, refreshBoards, rememberBoardPinnedGeometry, scope],
+    [boards, handleViewportChange, refreshBoards, rememberBoardPinnedGeometry, scope],
   );
 
   const createBlankBoard = useCallback(() => {
@@ -1313,14 +1522,63 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (nextTitle === current.title) {
         return;
       }
+      editGenerationRef.current += 1;
+      dirtyRef.current = true;
       persistBoard({
         ...current,
+        scene: latestSceneRef.current ?? current.scene,
         title: nextTitle,
         updatedAt: new Date().toISOString(),
       });
     },
     [persistBoard],
   );
+
+  const sourceText = Object.fromEntries((activeBoard?.modules ?? []).map((module) => {
+    const lesson = [context.selectedLesson, ...(context.library?.lessons ?? []), ...(context.lessons ?? [])].find((item) => item.id === module.lessonId);
+    return [module.id, lesson ? `${lesson.title}\n${whiteboardPlainText(lesson.content)}` : ""];
+  }));
+  const studyTools = activeBoard ? <div className="grid gap-2">
+    <div className="grid grid-cols-2 gap-2">
+      <Button size="sm" variant="outline" aria-label="Undo module change" disabled={!canUndoModules} onClick={undoModuleChange}>Undo card</Button>
+      <Button size="sm" variant="outline" aria-label="Redo module change" disabled={!canRedoModules} onClick={redoModuleChange}>Redo card</Button>
+    </div>
+    <WhiteboardStudyTools
+    key={activeBoard.id}
+    board={activeBoard}
+    getActions={() => canvasActionsBoardIdRef.current === activeBoard.id ? canvasActionsRef.current : null}
+    viewport={viewportTransform}
+    sourceText={sourceText}
+    onViewport={(next) => { requestViewportTransformRef.current?.(next); handleViewportChange(next); }}
+    onStickyNote={() => {
+      const now = new Date().toISOString();
+      const camera = viewportTransformRef.current;
+      updateBoardModules((modules) => [...modules, {
+        id: `sticky-${crypto.randomUUID()}`, type: "bindernotes-module", moduleId: "private-notes",
+        title: "Sticky note", noteTitle: "Sticky note", noteContent: emptyNoteDoc(), sourceConfirmed: true,
+        x: camera.viewportWidth / (2 * camera.zoom) - camera.scrollX - 180,
+        y: camera.viewportHeight / (2 * camera.zoom) - camera.scrollY - 130,
+        width: 360, height: 300, zIndex: Math.max(0, ...modules.map((module) => module.zIndex)) + 1,
+        mode: "live", anchorMode: "board-fixed-size", createdAt: now, updatedAt: now,
+      }]);
+    }}
+    onArrange={() => {
+      const camera = viewportTransformRef.current;
+      updateBoardModules((modules) => {
+        let x = -camera.scrollX + 80 / camera.zoom, y = -camera.scrollY + 100 / camera.zoom, rowHeight = 0;
+        const left = x;
+        return modules.map((module) => {
+          if (getWhiteboardModuleAnchorMode(module) === "viewport") return module;
+          const frame = getWhiteboardModuleExportFrame(module, camera);
+          if (x > left && x - left + frame.width > (camera.viewportWidth - 160) / camera.zoom) { x = left; y += rowHeight + 32 / camera.zoom; rowHeight = 0; }
+          const next = { ...module, x, y, updatedAt: new Date().toISOString() };
+          x += frame.width + 32 / camera.zoom;
+          rowHeight = Math.max(rowHeight, frame.height);
+          return next;
+        });
+      });
+    }}
+  /></div> : null;
 
   if (!scope) {
     return (
@@ -1377,13 +1635,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               </div>
             ) : null}
             <WhiteboardCanvas
+              key={activeBoard.id}
+              onActionsReady={handleActiveCanvasActions}
               board={activeBoard}
               fullscreen
-              onSceneChange={handleSceneChange}
+              onSceneChange={handleActiveSceneChange}
               onViewportChange={handleViewportChange}
-              onViewportRequestReady={(requestViewport) => {
-                requestViewportTransformRef.current = requestViewport;
-              }}
+              onViewportRequestReady={handleViewportRequestReady}
             />
             <WhiteboardPinnedObjectLayer
               context={context}
@@ -1423,6 +1681,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               saveMessage={saveMessage}
               saveStatus={saveStatus}
               warning={warning}
+              studyTools={studyTools}
+              templates={<details><summary className="cursor-pointer p-2 font-semibold">Start from a template</summary><WhiteboardTemplatePicker compact onCreateFromTemplate={createBoardFromTemplate} /></details>}
             />
             {pendingNotesInsertion ? (
               <div
@@ -1676,7 +1936,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             </div>
             <div className="whiteboard-sidebar-header__meta">
               <Badge variant="secondary">{context.binder.subject ?? "Workspace"}</Badge>
-              <span>{activeBoard ? `${activeBoard.objectCount} objects` : "No board selected"}</span>
+              <span>{activeBoard ? `${activeBoard.objectCount} ${activeBoard.objectCount === 1 ? "object" : "objects"}` : "No board selected"}</span>
             </div>
             <p>
               {compactWhiteboardTools
@@ -1685,6 +1945,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             </p>
           </div>
           <div className="whiteboard-sidebar-scroll" data-testid="whiteboard-sidebar-scroll">
+            {studyTools}
             <WhiteboardBoardList
               activeBoardId={activeBoard?.id ?? null}
               archiveActionsVisible={!compactWhiteboardTools}
@@ -1753,12 +2014,12 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           {activeBoard ? (
             <div className="whiteboard-module-board relative h-full min-h-0 min-w-0 overflow-hidden">
               <WhiteboardCanvas
+                key={activeBoard.id}
+                onActionsReady={handleActiveCanvasActions}
                 board={activeBoard}
-                onSceneChange={handleSceneChange}
+                onSceneChange={handleActiveSceneChange}
                 onViewportChange={handleViewportChange}
-                onViewportRequestReady={(requestViewport) => {
-                  requestViewportTransformRef.current = requestViewport;
-                }}
+                onViewportRequestReady={handleViewportRequestReady}
               />
               <WhiteboardPinnedObjectLayer
                 context={context}

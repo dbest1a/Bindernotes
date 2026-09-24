@@ -1,5 +1,5 @@
 import { Home, Maximize2, Minimize2, PanelLeftOpen, Save, Settings2, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
@@ -24,6 +24,8 @@ type WhiteboardFloatingUiLayerProps = {
   saveMessage: string;
   saveStatus: WhiteboardSaveStatus;
   warning: string | null;
+  studyTools?: ReactNode;
+  templates?: ReactNode;
 };
 
 const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
@@ -33,7 +35,7 @@ const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
   error: "Remote save failed",
   limit: "Whiteboard limit reached",
   "storage-limit": "Storage limit exceeded",
-  unavailable: "Supabase unavailable",
+  unavailable: "Cloud saving unavailable",
 };
 
 export function WhiteboardFloatingUiLayer({
@@ -54,6 +56,8 @@ export function WhiteboardFloatingUiLayer({
   saveMessage,
   saveStatus,
   warning,
+  studyTools,
+  templates,
 }: WhiteboardFloatingUiLayerProps) {
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
@@ -82,7 +86,7 @@ export function WhiteboardFloatingUiLayer({
             <Settings2 className="size-4" />
           </button>
         ) : (
-        <div className="whiteboard-control-panel pointer-events-auto grid w-[min(17rem,calc(100vw-2rem))] gap-2 rounded-lg border p-2 text-xs">
+        <div className="whiteboard-control-panel pointer-events-auto grid max-h-[calc(100svh-8rem)] w-[min(19rem,calc(100vw-2rem))] gap-2 overflow-y-auto rounded-lg border p-2 text-xs" onKeyDown={(event) => event.stopPropagation()}>
           <div className="flex items-center gap-2">
           <Button
             className="whiteboard-action-button flex-1 justify-start"
@@ -92,7 +96,7 @@ export function WhiteboardFloatingUiLayer({
             type="button"
           >
             <PanelLeftOpen data-icon="inline-start" />
-            Modules
+            Add module
           </Button>
           <Button
             aria-label="Minimize whiteboard controls"
@@ -129,8 +133,11 @@ export function WhiteboardFloatingUiLayer({
             className="whiteboard-save-status rounded-md border px-2.5 py-2 text-xs font-semibold"
             data-status={saveStatus}
             data-testid="whiteboard-save-confirmation"
+            role="status"
+            aria-live="polite"
           >
             {visibleStatusLabel}
+            {saveStatus === "saved" && <time className="mt-1 block font-normal" dateTime={activeBoard.updatedAt}>Last saved {new Date(activeBoard.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>}
           </div>
           {showSecondaryWarning ? (
             <span className="whiteboard-save-status inline-flex items-start gap-1 rounded-md border px-2 py-1.5" data-status="offline-draft">
@@ -148,6 +155,8 @@ export function WhiteboardFloatingUiLayer({
           >
             New Whiteboard
           </Button>
+          {templates}
+          {studyTools}
           <WhiteboardBoardList
             activeBoardId={activeBoard.id}
             boards={boards}
@@ -175,7 +184,7 @@ export function WhiteboardFloatingUiLayer({
             variant={deleteConfirming ? "destructive" : "outline"}
           >
             <Trash2 data-icon="inline-start" />
-            {deleteConfirming ? "Confirm delete board" : "Delete board"}
+            {deleteConfirming ? "Confirm archive board" : "Archive board"}
           </Button>
           <div className="grid grid-cols-2 gap-2" data-testid="whiteboard-corner-controls">
             {onBack ? (

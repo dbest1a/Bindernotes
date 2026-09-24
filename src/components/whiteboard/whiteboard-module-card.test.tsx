@@ -232,7 +232,7 @@ describe("WhiteboardModuleCard", () => {
     expect(Array.from(card.children).indexOf(dock)).toBeLessThan(Array.from(card.children).indexOf(content as Element));
   });
 
-  it("keeps the green resize handle pinned to the card bottom-right corner", () => {
+  it("reserves a separate footer for the visible resize control", () => {
     render(
       <WhiteboardModuleCard
         live
@@ -252,8 +252,74 @@ describe("WhiteboardModuleCard", () => {
     expect(resizeHandle.className).toContain("bottom-0");
     expect(resizeHandle.className).toContain("right-0");
     expect(resizeHandle.className).toContain("z-50");
-    expect(resizeHandle.className).toContain("size-6");
+    expect(resizeHandle.className).toContain("size-8");
     expect(resizeHandle.className).toContain("bg-primary");
+    expect(resizeHandle.closest(".whiteboard-module-card__content")).toBeNull();
+    expect(resizeHandle.closest(".whiteboard-module-card__footer")).toBeTruthy();
+  });
+
+  it("keeps input editing and undo inside the module without triggering board shortcuts", () => {
+    const onBoardShortcut = vi.fn();
+    const onInputKey = vi.fn();
+    render(
+      <div onKeyDown={onBoardShortcut} onKeyUp={onBoardShortcut}>
+        <WhiteboardModuleCard live moduleElement={moduleElement()} onBringToFront={vi.fn()} onChange={vi.fn()} onRemove={vi.fn()}>
+          <input aria-label="Lesson note" onKeyDown={onInputKey} />
+        </WhiteboardModuleCard>
+      </div>,
+    );
+    const input = screen.getByRole("textbox", { name: "Lesson note" });
+    fireEvent.keyDown(input, { key: "z", ctrlKey: true });
+    fireEvent.keyUp(input, { key: "z", ctrlKey: true });
+    fireEvent.keyDown(input, { key: "Delete" });
+    expect(onInputKey).toHaveBeenCalledTimes(2);
+    expect(onInputKey.mock.calls[0][0].defaultPrevented).toBe(false);
+    expect(onBoardShortcut).not.toHaveBeenCalled();
+  });
+
+  it("supports keyboard resizing and prevents shrinking below the readable minimum", () => {
+    const onChange = vi.fn();
+    render(
+      <WhiteboardModuleCard live moduleElement={moduleElement({ width: 360, height: 260 })} onBringToFront={vi.fn()} onChange={onChange} onRemove={vi.fn()}>
+        Lesson content
+      </WhiteboardModuleCard>,
+    );
+    const handle = screen.getByRole("button", { name: /Resize module/ });
+    fireEvent.keyDown(handle, { key: "ArrowLeft", shiftKey: true });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ width: 360, height: 260 }));
+    fireEvent.keyDown(handle, { key: "ArrowDown", shiftKey: true });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ width: 360, height: 310 }));
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ width: 370, height: 260 }));
+  });
+
+  it("fits long content within the current viewport instead of creating an unreachable resize corner", () => {
+    const onChange = vi.fn();
+    render(
+      <WhiteboardModuleCard live moduleElement={moduleElement()} onBringToFront={vi.fn()} onChange={onChange} onRemove={vi.fn()} viewportTransform={viewportTransform}>
+        A long lesson
+      </WhiteboardModuleCard>,
+    );
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const content = card.querySelector(".whiteboard-module-card__content")!;
+    Object.defineProperty(card, "offsetHeight", { value: 320 });
+    Object.defineProperty(content, "clientHeight", { value: 240 });
+    Object.defineProperty(content, "scrollHeight", { value: 900 });
+    fireEvent.click(screen.getByRole("button", { name: "Fit content" }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ height: 380, width: 420 }));
+  });
+
+  it("closes a card menu with Escape and returns focus to its trigger", () => {
+    render(
+      <WhiteboardModuleCard live moduleElement={moduleElement()} onBringToFront={vi.fn()} onChange={vi.fn()} onRemove={vi.fn()}>
+        Lesson content
+      </WhiteboardModuleCard>,
+    );
+    const trigger = screen.getByRole("button", { name: "Board card options" });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Edit source" }), { key: "Escape" });
+    expect(screen.queryByTestId("whiteboard-card-options-menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("dragging at zoom 2 moves board position by half the screen delta", () => {

@@ -1,6 +1,14 @@
 import { MAX_WHITEBOARDS_PER_USER } from "@/lib/whiteboards/whiteboard-limits";
 import { supabase } from "@/lib/supabase";
 import {
+  clearWhiteboardRecoveryDraft,
+  getWhiteboardRecoveryToken,
+  getWhiteboardRecoveryMessage,
+  listWhiteboardRecoveryDrafts,
+  readWhiteboardRecoveryDraft,
+  writeWhiteboardRecoveryDraft,
+} from "@/lib/whiteboards/whiteboard-recovery";
+import {
   sanitizeWhiteboardForStorage,
   validateWhiteboardForStorage,
 } from "@/lib/whiteboards/whiteboard-serialization";
@@ -50,7 +58,8 @@ function randomId(prefix: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown whiteboard storage error.";
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : "Unknown whiteboard storage error.";
 }
 
 function isWhiteboardLimitError(error: unknown) {
@@ -79,14 +88,15 @@ export function getWhiteboardStorageKey(scope: WhiteboardScope) {
 }
 
 function readBoards(scope: WhiteboardScope): BinderWhiteboard[] {
-  const raw = window.localStorage.getItem(getWhiteboardStorageKey(scope));
-  if (!raw) {
-    return [];
-  }
-
   try {
+    const raw = window.localStorage.getItem(getWhiteboardStorageKey(scope));
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as BinderWhiteboard[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter((board) =>
+      board?.ownerId === scope.ownerId && board.binderId === scope.binderId &&
+      (board.lessonId ?? null) === (scope.lessonId ?? null) &&
+      Array.isArray(board.scene?.elements) && Array.isArray(board.modules),
+    ) : [];
   } catch {
     return [];
   }
@@ -97,6 +107,11 @@ function writeBoards(scope: WhiteboardScope, boards: BinderWhiteboard[]) {
 }
 
 function mapWhiteboardRecord(record: Record<string, unknown>): BinderWhiteboard {
+  const validScene = (scene: unknown): scene is BinderWhiteboard["scene"] => Boolean(
+    scene && typeof scene === "object" && Array.isArray((scene as BinderWhiteboard["scene"]).elements),
+  );
+  const scene = validScene(record.scene_json) ? record.scene_json : validScene(record.scene) ? record.scene : null;
+  const modules = Array.isArray(record.module_elements) ? record.module_elements : Array.isArray(record.modules) ? record.modules : null;
   return sanitizeWhiteboardForStorage({
     id: String(record.id),
     ownerId: String(record.owner_id),
@@ -108,12 +123,9 @@ function mapWhiteboardRecord(record: Record<string, unknown>): BinderWhiteboard 
       record.module_context === "binder" || record.module_context === "lesson" || record.module_context === "math-lab"
         ? record.module_context
         : "lesson",
-    scene: (record.scene_json ?? record.scene ?? { elements: [], appState: {}, files: {} }) as BinderWhiteboard["scene"],
-    modules: Array.isArray(record.module_elements)
-      ? (record.module_elements as BinderWhiteboard["modules"])
-      : Array.isArray(record.modules)
-        ? (record.modules as BinderWhiteboard["modules"])
-        : [],
+    scene: scene ?? { elements: [], appState: {}, files: {} },
+    modules: (modules ?? []) as BinderWhiteboard["modules"],
+    contentLoaded: scene !== null && modules !== null,
     thumbnailDataUrl: null,
     objectCount: typeof record.object_count === "number" ? record.object_count : 0,
     sceneSizeBytes: typeof record.scene_size_bytes === "number" ? record.scene_size_bytes : 0,
@@ -164,7 +176,9 @@ async function listSupabaseWhiteboards(scope: WhiteboardScope): Promise<BinderWh
     throw error;
   }
 
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapWhiteboardRecord);
+  return ((data ?? []) as unknown as Record<string, unknown>[])
+    .filter((record) => record.owner_id === scope.ownerId)
+    .map(mapWhiteboardRecord);
 }
 
 async function loadSupabaseWhiteboard(scope: WhiteboardScope, boardId: string): Promise<BinderWhiteboard | null> {
@@ -184,7 +198,16 @@ async function loadSupabaseWhiteboard(scope: WhiteboardScope, boardId: string): 
     throw error;
   }
 
-  return data ? mapWhiteboardRecord(data as unknown as Record<string, unknown>) : null;
+  if (!data) return null;
+  const record = data as unknown as Record<string, unknown>;
+  if (record.id !== boardId || record.owner_id !== scope.ownerId) {
+    throw new Error("The loaded board did not match the requested board.");
+  }
+  const board = mapWhiteboardRecord(record);
+  if (board.contentLoaded === false) {
+    throw new Error("This board's content could not be loaded. Its saved copy has not been changed.");
+  }
+  return board;
 }
 
 async function countActiveSupabaseWhiteboards(ownerId: string) {
@@ -221,11 +244,21 @@ async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: bo
     throw error;
   }
 
+  const savedRecord = data as unknown as Record<string, unknown> | null;
+  if (!savedRecord || savedRecord.id !== board.id || savedRecord.owner_id !== board.ownerId) {
+    throw new Error("The save response did not match this board. Your recovery copy has been kept.");
+  }
+
+  const saved = mapWhiteboardRecord(data as unknown as Record<string, unknown>);
+  if (saved.contentLoaded === false) throw new Error("The save response did not include the complete board.");
+  let warning: string | undefined;
   if (createVersion) {
-    const { count } = await supabase
+    try {
+    const { count, error: countError } = await supabase
       .from("whiteboard_versions")
       .select("id", { count: "exact", head: true })
       .eq("whiteboard_id", board.id);
+    if (countError) throw countError;
     const version = (count ?? 0) + 1;
     const { error: versionError } = await supabase.from("whiteboard_versions").insert({
       whiteboard_id: board.id,
@@ -241,9 +274,12 @@ async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: bo
     if (versionError) {
       throw versionError;
     }
+    } catch {
+      warning = "Your board is saved, but this version could not be added to history.";
+    }
   }
 
-  return mapWhiteboardRecord(data as unknown as Record<string, unknown>);
+  return { board: saved, warning };
 }
 
 async function archiveSupabaseWhiteboard(scope: WhiteboardScope, boardId: string) {
@@ -350,7 +386,7 @@ export function listLocalWhiteboards(scope: WhiteboardScope) {
 }
 
 export function loadLocalWhiteboard(scope: WhiteboardScope, boardId: string) {
-  return readBoards(scope).find((board) => board.id === boardId) ?? null;
+  return readBoards(scope).find((board) => board.id === boardId && !board.archivedAt) ?? null;
 }
 
 export function saveLocalWhiteboard(board: BinderWhiteboard) {
@@ -367,6 +403,7 @@ export function saveLocalWhiteboard(board: BinderWhiteboard) {
   const sanitized = sanitizeWhiteboardForStorage({
     ...board,
     storageMode: "local-draft",
+    recoveryStorage: undefined,
     updatedAt: nowIso(),
   });
   const existingBoards = readBoards(scope);
@@ -386,6 +423,13 @@ export function saveLocalWhiteboard(board: BinderWhiteboard) {
 
 export function archiveLocalWhiteboard(scope: WhiteboardScope, boardId: string) {
   const archivedAt = nowIso();
+  const recovery = readWhiteboardRecoveryDraft(scope, boardId);
+  if (recovery) {
+    // Recovery may be the only complete copy after a cloud save failed. Materialize
+    // it as a durable archived snapshot before its pending-draft marker is removed.
+    saveLocalWhiteboard({ ...recovery, archivedAt });
+    return archivedAt;
+  }
   const existingBoards = readBoards(scope);
   const nextBoards = existingBoards.map((candidate) =>
     candidate.id === boardId
@@ -445,7 +489,7 @@ export async function createWhiteboard(
       };
     }
 
-    const remoteBoard = await saveSupabaseWhiteboard(
+    const { board: remoteBoard } = await saveSupabaseWhiteboard(
       {
         ...created,
         storageMode: "supabase",
@@ -456,7 +500,7 @@ export async function createWhiteboard(
       board: remoteBoard,
       backend: "supabase",
       status: "saved",
-      message: "Saved to Supabase",
+      message: "Saved",
       savedAt,
     };
   } catch (error) {
@@ -472,18 +516,22 @@ export async function createWhiteboard(
     }
 
     let localBoard = created;
+    let hasLocalCopy = false;
     try {
       localBoard = saveLocalWhiteboard(created);
+      hasLocalCopy = true;
     } catch {
-      // Preserve the original remote error for the user-facing result.
+      hasLocalCopy = Boolean(writeWhiteboardRecoveryDraft(created).token);
     }
+    // A successful local fallback must remain discoverable once cloud listing works again.
+    hasLocalCopy = Boolean(writeWhiteboardRecoveryDraft(localBoard).token) || hasLocalCopy;
     return {
       board: localBoard,
       backend: "local",
-      status: isMissingWhiteboardTableError(error) ? "unavailable" : "local-draft",
-      message: isMissingWhiteboardTableError(error)
-        ? "Supabase unavailable. Apply the whiteboards migration before the live demo."
-        : "Local draft. Supabase whiteboards are unavailable.",
+      status: !hasLocalCopy ? "error" : isMissingWhiteboardTableError(error) ? "unavailable" : "local-draft",
+      message: hasLocalCopy
+        ? "Cloud storage is unavailable. Your new board is saved on this device."
+        : "Could not save this board. Keep this tab open and retry.",
       savedAt,
       error: getErrorMessage(error),
     };
@@ -491,38 +539,54 @@ export async function createWhiteboard(
 }
 
 export async function listWhiteboards(scope: WhiteboardScope): Promise<WhiteboardListResult> {
-  const localBoards = listLocalWhiteboards(scope);
+  const mergeDrafts = (boards: BinderWhiteboard[]) => {
+    const drafts = listWhiteboardRecoveryDrafts(scope);
+    const draftIds = new Set(drafts.map((board) => board.id));
+    return [...drafts, ...boards.filter((board) => !draftIds.has(board.id))]
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  };
+  const localBoards = mergeDrafts(listLocalWhiteboards(scope));
+  const recoveryMessage = (boards: BinderWhiteboard[], fallback: string) => boards.some((board) => board.recoveryStorage === "memory")
+    ? "Some unsynced changes are held only in this tab. Keep this tab open and save to sync." : fallback;
   if (!supabase) {
     return {
       boards: localBoards,
       backend: "local",
       status: "local-draft",
-      message: "Local draft",
+      message: recoveryMessage(localBoards, "Local draft"),
     };
   }
 
   try {
     const boards = await listSupabaseWhiteboards(scope);
+    const merged = mergeDrafts(boards);
     return {
-      boards,
+      boards: merged,
       backend: "supabase",
       status: "loaded",
-      message: boards.length > 0 ? "Loaded from Supabase" : "Supabase ready",
+      message: recoveryMessage(merged, boards.length > 0 ? "Boards loaded" : "Ready"),
     };
   } catch (error) {
     return {
       boards: localBoards,
       backend: "local",
       status: "local-draft",
-      message: isMissingWhiteboardTableError(error)
-        ? "Saved locally. Apply the whiteboards migration to enable Supabase sync."
-        : "Saved locally. Supabase whiteboards are unavailable.",
+      message: recoveryMessage(localBoards, isMissingWhiteboardTableError(error)
+        ? "Cloud storage is unavailable. Showing drafts saved on this device."
+        : "Could not connect to cloud storage. Showing drafts saved on this device."),
       error: getErrorMessage(error),
     };
   }
 }
 
 export async function loadWhiteboard(scope: WhiteboardScope, boardId: string): Promise<WhiteboardListResult> {
+  const draft = readWhiteboardRecoveryDraft(scope, boardId);
+  if (draft) {
+    return {
+      boards: [draft], backend: "local", status: "local-draft",
+      message: getWhiteboardRecoveryMessage(draft),
+    };
+  }
   const localBoard = loadLocalWhiteboard(scope, boardId);
   if (!supabase) {
     return {
@@ -535,26 +599,65 @@ export async function loadWhiteboard(scope: WhiteboardScope, boardId: string): P
 
   try {
     const remoteBoard = await loadSupabaseWhiteboard(scope, boardId);
+    // A user can edit while the read is in flight. That newer draft wins.
+    const latestDraft = readWhiteboardRecoveryDraft(scope, boardId);
+    if (latestDraft) {
+      return { boards: [latestDraft], backend: "local", status: "local-draft", message: getWhiteboardRecoveryMessage(latestDraft) };
+    }
     return {
       boards: remoteBoard ? [remoteBoard] : localBoard ? [localBoard] : [],
       backend: remoteBoard ? "supabase" : "local",
       status: remoteBoard ? "loaded" : "local-draft",
-      message: remoteBoard ? "Loaded from Supabase" : "Local draft",
+      message: remoteBoard ? "Board loaded" : "Local draft",
     };
   } catch (error) {
     return {
       boards: localBoard ? [localBoard] : [],
       backend: "local",
-      status: "local-draft",
-      message: "Saved locally. Supabase whiteboards are unavailable.",
+      status: localBoard ? "local-draft" : "error",
+      message: localBoard ? "Cloud storage is unavailable. Opened the draft on this device." : "Could not load this board. Its saved copy has not been changed.",
       error: getErrorMessage(error),
     };
   }
 }
 
-export async function saveWhiteboard(
+const pendingSaves = new Map<string, Promise<unknown>>();
+const pendingArchives = new Map<string, Promise<WhiteboardArchiveResult>>();
+
+/** Serialize writes to one board so an older network request cannot finish last. */
+export function saveWhiteboard(
   board: BinderWhiteboard,
   options: { backend?: "auto" | "local" | "supabase"; createVersion?: boolean } = {},
+): Promise<WhiteboardSaveResult> {
+  if (board.contentLoaded === false) {
+    return Promise.resolve({ board, backend: "local", status: "error", savedAt: nowIso(), message: "This board has not finished loading. Its saved copy has not been changed." });
+  }
+  // Snapshot now: queued work must never read a scene mutated by later edits.
+  const snapshot = JSON.parse(JSON.stringify(sanitizeWhiteboardForStorage(board))) as BinderWhiteboard;
+  const recovery = isScratchWhiteboard(snapshot) ? {} : writeWhiteboardRecoveryDraft(snapshot);
+  const key = JSON.stringify([board.ownerId, board.id]);
+  const pendingArchive = pendingArchives.get(key);
+  const run = async (): Promise<WhiteboardSaveResult> => {
+    const archived = pendingArchive ? await pendingArchive : null;
+    return archived && (archived.status !== "error" || archived.archivedAt)
+      ? { board: snapshot, backend: "local", status: "error", savedAt: nowIso(), message: "This board was archived. Any newer edits remain in a recovery draft on this device." }
+      : saveWhiteboardSnapshot(snapshot, options, recovery);
+  };
+  const previous = pendingSaves.get(key);
+  const pending = previous ? previous.then(run, run) : run();
+  pendingSaves.set(key, pending);
+  void pending.then(() => {
+    if (pendingSaves.get(key) === pending) pendingSaves.delete(key);
+  }, () => {
+    if (pendingSaves.get(key) === pending) pendingSaves.delete(key);
+  });
+  return pending;
+}
+
+async function saveWhiteboardSnapshot(
+  board: BinderWhiteboard,
+  options: { backend?: "auto" | "local" | "supabase"; createVersion?: boolean },
+  recovery: { token?: string; memoryToken?: string; error?: string },
 ): Promise<WhiteboardSaveResult> {
   const backend = options.backend ?? "auto";
   const savedAt = nowIso();
@@ -584,9 +687,18 @@ export async function saveWhiteboard(
     };
   }
 
-  const localBoard = backend === "supabase" && supabase ? sanitizeWhiteboardForStorage(board) : saveLocalWhiteboard(board);
+  let localBoard = sanitizeWhiteboardForStorage({ ...board, recoveryStorage: recovery.memoryToken ? "memory" : undefined });
 
   if (backend === "local" || !supabase) {
+    try {
+      localBoard = saveLocalWhiteboard(board);
+    } catch (error) {
+      return {
+        board: localBoard, backend: "local", status: recovery.token ? "local-draft" : "error", savedAt,
+        message: recovery.token ? "Changes kept in a recovery draft on this device." : "Changes are held only in this tab. Keep this tab open and retry saving.",
+        error: getErrorMessage(error),
+      };
+    }
     return {
       board: localBoard,
       backend: "local",
@@ -597,23 +709,19 @@ export async function saveWhiteboard(
   }
 
   try {
-    const remoteBoard = await saveSupabaseWhiteboard(localBoard, Boolean(options.createVersion));
+    const { board: remoteBoard, warning } = await saveSupabaseWhiteboard(localBoard, Boolean(options.createVersion));
+    const recoveryToken = recovery.token ?? recovery.memoryToken;
+    if (recoveryToken) clearWhiteboardRecoveryDraft(board.ownerId, board.id, recoveryToken);
     return {
       board: remoteBoard,
       backend: "supabase",
       status: "saved",
-      message: "Saved to Supabase",
+      message: "Saved",
       savedAt,
+      warning,
     };
   } catch (error) {
-    let fallbackBoard = localBoard;
-    if (backend === "supabase") {
-      try {
-        fallbackBoard = saveLocalWhiteboard(board);
-      } catch {
-        // Keep the sanitized board and report the original remote failure.
-      }
-    }
+    const fallbackBoard = { ...localBoard, storageMode: "local-draft" as const };
 
     if (isWhiteboardLimitError(error)) {
       return {
@@ -629,30 +737,61 @@ export async function saveWhiteboard(
     return {
       board: fallbackBoard,
       backend: "local",
-      status: isMissingWhiteboardTableError(error) ? "unavailable" : "local-draft",
-      message: isMissingWhiteboardTableError(error)
-        ? "Supabase unavailable. Apply the whiteboards migration before the live demo."
-        : "Local draft. Supabase save failed.",
+      status: !recovery.token ? "error" : isMissingWhiteboardTableError(error) ? "unavailable" : "local-draft",
+      message: recovery.token
+        ? "Cloud save failed. Your changes are kept on this device; retry when connected."
+        : "Cloud save failed and a recovery copy could not be saved. Keep this tab open and retry.",
       savedAt,
       error: getErrorMessage(error),
     };
   }
 }
 
-export async function archiveWhiteboard(scope: WhiteboardScope, boardId: string): Promise<WhiteboardArchiveResult> {
+export function archiveWhiteboard(scope: WhiteboardScope, boardId: string): Promise<WhiteboardArchiveResult> {
+  const key = JSON.stringify([scope.ownerId, boardId]);
+  const recoveryToken = getWhiteboardRecoveryToken(scope.ownerId, boardId);
+  const run = () => archiveWhiteboardSnapshot(scope, boardId, recoveryToken);
+  const previous = pendingSaves.get(key);
+  const pending = previous ? previous.then(run, run) : run();
+  pendingSaves.set(key, pending);
+  pendingArchives.set(key, pending);
+  void pending.finally(() => {
+    if (pendingSaves.get(key) === pending) pendingSaves.delete(key);
+    if (pendingArchives.get(key) === pending) pendingArchives.delete(key);
+  }).catch(() => undefined);
+  return pending;
+}
+
+async function archiveWhiteboardSnapshot(scope: WhiteboardScope, boardId: string, recoveryToken?: string): Promise<WhiteboardArchiveResult> {
   if (!supabase) {
+    try {
     const archivedAt = archiveLocalWhiteboard(scope, boardId);
+    if (recoveryToken) clearWhiteboardRecoveryDraft(scope.ownerId, boardId, recoveryToken);
     return {
       backend: "local",
       status: "local-draft",
       message: "Archived local draft",
       archivedAt,
     };
+    } catch (error) {
+      return { backend: "local", status: "error", message: "Could not archive this whiteboard on this device.", error: getErrorMessage(error) };
+    }
   }
 
   try {
     const archivedAt = await archiveSupabaseWhiteboard(scope, boardId);
-    archiveLocalWhiteboard(scope, boardId);
+    try {
+      archiveLocalWhiteboard(scope, boardId);
+    } catch (error) {
+      return {
+        backend: "supabase", status: "error", archivedAt,
+        message: readWhiteboardRecoveryDraft(scope, boardId)?.recoveryStorage === "memory"
+          ? "Archived in your account, but the latest unsynced changes are held only in this tab. Keep this tab open."
+          : "Archived in your account, but the local archive could not be written. Your recovery draft has been kept on this device.",
+        error: getErrorMessage(error),
+      };
+    }
+    if (recoveryToken) clearWhiteboardRecoveryDraft(scope.ownerId, boardId, recoveryToken);
     return {
       backend: "supabase",
       status: "archived",

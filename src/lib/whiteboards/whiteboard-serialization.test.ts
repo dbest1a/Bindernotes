@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countWhiteboardObjects,
   hasPersistentWhiteboardSceneChange,
   sanitizeWhiteboardModuleElement,
 } from "@/lib/whiteboards/whiteboard-serialization";
@@ -34,6 +35,12 @@ function scene(appState: Record<string, unknown>): WhiteboardSceneData {
 }
 
 describe("whiteboard serialization", () => {
+  it("does not count deleted Excalidraw history elements as visible objects", () => {
+    expect(countWhiteboardObjects({
+      scene: { elements: [{ id: "visible" }, { id: "deleted", isDeleted: true }] },
+      modules: [moduleElement()],
+    })).toBe(2);
+  });
   it("preserves finite module geometry exactly during storage sanitization", () => {
     expect(sanitizeWhiteboardModuleElement(moduleElement())).toMatchObject({
       x: 410.75,

@@ -26,6 +26,7 @@ import type { WorkspaceModuleContext } from "@/components/workspace/workspace-mo
 import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-card";
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
+import { extractPlainTextFromJson } from "@/lib/learning-accelerators";
 import { cn } from "@/lib/utils";
 import type { Binder, BinderLesson, Comment, Highlight, HighlightColor, LessonTextSelection, MathBlock } from "@/types";
 
@@ -657,13 +658,12 @@ function WhiteboardSourceLessonPicker({
     }
 
     return (
-      library.folderBinders.find((link) => link.binder_id === initialBinderId)?.folder_id ??
-      library.folders[0]?.id ??
-      null
+      library.folderBinders.find((link) => link.binder_id === initialBinderId)?.folder_id ?? null
     );
   });
   const [selectedBinderId, setSelectedBinderId] = useState<string | null>(() => initialBinderId ?? null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(() => initialLessonId ?? null);
+  const [search, setSearch] = useState("");
 
   if (!library) {
     return null;
@@ -686,53 +686,52 @@ function WhiteboardSourceLessonPicker({
   }
 
   const folders = library.folders;
-  const bindersById = new Map(library.binders.map((binder) => [binder.id, binder]));
-  const activeFolderId = selectedFolderId ?? folders[0]?.id ?? null;
+  const activeFolderId = selectedFolderId;
+  const query = search.trim().toLocaleLowerCase();
   const folderBinderIds = new Set(
     library.folderBinders
       .filter((link) => link.folder_id === activeFolderId)
       .map((link) => link.binder_id),
   );
-  const folderBinders = library.binders.filter((binder) => folderBinderIds.has(binder.id));
-  const unfiledBinders =
-    activeFolderId || folderBinders.length > 0
-      ? []
-      : library.binders.filter(
-          (binder) => !library.folderBinders.some((link) => link.binder_id === binder.id),
-        );
-  const visibleBinders = folderBinders.length > 0 ? folderBinders : unfiledBinders;
+  const matchingLessonBinderIds = new Set(library.lessons.filter((lesson) => lesson.title.toLocaleLowerCase().includes(query)).map((lesson) => lesson.binder_id));
+  // Search spans every folder, including binders that have not been filed yet.
+  const visibleBinders = library.binders.filter((binder) => query
+    ? binder.title.toLocaleLowerCase().includes(query) || matchingLessonBinderIds.has(binder.id)
+    : !activeFolderId || folderBinderIds.has(binder.id));
   const activeBinder =
-    bindersById.get(selectedBinderId ?? "") ??
+    visibleBinders.find((binder) => binder.id === selectedBinderId) ??
     visibleBinders.find((binder) => binder.id === moduleElement.binderId) ??
-    visibleBinders[0] ??
-    bindersById.get(moduleElement.binderId ?? "");
+    visibleBinders[0];
   const activeLessons = activeBinder
-    ? sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === activeBinder.id))
+    ? sortLessonsByOrder(library.lessons.filter((lesson) => lesson.binder_id === activeBinder.id && (
+        !query || activeBinder.title.toLocaleLowerCase().includes(query) || lesson.title.toLocaleLowerCase().includes(query)
+      )))
     : [];
   const activeLesson =
     activeLessons.find((lesson) => lesson.id === selectedLessonId) ??
     activeLessons.find((lesson) => lesson.id === moduleElement.lessonId) ??
     activeLessons[0] ??
     null;
+  const previewText = extractPlainTextFromJson(activeLesson?.content);
 
   const confirmModuleLesson = () => {
-    if (!activeBinder) {
+    if (!activeBinder || !activeLesson) {
       return;
     }
 
     onChangeModule({
       ...moduleElement,
       binderId: activeBinder.id,
-      lessonId: activeLesson?.id,
+      lessonId: activeLesson.id,
       sourceConfirmed: true,
-      title: activeLesson?.title ?? activeBinder.title,
+      title: activeLesson.title,
       updatedAt: new Date().toISOString(),
     });
   };
 
   return (
     <div
-      className="mb-3 grid gap-2 rounded-md border border-border bg-card p-2 text-card-foreground"
+      className="whiteboard-source-picker mb-3 grid gap-2 rounded-md border border-border bg-card p-2 text-card-foreground"
       data-testid="whiteboard-source-lesson-picker"
     >
       <div className="flex items-center justify-between gap-2">
@@ -746,10 +745,31 @@ function WhiteboardSourceLessonPicker({
         ) : null}
       </div>
 
-      {folders.length > 0 ? (
+      <label className="grid gap-1 text-xs font-medium">
+        Search lessons and binders
+        <input
+          className="min-h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search your library…"
+          type="search"
+          value={search}
+        />
+      </label>
+      {query ? <p className="text-xs text-muted-foreground" role="status">Searching all folders · {visibleBinders.length} matching {visibleBinders.length === 1 ? "binder" : "binders"}</p> : null}
+
+      {folders.length > 0 && !query ? (
         <div className="flex gap-1 overflow-x-auto pb-1" aria-label="Folders">
+          <button
+            aria-pressed={activeFolderId === null}
+            className={cn("shrink-0 rounded-md border px-2 py-1 text-xs font-medium", activeFolderId === null ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground")}
+            onClick={() => { setSelectedFolderId(null); setSelectedBinderId(null); setSelectedLessonId(null); }}
+            type="button"
+          >
+            All binders
+          </button>
           {folders.map((folder) => (
             <button
+              aria-pressed={folder.id === activeFolderId}
               className={cn(
                 "shrink-0 rounded-md border px-2 py-1 text-xs font-medium transition",
                 folder.id === activeFolderId
@@ -772,16 +792,17 @@ function WhiteboardSourceLessonPicker({
             </button>
           ))}
         </div>
-      ) : (
+      ) : folders.length === 0 && !query ? (
         <p className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-          No folders yet. Binders will appear here as you create them.
+          Showing all your binders.
         </p>
-      )}
+      ) : null}
 
       {visibleBinders.length > 0 ? (
-        <div className="grid gap-1" aria-label="Binders">
+        <div className="grid max-h-36 gap-1 overflow-y-auto" aria-label="Binders">
           {visibleBinders.map((binder) => (
             <button
+              aria-pressed={binder.id === activeBinder?.id}
               className={cn(
                 "rounded-md border px-2 py-1.5 text-left text-xs font-semibold transition",
                 binder.id === activeBinder?.id
@@ -801,7 +822,7 @@ function WhiteboardSourceLessonPicker({
         </div>
       ) : (
         <p className="rounded-md bg-secondary px-2 py-1 text-xs text-muted-foreground">
-          No binders in this folder yet.
+          {query ? "No lessons or binders match your search." : "No binders in this folder yet."}
         </p>
       )}
 
@@ -809,6 +830,7 @@ function WhiteboardSourceLessonPicker({
         <div className="grid max-h-28 gap-1 overflow-y-auto pr-1" aria-label="Lessons">
           {activeLessons.map((lesson) => (
             <button
+              aria-pressed={lesson.id === activeLesson?.id}
               className={cn(
                 "rounded-md px-2 py-1.5 text-left text-xs transition",
                 lesson.id === activeLesson?.id
@@ -829,14 +851,25 @@ function WhiteboardSourceLessonPicker({
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+      {activeLesson ? (
+        <div className="whiteboard-source-picker__preview rounded-md border border-border bg-secondary p-3 text-xs" aria-label="Lesson preview">
+          <p className="font-semibold">{activeLesson.title}</p>
+          <p className="mt-1 whitespace-pre-wrap leading-5 text-muted-foreground">
+            {previewText.slice(0, 360) || "This lesson has no text preview yet."}
+            {previewText.length > 360 ? "…" : ""}
+          </p>
+          {(activeLesson.math_blocks?.length ?? 0) > 0 ? <p className="mt-2 text-muted-foreground">{activeLesson.math_blocks.length} math blocks included</p> : null}
+        </div>
+      ) : null}
+
+      <div className="whiteboard-source-picker__footer flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
         <p className="min-w-0 truncate text-[11px] text-muted-foreground">
           {activeBinder ? activeBinder.title : "Choose a binder"}
           {activeLesson ? ` / ${activeLesson.title}` : ""}
         </p>
         <button
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
-          disabled={!activeBinder}
+          disabled={!activeBinder || !activeLesson}
           onClick={confirmModuleLesson}
           type="button"
         >

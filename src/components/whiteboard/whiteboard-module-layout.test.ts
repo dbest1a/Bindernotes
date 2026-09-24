@@ -65,18 +65,20 @@ describe("WhiteboardModule workspace layout", () => {
     expect(source).not.toContain('<Badge variant="outline">Local draft</Badge>');
     expect(source).toContain("--whiteboard-sidebar-width");
     expect(source).toContain("whiteboard-sidebar-scroll");
-    expect(source).not.toMatch(/<WhiteboardCanvas[\s\S]{0,600}key=/);
+    const canvasKeys = [...source.matchAll(/<WhiteboardCanvas\s+key=\{([^}]+)\}/g)].map((match) => match[1]);
+    expect(canvasKeys).toEqual(["activeBoard.id", "activeBoard.id"]);
   });
 
   it("keeps menu switching performance-first without remounting the board canvas", () => {
     expect(source).toContain('data-whiteboard-performance-shell="true"');
     expect(source).toContain("templatesOpen ? mathWhiteboardTemplates : []");
-    expect(source).not.toMatch(/<WhiteboardCanvas[\s\S]{0,600}key=/);
+    const canvasKeys = [...source.matchAll(/<WhiteboardCanvas\s+key=\{([^}]+)\}/g)].map((match) => match[1]);
+    expect(canvasKeys).toEqual(["activeBoard.id", "activeBoard.id"]);
   });
 
   it("keeps whiteboard storage status language consistent for students", () => {
-    expect(source).toContain("Loaded from Supabase");
-    expect(source).toContain("Loaded from your account");
+    expect(source).not.toContain("Loaded from Supabase");
+    expect(source).toContain("Board loaded");
     expect(source).toContain("Scratch board - not saved yet");
     expect(source).toContain('"Saved"');
     expect(source).not.toContain("Saved to Supabase");

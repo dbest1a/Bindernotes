@@ -1,0 +1,227 @@
+/* Keep board card controls and source content usable at every card size. */
+.whiteboard-module-card__chrome {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+.whiteboard-module-card__title {
+  flex: 1 1 8rem;
+}
+
+.whiteboard-module-card__title > span:not(.truncate) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.whiteboard-module-card__actions {
+  margin-left: auto;
+}
+
+.whiteboard-module-card__content {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.whiteboard-module-card__content:has(> .whiteboard-source-summary) {
+  display: flex;
+  flex-direction: column;
+}
+
+.whiteboard-module-card__content > .whiteboard-source-summary,
+.whiteboard-module-card__content > .whiteboard-formula-sheet-button {
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: 0;
+}
+
+.whiteboard-module-card__content:has(> .whiteboard-source-summary) > .workspace-panel {
+  flex: 1 0 12rem;
+  height: auto;
+  min-height: 12rem !important;
+}
+
+.whiteboard-module-card__content .source-lesson-content > .source-lesson-formula-chip {
+  flex: 0 0 auto;
+}
+
+.whiteboard-module-card__content .source-lesson-content[data-source-display-mode="full"] > .source-lesson-hero,
+.whiteboard-module-card__content .source-lesson-content[data-source-display-mode="summary"] > .source-lesson-hero {
+  display: block;
+  flex-shrink: 0;
+}
+
+.whiteboard-module-card__content .source-lesson-content[data-source-display-mode="full"] .source-lesson-stats {
+  display: grid;
+}
+
+.whiteboard-module-card__content .source-lesson-content > .source-lesson-body-card {
+  min-height: 6rem;
+}
+
+.whiteboard-module-card__footer {
+  position: relative;
+  z-index: 20;
+  min-height: 2rem;
+  background: hsl(var(--card));
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.whiteboard-module-card__footer .whiteboard-module-card__resize-handle {
+  position: absolute;
+  z-index: 50;
+  opacity: 1;
+}
+
+.whiteboard-module-card__fit-button {
+  min-height: 2rem;
+}
+
+.whiteboard-module-card button:focus-visible,
+.whiteboard-source-picker input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+.whiteboard-source-picker {
+  min-width: 0;
+  align-content: start;
+}
+
+.whiteboard-source-picker button,
+.whiteboard-source-summary button {
+  min-height: 2rem;
+}
+
+.whiteboard-source-picker__footer > button {
+  flex-shrink: 0;
+}
+
+.whiteboard-source-picker__preview {
+  overflow-wrap: anywhere;
+}
+
+.whiteboard-card-menu-dock {
+  max-height: 50%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (pointer: coarse) {
+  .whiteboard-module-card__actions button,
+  .whiteboard-source-picker button,
+  .whiteboard-source-summary button,
+  .whiteboard-module-card__fit-button,
+  .whiteboard-card-menu-item {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .whiteboard-module-card__footer {
+    min-height: 2.75rem;
+    padding-right: 3rem;
+  }
+
+  .whiteboard-module-card__footer .whiteboard-module-card__resize-handle {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+.whiteboard-study-tools {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.whiteboard-study-tools input {
+  min-width: 0;
+  width: 100%;
+}
+
+.whiteboard-study-tools > div > .grid:first-child {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+
+.whiteboard-study-tools .ui-button-motion {
+  height: auto;
+  min-height: 2rem;
+  white-space: normal;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.whiteboard-control-panel {
+  max-height: calc(100dvh - 8rem - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* The lab dock is always dark, including when the surrounding app is light. */
+.bindernotes-whiteboard-lab .whiteboard-control-panel {
+  color-scheme: dark;
+  --background: 230 14% 9%;
+  --foreground: 210 30% 96%;
+  --card: 230 12% 14%;
+  --card-foreground: 210 30% 96%;
+  --popover: 230 12% 14%;
+  --popover-foreground: 210 30% 96%;
+  --primary: 170 66% 46%;
+  --primary-foreground: 230 14% 9%;
+  --secondary: 230 11% 19%;
+  --secondary-foreground: 210 30% 96%;
+  --muted: 230 11% 19%;
+  --muted-foreground: 214 15% 76%;
+  --accent: 172 26% 20%;
+  --accent-foreground: 210 30% 96%;
+  --destructive: 0 72% 65%;
+  --destructive-foreground: 230 14% 9%;
+  --border: 225 10% 32%;
+  --input: 225 10% 32%;
+  --ring: 170 66% 46%;
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+/* Leave the upper-left drawing inspector completely clear. */
+.bindernotes-whiteboard-lab .whiteboard-focus-return,
+.whiteboard-focus-return,
+.whiteboard-back-to-workspace,
+[data-whiteboard-focus-return="true"] {
+  top: auto !important;
+  bottom: calc(env(safe-area-inset-bottom) + 1rem) !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 2rem);
+}
+
+@media (max-width: 640px) {
+  [data-testid="whiteboard-lab-dock"] {
+    top: calc(env(safe-area-inset-top) + 6.5rem);
+    right: calc(env(safe-area-inset-right) + 0.5rem);
+  }
+
+  .bindernotes-whiteboard-lab .whiteboard-control-panel {
+    width: min(19rem, calc(100vw - 1rem));
+    max-height: min(62dvh, calc(100dvh - 11rem - env(safe-area-inset-bottom)));
+  }
+
+  .whiteboard-control-panel button,
+  .whiteboard-study-tools button,
+  .whiteboard-study-tools summary {
+    min-height: 2.75rem;
+  }
+
+  .bindernotes-whiteboard-lab .whiteboard-focus-return,
+  .whiteboard-focus-return,
+  .whiteboard-back-to-workspace,
+  [data-whiteboard-focus-return="true"] {
+    bottom: calc(env(safe-area-inset-bottom) + 4rem) !important;
+  }
+
+  .bindernotes-whiteboard-lab:has([data-testid="whiteboard-floating-ui-layer"] .whiteboard-control-panel) .whiteboard-focus-return {
+    display: none;
+  }
+}
