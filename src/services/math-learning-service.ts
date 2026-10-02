@@ -20,6 +20,7 @@ import type {
   QuestionChoice,
   QuestionType,
   QuizAttempt,
+  QuestionAttempt,
   QuizSet,
 } from "@/types/math-learning";
 
@@ -83,6 +84,7 @@ type LocalMathState = {
   quizSets: QuizSet[];
   quizLinks: Array<{ quiz_set_id: string; question_id: string; order_index: number }>;
   attempts: QuizAttempt[];
+  questionAttempts: QuestionAttempt[];
 };
 
 export async function listMathCourses(): Promise<MathCourse[]> {
@@ -587,11 +589,13 @@ export async function submitQuestionAttempt(input: {
     submitted_answer_json: input.answer as Record<string, unknown>,
     is_correct: score.isCorrect,
     points_awarded: score.pointsAwarded,
-    feedback_json: score.feedback,
+    feedback_json: { ...score.feedback, status: score.status, autoGraded: score.autoGraded, totalPoints: score.totalPoints },
     created_at: new Date().toISOString(),
   };
 
   if (!supabase) {
+    const local = loadLocalState();
+    saveLocalState({ ...local, questionAttempts: [...local.questionAttempts, row] });
     return { attempt: row, score };
   }
 
@@ -612,10 +616,11 @@ export async function completeQuizAttempt(input: {
   attemptId: string;
   quizSet: QuizSet;
   userId: string;
-  scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
+  scores: Array<{ pointsAwarded: number | null; totalPoints: number; autoGraded?: boolean }>;
 }): Promise<QuizAttempt> {
-  const score = input.scores.reduce((sum, item) => sum + (item.pointsAwarded ?? 0), 0);
-  const totalPoints = input.scores.reduce((sum, item) => sum + item.totalPoints, 0);
+  const graded = input.scores.filter((item) => item.autoGraded !== false && item.pointsAwarded !== null);
+  const score = graded.reduce((sum, item) => sum + (item.pointsAwarded ?? 0), 0);
+  const totalPoints = graded.reduce((sum, item) => sum + item.totalPoints, 0);
   const completedAt = new Date().toISOString();
 
   if (!supabase) {
@@ -672,6 +677,22 @@ function normalizeQuestionRows(rows: Array<Record<string, unknown>>): QuestionBa
       choices: question_choices.sort((left, right) => left.order_index - right.order_index),
     };
   });
+}
+
+export async function getQuizAttempt(attemptId: string, quizSetId: string, userId: string) {
+  if (!supabase) {
+    const local = loadLocalState();
+    const attempt = local.attempts.find((item) => item.id === attemptId && item.quiz_set_id === quizSetId && item.user_id === userId);
+    return attempt ? { attempt, answers: local.questionAttempts.filter((item) => item.quiz_attempt_id === attemptId && item.user_id === userId) } : null;
+  }
+  const { data: attempt, error } = await supabase.from("quiz_attempts").select("*")
+    .eq("id", attemptId).eq("quiz_set_id", quizSetId).eq("user_id", userId).maybeSingle();
+  if (error) throw new Error(`Could not load quiz results: ${error.message}`);
+  if (!attempt) return null;
+  const { data: answers, error: answersError } = await supabase.from("question_attempts").select("*")
+    .eq("quiz_attempt_id", attemptId).eq("user_id", userId).order("created_at", { ascending: true });
+  if (answersError) throw new Error(`Could not load saved answers: ${answersError.message}`);
+  return { attempt: attempt as QuizAttempt, answers: (answers ?? []) as QuestionAttempt[] };
 }
 
 function attachChoices(questions: QuestionBankItem[], choices: QuestionChoice[]) {
@@ -754,6 +775,7 @@ function createLocalState(): LocalMathState {
     quizSets: [],
     quizLinks: [],
     attempts: [],
+    questionAttempts: [],
   };
 }
 

@@ -17,7 +17,7 @@ import {
   Sparkles,
   StickyNote,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import {
 } from "@/lib/workspace-preset-designs";
 import { getPrimaryFolder } from "@/lib/workspace-structure";
 import { cn } from "@/lib/utils";
+import "@/workspace-fit.css";
 import type {
   FaceliftDensity,
   WorkspaceModuleId,
@@ -207,6 +208,19 @@ export function FaceliftSimpleShell({
   workspaceViewMode = "facelift",
 }: FaceliftSimpleShellProps) {
   const [openPanel, setOpenPanel] = useState<OpenConsumerPanel>(null);
+  const panelTriggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!openPanel) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpenPanel(null);
+      panelTriggerRef.current?.focus();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [openPanel]);
   const [nextStepExpanded, setNextStepExpanded] = useState(!studentCalmMode);
   const design = getFaceliftWorkspacePresetDesign(preferences.preset);
   const preset = workspacePresets.find((candidate) => candidate.id === preferences.preset);
@@ -365,6 +379,7 @@ export function FaceliftSimpleShell({
   }, [firstVisibleModuleId, mobileTabs]);
 
   const togglePanel = (panel: Exclude<OpenConsumerPanel, null>) => {
+    panelTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setOpenPanel((current) => (current === panel ? null : panel));
   };
 

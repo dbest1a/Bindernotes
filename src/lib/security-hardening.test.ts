@@ -144,8 +144,10 @@ describe("security deployment guards", () => {
       expect(verifier).toContain(forbidden);
     }
 
-    expect(verifier).toContain("--dump-dom");
-    expect(verifier).toContain("normalizedDom.includes");
+    expect(verifier).toContain('page.getByLabel("Email", { exact: true }).waitFor');
+    expect(verifier).toContain('page.getByLabel("Password", { exact: true }).waitFor');
+    expect(verifier).toContain('page.locator("body").innerText()');
+    expect(verifier).toContain("body.includes");
     expect(verifier).toContain("data-auth-config-missing");
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Profile } from "@/types";
@@ -22,6 +22,9 @@ const mocks = vi.hoisted(() => {
     signIn,
     signInWithGoogle,
     signUp,
+    requestPasswordReset: vi.fn(),
+    resendConfirmation: vi.fn(),
+    updatePassword: vi.fn(),
     profile,
     authState: {
       profile: null as Profile | null,
@@ -36,6 +39,10 @@ vi.mock("@/hooks/use-auth", () => ({
     signIn: mocks.signIn,
     signInWithGoogle: mocks.signInWithGoogle,
     signUp: mocks.signUp,
+    requestPasswordReset: mocks.requestPasswordReset,
+    resendConfirmation: mocks.resendConfirmation,
+    updatePassword: mocks.updatePassword,
+    session: null,
     isConfigured: mocks.authState.isConfigured,
   }),
 }));
@@ -53,6 +60,38 @@ describe("AuthPage", () => {
     mocks.signUp.mockReset();
     mocks.authState.profile = null;
     mocks.authState.isConfigured = false;
+  });
+
+  it("opens account creation directly, explains passwords, and preserves deep links through email confirmation", async () => {
+    mocks.authState.isConfigured = true;
+    mocks.signUp.mockResolvedValue({ confirmationRequired: true });
+    render(<MemoryRouter initialEntries={["/auth?mode=signup&next=%2Ftutorial"]}><AuthPage /></MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "Create your account" })).toBeTruthy();
+    expect(screen.getByText(/Use at least 6 characters/)).toBeTruthy();
+    expect(screen.queryByText(/SQL editor/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "reader@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    expect(await screen.findByRole("status")).toHaveProperty("textContent", expect.stringContaining("Check your email"));
+    expect(mocks.signUp).toHaveBeenCalledWith("reader@example.com", "correct-password", "reader", "learner", "/tutorial");
+    fireEvent.click(screen.getByRole("button", { name: "Resend confirmation email" }));
+    await waitFor(() => expect(mocks.resendConfirmation).toHaveBeenCalledWith("reader@example.com", "/tutorial"));
+  });
+
+  it("clears wrong-password errors on mode change and sends recovery without a password", async () => {
+    mocks.authState.isConfigured = true;
+    mocks.signIn.mockRejectedValue(new Error("Invalid login credentials"));
+    render(<MemoryRouter><AuthPage /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "reader@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
+    fireEvent.submit(screen.getByLabelText("Email").closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("Invalid login"));
+    fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByLabelText("Password")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    await waitFor(() => expect(mocks.requestPasswordReset).toHaveBeenCalledWith("reader@example.com"));
+    expect(await screen.findByRole("status")).toHaveProperty("textContent", expect.stringContaining("If an account"));
   });
 
   it("does not expose demo access when Supabase is unavailable", () => {

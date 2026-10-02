@@ -104,6 +104,7 @@ export function sanitizeWhiteboardModuleElement(
     binderId: moduleElement.binderId,
     lessonId: moduleElement.lessonId,
     savedGraphId: moduleElement.savedGraphId,
+    graphWorkspace: moduleElement.graphWorkspace,
     graphInstanceId:
       typeof moduleElement.graphInstanceId === "string" && moduleElement.graphInstanceId.trim().length > 0
         ? moduleElement.graphInstanceId

@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import { archiveWhiteboard, getWhiteboardStorageKey, listWhiteboards, loadWhiteboard, saveWhiteboard } from "@/lib/whiteboards/whiteboard-storage";
+import { archiveWhiteboard, getWhiteboardStorageKey, listWhiteboards, loadWhiteboard, openLatestWhiteboardKeepingDraft, saveWhiteboard } from "@/lib/whiteboards/whiteboard-storage";
 import { clearWhiteboardRecoveryDraft, readWhiteboardRecoveryDraft, writeWhiteboardRecoveryDraft } from "@/lib/whiteboards/whiteboard-recovery";
 
 function board(overrides: Partial<BinderWhiteboard> = {}): BinderWhiteboard {
@@ -80,6 +80,61 @@ describe("whiteboard Supabase storage", () => {
     clearWhiteboardRecoveryDraft(board().ownerId, board().id);
   });
   afterEach(() => vi.restoreAllMocks());
+
+  it("rejects a stale account revision without overwriting the newer board", async () => {
+    const eq = vi.fn();
+    const query = { eq, select: vi.fn(), single: vi.fn(async () => ({ data: null, error: { code: "PGRST116", message: "No matching row" } })) };
+    eq.mockReturnValue(query);
+    query.select.mockReturnValue(query);
+    const update = vi.fn(() => query);
+    const upsert = vi.fn();
+    mocks.from.mockReturnValue({ update, upsert });
+    const stale = board({ storageRevision: "2026-10-01T10:00:00.000Z", storageMode: "supabase" });
+    const result = await saveWhiteboard(stale);
+    expect(eq).toHaveBeenCalledWith("updated_at", stale.storageRevision);
+    expect(upsert).not.toHaveBeenCalled();
+    expect(result.status).not.toBe("saved");
+    expect(result.message).toContain("changed in another tab");
+    expect(readWhiteboardRecoveryDraft(stale, stale.id)?.scene.elements).toEqual(stale.scene.elements);
+  });
+
+  it("keeps conflicted edits in a separate archive before opening the latest account revision", async () => {
+    const draft = board({ title: "My unsynced draft" });
+    writeWhiteboardRecoveryDraft(draft);
+    const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), maybeSingle: vi.fn(async () => ({ data: {
+      id: draft.id, owner_id: draft.ownerId, binder_id: draft.binderId, lesson_id: draft.lessonId,
+      title: "Newer account title", scene_json: { elements: [{ id: "new-drawing" }] }, module_elements: [],
+      updated_at: "2026-10-02T14:00:00.000Z", archived_at: null,
+    }, error: null })) };
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query);
+    mocks.from.mockReturnValue(query);
+    const result = await openLatestWhiteboardKeepingDraft(draft);
+    expect(result.status).toBe("saved");
+    expect(result.board.title).toBe("Newer account title");
+    expect(readWhiteboardRecoveryDraft(draft, draft.id)).toBeNull();
+    const archive = JSON.parse(localStorage.getItem(getWhiteboardStorageKey(draft))!);
+    expect(archive).toHaveLength(1);
+    expect(archive[0].id).not.toBe(draft.id);
+    expect(archive[0].archivedAt).toBeTruthy();
+    expect(archive[0].title).toContain("conflict recovery");
+    expect(archive[0].modules).toEqual(draft.modules);
+  });
+
+  it("retains the active recovery draft when its conflict archive cannot be stored", async () => {
+    const draft = board();
+    writeWhiteboardRecoveryDraft(draft);
+    const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), maybeSingle: vi.fn(async () => ({ data: {
+      id: draft.id, owner_id: draft.ownerId, binder_id: draft.binderId, lesson_id: draft.lessonId,
+      scene_json: { elements: [] }, module_elements: [], updated_at: "2026-10-02T14:00:00.000Z",
+    }, error: null })) };
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query);
+    mocks.from.mockReturnValue(query);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Storage is full"); });
+    const result = await openLatestWhiteboardKeepingDraft(draft);
+    expect(result.status).toBe("error");
+    expect(result.board).toEqual(draft);
+    expect(readWhiteboardRecoveryDraft(draft, draft.id)?.title).toBe(draft.title);
+  });
 
   it("saves sanitized scene data and board-pinned module placements to Supabase", async () => {
     mocks.from.mockImplementation((table: string) => {

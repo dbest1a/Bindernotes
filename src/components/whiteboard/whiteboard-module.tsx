@@ -29,6 +29,7 @@ import type { WorkspaceModuleContext } from "@/components/workspace/workspace-mo
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
 import { WhiteboardCanvas, type WhiteboardCanvasActions } from "@/components/whiteboard/whiteboard-canvas";
 import { WhiteboardStudyTools } from "@/components/whiteboard/whiteboard-study-tools";
+import { WhiteboardRecoveryTools } from "@/components/whiteboard/whiteboard-recovery-tools";
 import { getWhiteboardModuleExportFrame, whiteboardPlainText } from "@/lib/whiteboards/whiteboard-navigation";
 import { WhiteboardFloatingUiLayer } from "@/components/whiteboard/whiteboard-floating-ui-layer";
 import { WhiteboardModuleLauncher } from "@/components/whiteboard/whiteboard-module-launcher";
@@ -106,6 +107,8 @@ type WhiteboardModuleProps = {
   ) => ReactElement | null;
   onBack?: () => void;
   variant?: "module" | "lab";
+  initialTemplate?: WhiteboardTemplate;
+  scopeOnly?: boolean;
 };
 
 type PendingZoomAction = {
@@ -306,7 +309,7 @@ function getWhiteboardSavedMessage(
   return message;
 }
 
-export function WhiteboardModule({ context, onBack, renderModule, variant = "module" }: WhiteboardModuleProps) {
+export function WhiteboardModule({ context, onBack, renderModule, variant = "module", initialTemplate, scopeOnly = false }: WhiteboardModuleProps) {
   const ownerId = context.ownerId;
   const labMode = variant === "lab";
   const compactWhiteboardTools = Boolean(context.compactWhiteboardTools);
@@ -333,6 +336,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     [context.binder.id, context.selectedLesson.id, ownerId],
   );
   const [boards, setBoards] = useState<BinderWhiteboard[]>([]);
+  const [scopeLoaded, setScopeLoaded] = useState(false);
+  const initializedScopeRef = useRef<string | null>(null);
   const [activeBoard, setActiveBoard] = useState<BinderWhiteboard | null>(null);
   const [saveStatus, setSaveStatus] = useState<WhiteboardSaveStatus>("offline-draft");
   const [saveMessage, setSaveMessage] = useState("Local draft");
@@ -373,6 +378,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const requestViewportTransformRef = useRef<((transform: WhiteboardViewportTransform) => void) | null>(null);
   const pendingViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
   const viewportUpdateRafRef = useRef<number | null>(null);
+  const viewportSettleTimerRef = useRef<number | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const pinnedObjectLayerRef = useRef<HTMLDivElement | null>(null);
   const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
@@ -493,8 +499,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     }
 
     viewportTransformRef.current = transform;
-    syncWhiteboardPinnedModuleLayerToViewport(pinnedObjectLayerRef.current, transform);
     pendingViewportTransformRef.current = transform;
+    if (viewportSettleTimerRef.current !== null) window.clearTimeout(viewportSettleTimerRef.current);
+    // Moving the camera updates only card geometry. Expensive editors, source
+    // panels and graph trees reconcile once the gesture settles.
+    viewportSettleTimerRef.current = window.setTimeout(() => {
+      viewportSettleTimerRef.current = null;
+      setViewportTransform(viewportTransformRef.current);
+    }, 100);
     if (viewportUpdateRafRef.current !== null) {
       return;
     }
@@ -510,7 +522,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       const nextTransform = pendingViewportTransformRef.current;
       pendingViewportTransformRef.current = null;
       if (nextTransform) {
-        setViewportTransform(nextTransform);
+        syncWhiteboardPinnedModuleLayerToViewport(pinnedObjectLayerRef.current, nextTransform);
       }
     });
   }, []);
@@ -525,7 +537,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   }, [activeBoard?.id]);
 
   const activateScratchBoard = useCallback(
-    (template: WhiteboardTemplate = mathWhiteboardTemplates[0]) => {
+    (template: WhiteboardTemplate = initialTemplate ?? mathWhiteboardTemplates[0]) => {
       if (!scope) {
         return null;
       }
@@ -559,6 +571,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       rememberBoardPinnedGeometry,
       repairBoardModules,
       scope,
+      initialTemplate,
     ],
   );
 
@@ -569,7 +582,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const applyWhiteboardListResult = useCallback(
     (boards: BinderWhiteboard[], nextActiveId?: string) => {
       const current = boardRef.current;
-      const repairedBoards = boards.map((board) => current?.id === board.id && dirtyRef.current ? current : repairBoardModules(board));
+      const repairedBoards = boards.filter((board) => !scopeOnly || (board.binderId === scope?.binderId && (board.lessonId ?? null) === (scope?.lessonId ?? null)))
+        .map((board) => current?.id === board.id && dirtyRef.current ? current : repairBoardModules(board));
       if (current && dirtyRef.current && !repairedBoards.some((board) => board.id === current.id) && !isScratchWhiteboard(current)) {
         repairedBoards.unshift(current);
       }
@@ -609,7 +623,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         });
         return;
       }
-      if (!nextActive && compactWhiteboardTools && scope && repairedBoards.length >= MAX_WHITEBOARDS_PER_USER) {
+      if (!nextActive && compactWhiteboardTools && scope && boards.length >= MAX_WHITEBOARDS_PER_USER) {
         activateScratchBoard();
         return;
       }
@@ -633,6 +647,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       rememberBoardPinnedGeometry,
       repairBoardModules,
       scope,
+      scopeOnly,
     ],
   );
 
@@ -675,6 +690,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     dirtyRef.current = false;
     setActiveBoard(null);
     setBoards([]);
+    setScopeLoaded(false);
     return () => {
       flushBoardRef.current();
       transitionIdRef.current += 1;
@@ -707,6 +723,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (!active) {
         return;
       }
+      setScopeLoaded(true);
 
       const currentBoard = boardRef.current;
       if (result.boards.length > 0) {
@@ -760,6 +777,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       if (viewportUpdateRafRef.current !== null) {
         window.cancelAnimationFrame(viewportUpdateRafRef.current);
       }
+      if (viewportSettleTimerRef.current !== null) window.clearTimeout(viewportSettleTimerRef.current);
     },
     [],
   );
@@ -1109,6 +1127,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       scope,
     ],
   );
+
+  useEffect(() => {
+    const key = scope ? `${scope.ownerId}:${scope.binderId}:${scope.lessonId}` : null;
+    if (!scopeLoaded || !initialTemplate || !key || initializedScopeRef.current === key) return;
+    initializedScopeRef.current = key;
+    if (!boardRef.current) createBoardFromTemplate(initialTemplate);
+  }, [scopeLoaded, initialTemplate, scope, createBoardFromTemplate]);
 
   const selectBoard = useCallback(
     (boardId: string) => {
@@ -1534,6 +1559,23 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     [persistBoard],
   );
 
+  const recoveryTools = scope ? <WhiteboardRecoveryTools scope={scope} scopeOnly={scopeOnly} conflictedBoard={(warning ?? saveMessage).includes("changed in another tab") ? activeBoard ?? undefined : undefined} onRecovered={(board) => {
+    if (scopeOnly && (board.binderId !== scope.binderId || (board.lessonId ?? null) !== (scope.lessonId ?? null))) return;
+    if (board.id !== boardRef.current?.id) flushBoardRef.current();
+    else if (autosaveTimerRef.current !== null) { window.clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
+    transitionIdRef.current += 1;
+    saveRequestIdRef.current += 1;
+    setBoards((current) => [board, ...current.filter((item) => item.id !== board.id)]);
+    setActiveBoard(board);
+    boardRef.current = board;
+    latestSceneRef.current = board.scene;
+    dirtyRef.current = board.storageMode !== "supabase";
+    rememberBoardPinnedGeometry(board.modules);
+    handleViewportChange(extractWhiteboardViewportTransform(board.scene.appState));
+    setSaveStatus(board.storageMode === "supabase" ? "saved" : "offline-draft");
+    setSaveMessage(board.storageMode === "supabase" ? "Restored" : "Restored on this device");
+    setWarning("Restored. Linked sources must be available in your account; use Change on a card to relink an unavailable lesson.");
+  }} /> : null;
   const sourceText = Object.fromEntries((activeBoard?.modules ?? []).map((module) => {
     const lesson = [context.selectedLesson, ...(context.library?.lessons ?? []), ...(context.lessons ?? [])].find((item) => item.id === module.lessonId);
     return [module.id, lesson ? `${lesson.title}\n${whiteboardPlainText(lesson.content)}` : ""];
@@ -1578,7 +1620,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         });
       });
     }}
-  /></div> : null;
+  />{recoveryTools}</div> : recoveryTools;
 
   if (!scope) {
     return (
@@ -1785,6 +1827,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 onArchiveBoard={archiveBoardById}
                 onSelectBoard={selectBoard}
               />
+              {recoveryTools}
               <div
                 className="whiteboard-save-status rounded-md border px-2.5 py-2 text-xs font-semibold"
                 data-status={saveStatus}

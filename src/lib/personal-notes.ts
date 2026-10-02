@@ -217,7 +217,7 @@ export function buildPersonalNotesEntries(input: {
         folderColor: folder.color,
         tags: note.tags,
         math_blocks: note.math_blocks,
-        sourceType: "Loose note",
+        sourceType: notebookBinder ? "Notebook document" : "Loose note",
         sourceBinderId: null,
         sourceBinderTitle: null,
         sourceDocumentId: null,
@@ -578,9 +578,9 @@ function matchesSourceFilter(entry: PersonalNotesEntry, sourceFilter: PersonalNo
     case "binder-linked":
       return entry.kind === "binder-note";
     case "personal-binders":
-      return entry.kind === "personal-document";
+      return entry.kind === "personal-document" || Boolean(entry.personalBinderId);
     case "loose":
-      return entry.kind === "personal-note";
+      return entry.kind === "personal-note" && !entry.personalBinderId;
     case "all":
     default:
       return true;

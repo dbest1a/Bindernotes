@@ -1,5 +1,5 @@
 import { BookOpenText, Grip, Minus, MoreHorizontal, PanelTopOpen, Pin, PinOff, RotateCcw, Sigma, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   getWhiteboardModuleDefinition,
@@ -55,6 +55,8 @@ type PointerStart = {
   frame: WhiteboardModuleElement;
   action: "drag" | "resize";
   viewportTransform: WhiteboardViewportTransform;
+  lastX: number;
+  lastY: number;
 };
 
 type StylePatch = Partial<Record<"left" | "top" | "width" | "height" | "transform", string>>;
@@ -378,6 +380,19 @@ export function WhiteboardModuleCard({
   };
   latestModuleElementRef.current = moduleElement;
 
+  // Camera/toolbar/save renders may land while a pointer owns the frame. Restore
+  // its latest visual position before paint instead of displaying the saved one.
+  useLayoutEffect(() => {
+    const active = pointerRef.current;
+    const root = rootRef.current;
+    if (active && root) {
+      applyStylePatch(root, getPointerStylePatch(active, active.lastX - active.startX, active.lastY - active.startY));
+    } else if (root) {
+      applyStylePatch(root, getCommittedStylePatch(moduleElement, latestViewportTransform()));
+      syncCommittedFrameDataset(root, moduleElement, latestViewportTransform());
+    }
+  });
+
   const cleanupPointerListeners = () => {
     pointerCleanupRef.current?.();
     pointerCleanupRef.current = null;
@@ -454,6 +469,7 @@ export function WhiteboardModuleCard({
   };
 
   const beginPointerAction = (event: React.PointerEvent, action: PointerStart["action"]) => {
+    if (event.button !== 0 || pointerRef.current || (action === "drag" && isWhiteboardCardControlTarget(event.target))) return;
     event.preventDefault();
     event.stopPropagation();
     cleanupPointerListeners();
@@ -462,6 +478,8 @@ export function WhiteboardModuleCard({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
       frame: moduleElement,
       action,
       viewportTransform: latestViewportTransform(),
@@ -496,14 +514,23 @@ export function WhiteboardModuleCard({
       nativeEvent.preventDefault();
       finishPointerActionFromPoint(nativeEvent.pointerId, nativeEvent.clientX, nativeEvent.clientY);
     };
+    // Cancellation/blur carries unreliable coordinates (often 0,0). Keep the
+    // last real pointer frame, which is what the user saw before interruption.
+    const handlePointerInterrupted = (event: Event) => {
+      const active = pointerRef.current;
+      if (active && "pointerId" in event && event.pointerId !== active.pointerId) return;
+      if (active) finishPointerActionFromPoint(active.pointerId, active.lastX, active.lastY);
+    };
 
     window.addEventListener("pointermove", handleWindowPointerMove, { passive: false });
     window.addEventListener("pointerup", handleWindowPointerEnd, { passive: false });
-    window.addEventListener("pointercancel", handleWindowPointerEnd, { passive: false });
+    window.addEventListener("pointercancel", handlePointerInterrupted);
+    window.addEventListener("blur", handlePointerInterrupted);
     pointerCleanupRef.current = () => {
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerEnd);
-      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handlePointerInterrupted);
+      window.removeEventListener("blur", handlePointerInterrupted);
     };
   };
 
@@ -567,11 +594,9 @@ export function WhiteboardModuleCard({
 
     const dx = clientX - active.startX;
     const dy = clientY - active.startY;
+    active.lastX = clientX;
+    active.lastY = clientY;
     scheduleStylePatch(getPointerStylePatch(active, dx, dy));
-  };
-
-  const updatePointerAction = (event: React.PointerEvent) => {
-    updatePointerActionFromPoint(event.pointerId, event.clientX, event.clientY);
   };
 
   const finishPointerActionFromPoint = (pointerId: number, clientX: number, clientY: number) => {
@@ -648,10 +673,6 @@ export function WhiteboardModuleCard({
     syncCommittedFrameDataset(root, nextModuleElement, commitViewportTransform);
     onChange(nextModuleElement);
     clearMovementSignal();
-  };
-
-  const finishPointerAction = (event: React.PointerEvent) => {
-    finishPointerActionFromPoint(event.pointerId, event.clientX, event.clientY);
   };
 
   const fitContentHeight = () => {
@@ -879,10 +900,7 @@ export function WhiteboardModuleCard({
     >
       <div
         className="whiteboard-module-card__chrome z-30 flex cursor-grab items-center justify-between gap-2 border-b border-border bg-popover px-2.5 py-2 text-sm text-popover-foreground active:cursor-grabbing"
-        onPointerCancel={finishPointerAction}
         onPointerDown={(event) => beginPointerAction(event, "drag")}
-        onPointerMove={updatePointerAction}
-        onPointerUp={finishPointerAction}
         style={{ touchAction: "none" }}
       >
         <div className="whiteboard-module-card__title flex min-w-0 items-center gap-2">
@@ -1067,10 +1085,7 @@ export function WhiteboardModuleCard({
                 height: Math.max(minimum.height, moduleElement.height + (event.key === "ArrowDown" ? step : event.key === "ArrowUp" ? -step : 0)),
               });
             }}
-            onPointerCancel={finishPointerAction}
             onPointerDown={(event) => beginPointerAction(event, "resize")}
-            onPointerMove={updatePointerAction}
-            onPointerUp={finishPointerAction}
             style={{ touchAction: "none" }}
             title="Resize module"
             type="button"

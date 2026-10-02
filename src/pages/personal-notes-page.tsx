@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from "react-router-dom";
 import type { Editor, JSONContent } from "@tiptap/react";
 import {
   ArrowUpRight,
@@ -56,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
+import { usePersonalNoteDraft, type NoteDraft } from "@/hooks/use-personal-note-draft";
 import {
   usePersonalNotes,
   usePersonalNotesMutations,
@@ -69,6 +70,8 @@ import {
   personalNoteTemplates,
 } from "@/lib/personal-notes";
 import { emptyDoc } from "@/lib/utils";
+import { encodePersonalCanvasDescription, readPersonalCanvasDescription } from "@/lib/personal-canvas";
+import { PersonalCanvasNotebook } from "@/components/personal-notes/personal-canvas-notebook";
 import { extractPlainText } from "@/lib/workspace-records";
 import { createStudyItem } from "@/services/study-items-service";
 import type {
@@ -78,6 +81,7 @@ import type {
   FolderBinderLink,
   LearnerNote,
   PersonalNote,
+  PersonalNoteBinder,
   PersonalNoteFolder,
   PersonalNotebookDocument,
   PersonalNotesAnnotatorMode,
@@ -225,6 +229,10 @@ export function PersonalNotesPage() {
   const { profile } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const resolvedLocationKeyRef = useRef(location.key);
+  const restoringHistoryEntry = navigationType === "POP" && resolvedLocationKeyRef.current !== location.key;
   const [searchParams] = useSearchParams();
   const betaFeatures = useBetaFeatures(profile?.id);
   const { data, isLoading, error, refetch: refetchPersonalNotes } = usePersonalNotes(profile);
@@ -247,21 +255,15 @@ export function PersonalNotesPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftContent, setDraftContent] = useState<JSONContent>(() => emptyDoc(""));
-  const [draftTagsInput, setDraftTagsInput] = useState("");
-  const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [reviewQueueMessage, setReviewQueueMessage] = useState<string | null>(null);
-  const saveTimerRef = useRef<number | null>(null);
+  const [recoveryCopyError, setRecoveryCopyError] = useState<string | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const newMenuRef = useRef<HTMLDivElement | null>(null);
   const newButtonRef = useRef<HTMLButtonElement | null>(null);
   const shellRef = useRef<HTMLElement | null>(null);
 
-  const entries = data?.entries ?? [];
+  const entries = useMemo(() => (data?.entries ?? []).filter((entry) => entry.note.owner_id === profile?.id), [data?.entries, profile?.id]);
   const sourceLinkedNotesBeta = betaFeatures.isFeatureEnabled("betaRevampSourceLinkedNotes");
   const reviewQueueBeta = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
   const filteredEntries = useMemo(
@@ -284,8 +286,8 @@ export function PersonalNotesPage() {
     [entries, preferences.showBinderNotes],
   );
   const notebookHierarchy = useMemo(
-    () => buildNotebookHierarchy(notebookTreeEntries, notebookCategories),
-    [notebookCategories, notebookTreeEntries],
+    () => buildNotebookHierarchy(notebookTreeEntries, notebookCategories, data?.personalBinders, data?.personalFolders),
+    [data?.personalBinders, data?.personalFolders, notebookCategories, notebookTreeEntries],
   );
   const selectedCategoryId = useMemo(
     () => resolveSelectedCategoryId(notebookCategories, sourceFilter, folderFilter),
@@ -298,27 +300,63 @@ export function PersonalNotesPage() {
     ? notebookHierarchy.bindersById.get(selectedNotebookBinderId) ?? null
     : null;
   const notesViewEntries = useMemo(() => {
-    const baseEntries = selectedNotebookBinder
+    const baseEntries = params.personalBinderId
+      ? notebookTreeEntries.filter((entry) => entry.personalBinderId === params.personalBinderId)
+      : selectedNotebookBinder
       ? selectedNotebookBinder.entries
       : selectedNotebookScope
         ? entriesForNotebookCategory(notebookTreeEntries, selectedNotebookScope)
         : notebookTreeEntries;
     return filterPersonalNotesEntries(baseEntries, {
       query,
-      sourceFilter: "all",
+      sourceFilter,
       showBinderNotes: preferences.showBinderNotes,
-      folderName: null,
+      folderName: folderFilter,
       tag: tagFilter,
     });
-  }, [notebookTreeEntries, preferences.showBinderNotes, query, selectedNotebookBinder, selectedNotebookScope, tagFilter]);
+  }, [folderFilter, notebookTreeEntries, params.personalBinderId, preferences.showBinderNotes, query, selectedNotebookBinder, selectedNotebookScope, sourceFilter, tagFilter]);
   const notesListTitle = selectedNotebookBinder
     ? `${selectedNotebookBinder.scopeLabel} / ${selectedNotebookBinder.title}`
     : selectedNotebookScope?.label ?? (selectedCategory?.id === "all" ? "All notes" : `${selectedCategory?.label ?? "All"} notes`);
   const routeSelectedId = params.noteId ?? params.documentId ?? null;
+  const routeBinder = data?.personalBinders.find((binder) => binder.id === params.personalBinderId) ?? null;
+  const routeCanvas = readPersonalCanvasDescription(routeBinder?.description);
+  useEffect(() => {
+    resolvedLocationKeyRef.current = location.key;
+    if (navigationType !== "POP") return;
+    setQuery("");
+    setSourceFilter("all");
+    setFolderFilter(null);
+    setTagFilter(null);
+    setSelectedNotebookBinderId(null);
+    setSelectedNotebookScopeId("all");
+  }, [location.key]);
   const selectedEntry = useMemo(() => {
     const wanted = routeSelectedId ?? selectedId;
-    return filteredEntries.find((entry) => entry.id === wanted) ?? filteredEntries[0] ?? null;
-  }, [filteredEntries, routeSelectedId, selectedId]);
+    // A missing explicit record must never expose a different editable note.
+    if (routeSelectedId && !entries.some((entry) => entry.id === routeSelectedId && (!params.personalBinderId || entry.personalBinderId === params.personalBinderId))) return null;
+    if (restoringHistoryEntry && routeSelectedId) return entries.find((entry) => entry.id === routeSelectedId) ?? null;
+    return notesViewEntries.find((entry) => entry.id === wanted) ?? notesViewEntries[0] ?? null;
+  }, [entries, notesViewEntries, params.personalBinderId, restoringHistoryEntry, routeSelectedId, selectedId]);
+  useEffect(() => {
+    if (selectedEntry && routeSelectedId !== selectedEntry.id) navigate(selectedEntry.quickOpenUrl, { replace: true });
+  }, [navigate, routeSelectedId, selectedEntry?.id]);
+  const saveDraft = useCallback(async (entry: PersonalNotesEntry, draft: NoteDraft, expectedUpdatedAt: string) => {
+    const common = { id: entry.id, ownerId: entry.note.owner_id, expectedUpdatedAt, title: draft.title, content: draft.content, mathBlocks: draft.mathBlocks ?? entry.note.math_blocks };
+    if (entry.kind === "binder-note") {
+      const note = entry.note as LearnerNote;
+      return mutations.saveBinderLinkedNote.mutateAsync({ ...common, binderId: note.binder_id, lessonId: note.lesson_id, folderId: note.folder_id });
+    }
+    const tags = parseTags(draft.tagsInput);
+    const pinned = draft.pinned ?? entry.pinned;
+    if (entry.kind === "personal-document") {
+      return mutations.savePersonalDocument.mutateAsync({ ...common, binderId: (entry.note as PersonalNotebookDocument).binder_id, tags, pinned });
+    }
+    const note = entry.note as PersonalNote;
+    return mutations.savePersonalNote.mutateAsync({ ...common, folderId: draft.folderId === undefined ? note.folder_id : draft.folderId, binderId: note.binder_id, documentId: note.document_id, tags, pinned });
+  }, [mutations]);
+  const { draft, dirty, saveState, saveError, change: changeDraft, persist: persistSelected, discard: discardDraft } = usePersonalNoteDraft(profile?.id, selectedEntry, preferences.autosave, saveDraft);
+  const { title: draftTitle, content: draftContent, tagsInput: draftTagsInput } = draft;
   const folderSummaries = useMemo(() => buildFolderSummaries(entries), [entries]);
   const tagSummaries = useMemo(() => buildTagSummaries(entries), [entries]);
   const mainNotesCount = entries.filter((entry) => entry.kind !== "binder-note").length;
@@ -407,7 +445,8 @@ export function PersonalNotesPage() {
     setFolderFilter(category.folderName);
     setTagFilter(null);
     setSelectedId(null);
-  }, []);
+    navigate("/notes");
+  }, [navigate]);
 
   const selectNotebookBinder = useCallback((binder: NotebookBinderNode) => {
     setNotebookSidebarLevel("binder");
@@ -417,8 +456,11 @@ export function PersonalNotesPage() {
     const firstEntry = binder.entries[0];
     if (firstEntry) {
       setSelectedId(firstEntry.id);
+      navigate(firstEntry.quickOpenUrl);
+    } else if (binder.kind === "personal-binder") {
+      navigate(`/notes/binders/${binder.groupId.replace(/^personal:/, "")}`);
     }
-  }, []);
+  }, [navigate]);
 
   const stepBackNotebookSidebar = useCallback(() => {
     if (notebookSidebarLevel === "binder") {
@@ -447,7 +489,8 @@ export function PersonalNotesPage() {
     setNotebookSidebarLevel("scopes");
     setSelectedNotebookScopeId("all");
     setSelectedNotebookBinderId(null);
-  }, []);
+    navigate("/notes");
+  }, [navigate]);
 
   useEffect(() => {
     if (routeSelectedId || selectedId || filteredEntries.length === 0) {
@@ -455,25 +498,6 @@ export function PersonalNotesPage() {
     }
     setSelectedId(filteredEntries[0].id);
   }, [filteredEntries, routeSelectedId, selectedId]);
-
-  useEffect(() => {
-    if (!selectedEntry) {
-      setDraftTitle("");
-      setDraftContent(emptyDoc(""));
-      setDraftTagsInput("");
-      setDirty(false);
-      setSaveState("saved");
-      return;
-    }
-
-    setDraftTitle(selectedEntry.title);
-    setDraftContent(selectedEntry.content);
-    setDraftTagsInput(selectedEntry.tags.join(", "));
-    setDirty(false);
-    setSaveState("saved");
-    setSaveError(null);
-    setReviewQueueMessage(null);
-  }, [selectedEntry?.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -490,7 +514,12 @@ export function PersonalNotesPage() {
         setSidebarsHidden((current) => !current);
       }
       if (event.key === "Escape") {
+        if (createDialog) {
+          setCreateDialog(null);
+          return;
+        }
         if (filtersOpen || newMenuOpen) {
+          (filtersOpen ? filterButtonRef : newButtonRef).current?.focus();
           setFiltersOpen(false);
           setNewMenuOpen(false);
           return;
@@ -511,7 +540,16 @@ export function PersonalNotesPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commandOpen, exitFullscreenFocus, filtersOpen, focusActive, newMenuOpen, settingsOpen]);
+  }, [commandOpen, createDialog, exitFullscreenFocus, filtersOpen, focusActive, newMenuOpen, settingsOpen]);
+
+  useEffect(() => {
+    if (!createDialog) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (opener?.isConnected) opener.focus();
+      else newButtonRef.current?.focus();
+    };
+  }, [createDialog]);
 
   useEffect(() => {
     if (!filtersOpen && !newMenuOpen) {
@@ -545,107 +583,21 @@ export function PersonalNotesPage() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [filtersOpen, newMenuOpen]);
 
-  useEffect(() => {
-    if (!dirty) {
-      return;
-    }
-
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
-
   const selectEntry = useCallback(
     (entry: PersonalNotesEntry) => {
+      if (!notesViewEntries.some((candidate) => candidate.id === entry.id)) {
+        setQuery("");
+        setSourceFilter("all");
+        setFolderFilter(null);
+        setTagFilter(null);
+        setSelectedNotebookBinderId(null);
+        setSelectedNotebookScopeId("all");
+      }
       setSelectedId(entry.id);
       navigate(entry.quickOpenUrl);
     },
-    [navigate],
+    [navigate, notesViewEntries],
   );
-
-  const persistSelected = useCallback(async () => {
-    if (!selectedEntry) {
-      return;
-    }
-
-    setSaveState("saving");
-    setSaveError(null);
-    const tags = parseTags(draftTagsInput);
-
-    try {
-      if (selectedEntry.kind === "binder-note") {
-        const learnerNote = selectedEntry.note as LearnerNote;
-        await mutations.saveBinderLinkedNote.mutateAsync({
-          id: selectedEntry.id,
-          binderId: selectedEntry.sourceBinderId ?? learnerNote.binder_id,
-          lessonId: selectedEntry.sourceDocumentId ?? learnerNote.lesson_id,
-          folderId: learnerNote.folder_id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: learnerNote.math_blocks,
-        });
-      } else if (selectedEntry.kind === "personal-document") {
-        const document = selectedEntry.note as PersonalNotebookDocument;
-        await mutations.savePersonalDocument.mutateAsync({
-          id: selectedEntry.id,
-          binderId: selectedEntry.personalBinderId ?? document.binder_id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: document.math_blocks,
-          tags,
-          pinned: selectedEntry.pinned,
-        });
-      } else {
-        const note = selectedEntry.note as PersonalNote;
-        await mutations.savePersonalNote.mutateAsync({
-          id: selectedEntry.id,
-          title: draftTitle,
-          content: draftContent,
-          mathBlocks: note.math_blocks,
-          folderId: note.folder_id,
-          binderId: note.binder_id,
-          documentId: note.document_id,
-          tags,
-          pinned: selectedEntry.pinned,
-        });
-      }
-      setDirty(false);
-      setSaveState("saved");
-    } catch (saveErrorValue) {
-      setSaveState("error");
-      setSaveError(saveErrorValue instanceof Error ? saveErrorValue.message : "Could not save note.");
-    }
-  }, [draftContent, draftTagsInput, draftTitle, mutations, selectedEntry]);
-
-  useEffect(() => {
-    if (!dirty || !preferences.autosave || !selectedEntry) {
-      return;
-    }
-
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-
-    saveTimerRef.current = window.setTimeout(() => {
-      void persistSelected();
-    }, 850);
-
-    return () => {
-      if (saveTimerRef.current !== null) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [dirty, draftContent, draftTagsInput, draftTitle, persistSelected, preferences.autosave, selectedEntry]);
-
-  const markDraftChanged = useCallback(() => {
-    setDirty(true);
-    setSaveState("saved");
-    setSaveError(null);
-  }, []);
 
   const createLooseNote = useCallback(() => {
     if (!personalStorageReady) {
@@ -687,12 +639,9 @@ export function PersonalNotesPage() {
       return;
     }
 
-    await mutations.setPinned.mutateAsync({
-      kind: selectedEntry.kind,
-      id: selectedEntry.id,
-      pinned: !selectedEntry.pinned,
-    });
-  }, [mutations.setPinned, selectedEntry]);
+    changeDraft({ pinned: !(draft.pinned ?? selectedEntry.pinned) });
+    await persistSelected();
+  }, [changeDraft, draft.pinned, persistSelected, selectedEntry]);
 
   const addTagToSelected = useCallback(async () => {
     if (!selectedEntry || selectedEntry.kind === "binder-note") {
@@ -713,31 +662,17 @@ export function PersonalNotesPage() {
       return;
     }
     const nextTags = [...new Set([...parseTags(draftTagsInput), tag.trim()])];
-    setDraftTagsInput(nextTags.join(", "));
-    setDirty(true);
-    window.setTimeout(() => {
-      void persistSelected();
-    }, 0);
-  }, [draftTagsInput, persistSelected, selectedEntry]);
+    changeDraft({ tagsInput: nextTags.join(", ") });
+  }, [changeDraft, draftTagsInput, selectedEntry]);
 
   const submitMoveSelectedToFolder = useCallback(async (folderId: string | null) => {
     if (!selectedEntry || selectedEntry.kind !== "personal-note") {
       return;
     }
 
-    const note = selectedEntry.note as PersonalNote;
-    await mutations.savePersonalNote.mutateAsync({
-      id: selectedEntry.id,
-      title: draftTitle,
-      content: draftContent,
-      mathBlocks: note.math_blocks,
-      folderId,
-      binderId: note.binder_id,
-      documentId: note.document_id,
-      tags: parseTags(draftTagsInput),
-      pinned: note.pinned,
-    });
-  }, [draftContent, draftTagsInput, draftTitle, mutations.savePersonalNote, selectedEntry]);
+    changeDraft({ folderId });
+    await persistSelected();
+  }, [changeDraft, persistSelected, selectedEntry]);
 
   const addSelectedNoteToReview = useCallback(() => {
     if (!profile?.id || !selectedEntry || !reviewQueueBeta) {
@@ -768,6 +703,14 @@ export function PersonalNotesPage() {
     }
   }, [draftContent, draftTitle, profile?.id, reviewQueueBeta, selectedEntry]);
 
+  const saveDraftCopy = useCallback(async () => {
+    if (!selectedEntry) return;
+    setRecoveryCopyError(null);
+    const copy = await mutations.savePersonalNote.mutateAsync({ title: `${draftTitle || selectedEntry.title} (recovered copy)`, content: draftContent, mathBlocks: draft.mathBlocks ?? selectedEntry.note.math_blocks, tags: parseTags(draftTagsInput) });
+    discardDraft();
+    navigate(`/notes/n/${copy.id}`);
+  }, [discardDraft, draftContent, draftTagsInput, draftTitle, mutations, navigate, selectedEntry]);
+
   useEffect(() => {
     if (searchParams.get("action") === "new-note" && !selectedEntry && !isLoading) {
       void createLooseNote();
@@ -796,8 +739,7 @@ export function PersonalNotesPage() {
       onAddTag={addTagToSelected}
       onAddToReview={addSelectedNoteToReview}
       onContentChange={(content) => {
-        setDraftContent(content);
-        markDraftChanged();
+        changeDraft({ content });
       }}
       onEditorWidthChange={(editorWidth) => updatePreferences({ editorWidth })}
       onFocusModeChange={(enabled) => {
@@ -811,8 +753,7 @@ export function PersonalNotesPage() {
       }}
       onToggleFocusSideMonitor={() => setFocusSideMonitorOpen((current) => !current)}
       onInsertTemplate={(content) => {
-        setDraftContent(content);
-        markDraftChanged();
+        changeDraft({ content });
       }}
       onOpenBinder={() => {
         if (selectedEntry?.quickJumpToBinderUrl) {
@@ -823,16 +764,15 @@ export function PersonalNotesPage() {
       onOpenSource={(sourceUrl) => navigate(sourceUrl)}
       onPin={toggleSelectedPin}
       onRetrySave={() => void persistSelected()}
+      onSaveCopy={() => void saveDraftCopy().catch(() => { setRecoveryCopyError("Could not create a copy. Keep this tab open and try again."); })}
       onSave={() => void persistSelected()}
       onTagsChange={(tags) => {
-        setDraftTagsInput(tags);
-        markDraftChanged();
+        changeDraft({ tagsInput: tags });
       }}
       onTitleChange={(title) => {
-        setDraftTitle(title);
-        markDraftChanged();
+        changeDraft({ title });
       }}
-      saveError={saveError}
+      saveError={recoveryCopyError ?? saveError}
       saveState={saveState}
     />
   );
@@ -963,7 +903,7 @@ export function PersonalNotesPage() {
                   <Badge className="hidden lg:inline-flex" variant="secondary">{binderLinkedCount} linked</Badge>
                   <Badge className="hidden xl:inline-flex" variant="secondary">{personalDocumentsCount} docs</Badge>
                   <Badge className="hidden sm:inline-flex" variant={dirty ? "destructive" : "outline"}>
-                    {sourceLinkedNotesBeta ? betaAutosaveStatus.label : dirty ? "Unsaved" : saveState === "saving" ? "Saving" : "Synced"}
+                    {sourceLinkedNotesBeta ? betaAutosaveStatus.label : saveState === "error" ? "Save failed" : saveState === "saving" ? "Saving" : dirty ? "Unsaved" : "Synced"}
                   </Badge>
                 </div>
 
@@ -1184,7 +1124,16 @@ export function PersonalNotesPage() {
               ) : null}
 
               <div className="min-h-0 flex-1 overflow-hidden">
-                {entries.length === 0 ? (
+                {routeBinder && routeCanvas && profile ? (
+                  <PersonalCanvasNotebook binder={routeBinder} ownerId={profile.id} layout={routeCanvas.layout} onBack={showAllNotes} />
+                ) : params.personalBinderId && !selectedEntry ? (
+                  <div className="grid h-full place-content-center gap-3 p-6 text-center" data-testid="personal-binder-empty">
+                    <h2 className="text-xl font-semibold">{routeBinder?.title ?? "Binder not found"}</h2>
+                    <p className="text-sm text-muted-foreground">{routeBinder ? "This binder has no matching documents yet." : "This binder is unavailable in your account."}</p>
+                    {routeBinder ? <Button onClick={createDocument} type="button">New document</Button> : null}
+                    <Button onClick={showAllNotes} type="button" variant="outline">All notes</Button>
+                  </div>
+                ) : entries.length === 0 && !data?.personalBinders.length ? (
                   <PersonalNotesEmptyState
                     onCreateBinder={createBinder}
                     onCreateFolder={createFolder}
@@ -1259,6 +1208,7 @@ export function PersonalNotesPage() {
         <PersonalNotesCreateDialog
           binders={data?.personalBinders ?? []}
           currentFolderName={folderFilter}
+          currentBinderId={params.personalBinderId}
           draftTagsInput={draftTagsInput}
           folders={data?.personalFolders ?? []}
           kind={createDialog}
@@ -1267,7 +1217,15 @@ export function PersonalNotesPage() {
           onAddTag={submitTagForSelected}
           onClose={() => setCreateDialog(null)}
           onMoveFolder={submitMoveSelectedToFolder}
-          onNavigate={navigate}
+          onNavigate={(path) => {
+            setQuery("");
+            setSourceFilter("all");
+            setFolderFilter(null);
+            setTagFilter(null);
+            setSelectedNotebookBinderId(null);
+            setSelectedNotebookScopeId("all");
+            navigate(path);
+          }}
           onSetSourceFilter={setSourceFilter}
           onSetView={setView}
           onSwitchKind={setCreateDialog}
@@ -1433,6 +1391,7 @@ function PersonalNotesEmptyState({
 function PersonalNotesCreateDialog({
   binders,
   currentFolderName,
+  currentBinderId,
   draftTagsInput,
   folders,
   kind,
@@ -1454,6 +1413,7 @@ function PersonalNotesCreateDialog({
 }: {
   binders: Array<{ id: string; title: string; folder_id: string | null }>;
   currentFolderName: string | null;
+  currentBinderId?: string;
   draftTagsInput: string;
   folders: PersonalNoteFolder[];
   kind: CreateDialogKind;
@@ -1585,7 +1545,7 @@ function PersonalNotesCreateDialog({
     () => [...personalBinderOptions, ...workspaceBinderOptions],
     [personalBinderOptions, workspaceBinderOptions],
   );
-  const initialPersonalBinder = personalBinderOptions.find((binder) => binder.id === selectedEntry?.personalBinderId) ?? null;
+  const initialPersonalBinder = personalBinderOptions.find((binder) => binder.id === (currentBinderId ?? selectedEntry?.personalBinderId)) ?? null;
   const initialWorkspaceBinder = workspaceBinderOptions.find((binder) => binder.id === selectedEntry?.sourceBinderId) ?? null;
   const initialFolderId =
     initialPersonalBinder?.folderValue ||
@@ -1727,7 +1687,7 @@ function PersonalNotesCreateDialog({
         const result = await mutations.createBinder.mutateAsync({
           title: title.trim() || "Canvas notebook",
           folderId: activeFolder?.kind === "personal" ? activeFolder.id : null,
-          description: description.trim() || canvasDescription(canvasLayout),
+          description: encodePersonalCanvasDescription({ layout: canvasLayout, description: description.trim() || canvasDescription(canvasLayout) }),
           createFirstDocument: false,
         });
         onSetView("notes");
@@ -2806,8 +2766,6 @@ function MinimalNotesView({
   tagSummaries: Array<{ name: string; count: number }>;
 }) {
   const binderRows = hierarchy.bindersByScope[selectedScope?.id ?? "all"] ?? [];
-  const shouldChooseBinder =
-    notebookSidebarLevel !== "binder" && selectedScope?.id !== "loose" && selectedScope?.id !== "binder-linked";
 
   return (
     <div
@@ -2968,13 +2926,12 @@ function MinimalNotesView({
             ) : (
               <div className="rounded-lg border border-border/65 bg-card p-4 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground">
-                  {shouldChooseBinder ? "Choose a binder" : `No ${selectedScope.label} notes yet.`}
+                  No matching notes
                 </p>
                 <p className="mt-1">
-                  {shouldChooseBinder
-                    ? "Select a binder from the notebook sidebar to see its notes here."
-                    : "This scope is empty or hidden by the current search and filters."}
+                  This scope is empty or hidden by the current search and filters.
                 </p>
+                <Button className="mt-3" onClick={onClearFilters} size="sm" type="button" variant="outline">Clear filters</Button>
               </div>
             )}
           </div>
@@ -3129,6 +3086,7 @@ function StructuredNotebookTree({
                           </button>
                           {binderExpanded ? (
                             <div className="ml-5 mt-1 grid gap-1 border-l border-border/45 pl-2">
+                              {binder.kind === "personal-binder" ? <Link className="rounded-md px-2 py-1.5 text-xs font-medium text-primary hover:bg-secondary" to={`/notes/binders/${binder.groupId.replace(/^personal:/, "")}`}>Open notebook</Link> : null}
                               {binder.entries.map((entry) => (
                                 <StructuredNotebookEntryButton
                                   entry={entry}
@@ -3230,6 +3188,7 @@ function PersonalNoteEditor({
   onOpenSource,
   onPin,
   onRetrySave,
+  onSaveCopy,
   onSave,
   onTagsChange,
   onTitleChange,
@@ -3265,6 +3224,7 @@ function PersonalNoteEditor({
   onOpenSource: (sourceUrl: string) => void;
   onPin: () => void;
   onRetrySave: () => void;
+  onSaveCopy: () => void;
   onSave: () => void;
   onTagsChange: (tags: string) => void;
   onTitleChange: (title: string) => void;
@@ -3721,7 +3681,7 @@ function PersonalNoteEditor({
 
           <div className={`${compactMetadata ? "mt-0" : "mt-1"} flex flex-wrap items-center gap-1.5`}>
             <Badge variant={saveState === "error" ? "destructive" : dirty ? "outline" : "secondary"}>
-              {sourceLinkedNotesBeta ? betaAutosaveStatus.label : saveState === "error" ? "Save failed" : dirty ? "Unsaved" : "Saved"}
+              {sourceLinkedNotesBeta ? betaAutosaveStatus.label : saveState === "error" ? "Save failed" : saveState === "saving" ? "Saving" : dirty ? "Unsaved" : "Saved"}
             </Badge>
             {sourceLinkedNotesBeta && betaAutosaveStatus.savedLabel ? (
               <Badge variant="secondary">{betaAutosaveStatus.savedLabel}</Badge>
@@ -3766,6 +3726,9 @@ function PersonalNoteEditor({
               <span>{saveError}</span>
               <Button onClick={onRetrySave} size="sm" type="button" variant="outline">
                 Retry
+              </Button>
+              <Button onClick={onSaveCopy} size="sm" type="button" variant="outline">
+                Save a separate copy
               </Button>
             </div>
           ) : null}
@@ -5604,7 +5567,7 @@ function buildFolderSummaries(entries: PersonalNotesEntry[]) {
 function buildNotebookCategories(entries: PersonalNotesEntry[], showBinderNotes: boolean): NotebookCategory[] {
   const visible = showBinderNotes ? entries : entries.filter((entry) => entry.kind !== "binder-note");
   const folderCount = (label: string) => visible.filter((entry) => entry.folderName === label).length;
-  const looseCount = visible.filter((entry) => entry.kind === "personal-note").length;
+  const looseCount = visible.filter((entry) => entry.kind === "personal-note" && !entry.personalBinderId).length;
   const linkedCount = visible.filter((entry) => entry.kind === "binder-note").length;
 
   const categories: NotebookCategory[] = [
@@ -5659,7 +5622,7 @@ function entriesForNotebookCategory(entries: PersonalNotesEntry[], category: Not
   return [];
 }
 
-function buildNotebookHierarchy(entries: PersonalNotesEntry[], categories: NotebookCategory[]): NotebookHierarchy {
+function buildNotebookHierarchy(entries: PersonalNotesEntry[], categories: NotebookCategory[], personalBinders: PersonalNoteBinder[] = [], personalFolders: PersonalNoteFolder[] = []): NotebookHierarchy {
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
   const bindersByScope = new Map<string, Map<string, NotebookBinderNode>>();
 
@@ -5708,6 +5671,26 @@ function buildNotebookHierarchy(entries: PersonalNotesEntry[], categories: Noteb
       addBinderEntry("binder-linked", binderGroup.id, entry, binderGroup.title, binderGroup.kind);
     }
   });
+
+  // Empty binders and canvas notebooks have their own identity before any text
+  // document exists, and must remain reachable from the notebook navigation.
+  const allBinders = bindersByScope.get("all") ?? new Map<string, NotebookBinderNode>();
+  personalBinders.forEach((binder) => {
+    const groupId = `personal:${binder.id}`;
+    const id = `all:${groupId}`;
+    if (!allBinders.has(id)) {
+      const node: NotebookBinderNode = { id, groupId, title: binder.title, count: 0, entries: [], scopeId: "all", scopeLabel: "All notes", sourceUrl: null, kind: "personal-binder" };
+      allBinders.set(id, node);
+      const folder = personalFolders.find((folder) => folder.id === binder.folder_id);
+      const folderName = folder?.name.toLowerCase() ?? "unfiled";
+      const scopeId = ["math", "history", "chemistry", "unfiled"].includes(folderName) ? folderName : "other";
+      const scopeBinders = bindersByScope.get(scopeId) ?? new Map<string, NotebookBinderNode>();
+      const scopeNode = { ...node, id: `${scopeId}:${groupId}`, scopeId, scopeLabel: notebookScopeLabel(scopeId) };
+      scopeBinders.set(scopeNode.id, scopeNode);
+      bindersByScope.set(scopeId, scopeBinders);
+    }
+  });
+  bindersByScope.set("all", allBinders);
 
   const normalizedByScope: Record<string, NotebookBinderNode[]> = {};
   const bindersById = new Map<string, NotebookBinderNode>();

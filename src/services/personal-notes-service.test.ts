@@ -5,6 +5,9 @@ const supabaseCalls = vi.hoisted(() => ({
   tables: [] as string[],
   inserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
   upserts: [] as Array<{ table: string; payload: Record<string, unknown> }>,
+  updates: [] as Array<{ table: string; payload: Record<string, unknown> }>,
+  filters: [] as Array<[string, unknown]>,
+  conflict: false,
 }));
 
 const binderServiceMocks = vi.hoisted(() => ({
@@ -39,6 +42,9 @@ vi.mock("@/lib/supabase", () => ({
       supabaseCalls.tables.push(table);
       let payload: Record<string, unknown> = {};
       const chain = {
+        update: (value: Record<string, unknown>) => { payload = value; supabaseCalls.updates.push({ table, payload }); return chain; },
+        eq: (column: string, value: unknown) => { supabaseCalls.filters.push([column, value]); return chain; },
+        maybeSingle: async () => ({ data: supabaseCalls.conflict ? null : { id: "existing", ...payload }, error: null }),
         insert: (value: Record<string, unknown>) => {
           payload = value;
           supabaseCalls.inserts.push({ table, payload: value });
@@ -74,6 +80,8 @@ import {
   createPersonalDocument,
   createPersonalNoteFolder,
   updateBinderLinkedPersonalNote,
+  updateLoosePersonalNote,
+  updatePersonalDocument,
 } from "@/services/personal-notes-service";
 
 const content: JSONContent = {
@@ -86,6 +94,9 @@ describe("Personal Notes service writes", () => {
     supabaseCalls.tables.length = 0;
     supabaseCalls.inserts.length = 0;
     supabaseCalls.upserts.length = 0;
+    supabaseCalls.updates.length = 0;
+    supabaseCalls.filters.length = 0;
+    supabaseCalls.conflict = false;
     binderServiceMocks.getDashboard.mockClear();
     binderServiceMocks.upsertLearnerNote.mockClear();
   });
@@ -98,7 +109,7 @@ describe("Personal Notes service writes", () => {
       tags: ["review", "review"],
     });
 
-    expect(supabaseCalls.upserts[0]).toMatchObject({
+    expect(supabaseCalls.inserts[0]).toMatchObject({
       table: "personal_notes",
       payload: {
         owner_id: "user-1",
@@ -146,7 +157,7 @@ describe("Personal Notes service writes", () => {
       content,
     });
 
-    expect(supabaseCalls.upserts[0]).toMatchObject({
+    expect(supabaseCalls.inserts[0]).toMatchObject({
       table: "personal_note_documents",
       payload: {
         owner_id: "user-1",
@@ -168,15 +179,29 @@ describe("Personal Notes service writes", () => {
       mathBlocks: [],
     });
 
-    expect(binderServiceMocks.upsertLearnerNote).toHaveBeenCalledWith({
-      ownerId: "user-1",
-      binderId: "binder-history",
-      lessonId: "lesson-russia",
-      folderId: null,
+    expect(supabaseCalls.inserts[0]).toMatchObject({ table: "learner_notes", payload: {
+      owner_id: "user-1",
+      binder_id: "binder-history",
+      lesson_id: "lesson-russia",
+      folder_id: null,
       title: "Binder private note",
       content,
-      mathBlocks: [],
-    });
+      math_blocks: [],
+    } });
+    expect(supabaseCalls.upserts).toHaveLength(0);
     expect(supabaseCalls.tables).not.toContain("personal_notes");
+  });
+
+  it.each([
+    ["personal_notes", updateLoosePersonalNote],
+    ["personal_note_documents", updatePersonalDocument],
+    ["learner_notes", updateBinderLinkedPersonalNote],
+  ] as const)("atomically guards %s with owner, identity and expected revision", async (table, update) => {
+    await update({ id: "existing", ownerId: "user-1", expectedUpdatedAt: "2026-10-01T10:00:00.000Z", binderId: "binder", lessonId: "lesson", title: "Latest", content, mathBlocks: [] });
+    expect(supabaseCalls.updates[0]).toMatchObject({ table, payload: { title: "Latest", content } });
+    expect(supabaseCalls.filters).toEqual([["owner_id", "user-1"], ["id", "existing"], ["updated_at", "2026-10-01T10:00:00.000Z"]]);
+    expect(supabaseCalls.upserts).toHaveLength(0);
+    supabaseCalls.conflict = true;
+    await expect(update({ id: "existing", ownerId: "user-1", expectedUpdatedAt: "2026-10-01T10:00:00.000Z", binderId: "binder", lessonId: "lesson", title: "Stale", content, mathBlocks: [] })).rejects.toThrow("newer version");
   });
 });

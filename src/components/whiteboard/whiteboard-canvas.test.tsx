@@ -93,6 +93,19 @@ describe("WhiteboardCanvas", () => {
     expect(excalidrawMock.props?.initialData).toMatchObject({ appState: { viewBackgroundColor: "#ffffff", exportWithDarkMode: true, exportBackground: true } });
   });
 
+  it("never replays a saved camera snapshot over a newer live pan during module autosave", async () => {
+    const onViewportChange = vi.fn();
+    const onSceneChange = vi.fn();
+    const original = board();
+    const { rerender } = render(<WhiteboardCanvas board={original} onSceneChange={onSceneChange} onViewportChange={onViewportChange} />);
+    await waitFor(() => expect(excalidrawMock.props).toBeTruthy());
+    excalidrawMock.apiState = { scrollX: 450, scrollY: -160, zoom: { value: 1.5 } };
+    act(() => { (excalidrawMock.props?.onScrollChange as Function)(450, -160, { value: 1.5 }); });
+    onViewportChange.mockClear();
+    rerender(<WhiteboardCanvas board={{ ...original, scene: { ...original.scene, appState: { scrollX: 0, scrollY: 0, zoom: { value: 1 } } } }} onSceneChange={onSceneChange} onViewportChange={onViewportChange} />);
+    expect(onViewportChange.mock.calls.every(([camera]) => camera.scrollX === 450 && camera.scrollY === -160 && camera.zoom === 1.5)).toBe(true);
+  });
+
   it("exposes the latest unflushed drawing to backup actions", async () => {
     const onActionsReady = vi.fn();
     render(<WhiteboardCanvas board={board()} onSceneChange={vi.fn()} onActionsReady={onActionsReady} />);

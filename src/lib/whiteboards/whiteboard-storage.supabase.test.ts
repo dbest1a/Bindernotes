@@ -62,12 +62,14 @@ function createQuery(table: "whiteboards" | "whiteboard_versions") {
       return { data: records, error: null, count: null };
     }
 
+    let updated: WhiteboardRecord | null = null;
     targetRows.forEach((row, index) => {
       if (filters.every((filter) => matchesFilter(row, filter))) {
         targetRows[index] = { ...row, ...(mutation?.values as WhiteboardRecord) };
+        updated = targetRows[index];
       }
     });
-    return { data: null, error: null, count: null };
+    return { data: updated, error: null, count: null };
   };
 
   const builder = {

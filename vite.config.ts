@@ -2,11 +2,29 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
+const buildInfo = (() => {
+  try {
+    return {
+      commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: configDir, encoding: "utf8" }).trim(),
+      dirty: Boolean(execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: configDir, encoding: "utf8" }).trim()),
+      builtAt: new Date().toISOString(),
+    };
+  } catch {
+    return { commit: "unavailable", dirty: true, builtAt: new Date().toISOString() };
+  }
+})();
 
 export default defineConfig({
-  plugins: [react()],
+  define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
+  plugins: [react(), {
+    name: "build-identity",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "build-info.json", source: JSON.stringify(buildInfo, null, 2) });
+    },
+  }],
   build: {
     rollupOptions: {
       output: {
@@ -48,6 +66,7 @@ export default defineConfig({
       "**/dist/**",
       "**/.{idea,git,cache,output,temp}/**",
       "**/.tmp/**",
+      "**/e2e/**",
       "**/.codex-deploy-*/**",
     ],
   },

@@ -223,24 +223,23 @@ function ClassicLandingPage() {
               Built for serious students
             </div>
             <h1>
-              Study notes that feel like a living, premium workspace.
+              Read the lesson. Keep your own thinking beside it.
             </h1>
             <p>
-              BinderNotes brings lessons, private notes, highlights, formulas, graphing, and
-              whiteboards into one cinematic study system that stays organized while your thinking
-              gets bigger and stronger.
+              Open a source lesson, write private notes alongside it, and return to your saved work.
+              Add a graph or whiteboard when you need more room to think.
             </p>
             <div className="marketing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
-                <Link to="/auth">
+                <Link to="/auth?mode=signup">
                   Start studying
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
               <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
                 <a href="#showcase">
-                  Watch it unfold
-                  <Play data-icon="inline-end" />
+                  Explore the workspace
+                  <ArrowRight data-icon="inline-end" />
                 </a>
               </Button>
             </div>
@@ -303,6 +302,17 @@ function ClassicLandingPage() {
             {showcaseTabs.map((tab) => (
               <button
                 aria-selected={activeShowcase === tab.id}
+                aria-controls={`showcase-panel-${tab.id}`}
+                id={`showcase-tab-${tab.id}`}
+                tabIndex={activeShowcase === tab.id ? 0 : -1}
+                onKeyDown={(event) => {
+                  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                  event.preventDefault();
+                  const index = showcaseTabs.findIndex((item) => item.id === tab.id);
+                  const next = event.key === "Home" ? 0 : event.key === "End" ? showcaseTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + showcaseTabs.length) % showcaseTabs.length;
+                  setActiveShowcase(showcaseTabs[next].id);
+                  document.getElementById(`showcase-tab-${showcaseTabs[next].id}`)?.focus();
+                }}
                 className="marketing-showcase__tab"
                 key={tab.id}
                 onClick={() => setActiveShowcase(tab.id)}
@@ -319,6 +329,10 @@ function ClassicLandingPage() {
             {showcaseTabs.map((tab) => (
               <article
                 aria-hidden={activeShowcase !== tab.id}
+                role="tabpanel"
+                id={`showcase-panel-${tab.id}`}
+                aria-labelledby={`showcase-tab-${tab.id}`}
+                tabIndex={activeShowcase === tab.id ? 0 : -1}
                 className="marketing-showcase__panel-copy"
                 data-active={activeShowcase === tab.id}
                 key={tab.id}
@@ -328,7 +342,7 @@ function ClassicLandingPage() {
                 <p>{tab.body}</p>
               </article>
             ))}
-            <Link className="marketing-inline-cta" to="/auth">
+            <Link className="marketing-inline-cta" to="/auth?mode=signup">
               Open your first workspace
               <ChevronRight data-icon="inline-end" />
             </Link>
@@ -433,7 +447,7 @@ function ClassicLandingPage() {
           </p>
           <div className="marketing-hero__actions">
             <Button asChild className="marketing-button marketing-button--primary" size="lg">
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 Start studying now
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -453,6 +467,7 @@ function ClassicLandingPage() {
         <nav aria-label="Footer">
           <Link to="/auth">Sign in</Link>
           <Link to="/pricing">Pricing</Link>
+          <Link to="/help">Help</Link>
           <Link to="/tutorial">Tutorial</Link>
         </nav>
         <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
@@ -622,7 +637,7 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
             </p>
             <div className="marketing-hero__actions">
               <Button asChild className="marketing-button marketing-button--primary" size="lg">
-                <Link to="/auth">
+                <Link to="/auth?mode=signup">
                   Start studying
                   <ArrowRight data-icon="inline-end" />
                 </Link>
@@ -630,7 +645,7 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
               <Button asChild className="marketing-button marketing-button--ghost" size="lg" variant="outline">
                 <a href="#showcase">
                   See the workflow
-                  <Play data-icon="inline-end" />
+                  <ArrowRight data-icon="inline-end" />
                 </a>
               </Button>
             </div>
@@ -744,7 +759,7 @@ function CalmStudyHomepage({ previewRoute }: { previewRoute: boolean }) {
           </p>
           <div className="marketing-hero__actions">
             <Button asChild className="marketing-button marketing-button--primary" size="lg">
-              <Link to="/auth">
+              <Link to="/auth?mode=signup">
                 Start studying now
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -835,7 +850,7 @@ function MarketingNav() {
       </div>
       <div className="marketing-nav__actions">
         <Link className="marketing-nav__signin" to="/auth">Sign in</Link>
-        <Link className="marketing-nav__start" to="/auth">
+        <Link className="marketing-nav__start" to="/auth?mode=signup">
           Start
           <ArrowRight data-icon="inline-end" />
         </Link>
@@ -854,7 +869,8 @@ function MarketingFooter() {
       <nav aria-label="Footer">
         <Link to="/auth">Sign in</Link>
         <Link to="/pricing">Pricing</Link>
-        <Link to="/tutorial">Tutorial</Link>
+        <Link to="/help">Help</Link>
+          <Link to="/tutorial">Tutorial</Link>
       </nav>
       <Link className="marketing-footer__easter-egg" to="/hidden-hollow" aria-label="Loose stone under the footer">
         loose stone

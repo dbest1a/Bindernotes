@@ -5,6 +5,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:staging": "playwright test --config playwright.staging.config.ts",
     "dev": "vite --config vite.config.ts --configLoader runner --host 127.0.0.1",
     "build": "node scripts/build-client.mjs",
     "preview": "vite preview --config vite.config.ts --configLoader runner --host 127.0.0.1",
@@ -49,6 +51,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/katex": "^0.16.8",

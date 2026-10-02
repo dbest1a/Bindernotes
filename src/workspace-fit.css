@@ -1,0 +1,65 @@
+/* The stage owns overflow. A short viewport must never compress editors to zero. */
+.workspace-page[data-facelift-surface="simple"] .facelift-presentation-stage {
+  display: block;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.facelift-presentation-stage .facelift-simple-shell {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.facelift-simple-shell .facelift-simple-shell__body,
+.facelift-simple-shell .facelift-simple-shell__main {
+  flex: 1 0 auto;
+  overflow: visible;
+}
+
+.facelift-simple-shell .facelift-module-grid {
+  flex: 1 0 auto;
+  height: auto;
+  min-height: 28rem;
+  grid-auto-rows: minmax(28rem, auto);
+  overflow: visible;
+}
+
+.facelift-simple-shell .facelift-module-cell {
+  min-height: 28rem;
+}
+
+.facelift-simple-shell .private-notes-content {
+  height: auto;
+  min-height: 100%;
+}
+
+.facelift-simple-shell .private-notes-content > * {
+  flex-shrink: 0;
+}
+
+/* Minimal chrome hides explanations, never the actual writing surface. */
+.facelift-presentation-stage .facelift-simple-shell[data-facelift-module-chrome="minimal"] .private-notes-editor-hero {
+  display: block;
+}
+.facelift-presentation-stage .facelift-simple-shell[data-facelift-module-chrome="minimal"] .private-notes-editor-intro {
+  display: none;
+}
+
+@media (min-width: 821px) and (max-width: 1180px) {
+  .facelift-simple-shell .facelift-module-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+}
+
+@media (max-height: 800px) {
+  .facelift-simple-shell .facelift-next-board,
+  .facelift-simple-shell .facelift-guide-row {
+    display: none;
+  }
+  .facelift-simple-shell__top {
+    padding-block: 6px;
+  }
+}

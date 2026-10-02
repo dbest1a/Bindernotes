@@ -8,6 +8,7 @@ import type { WhiteboardCanvasActions } from "@/components/whiteboard/whiteboard
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import type { BinderWhiteboard, WhiteboardListResult, WhiteboardSaveResult, WhiteboardSceneData } from "@/lib/whiteboards/whiteboard-types";
 import { clearWhiteboardRecoveryDraft, readWhiteboardRecoveryDraft } from "@/lib/whiteboards/whiteboard-recovery";
+import * as whiteboardStorage from "@/lib/whiteboards/whiteboard-storage";
 import type { WorkspaceModuleId } from "@/types";
 
 const storageMocks = vi.hoisted(() => ({
@@ -130,7 +131,7 @@ function draw(boardId: string, elementId: string) {
   act(() => storageMocks.canvasChanges.get(boardId)?.(scene));
 }
 
-function renderWhiteboard() {
+function renderWhiteboard(options: Partial<React.ComponentProps<typeof WhiteboardModule>> = {}) {
   const context = {
     ownerId: "user-1",
     binder: {
@@ -160,6 +161,7 @@ function renderWhiteboard() {
     <WhiteboardModule
       context={context}
       renderModule={(moduleId) => <section>{moduleId} module</section>}
+      {...options}
     />,
   );
 }
@@ -195,6 +197,22 @@ describe("WhiteboardModule persistence ordering", () => {
     for (const id of ["board-workspace", "board-second", "board-third"]) clearWhiteboardRecoveryDraft("user-1", id);
     vi.restoreAllMocks();
     window.localStorage.clear();
+  });
+
+  it("initializes a scoped notebook from its chosen template without opening unrelated account boards and reopens it on reload", async () => {
+    const foreign = { ...board([]), id: "foreign-board", binderId: "another-binder", lessonId: "another-lesson", title: "Unrelated board" };
+    vi.spyOn(whiteboardStorage, "listWhiteboards").mockResolvedValueOnce({ boards: [foreign], backend: "supabase", status: "loaded", message: "Loaded" });
+    const template = { id: "notebook-grid", name: "Geometry notebook", description: "Grid", subject: "math" as const, starterElements: [{ id: "template-prompt", type: "text", x: 0, y: 0, width: 240, height: 24, text: "Explore a geometric proof" }] };
+    const first = renderWhiteboard({ scopeOnly: true, initialTemplate: template });
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-elements")).toContain("Explore a geometric proof"));
+    expect(screen.queryByText("Unrelated board")).toBeNull();
+    const saved = whiteboardStorage.listLocalWhiteboards({ ownerId: "user-1", binderId: "binder-1", lessonId: "lesson-1" });
+    expect(saved).toHaveLength(1);
+    expect(saved[0].title).toBe("Geometry notebook");
+    first.unmount();
+    renderWhiteboard({ scopeOnly: true, initialTemplate: template });
+    await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-id")).toBe(saved[0].id));
+    expect(whiteboardStorage.listLocalWhiteboards({ ownerId: "user-1", binderId: "binder-1", lessonId: "lesson-1" })).toHaveLength(1);
   });
 
   it("ignores stale save completions after a module has been removed", async () => {

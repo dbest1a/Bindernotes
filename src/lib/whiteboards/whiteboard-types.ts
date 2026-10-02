@@ -1,5 +1,6 @@
 import type { JSONContent } from "@tiptap/react";
 import type { Comment, Highlight, WorkspaceModuleId } from "@/types";
+import type { MathWorkspaceState } from "@/hooks/use-math-workspace";
 
 export type WhiteboardModuleMode = "live" | "preview" | "collapsed";
 export type WhiteboardModuleAnchorMode = "board" | "board-fixed-size" | "viewport";
@@ -12,6 +13,8 @@ export type WhiteboardModuleElement = {
   lessonId?: string;
   savedGraphId?: string;
   graphInstanceId?: string;
+  /** Portable graph/calculator state included in JSON backups. */
+  graphWorkspace?: MathWorkspaceState;
   noteContent?: JSONContent;
   noteTitle?: string;
   whiteboardHighlights?: Highlight[];
@@ -65,6 +68,8 @@ export type BinderWhiteboard = {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  /** Last account revision read/saved; independent of local edit timestamps. */
+  storageRevision?: string;
 };
 
 export type WhiteboardScope = {

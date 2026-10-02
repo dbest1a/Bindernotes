@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
 import { defaultPersonalNotesPreferences } from "@/lib/personal-notes";
+import { encodePersonalCanvasDescription, readPersonalCanvasDescription } from "@/lib/personal-canvas";
 import { listStudyItems } from "@/services/study-items-service";
 import type { LearnerNote, PersonalNote, PersonalNotesData, PersonalNotesEntry, Profile } from "@/types";
 
@@ -323,26 +324,39 @@ vi.mock("@/hooks/use-personal-notes", () => ({
 vi.mock("@/components/editor/rich-text-editor", () => ({
   RichTextEditor: ({
     onEditorReady,
+    onChange,
     showToolbar,
     value,
   }: {
     onEditorReady?: (editor: unknown) => void;
+    onChange?: (content: ReturnType<typeof doc>) => void;
     showToolbar?: boolean;
     value: unknown;
   }) => {
     onEditorReady?.(mocks.editor);
-    return <textarea aria-label="Note body" data-show-toolbar={String(showToolbar)} readOnly value={JSON.stringify(value)} />;
+    return <textarea aria-label="Note body" data-show-toolbar={String(showToolbar)} onChange={(event) => onChange?.(doc(event.target.value))} value={JSON.stringify(value)} />;
   },
+}));
+
+vi.mock("@/components/personal-notes/personal-canvas-notebook", () => ({
+  PersonalCanvasNotebook: ({ binder, layout }: { binder: { id: string; title: string }; layout: string }) => <div aria-label="Canvas notebook" data-binder-id={binder.id} data-layout={layout}>{binder.title}</div>,
 }));
 
 import { PersonalNotesPage } from "@/pages/personal-notes-page";
 
-function renderPage(path = "/notes") {
+function CurrentLocation() { return <span data-testid="current-route">{useLocation().pathname}</span>; }
+function HistoryControls() { const navigate = useNavigate(); return <button onClick={() => navigate(-1)}>Browser back</button>; }
+
+function renderPage(path = "/notes", historyControls = false) {
   return render(
     <MemoryRouter initialEntries={[path]}>
+      <CurrentLocation />
+      {historyControls ? <HistoryControls /> : null}
       <Routes>
         <Route element={<PersonalNotesPage />} path="/notes" />
         <Route element={<PersonalNotesPage />} path="/notes/n/:noteId" />
+        <Route element={<PersonalNotesPage />} path="/notes/binders/:personalBinderId" />
+        <Route element={<PersonalNotesPage />} path="/notes/binders/:personalBinderId/documents/:documentId" />
       </Routes>
     </MemoryRouter>,
   );
@@ -351,6 +365,7 @@ function renderPage(path = "/notes") {
 describe("PersonalNotesPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     mocks.editor.chain.mockReset();
     for (const command of Object.values(mocks.editorChain)) {
       command.mockReset();
@@ -387,6 +402,144 @@ describe("PersonalNotesPage", () => {
 
     expect(screen.getByText("Start your notebook")).toBeTruthy();
     expect(screen.queryByText("Personal Notes unavailable")).toBeNull();
+  });
+
+  it("flushes the exact outgoing title and body on a rapid record switch", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.savePersonalNote.mockReset().mockResolvedValue({ ...looseNote, updated_at: "2026-10-02T12:00:01.000Z" });
+    renderPage("/notes/n/personal-note-1");
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Final outgoing title" } });
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "Final outgoing body" } });
+    fireEvent.click(within(screen.getByTestId("notes-list-pane")).getByRole("button", { name: /Russian Revolution private note/ }));
+    await waitFor(() => expect(mocks.savePersonalNote).toHaveBeenCalledWith(expect.objectContaining({ id: looseNote.id, expectedUpdatedAt: timestamp, title: "Final outgoing title", content: doc("Final outgoing body") })));
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(learnerNote.title);
+    expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-1");
+  });
+
+  it("keeps autosave-off drafts after switching and remounting", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: false };
+    mocks.savePersonalNote.mockReset();
+    const page = renderPage("/notes/n/personal-note-1");
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Manual draft survives" } });
+    page.unmount();
+    renderPage("/notes/n/personal-note-1");
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Manual draft survives");
+    expect(mocks.savePersonalNote).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Save" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("submits a newer edit after an older acknowledgement without falsely marking it saved", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: false };
+    let resolveFirst!: (value: PersonalNote) => void;
+    let resolveSecond!: (value: PersonalNote) => void;
+    mocks.savePersonalNote.mockReset()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+    renderPage("/notes/n/personal-note-1");
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "First revision" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.change(screen.getByLabelText("Note title"), { target: { value: "Second revision" } });
+    await act(async () => resolveFirst({ ...looseNote, updated_at: "2026-10-02T12:00:03.000Z" }));
+    expect(mocks.savePersonalNote).toHaveBeenCalledTimes(2);
+    expect(mocks.savePersonalNote.mock.calls[1][0]).toMatchObject({ title: "Second revision", expectedUpdatedAt: "2026-10-02T12:00:03.000Z" });
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe("Second revision");
+    expect(screen.queryByText("Synced")).toBeNull();
+    await act(async () => resolveSecond({ ...looseNote, updated_at: "2026-10-02T12:00:04.000Z" }));
+    expect(screen.getByText("Synced")).toBeTruthy();
+  });
+
+  it.each(["blank", "study"])("creates and reopens a %s canvas using its own binder identity", async (layout) => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    const canvasBinder = { ...personalBinder, id: "canvas-new", title: "Biology canvas", description: encodePersonalCanvasDescription({ layout, description: "My course" }) };
+    mocks.createBinder.mockReset().mockImplementation(async (input) => {
+      mocks.personalNotesState.data = { ...workspaceWithEntries, personalBinders: [...workspaceWithEntries.personalBinders, { ...canvasBinder, description: input.description }] };
+      return { binder: canvasBinder, document: null };
+    });
+    const page = renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "New" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New canvas notebook" }));
+    const dialog = within(screen.getByRole("dialog", { name: "New canvas notebook" }));
+    fireEvent.change(dialog.getByLabelText("Canvas notebook title"), { target: { value: canvasBinder.title } });
+    fireEvent.change(dialog.getByLabelText("Starting layout"), { target: { value: layout } });
+    fireEvent.change(dialog.getByLabelText("Description"), { target: { value: "My course" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Create canvas" }));
+    await waitFor(() => expect(screen.getByLabelText("Canvas notebook").getAttribute("data-binder-id")).toBe(canvasBinder.id));
+    expect(readPersonalCanvasDescription(mocks.createBinder.mock.calls[0][0].description)).toEqual({ layout, description: "My course" });
+    expect(screen.queryByLabelText("Note title")).toBeNull();
+    expect(screen.getByTestId("current-route").textContent).toBe(`/notes/binders/${canvasBinder.id}`);
+    page.unmount();
+    const reopened = renderPage(`/notes/binders/${canvasBinder.id}`);
+    expect(screen.getByLabelText("Canvas notebook").getAttribute("data-layout")).toBe(layout);
+    reopened.unmount();
+    renderPage("/notes");
+    fireEvent.click(screen.getByRole("button", { name: /Unfiled folder/ }));
+    expect(screen.getByRole("button", { name: "Biology canvas binder 0" })).toBeTruthy();
+  });
+
+  it("binds an empty or missing binder route without exposing another note", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    const page = renderPage(`/notes/binders/${personalBinder.id}`);
+    expect(screen.queryByLabelText("Note title")).toBeNull();
+    expect(screen.queryByLabelText("Note body")).toBeNull();
+    page.unmount();
+    renderPage("/notes/binders/missing/documents/personal-note-1");
+    expect(screen.queryByLabelText("Note title")).toBeNull();
+    expect(screen.queryByLabelText("Note body")).toBeNull();
+  });
+
+  it("uses the same source filter for rows, count, editor and URL", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPage("/notes/n/personal-note-1");
+    fireEvent.click(screen.getByRole("button", { name: "Open note filters" }));
+    fireEvent.change(screen.getByLabelText("Source filter"), { target: { value: "binder-linked" } });
+    const list = within(screen.getByTestId("notes-list-pane"));
+    expect(list.queryByRole("button", { name: /Loose reading note/ })).toBeNull();
+    expect(list.getByRole("button", { name: /Russian Revolution private note/ })).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-1"));
+    fireEvent.change(screen.getByLabelText("Search Personal Notes"), { target: { value: "no matching text" } });
+    expect(screen.queryByLabelText("Note title")).toBeNull();
+    expect(list.queryByRole("button", { name: /Russian Revolution private note/ })).toBeNull();
+  });
+
+  it("honors Back to a note excluded by the current search without replacing its URL", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPage("/notes/n/personal-note-1", true);
+    fireEvent.click(within(screen.getByTestId("notes-list-pane")).getByRole("button", { name: /Russian Revolution private note/ }));
+    fireEvent.change(screen.getByLabelText("Search Personal Notes"), { target: { value: "quadratics" } });
+    await waitFor(() => expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-math"));
+    fireEvent.click(screen.getByRole("button", { name: "Browser back" }));
+    await waitFor(() => expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/personal-note-1"));
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(looseNote.title);
+    expect((screen.getByLabelText("Search Personal Notes") as HTMLInputElement).value).toBe("");
+  });
+
+  it("adds a modal tag to the canonical manual draft and saves its exact payload", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = { ...defaultPersonalNotesPreferences, autosave: false };
+    mocks.savePersonalNote.mockReset().mockResolvedValue({ ...looseNote, updated_at: "2026-10-02T12:00:02.000Z" });
+    renderPage("/notes/n/personal-note-1");
+    fireEvent.click(screen.getByRole("button", { name: "Tags" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Add tag" }));
+    fireEvent.change(dialog.getByLabelText("Tag name"), { target: { value: "new-tag" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Add tag" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mocks.savePersonalNote).toHaveBeenCalledWith(expect.objectContaining({ id: looseNote.id, tags: ["history", "new-tag"] })));
+  });
+
+  it("closes New folder with Escape and returns focus to New", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPage();
+    const trigger = screen.getByRole("button", { name: "New" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("menuitem", { name: "New folder" }));
+    expect(screen.getByRole("dialog", { name: "New folder" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "New folder" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("shows a diagnostics-style load failure with the technical reason", () => {

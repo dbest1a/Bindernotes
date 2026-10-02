@@ -225,3 +225,18 @@
     display: none;
   }
 }
+/* Pointer gestures own their visual frame until release. Keep graph hit testing
+   and decorative paints out of the movement path, including touch gestures. */
+.whiteboard-module-card[data-dragging="true"] {
+  transition: none !important;
+  will-change: transform, left, top;
+  box-shadow: none !important;
+  user-select: none;
+}
+.whiteboard-module-card[data-dragging="true"] .whiteboard-module-card__content {
+  pointer-events: none;
+}
+.whiteboard-module-card__chrome,
+.whiteboard-module-card__resize-handle {
+  touch-action: none;
+}

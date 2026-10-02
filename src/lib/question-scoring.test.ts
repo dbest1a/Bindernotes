@@ -23,6 +23,34 @@ describe("scoreQuestion", () => {
     expect(result.pointsAwarded).toBe(0);
   });
 
+  it.each([{}, { numeric: "" }, { numeric: "   " }])("never converts a blank numeric answer to zero: %j", (answer) => {
+    const result = scoreQuestion(question("numeric", { expected: 0 }), answer);
+    expect(result.status).toBe("incomplete");
+    expect(result.isCorrect).toBe(false);
+    expect(result.pointsAwarded).toBe(0);
+  });
+
+  it.each([0, "0", " 0 "])("accepts explicit zero: %j", (numeric) => {
+    expect(scoreQuestion(question("numeric", { expected: 0 }), { numeric }).status).toBe("correct");
+  });
+
+  it.each(["invalid", "Infinity", "NaN", "1"])("rejects invalid or wrong numeric values: %s", (numeric) => {
+    expect(scoreQuestion(question("numeric", { expected: 0 }), { numeric }).status).toBe("incorrect");
+  });
+
+  it.each(["it moves along the curve", "The line moves to the new point and matches the derivative there.", "wrong explanation"])("saves explanations for honest self-review: %s", (text) => {
+    const result = scoreQuestion({ ...question("short_answer", { acceptedAnswers: ["it moves along the curve"] }), prompt_markdown: "What happens to the tangent line as a changes?", explanation_markdown: "The tangency point and local slope update." }, { text });
+    expect(result.status).toBe("ungraded");
+    expect(result.isCorrect).toBeNull();
+    expect(result.pointsAwarded).toBeNull();
+    expect(result.feedback.expected).toBe("The tangency point and local slope update.");
+  });
+
+  it("does not award completion credit for an empty explanation", () => {
+    expect(scoreQuestion(question("free_response", { completionPoints: 1 }), {}).status).toBe("incomplete");
+    expect(scoreQuestion(question("free_response", { completionPoints: 1 }), {}).pointsAwarded).toBe(0);
+  });
+
   it("normalizes short answers", () => {
     const result = scoreQuestion(
       question("short_answer", {
@@ -67,7 +95,8 @@ describe("scoreQuestion", () => {
 
     expect(result.autoGraded).toBe(false);
     expect(result.isCorrect).toBeNull();
-    expect(result.pointsAwarded).toBe(1);
+    expect(result.pointsAwarded).toBeNull();
+    expect(result.status).toBe("ungraded");
   });
 });
 

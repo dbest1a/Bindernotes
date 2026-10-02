@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import type {
   GraphExpressionRequest,
   GraphLoadRequest,
@@ -570,7 +571,7 @@ function WhiteboardScopedDesmosGraphModule({
     setGraphVisible,
     savedFunctionMap,
     ...mathWorkspace
-  } = useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement));
+  } = useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement), moduleElement.graphWorkspace);
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -616,15 +617,56 @@ function WhiteboardScopedDesmosGraphModule({
   });
 }
 
+export function WhiteboardAnnotations({ context, moduleElement, onChangeModule, onRouteSelectionToNotes }: {
+  context: WorkspaceModuleContext;
+  moduleElement: WhiteboardModuleElement;
+  onChangeModule: (moduleElement: WhiteboardModuleElement) => void;
+  onRouteSelectionToNotes?: WhiteboardPinnedObjectLayerProps["onRouteSelectionToNotes"];
+}) {
+  const [managerVisible, setManagerVisible] = useState(true);
+  const comments = moduleElement.whiteboardComments ?? [];
+  const saveComments = (next: Comment[]) => onChangeModule({ ...moduleElement, whiteboardComments: next, updatedAt: new Date().toISOString() });
+  return <section className="grid gap-3" aria-label="Whiteboard annotations">
+    <p className="text-xs text-muted-foreground">Stickies save with this board and stay linked to {context.selectedLesson.title}.</p>
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" onClick={() => {
+        saveComments([...comments, createWhiteboardComment({ binder: context.binder, selectedLesson: context.selectedLesson, ownerId: context.ownerId, anchorText: null, body: "New sticky note" })]);
+        setManagerVisible(true);
+      }}>New sticky</Button>
+      <Button size="sm" variant="outline" aria-expanded={managerVisible} onClick={() => setManagerVisible((visible) => !visible)}>{managerVisible ? "Hide manager" : "Show manager"}</Button>
+    </div>
+    {managerVisible && <div className="grid gap-3">
+      {!comments.length && <p className="text-sm text-muted-foreground">No sticky notes yet. Create one to capture an idea.</p>}
+      {comments.map((comment) => <article key={comment.id} className="grid gap-2 rounded-md border border-border p-2">
+        <label className="grid gap-1 text-xs font-medium">Sticky note
+          <textarea className="min-h-24 w-full resize-y rounded border border-border bg-background p-2 text-sm" value={comment.body} onChange={(event) => saveComments(comments.map((item) => item.id === comment.id ? { ...item, body: event.target.value, updated_at: new Date().toISOString() } : item))} />
+        </label>
+        {comment.anchor_text && <p className="text-xs text-muted-foreground">Anchored to “{comment.anchor_text}”</p>}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => onRouteSelectionToNotes
+            ? onRouteSelectionToNotes({ sourceModuleId: moduleElement.id, prefix: "Sticky note", anchorText: comment.body })
+            : context.onSendStickyToNotes(comment)}>Send to notes</Button>
+          <Button size="sm" variant="ghost" onClick={() => saveComments(comments.filter((item) => item.id !== comment.id))}>Dismiss</Button>
+        </div>
+      </article>)}
+    </div>}
+  </section>;
+}
+
 function WhiteboardLiveModuleContent({
   context,
   moduleElement,
   renderModule,
+  onChangeModule,
+  onRouteSelectionToNotes,
 }: {
   context: WorkspaceModuleContext;
   moduleElement: WhiteboardModuleElement;
   renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
+  onChangeModule: WhiteboardPinnedObjectLayerProps["onChangeModule"];
+  onRouteSelectionToNotes?: WhiteboardPinnedObjectLayerProps["onRouteSelectionToNotes"];
 }) {
+  if (moduleElement.moduleId === "comments") return <WhiteboardAnnotations context={context} moduleElement={moduleElement} onChangeModule={onChangeModule} onRouteSelectionToNotes={onRouteSelectionToNotes} />;
   if (moduleElement.moduleId === "desmos-graph") {
     return (
       <WhiteboardScopedDesmosGraphModule
@@ -967,6 +1009,9 @@ function WhiteboardObjectOverlay({
         );
         const sourceScoped = lessonScopedWhiteboardModules.has(moduleElement.moduleId);
         const confirmedSource = sourceScoped ? isSourceConfirmed(moduleElement) : true;
+        const sourceMissing = Boolean(sourceScoped && confirmedSource && context.library && !context.library.loading &&
+          moduleElement.lessonId && moduleElement.lessonId !== context.selectedLesson.id &&
+          !context.library.lessons.some((lesson) => lesson.id === moduleElement.lessonId && lesson.binder_id === moduleElement.binderId));
         const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
         const alwaysLive = isAlwaysLiveWhiteboardModule(moduleElement.moduleId);
         const visible = alwaysLive ? true : isWhiteboardModuleVisibleInViewport(moduleElement, viewportTransform);
@@ -975,11 +1020,13 @@ function WhiteboardObjectOverlay({
           presentation === "live" &&
           shouldRenderWhiteboardModuleLive(moduleElement, { visible });
         const liveContent =
-          live && confirmedSource ? (
+          live && confirmedSource && !sourceMissing ? (
             <WhiteboardLiveModuleContent
               context={embeddedContext}
               moduleElement={moduleElement}
               renderModule={renderModule}
+              onChangeModule={onChangeModule}
+              onRouteSelectionToNotes={onRouteSelectionToNotes}
             />
           ) : null;
         const previewDescription =
@@ -1052,7 +1099,11 @@ function WhiteboardObjectOverlay({
                 onChangeModule={onChangeModule}
               />
             ) : null}
-            {sourceScoped && confirmedSource && embeddedContext.selectedLesson ? (
+            {sourceMissing ? <div className="grid gap-2 rounded-md border border-border p-3 text-sm" role="status">
+              <p>This linked lesson is unavailable in this account. Its source link and saved annotations are preserved.</p>
+              <Button size="sm" variant="outline" onClick={() => onChangeModule({ ...moduleElement, sourceConfirmed: false, updatedAt: new Date().toISOString() })}>Choose another source</Button>
+            </div> : null}
+            {sourceScoped && confirmedSource && !sourceMissing && embeddedContext.selectedLesson ? (
               <WhiteboardSourceSummary
                 binder={embeddedContext.binder}
                 lesson={embeddedContext.selectedLesson}
@@ -1065,7 +1116,7 @@ function WhiteboardObjectOverlay({
                 }
               />
             ) : null}
-            {confirmedSource && liveContent ? liveContent : confirmedSource ? (
+            {confirmedSource && liveContent ? liveContent : confirmedSource && !sourceMissing ? (
               <EmptyState
                 description={previewDescription}
                 title={definition?.label ?? moduleElement.title ?? "BinderNotes module"}

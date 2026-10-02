@@ -103,6 +103,8 @@ const TutorialPage = lazy(() =>
   import("@/pages/tutorial-page").then((module) => ({ default: module.TutorialPage })),
 );
 
+const HelpPage = lazy(() => import("@/pages/help-page").then((module) => ({ default: module.HelpPage })));
+
 export function App() {
   return (
     <AuthProvider>
@@ -124,6 +126,8 @@ function AppRoutes() {
           <Route path="/homepage-beta" element={<HomepageBetaPage />} />
           <Route path="/hidden-hollow" element={<OgreDungeonRunnerPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/tutorial" element={<TutorialPage />} />
+          <Route path="/help" element={<HelpPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/pricing-beta" element={<PricingBetaPage />} />
           <Route element={<ProtectedRoute />}>
@@ -158,7 +162,6 @@ function AppRoutes() {
               />
               <Route path="/binder/:binderId" element={<LegacyBinderRoute />} />
               <Route path="/admin" element={<AdminStudioPage />} />
-              <Route path="/tutorial" element={<TutorialPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate replace to="/" />} />

@@ -25,13 +25,24 @@ import type {
 import type { JSONContent } from "@tiptap/react";
 
 export function usePersonalNotes(profile: Profile | null) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.personalNotes.forProfile(profile?.id),
     queryFn: () => getPersonalNotesWorkspace(profile!),
     enabled: Boolean(profile),
     staleTime: 20_000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
+  useEffect(() => {
+    const refresh = (event: StorageEvent) => {
+      if (event.key === `bindernotes:notes-updated:${profile?.id}`) void query.refetch();
+      if (event.key === "binder-notes:note-sync:v1" && event.newValue) {
+        try { if (JSON.parse(event.newValue).ownerId === profile?.id) void query.refetch(); } catch { /* Ignore malformed cross-tab messages. */ }
+      }
+    };
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
+  }, [profile?.id, query.refetch]);
+  return query;
 }
 
 export const usePersonalNotesWorkspace = usePersonalNotes;
@@ -41,6 +52,7 @@ export function usePersonalNotesMutations(profile: Profile | null) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.personalNotes.forProfile(profile?.id) });
     queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.forProfile(profile?.id) });
+    try { localStorage.setItem(`bindernotes:notes-updated:${profile?.id}`, crypto.randomUUID()); } catch { /* Revision checks remain authoritative. */ }
   };
 
   return {
@@ -83,6 +95,8 @@ export function usePersonalNotesMutations(profile: Profile | null) {
     savePersonalNote: useMutation({
       mutationFn: (input: {
         id?: string;
+        expectedUpdatedAt?: string;
+        ownerId?: string;
         title: string;
         content?: JSONContent;
         mathBlocks?: MathBlock[];
@@ -94,13 +108,16 @@ export function usePersonalNotesMutations(profile: Profile | null) {
       }) =>
         updateLoosePersonalNote({
           ...input,
-          ownerId: profile!.id,
+          ownerId: input.ownerId ?? profile!.id,
         }),
       onSuccess: invalidate,
+      onError: invalidate,
     }),
     savePersonalDocument: useMutation({
       mutationFn: (input: {
         id?: string;
+        expectedUpdatedAt?: string;
+        ownerId?: string;
         binderId: string;
         title: string;
         content?: JSONContent;
@@ -110,13 +127,16 @@ export function usePersonalNotesMutations(profile: Profile | null) {
       }) =>
         updatePersonalDocument({
           ...input,
-          ownerId: profile!.id,
+          ownerId: input.ownerId ?? profile!.id,
         }),
       onSuccess: invalidate,
+      onError: invalidate,
     }),
     saveBinderLinkedNote: useMutation({
       mutationFn: (input: {
         id?: string;
+        expectedUpdatedAt?: string;
+        ownerId?: string;
         binderId: string;
         lessonId: string;
         folderId?: string | null;
@@ -126,7 +146,7 @@ export function usePersonalNotesMutations(profile: Profile | null) {
       }) =>
         updateBinderLinkedPersonalNote({
           ...input,
-          ownerId: profile!.id,
+          ownerId: input.ownerId ?? profile!.id,
         }),
       onSuccess: () => {
         invalidate();
@@ -137,6 +157,7 @@ export function usePersonalNotesMutations(profile: Profile | null) {
             query.queryKey[2] === profile?.id,
         });
       },
+      onError: invalidate,
     }),
     setPinned: useMutation({
       mutationFn: (input: { kind: "personal-note" | "personal-document"; id: string; pinned: boolean }) =>
@@ -166,6 +187,8 @@ export function useCreateLoosePersonalNote(profile: Profile | null) {
   return useMutation({
     mutationFn: (input: {
       id?: string;
+        expectedUpdatedAt?: string;
+        ownerId?: string;
       title: string;
       content?: JSONContent;
       mathBlocks?: MathBlock[];

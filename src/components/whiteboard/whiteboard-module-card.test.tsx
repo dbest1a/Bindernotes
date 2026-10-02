@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-card";
 import { syncWhiteboardPinnedModuleLayerToViewport } from "@/components/whiteboard/whiteboard-pinned-object-layer";
@@ -43,6 +43,42 @@ beforeAll(() => {
 
 describe("WhiteboardModuleCard", () => {
   afterEach(() => cleanup());
+
+  it("keeps the last pointer frame through an unrelated camera render and cancellation", () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const cardProps = { live: true, moduleElement: moduleElement({ anchorMode: "board-fixed-size" }), onBringToFront: vi.fn(), onChange, onRemove: vi.fn() };
+    const { rerender } = render(<WhiteboardModuleCard {...cardProps} viewportTransform={viewportTransform}>Lesson</WhiteboardModuleCard>);
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const chrome = card.querySelector(".whiteboard-module-card__chrome")!;
+    fireEvent.pointerDown(chrome, { pointerId: 12, clientX: 210, clientY: 250, button: 0 });
+    fireEvent.pointerMove(window, { pointerId: 12, clientX: 330, clientY: 310 });
+    act(() => vi.advanceTimersByTime(20));
+    expect(card.style.left).toBe("320px");
+    rerender(<WhiteboardModuleCard {...cardProps} viewportTransform={{ ...viewportTransform, scrollY: -300 }}>Updated lesson</WhiteboardModuleCard>);
+    expect(card.style.left).toBe("320px");
+    expect(card.style.top).toBe("300px");
+    fireEvent.pointerCancel(window, { pointerId: 12, clientX: 0, clientY: 0 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ x: 160, y: 150 }));
+    expect(card.dataset.dragging).toBeUndefined();
+    vi.useRealTimers();
+  });
+
+  it("commits once when the window loses focus and ignores secondary mouse buttons", () => {
+    const onChange = vi.fn();
+    render(<WhiteboardModuleCard live moduleElement={moduleElement()} onBringToFront={vi.fn()} onChange={onChange} onRemove={vi.fn()} viewportTransform={viewportTransform}>Lesson</WhiteboardModuleCard>);
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    const chrome = card.querySelector(".whiteboard-module-card__chrome")!;
+    fireEvent.pointerDown(chrome, { pointerId: 11, clientX: 200, clientY: 240, button: 2 });
+    expect(card.dataset.dragging).toBeUndefined();
+    fireEvent.pointerDown(chrome, { pointerId: 12, clientX: 200, clientY: 240, button: 0 });
+    fireEvent.pointerMove(window, { pointerId: 12, clientX: 240, clientY: 280 });
+    fireEvent.blur(window);
+    fireEvent.pointerUp(window, { pointerId: 12, clientX: 0, clientY: 0 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ x: 120, y: 140 }));
+  });
 
   it("keeps card chrome above content so pin and options menus stay visible", () => {
     render(

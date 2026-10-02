@@ -11,6 +11,7 @@ export type SubmittedQuestionAnswer = {
 };
 
 export type QuestionScoreResult = {
+  status: "correct" | "incorrect" | "incomplete" | "ungraded";
   autoGraded: boolean;
   isCorrect: boolean | null;
   pointsAwarded: number | null;
@@ -22,12 +23,25 @@ export type QuestionScoreResult = {
 };
 
 export function scoreQuestion(
-  question: Pick<QuestionBankItem, "type" | "answer_json"> & {
+  question: Pick<QuestionBankItem, "type" | "answer_json"> & Partial<Pick<QuestionBankItem, "prompt_markdown" | "explanation_markdown">> & {
     choices?: QuestionChoice[];
   },
   submitted: SubmittedQuestionAnswer,
 ): QuestionScoreResult {
   const totalPoints = 1;
+
+  if (!hasQuestionAnswer(question.type, submitted)) {
+    return { status: "incomplete", autoGraded: !requiresSelfReview(question), isCorrect: false,
+      pointsAwarded: 0, totalPoints, feedback: { message: "No answer submitted. Try this question again." } };
+  }
+
+  if (requiresSelfReview(question)) {
+    return { status: "ungraded", autoGraded: false, isCorrect: null, pointsAwarded: null,
+      totalPoints, feedback: {
+        message: "Saved for self-review. Compare your explanation with the rubric; wording is not graded automatically.",
+        expected: question.answer_json.rubric ?? question.explanation_markdown ?? question.answer_json.acceptedAnswers,
+      } };
+  }
 
   switch (question.type) {
     case "multiple_choice":
@@ -70,29 +84,10 @@ export function scoreQuestion(
       );
 
     case "free_response":
-      return {
-        autoGraded: false,
-        isCorrect: null,
-        pointsAwarded:
-          typeof question.answer_json.completionPoints === "number"
-            ? question.answer_json.completionPoints
-            : null,
-        totalPoints,
-        feedback: {
-          message: "Free responses are saved for review. No AI grading is used.",
-          expected: question.answer_json.rubric,
-        },
-      };
-
     case "matching":
       return {
-        autoGraded: false,
-        isCorrect: null,
-        pointsAwarded: null,
-        totalPoints,
-        feedback: {
-          message: "Matching questions are stored now and can be manually reviewed in this version.",
-        },
+        status: "ungraded", autoGraded: false, isCorrect: null, pointsAwarded: null, totalPoints,
+        feedback: { message: "Saved for self-review.", expected: question.answer_json.rubric },
       };
 
     default:
@@ -113,6 +108,7 @@ function scoreNumeric(
 
   if (!Number.isFinite(expected) || !Number.isFinite(submittedValue)) {
     return {
+      status: "incorrect",
       autoGraded: true,
       isCorrect: false,
       pointsAwarded: 0,
@@ -125,7 +121,7 @@ function scoreNumeric(
   }
 
   return scoreBooleanResult(
-    Math.abs(submittedValue - expected) <= tolerance,
+    Math.abs(submittedValue - expected) <= tolerance + Number.EPSILON * Math.max(1, Math.abs(expected), Math.abs(submittedValue)),
     totalPoints,
     `Answer within ${tolerance} of the expected value.`,
     expected,
@@ -168,6 +164,7 @@ function scoreBooleanResult(
   expected?: unknown,
 ): QuestionScoreResult {
   return {
+    status: isCorrect ? "correct" : "incorrect",
     autoGraded: true,
     isCorrect,
     pointsAwarded: isCorrect ? totalPoints : 0,
@@ -239,6 +236,7 @@ function arraysEqual(left: string[], right: string[]) {
 
 function exhaustiveQuestionType(type: never): QuestionScoreResult {
   return {
+    status: "ungraded",
     autoGraded: false,
     isCorrect: null,
     pointsAwarded: null,
@@ -247,4 +245,23 @@ function exhaustiveQuestionType(type: never): QuestionScoreResult {
       message: `Unsupported question type: ${String(type satisfies QuestionType)}`,
     },
   };
+}
+
+export function requiresSelfReview(question: Pick<QuestionBankItem, "type" | "answer_json"> & Partial<Pick<QuestionBankItem, "prompt_markdown">>) {
+  return question.type === "free_response" || question.type === "matching" ||
+    (question.type === "short_answer" && (
+      typeof question.answer_json.rubric === "string" ||
+      /^(explain\b|describe\b|why\b|how\b|what happens\b|what does\b)/i.test(question.prompt_markdown?.trim() ?? "")
+    ));
+}
+
+export function hasQuestionAnswer(type: QuestionType, answer: SubmittedQuestionAnswer) {
+  switch (type) {
+    case "multiple_choice": return Boolean(answer.selectedChoiceId?.trim());
+    case "multiple_select": return Boolean(answer.selectedChoiceIds?.length);
+    case "true_false": return typeof answer.booleanAnswer === "boolean";
+    case "numeric": return answer.numeric !== undefined && answer.numeric !== null && String(answer.numeric).trim() !== "";
+    case "step_ordering": return Boolean(answer.orderedStepIds?.length);
+    default: return Boolean((answer.text ?? answer.freeResponse ?? "").trim());
+  }
 }

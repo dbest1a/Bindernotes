@@ -155,6 +155,9 @@ export function useBinderBundle(binderId: string | undefined, profile: Profile |
     };
 
     const handleStorage = (event: StorageEvent) => {
+      if (event.key === `bindernotes:notes-updated:${profile.id}`) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.binder.detail(binderId, profile.id) });
+      }
       if (!event.newValue) {
         return;
       }
@@ -217,6 +220,8 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
   return useMutation({
     mutationFn: (input: {
       id?: string;
+      ownerId?: string;
+      expectedUpdatedAt?: string | null;
       binderId: string;
       lessonId: string;
       folderId?: string | null;
@@ -226,9 +231,13 @@ export function useLearnerNoteMutation(profile: Profile | null, binderId?: strin
     }) =>
       upsertLearnerNote({
         ...input,
-        ownerId: profile!.id,
+        ownerId: input.ownerId ?? profile!.id,
       }),
     onSuccess: (savedNote) => {
+      if (savedNote.owner_id !== profile?.id) {
+        publishNoteSync(savedNote);
+        return;
+      }
       updateBinderBundleCache(queryClient, binderId, profile, (current) => ({
         ...current,
         notes: upsertNoteByScope(current.notes, savedNote),

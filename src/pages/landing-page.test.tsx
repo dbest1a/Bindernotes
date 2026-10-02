@@ -37,9 +37,9 @@ describe("LandingPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Read the lesson. Keep your own thinking beside it." })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Study notes that remember the source." })).toBeNull();
-    expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth");
+    expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth?mode=signup");
     expect(screen.getAllByText("Split Study").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Math Whiteboard Lab").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Desmos Graph").length).toBeGreaterThan(0);
@@ -63,6 +63,21 @@ describe("LandingPage", () => {
     expect(screen.getByText("A math whiteboard that still knows your binder.")).toBeTruthy();
   });
 
+  it("supports arrow-key selection and connects each showcase tab to its panel", () => {
+    render(<MemoryRouter><LandingPage /></MemoryRouter>);
+    const tabs = screen.getAllByRole("tab");
+    tabs[0].focus();
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.id).toBe(tabs[1].getAttribute("aria-controls"));
+    expect(panel.getAttribute("aria-labelledby")).toBe(tabs[1].id);
+    fireEvent.keyDown(tabs[1], { key: "Home" });
+    expect(document.activeElement).toBe(tabs[0]);
+    expect(screen.getByRole("link", { name: "Explore the workspace" }).getAttribute("href")).toBe("#showcase");
+  });
+
   it("keeps the standard homepage on / even when the calm study homepage beta is on", () => {
     setCalmStudyHomepageBeta(true);
 
@@ -72,7 +87,7 @@ describe("LandingPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Read the lesson. Keep your own thinking beside it." })).toBeTruthy();
     expect(screen.queryByTestId("beta-calm-homepage")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Study notes that remember the source." })).toBeNull();
   });
@@ -167,7 +182,7 @@ describe("LandingPage", () => {
     );
 
     expect(screen.queryByTestId("beta-calm-homepage")).toBeNull();
-    expect(screen.getByRole("heading", { name: "Study notes that feel like a living, premium workspace." })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Read the lesson. Keep your own thinking beside it." })).toBeTruthy();
   });
 
   it("surfaces the gated /homepage-beta preview route without adding demo account buttons", () => {
@@ -182,7 +197,7 @@ describe("LandingPage", () => {
     );
 
     expect(screen.getByTestId("beta-calm-homepage").getAttribute("data-beta-preview-route")).toBe("homepage-beta");
-    expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth");
+    expect(screen.getAllByRole("link", { name: /Start/i })[0].getAttribute("href")).toBe("/auth?mode=signup");
     expect(screen.queryByRole("button", { name: /demo/i })).toBeNull();
     expect(document.body.textContent).not.toMatch(/try demo|enter demo|demo sign-in/i);
   });

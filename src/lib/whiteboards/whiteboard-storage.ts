@@ -133,6 +133,7 @@ function mapWhiteboardRecord(record: Record<string, unknown>): BinderWhiteboard 
     storageMode: "supabase",
     createdAt: typeof record.created_at === "string" ? record.created_at : nowIso(),
     updatedAt: typeof record.updated_at === "string" ? record.updated_at : nowIso(),
+    storageRevision: typeof record.updated_at === "string" ? record.updated_at : undefined,
     archivedAt: typeof record.archived_at === "string" ? record.archived_at : null,
   });
 }
@@ -228,17 +229,25 @@ async function countActiveSupabaseWhiteboards(ownerId: string) {
   return count ?? 0;
 }
 
+const ownSavedRevisions = new Map<string, Map<string, string>>();
+
 async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: boolean) {
   if (!supabase) {
     throw new Error("Supabase is not configured for whiteboard sync.");
   }
 
   const record = buildWhiteboardRecord(board);
-  const { data, error } = await supabase
-    .from("whiteboards")
-    .upsert(record, { onConflict: "id" })
-    .select(WHITEBOARD_SELECT)
-    .single();
+  const revisionKey = `${board.ownerId}:${board.id}`;
+  const revisionMap = ownSavedRevisions.get(revisionKey);
+  const expectedRevision = board.storageRevision ? revisionMap?.get(board.storageRevision) ?? board.storageRevision : undefined;
+  const query = expectedRevision
+    ? supabase.from("whiteboards").update(record).eq("id", board.id).eq("owner_id", board.ownerId).eq("updated_at", expectedRevision)
+    : supabase.from("whiteboards").upsert(record, { onConflict: "id" });
+  const { data, error } = await query.select(WHITEBOARD_SELECT).single();
+
+  if (expectedRevision && ((!data && !error) || error?.code === "PGRST116")) {
+    throw new Error("This board changed in another tab or device. Your edits are kept in a recovery draft. Open Archive & restore backup to keep this draft in the archive and load the latest account version.");
+  }
 
   if (error) {
     throw error;
@@ -251,6 +260,14 @@ async function saveSupabaseWhiteboard(board: BinderWhiteboard, createVersion: bo
 
   const saved = mapWhiteboardRecord(data as unknown as Record<string, unknown>);
   if (saved.contentLoaded === false) throw new Error("The save response did not include the complete board.");
+  if (board.storageRevision && saved.storageRevision) {
+    const revisions = revisionMap ?? new Map<string, string>();
+    // Rebase only revisions produced by this tab. The database comparison still
+    // rejects any newer write from another tab, including during queued saves.
+    for (const [base, revision] of revisions) if (revision === expectedRevision) revisions.set(base, saved.storageRevision);
+    revisions.set(board.storageRevision, saved.storageRevision);
+    ownSavedRevisions.set(revisionKey, revisions);
+  }
   let warning: string | undefined;
   if (createVersion) {
     try {
@@ -387,6 +404,82 @@ export function listLocalWhiteboards(scope: WhiteboardScope) {
 
 export function loadLocalWhiteboard(scope: WhiteboardScope, boardId: string) {
   return readBoards(scope).find((board) => board.id === boardId && !board.archivedAt) ?? null;
+}
+
+export async function listArchivedWhiteboards(scope: WhiteboardScope): Promise<WhiteboardListResult> {
+  // Account-wide lists may open a board from another lesson. Include its local
+  // recovery archive as well, while never crossing the signed-in owner boundary.
+  const archived = new Map<string, BinderWhiteboard>();
+  try {
+    for (let index = 0; index < window.localStorage.length; index++) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(`${STORAGE_PREFIX}:${scope.ownerId}:`)) continue;
+      let rows: unknown;
+      try { rows = JSON.parse(window.localStorage.getItem(key) ?? "[]"); } catch { continue; }
+      if (!Array.isArray(rows)) continue;
+      for (const board of rows) {
+        if (board?.ownerId !== scope.ownerId || !board.archivedAt || !Array.isArray(board.scene?.elements) || !Array.isArray(board.modules)) continue;
+        if (!archived.has(board.id) || archived.get(board.id)!.updatedAt < board.updatedAt) archived.set(board.id, board as BinderWhiteboard);
+      }
+    }
+  } catch { /* The account archive can still be loaded if local storage is unavailable. */ }
+  const local = [...archived.values()];
+  if (!supabase) return { boards: local, backend: "local", status: "local-draft", message: "Archived on this device" };
+  try {
+    const { data, error } = await supabase.from("whiteboards").select(WHITEBOARD_SELECT)
+      .eq("owner_id", scope.ownerId).not("archived_at", "is", null).order("updated_at", { ascending: false });
+    if (error) throw error;
+    const remote = ((data ?? []) as unknown as Record<string, unknown>[]).filter((row) => row.owner_id === scope.ownerId && row.archived_at).map(mapWhiteboardRecord);
+    // A local archive can contain a newer unsynced scene than the account copy.
+    const merged = remote.map((board) => local.find((draft) => draft.id === board.id && draft.updatedAt > board.updatedAt) ?? board);
+    return { boards: [...merged, ...local.filter((board) => !remote.some((item) => item.id === board.id))], backend: "supabase", status: "loaded", message: "Archive loaded" };
+  } catch (error) {
+    return { boards: local, backend: "local", status: "error", message: "Account archive is unavailable. Showing copies on this device.", error: getErrorMessage(error) };
+  }
+}
+
+export async function restoreArchivedWhiteboard(scope: WhiteboardScope, board: BinderWhiteboard): Promise<WhiteboardSaveResult> {
+  if (board.ownerId !== scope.ownerId || !board.archivedAt || board.contentLoaded === false) {
+    return { board, backend: "local", status: "error", savedAt: nowIso(), message: "This archived board could not be restored." };
+  }
+  try {
+    const activeCount = supabase ? await countActiveSupabaseWhiteboards(scope.ownerId) : listLocalWhiteboards(scope).length;
+    if (activeCount >= MAX_WHITEBOARDS_PER_USER) return { board, backend: supabase ? "supabase" : "local", status: "limit", savedAt: nowIso(), message: WHITEBOARD_LIMIT_MESSAGE };
+    return await saveWhiteboard({ ...board, archivedAt: null });
+  } catch (error) {
+    return { board, backend: "local", status: "error", savedAt: nowIso(), message: "Could not restore this board. The archived copy is still available.", error: getErrorMessage(error) };
+  }
+}
+
+export async function importWhiteboard(board: BinderWhiteboard): Promise<WhiteboardSaveResult> {
+  const scope = { ownerId: board.ownerId, binderId: board.binderId, lessonId: board.lessonId };
+  try {
+    const count = supabase ? await countActiveSupabaseWhiteboards(scope.ownerId) : listLocalWhiteboards(scope).length;
+    if (count >= MAX_WHITEBOARDS_PER_USER) return { board, backend: supabase ? "supabase" : "local", status: "limit", savedAt: nowIso(), message: WHITEBOARD_LIMIT_MESSAGE };
+    return await saveWhiteboard(board);
+  } catch (error) {
+    return { board, backend: "local", status: "error", savedAt: nowIso(), message: "Could not import the backup. Your existing boards are unchanged.", error: getErrorMessage(error) };
+  }
+}
+
+/** Explicit conflict resolution keeps this tab's edits as a restorable local
+ * archive before opening the current account version. */
+export async function openLatestWhiteboardKeepingDraft(board: BinderWhiteboard): Promise<WhiteboardSaveResult> {
+  const scope = { ownerId: board.ownerId, binderId: board.binderId, lessonId: board.lessonId };
+  const token = getWhiteboardRecoveryToken(board.ownerId, board.id);
+  try {
+    if (!supabase) throw new Error("Account storage is unavailable. Your draft is unchanged.");
+    const latest = await loadSupabaseWhiteboard(scope, board.id);
+    if (!latest) throw new Error("This board is no longer active in your account. Your draft is unchanged.");
+    if (getWhiteboardRecoveryToken(board.ownerId, board.id) !== token) throw new Error("You edited the board while loading. Try again when you are ready to switch versions.");
+    const recovery = readWhiteboardRecoveryDraft(scope, board.id) ?? board;
+    saveLocalWhiteboard({ ...recovery, id: randomId("whiteboard-recovery"), title: `${recovery.title} (conflict recovery)`, archivedAt: nowIso(), storageRevision: undefined });
+    if (token) clearWhiteboardRecoveryDraft(board.ownerId, board.id, token);
+    ownSavedRevisions.delete(`${board.ownerId}:${board.id}`);
+    return { board: latest, backend: "supabase", status: "saved", savedAt: nowIso(), message: "Opened the latest account version. Your previous draft is in the archive on this device." };
+  } catch (error) {
+    return { board, backend: "local", status: "error", savedAt: nowIso(), message: getErrorMessage(error) };
+  }
 }
 
 export function saveLocalWhiteboard(board: BinderWhiteboard) {
@@ -738,7 +831,7 @@ async function saveWhiteboardSnapshot(
       board: fallbackBoard,
       backend: "local",
       status: !recovery.token ? "error" : isMissingWhiteboardTableError(error) ? "unavailable" : "local-draft",
-      message: recovery.token
+      message: getErrorMessage(error).includes("changed in another tab") ? getErrorMessage(error) : recovery.token
         ? "Cloud save failed. Your changes are kept on this device; retry when connected."
         : "Cloud save failed and a recovery copy could not be saved. Keep this tab open and retry.",
       savedAt,

@@ -15,6 +15,7 @@ import { useDashboard } from "@/hooks/use-binders";
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { emptyDoc } from "@/lib/utils";
+import type { WhiteboardTemplate } from "@/lib/whiteboards/whiteboard-types";
 import type {
   Binder,
   BinderLesson,
@@ -34,7 +35,7 @@ type ScopedLessonTextSelection = LessonTextSelection & {
 
 const mathLabTimestamp = new Date(0).toISOString();
 
-const mathLabBinder: Binder = {
+const defaultMathLabBinder: Binder = {
   id: "math-lab",
   owner_id: "system",
   title: "Math Lab",
@@ -50,7 +51,7 @@ const mathLabBinder: Binder = {
   updated_at: mathLabTimestamp,
 };
 
-const mathLabLesson: BinderLesson = {
+const defaultMathLabLesson: BinderLesson = {
   id: "math-lab-whiteboard",
   binder_id: "math-lab",
   title: "Math Whiteboard Lab",
@@ -91,12 +92,18 @@ function appendParagraph(content: JSONContent, text: string): JSONContent {
 
 function getSelectionSourceScope(selection: ScopedLessonTextSelection) {
   return {
-    binderId: selection.binderId ?? mathLabBinder.id,
-    lessonId: selection.lessonId ?? mathLabLesson.id,
+    binderId: selection.binderId ?? defaultMathLabBinder.id,
+    lessonId: selection.lessonId ?? defaultMathLabLesson.id,
   };
 }
 
-export function MathWhiteboardLabPage() {
+export function MathWhiteboardLabPage({ notebook, initialTemplate, onBack }: {
+  notebook?: { id: string; title: string; description: string };
+  initialTemplate?: WhiteboardTemplate;
+  onBack?: () => void;
+} = {}) {
+  const mathLabBinder = notebook ? { ...defaultMathLabBinder, id: notebook.id, title: notebook.title, description: notebook.description } : defaultMathLabBinder;
+  const mathLabLesson = notebook ? { ...defaultMathLabLesson, id: `personal-canvas-${notebook.id}`, binder_id: notebook.id, title: notebook.title } : defaultMathLabLesson;
   const navigate = useNavigate();
   const { profile } = useAuth();
   const {
@@ -106,7 +113,7 @@ export function MathWhiteboardLabPage() {
     setGraphVisible,
     savedFunctionMap,
     ...mathWorkspace
-  } = useMathWorkspace(profile?.id, "math-lab");
+  } = useMathWorkspace(profile?.id, notebook?.id ?? "math-lab");
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -417,7 +424,9 @@ export function MathWhiteboardLabPage() {
   return (
     <WhiteboardModule
       context={whiteboardContext}
-      onBack={() => navigate("/math/lab")}
+      initialTemplate={initialTemplate}
+      scopeOnly={Boolean(notebook)}
+      onBack={onBack ?? (() => navigate("/math/lab"))}
       renderModule={renderWhiteboardModule}
       variant="lab"
     />

@@ -20,7 +20,10 @@ type AuthState = {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (nextPath?: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, role: Role) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, role: Role, nextPath?: string) => Promise<{ confirmationRequired: boolean }>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  resendConfirmation: (email: string, nextPath?: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -231,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
-      signUp: async (email, password, fullName, _role) => {
+      signUp: async (email, password, fullName, _role, nextPath = "/dashboard") => {
         const supabase = await loadSupabaseClient();
         if (!supabase) {
           setIsLoading(false);
@@ -239,10 +242,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setIsLoading(true);
-        const { error } = await supabase.auth.signUp({
+        const redirectTo = new URL("/auth", window.location.origin);
+        redirectTo.searchParams.set("next", nextPath);
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: redirectTo.toString(),
             data: {
               full_name: fullName,
             },
@@ -253,6 +259,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
           throw error;
         }
+        if (!data.session) setIsLoading(false);
+        return { confirmationRequired: !data.session };
+      },
+      requestPasswordReset: async (email) => {
+        const supabase = await loadSupabaseClient();
+        if (!supabase) throw createSupabaseRequiredError();
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: new URL("/auth?mode=update-password", window.location.origin).toString(),
+        });
+        if (error) throw error;
+      },
+      resendConfirmation: async (email, nextPath = "/dashboard") => {
+        const supabase = await loadSupabaseClient();
+        if (!supabase) throw createSupabaseRequiredError();
+        const redirectTo = new URL("/auth", window.location.origin);
+        redirectTo.searchParams.set("next", nextPath);
+        const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: redirectTo.toString() } });
+        if (error) throw error;
+      },
+      updatePassword: async (password) => {
+        const supabase = await loadSupabaseClient();
+        if (!supabase) throw createSupabaseRequiredError();
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
       },
       signOut: async () => {
         setIsLoading(true);

@@ -571,6 +571,18 @@ const formulaBank: Record<FormulaTopic, FormulaEntry[]> = {
 };
 
 const vocabDictionary: Record<string, VocabEntry> = {
+  // Introductory concepts checked against OpenStax Chemistry 2e, sections 1.1–1.2.
+  // Original wording and examples; https://openstax.org/books/chemistry-2e/pages/1-1-chemistry-in-context
+  chemistry: {
+    definition: "the science of what substances are made of, their properties, and how they change",
+    precision: "Connect an observation with the particles and interactions that explain it.",
+    example: "Investigating why iron rusts is chemistry; describing only its shape does not explain the reaction.",
+  },
+  matter: {
+    definition: "anything with mass that occupies space",
+    precision: "Gases are matter even when they are invisible; light is not matter.",
+    example: "Air in a balloon has mass and fills a volume; the light passing through the balloon does not.",
+  },
   model: {
     definition: "a simplified representation that helps explain or predict chemical behavior",
     precision: "A model is useful when it connects to evidence and limits are stated.",
@@ -887,6 +899,48 @@ export const chemistryShowcaseLessons: BinderLesson[] = lessonSpecs.map((lesson)
   updated_at: now,
 }));
 
+/** Read-only compatibility for the exact vocabulary filler emitted by the old system seed.
+ * Never changes stored source content, user notes, authored definitions, or other lesson sections.
+ */
+export function projectChemistryVocabularyForDisplay(lesson: BinderLesson): BinderLesson {
+  if (lesson.binder_id !== CHEMISTRY_SHOWCASE_BINDER_ID) return lesson;
+  const spec = lessonSpecs.find((item) => item.id === lesson.id && item.title === lesson.title);
+  if (!spec || lesson.content.type !== "doc" || !Array.isArray(lesson.content.content)) return lesson;
+
+  const legacyTerms = spec.title.split(/[^A-Za-z0-9+-]+/).filter((term) => term.length > 4)
+    .slice(0, 2).map((term) => term.toLowerCase());
+  const replacements = new Map<string, JSONContent | null>();
+  for (const term of legacyTerms) {
+    const exactLegacyText = `${term} - a lesson-specific term used to reason about ${spec.title.toLowerCase()}. Precision note: Use it only when the evidence or particle model supports the claim. Example/non-example: Example: use ${term} when explaining ${spec.relatedConcepts[0]}; non-example: using it as a vague label without evidence.`;
+    const entry = vocabDictionary[term];
+    const replacement = entry
+      ? bulletList([`${term} - ${entry.definition}. Precision note: ${entry.precision} Example/non-example: ${entry.example}`]).content![0]
+      : null;
+    replacements.set(chemistryNodeSignature(bulletList([exactLegacyText]).content![0]), replacement);
+  }
+  let changed = false;
+  const nodes = lesson.content.content;
+  const content = nodes.map((node, index) => {
+    if (node.type !== "bulletList" || !node.content ||
+      chemistryNodeSignature(nodes[index - 1]) !== chemistryNodeSignature(heading("Vocab Sheet"))) return node;
+    const items = node.content.flatMap((item) => {
+      const key = chemistryNodeSignature(item);
+      if (!replacements.has(key)) return [item];
+      changed = true;
+      const replacement = replacements.get(key);
+      return replacement ? [replacement] : [];
+    });
+    return changed ? { ...node, content: items } : node;
+  });
+  return changed ? { ...lesson, content: { ...lesson.content, content } } : lesson;
+}
+
+function chemistryNodeSignature(node: JSONContent | undefined): string {
+  // PostgreSQL jsonb may reorder object keys; structural matching must not depend on key order.
+  return JSON.stringify(node, (_key, value: unknown) => value && typeof value === "object" && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))) : value);
+}
+
 export const chemistryShowcaseLessonMetadata: ChemistryShowcaseLessonMetadata[] = lessonSpecs.map((lesson) => ({
   lessonId: lesson.id,
   unitId: lesson.unitId,
@@ -990,10 +1044,10 @@ function inferVocabTerms(title: string, category: LessonCategory): string[] {
   const titleTerms = title
     .split(/[^A-Za-z0-9+-]+/)
     .filter((term) => term.length > 4)
-    .slice(0, 2)
     .map((term) => term.toLowerCase());
 
-  return unique([...base[category], ...titleTerms]).slice(0, 7);
+  const knownTitleTerms = titleTerms.filter((term) => Boolean(vocabDictionary[term])).slice(0, 2);
+  return unique([...knownTitleTerms, ...base[category]]).slice(0, 7);
 }
 
 function moduleIdsForPreset(presetId: WorkspacePresetId): WorkspaceModuleId[] {
@@ -1266,12 +1320,8 @@ function buildApTasks(spec: ChemistryLessonSpec): string[] {
 }
 
 function buildVocabEntries(spec: ChemistryLessonSpec): string[] {
-  return spec.vocabTerms.map((term) => {
-    const entry = vocabDictionary[term] ?? {
-      definition: `a lesson-specific term used to reason about ${spec.title.toLowerCase()}`,
-      precision: "Use it only when the evidence or particle model supports the claim.",
-      example: `Example: use ${term} when explaining ${spec.relatedConcepts[0]}; non-example: using it as a vague label without evidence.`,
-    };
+  return spec.vocabTerms.filter((term) => Boolean(vocabDictionary[term])).map((term) => {
+    const entry = vocabDictionary[term];
 
     return `${term} - ${entry.definition}. Precision note: ${entry.precision} Example/non-example: ${entry.example}`;
   });

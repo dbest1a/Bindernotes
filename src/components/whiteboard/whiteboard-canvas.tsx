@@ -362,8 +362,10 @@ export function WhiteboardCanvas({
   }, []);
 
   useEffect(() => {
-    emitViewportChange(initialData.appState ?? {});
-  }, [board.id, board.scene.appState, emitViewportChange]);
+    // Saved appState is only the initial camera. Module saves contain snapshots
+    // that can lag behind an ongoing pan; replaying them made cards jump back.
+    emitViewportChange(excalidrawApiRef.current?.getAppState?.() ?? initialData.appState ?? {});
+  }, [board.id, emitViewportChange]);
 
   useEffect(() => {
     if (!ExcalidrawComponent) {

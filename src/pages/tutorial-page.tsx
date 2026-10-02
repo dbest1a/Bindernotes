@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { memo, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { QuickStart } from "@/components/tutorials/quick-start";
 import { TutorialVideoModal } from "@/components/tutorials/tutorial-video-modal";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -47,6 +48,12 @@ const initialUploadedTutorialLimit = 8;
 const uploadedTutorialLimitStep = 8;
 
 export function TutorialPage() {
+  // This route is public and deliberately does not mount account-only providers.
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: 1 } } }));
+  return <QueryClientProvider client={queryClient}><TutorialLibrary /></QueryClientProvider>;
+}
+
+function TutorialLibrary() {
   const { profile } = useAuth();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<TutorialCategoryFilter>("All");
@@ -90,15 +97,16 @@ export function TutorialPage() {
 
   return (
     <main className="app-page gap-6">
+      <nav aria-label="Learning help" className="flex flex-wrap gap-4 text-sm underline"><Link to="/">Home</Link><Link to="/help">Help</Link><Link to={profile ? "/dashboard" : "/auth?mode=signup"}>{profile ? "Workspace" : "Create an account"}</Link></nav>
       <section className="page-shell overflow-hidden p-6 sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.42fr)]">
           <div>
             <Badge variant="outline">Tutorial library</Badge>
             <h1 className="mt-4 page-heading max-w-4xl text-4xl sm:text-5xl">
-              Learn BinderNotes with quick video walkthroughs
+              Learn BinderNotes, one useful step at a time
             </h1>
             <p className="mt-4 max-w-3xl page-copy">
-              Search every page and major tool, watch the tutorial, then jump straight back to the matching feature.
+              Follow the written quick start to save and reopen your first note. Published video walkthroughs appear below when available.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button asChild type="button">
@@ -130,25 +138,27 @@ export function TutorialPage() {
               First-time help
             </div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              BinderNotes can prompt a new user once per page. Skipping a tutorial stores that choice on this browser only.
+              Read a lesson, write a private note, check that it saved, and reopen it. Add a graph or board after that first study session.
             </p>
           </aside>
         </div>
       </section>
 
+      <QuickStart />
+
       {isAdmin ? (
         <AdminTutorialCreator draftShells={draftShells} uploadedTutorials={tutorialLibrary} />
       ) : null}
 
-      <section className="page-shell p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      {tutorialLibrary.length > 0 || isAdmin ? <section className="page-shell p-4 sm:p-5">
+        <div className="grid min-w-0 gap-4">
           <label className="grid gap-2 text-sm font-medium">
             Search tutorials
             <span className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 aria-label="Search tutorials"
-                className="pl-9"
+                className="w-full min-w-0 pl-9"
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search graph, notes, admin, transcript, route..."
                 value={query}
@@ -175,7 +185,7 @@ export function TutorialPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> : null}
 
       {!query && category === "All" && featuredTutorials.length ? (
         <section className="grid gap-4">
@@ -195,7 +205,7 @@ export function TutorialPage() {
         </section>
       ) : null}
 
-      <section className="grid gap-4">
+      {tutorialLibrary.length > 0 || isAdmin ? <section className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <span className="page-kicker">All tutorials</span>
@@ -231,7 +241,7 @@ export function TutorialPage() {
                   ? "Try a page name, tool name, route, or transcript word like graph, notes, admin, whiteboard, or publish."
                   : isAdmin
                     ? "Use a draft shell above to upload the first real tutorial video and publish it."
-                    : "The library is ready. Published admin uploads will appear here as soon as real tutorial videos are added."}
+                    : "Use the written quick start above to begin your first study session."}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -247,7 +257,7 @@ export function TutorialPage() {
             </Button>
           </div>
         ) : null}
-      </section>
+      </section> : null}
 
       <TutorialVideoModal
         onClose={() => setActiveTutorial(null)}

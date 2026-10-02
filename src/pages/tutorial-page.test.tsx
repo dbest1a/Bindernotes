@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TutorialEntry } from "@/lib/tutorials/tutorial-registry";
@@ -59,17 +58,8 @@ vi.mock("@/services/tutorial-service", () => ({
 import { TutorialPage } from "@/pages/tutorial-page";
 
 function renderTutorialPage() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <TutorialPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  // The public route must work without the authenticated app's providers.
+  return render(<MemoryRouter><TutorialPage /></MemoryRouter>);
 }
 
 describe("TutorialPage", () => {
@@ -84,7 +74,7 @@ describe("TutorialPage", () => {
   it("keeps the tutorial library structure but does not show fake generated videos", async () => {
     renderTutorialPage();
 
-    expect(screen.getByText("Learn BinderNotes with quick video walkthroughs")).toBeTruthy();
+    expect(screen.getByText("Learn BinderNotes, one useful step at a time")).toBeTruthy();
     expect(screen.getByLabelText("Search tutorials")).toBeTruthy();
     expect(screen.getByTestId("admin-tutorial-creator")).toBeTruthy();
     expect(screen.getByTestId("admin-tutorial-draft-shells")).toBeTruthy();
@@ -99,7 +89,8 @@ describe("TutorialPage", () => {
     mocks.profile.role = "learner";
     renderTutorialPage();
 
-    expect(await screen.findByText("No tutorial videos have been published yet.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Your first saved study note" })).toBeTruthy();
+    expect(screen.queryByText("No tutorial videos have been published yet.")).toBeNull();
     expect(screen.queryByTestId("admin-tutorial-creator")).toBeNull();
     expect(screen.queryByRole("button", { name: /upload video/i })).toBeNull();
   });

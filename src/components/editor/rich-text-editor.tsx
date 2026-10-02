@@ -239,10 +239,9 @@ export function RichTextEditor({
       },
     },
     onUpdate: ({ editor: instance }) => {
-      if (!instance.isFocused) {
-        return;
-      }
-
+      // Toolbar/popover commands can change marks while focus is in their input.
+      // Incoming hydration uses emitUpdate: false below, so every update here is
+      // a genuine edit and must reach the canonical draft.
       const next = instance.getJSON();
       editorSnapshotRef.current = JSON.stringify(next);
       onChangeRef.current?.(next);

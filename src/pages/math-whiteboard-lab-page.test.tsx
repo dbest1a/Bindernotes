@@ -575,7 +575,8 @@ describe("MathWhiteboardLabPage", () => {
   });
 
   it("keeps board-pinned Desmos at the synced camera position when a module drop rerenders before viewport state catches up", async () => {
-    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 47);
+    const frames: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frames.push(callback); return frames.length; });
     window.localStorage.setItem(
       "bindernotes:whiteboards:user-1:math-lab:math-lab-whiteboard",
       JSON.stringify([
@@ -642,6 +643,9 @@ describe("MathWhiteboardLabPage", () => {
     });
 
     const card = screen.getByTestId("whiteboard-module-card-module-desmos");
+    // Geometry is batched to the next animation frame; the heavier React
+    // viewport reconciliation deliberately remains pending until pan settles.
+    act(() => { frames.splice(0).forEach((callback) => callback(performance.now())); });
     expect(card.getAttribute("style")).toContain("transform: translate3d(100px, 160px, 0) scale(1)");
 
     const chrome = card.querySelector<HTMLElement>(".whiteboard-module-card__chrome");

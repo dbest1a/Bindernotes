@@ -8,7 +8,8 @@ const {
   mockFrom,
   mockLearnerNoteSingle,
   mockLearnerNoteSelect,
-  mockLearnerNoteUpsert,
+  mockLearnerNoteInsert,
+  mockLearnerNoteEq,
 } =
   vi.hoisted(() => {
     const bindersMaybeSingle = vi.fn();
@@ -24,8 +25,9 @@ const {
     }));
     const binderLessonsUpsert = vi.fn();
     const single = vi.fn();
-    const select = vi.fn(() => ({ single }));
-    const upsert = vi.fn(() => ({ select }));
+    const select = vi.fn(() => ({ single, maybeSingle: single }));
+    const eq: ReturnType<typeof vi.fn> = vi.fn(() => ({ eq, select }));
+    const upsert = vi.fn(() => ({ select, eq }));
     const from = vi.fn((table: string) => {
       if (table === "binders") {
         return {
@@ -42,7 +44,7 @@ const {
       }
 
       if (table === "learner_notes") {
-        return { upsert };
+        return { insert: upsert, update: upsert };
       }
 
       throw new Error(`Unexpected table access in test: ${table}`);
@@ -56,7 +58,8 @@ const {
       mockFrom: from,
       mockLearnerNoteSingle: single,
       mockLearnerNoteSelect: select,
-      mockLearnerNoteUpsert: upsert,
+      mockLearnerNoteInsert: upsert,
+      mockLearnerNoteEq: eq,
     };
   });
 
@@ -86,7 +89,8 @@ describe("binder-service learner note persistence", () => {
     mockBinderLessonsSelectEq.mockResolvedValue({ data: [], error: null });
     mockBinderLessonsUpsert.mockReset();
     mockBinderLessonsUpsert.mockResolvedValue({ error: null });
-    mockLearnerNoteUpsert.mockClear();
+    mockLearnerNoteInsert.mockClear();
+    mockLearnerNoteEq.mockClear();
     mockLearnerNoteSelect.mockClear();
     mockLearnerNoteSingle.mockReset();
   });
@@ -130,8 +134,8 @@ describe("binder-service learner note persistence", () => {
     });
 
     expect(saved.folder_id).toBeNull();
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(2);
-    const upsertCalls = mockLearnerNoteUpsert.mock.calls as unknown[][];
+    expect(mockLearnerNoteInsert).toHaveBeenCalledTimes(2);
+    const upsertCalls = mockLearnerNoteInsert.mock.calls as unknown[][];
     const firstUpsertPayload = upsertCalls[0]?.[0] as Record<string, unknown>;
     const secondUpsertPayload = upsertCalls[1]?.[0] as Record<string, unknown>;
 
@@ -147,6 +151,18 @@ describe("binder-service learner note persistence", () => {
       lesson_id: "lesson-1",
       folder_id: null,
     });
+  });
+
+  it("rejects a stale existing note with an atomic revision condition and preserves pin state", async () => {
+    mockLearnerNoteSingle.mockResolvedValue({ data: null, error: null });
+    await expect(upsertLearnerNote({ id: "note-1", expectedUpdatedAt: "2026-04-23T10:01:00.000Z", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", title: "Stale", content: emptyDoc("stale"), mathBlocks: [] })).rejects.toThrow("newer saved version");
+    expect(mockLearnerNoteEq.mock.calls).toEqual([["id", "note-1"], ["owner_id", "user-1"], ["binder_id", "custom-binder"], ["lesson_id", "lesson-1"], ["updated_at", "2026-04-23T10:01:00.000Z"]]);
+    expect((mockLearnerNoteInsert.mock.calls as unknown[][])[0][0]).not.toHaveProperty("pinned");
+  });
+
+  it("requires the loaded revision to update an existing record", async () => {
+    await expect(upsertLearnerNote({ id: "note-1", ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", title: "Draft", content: emptyDoc("draft"), mathBlocks: [] })).rejects.toThrow("saved revision");
+    expect(mockLearnerNoteInsert).not.toHaveBeenCalled();
   });
 
   it("does not hide required binder or lesson reference failures", async () => {
@@ -173,7 +189,7 @@ describe("binder-service learner note persistence", () => {
     ).rejects.toMatchObject({
       code: "23503",
     });
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteInsert).toHaveBeenCalledTimes(1);
   });
 
   it("materializes the account-visible Chemistry course in Supabase before saving its private notes", async () => {
@@ -212,7 +228,7 @@ describe("binder-service learner note persistence", () => {
     expect(mockBindersMaybeSingle).toHaveBeenCalledTimes(1);
     expect(mockBindersUpsert).toHaveBeenCalledTimes(1);
     expect(mockBinderLessonsUpsert).toHaveBeenCalledTimes(1);
-    expect(mockLearnerNoteUpsert).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteInsert).toHaveBeenCalledTimes(1);
 
     const binderPayload = mockBindersUpsert.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(binderPayload).toMatchObject({

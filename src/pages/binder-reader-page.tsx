@@ -133,9 +133,13 @@ import type {
   WorkspaceWindowFrame,
 } from "@/types";
 
+import { clearReaderNoteDraft, readReaderNoteDraft, writeReaderNoteDraft } from "@/lib/reader-note-recovery";
+
 type PendingNoteSave = {
   input: {
     id?: string;
+    ownerId?: string;
+    expectedUpdatedAt?: string | null;
     binderId: string;
     lessonId: string;
     folderId?: string | null;
@@ -252,6 +256,18 @@ export function BinderReaderPage() {
   const activeNoteScopeRef = useRef("");
   const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
   const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
+  const noteRevisionsRef = useRef(new Map<string, { id?: string; updatedAt: string | null }>());
+  const preserveNoteDraft = useCallback((draft: PendingNoteSave) => {
+    try { writeReaderNoteDraft(draft); }
+    catch { setNoteSaveError("Browser recovery storage is unavailable. Keep this tab open until your note saves."); }
+  }, []);
+  const updateVisibleNoteDraft = useCallback((update: Partial<PendingNoteSave["input"]>) => {
+    const current = latestVisibleNoteDraftRef.current;
+    if (!current) return;
+    const next = { ...current, input: { ...current.input, ...update } };
+    latestVisibleNoteDraftRef.current = next;
+    preserveNoteDraft(next);
+  }, [preserveNoteDraft]);
 
   const responsiveDevice = useResponsiveDevice();
   const isCompact = responsiveDevice.isMobileWorkspace;
@@ -1730,9 +1746,10 @@ export function BinderReaderPage() {
     }
 
     pendingNoteSaveRef.current = currentDraft;
+    preserveNoteDraft(currentDraft);
     retryNoteSaveRef.current = null;
     return true;
-  }, []);
+  }, [preserveNoteDraft]);
 
   useEffect(() => {
     noteScopeHydratedRef.current = false;
@@ -1751,6 +1768,7 @@ export function BinderReaderPage() {
       );
 
       if (previousSnapshot !== syncedSnapshotRef.current) {
+        preserveNoteDraft(previousDraft);
         pendingNoteSaveRef.current = previousDraft;
         retryNoteSaveRef.current = null;
       }
@@ -1787,7 +1805,18 @@ export function BinderReaderPage() {
     };
 
     try {
-      const savedNote = await noteMutationRef.current(pendingDraft.input);
+      const expected = noteRevisionsRef.current.get(pendingDraft.scopeKey);
+      const savedNote = await noteMutationRef.current({ ...pendingDraft.input, ...(expected ? { id: expected.id, expectedUpdatedAt: expected.updatedAt } : {}) });
+      noteRevisionsRef.current.set(pendingDraft.scopeKey, { id: savedNote.id, updatedAt: savedNote.updated_at });
+      if (latestVisibleNoteDraftRef.current?.scopeKey === pendingDraft.scopeKey) {
+        latestVisibleNoteDraftRef.current = { ...latestVisibleNoteDraftRef.current, input: { ...latestVisibleNoteDraftRef.current.input, id: savedNote.id, expectedUpdatedAt: savedNote.updated_at } };
+      }
+      const recovery = readReaderNoteDraft(savedNote.owner_id, savedNote.binder_id, savedNote.lesson_id);
+      if (recovery) {
+        if (serializeNoteSnapshot(recovery.input.title, recovery.input.content, recovery.input.mathBlocks) === serializeNoteSnapshot(savedNote.title, savedNote.content, savedNote.math_blocks)) {
+          try { clearReaderNoteDraft(recovery); } catch { /* A matching recovery is harmless after a confirmed save. */ }
+        } else preserveNoteDraft({ ...recovery, input: { ...recovery.input, id: savedNote.id, expectedUpdatedAt: savedNote.updated_at } });
+      }
       retryNoteSaveRef.current = null;
       if (pendingDraft.scopeKey === activeNoteScopeRef.current) {
         const savedSnapshot = serializeNoteSnapshot(
@@ -1833,7 +1862,9 @@ export function BinderReaderPage() {
   }, [currentNoteScopeKey, flushQueuedNoteSave, isOnline]);
 
   const retryFailedNoteSave = useCallback(() => {
-    const retryDraft = retryNoteSaveRef.current ?? latestVisibleNoteDraftRef.current;
+    const retryDraft = latestVisibleNoteDraftRef.current?.scopeKey === activeNoteScopeRef.current
+      ? latestVisibleNoteDraftRef.current
+      : retryNoteSaveRef.current;
     if (!retryDraft) {
       return;
     }
@@ -1919,6 +1950,8 @@ export function BinderReaderPage() {
     latestVisibleNoteDraftRef.current = {
       input: {
         id: noteId,
+        ownerId,
+        expectedUpdatedAt: noteRevisionsRef.current.get(currentNoteScopeKey)?.updatedAt ?? null,
         binderId,
         lessonId: selectedLesson.id,
         folderId: activeFolderId,
@@ -1928,6 +1961,7 @@ export function BinderReaderPage() {
       },
       scopeKey: currentNoteScopeKey,
     };
+    if (noteHasLocalEditsRef.current) preserveNoteDraft(latestVisibleNoteDraftRef.current);
   }, [
     activeFolderId,
     binderId,
@@ -1949,6 +1983,25 @@ export function BinderReaderPage() {
     const nextContent = currentNote?.content ?? emptyDoc();
     const nextMath = currentNote?.math_blocks ?? [];
     const nextSnapshot = serializeNoteSnapshot(nextTitle, nextContent, nextMath);
+    const recovery = ownerId && binderId ? readReaderNoteDraft(ownerId, binderId, selectedLesson.id) : null;
+    if (!noteScopeHydratedRef.current && recovery) {
+      const recoveredSnapshot = serializeNoteSnapshot(recovery.input.title, recovery.input.content, recovery.input.mathBlocks);
+      if (recoveredSnapshot !== nextSnapshot) {
+        const recovered = { ...recovery, scopeKey: currentNoteScopeKey, input: { ...recovery.input, id: recovery.input.id ?? currentNote?.id } };
+        noteRevisionsRef.current.set(currentNoteScopeKey, { id: recovered.input.id, updatedAt: recovered.input.expectedUpdatedAt ?? null });
+        latestVisibleNoteDraftRef.current = recovered;
+        preserveNoteDraft(recovered);
+        setNoteId(recovered.input.id);
+        setNoteTitle(recovered.input.title);
+        setNoteContent(recovered.input.content);
+        setNoteMath(recovered.input.mathBlocks);
+        noteScopeHydratedRef.current = true;
+        noteHasLocalEditsRef.current = true;
+        syncedSnapshotRef.current = nextSnapshot;
+        return;
+      }
+      try { clearReaderNoteDraft(recovery); } catch { /* Already saved. */ }
+    }
     const currentDraft = latestVisibleNoteDraftRef.current;
     const currentSnapshot = currentDraft
       ? serializeNoteSnapshot(
@@ -1971,7 +2024,7 @@ export function BinderReaderPage() {
       !isOwnSubmittedSaveEcho
     ) {
       setNoteSaveError(
-        "A newer saved version is available in another tab. Save this note to keep your current draft.",
+        "A newer saved version is available in another tab. Your draft is preserved. Open Personal Notes to save a separate copy.",
       );
       return;
     }
@@ -1984,10 +2037,12 @@ export function BinderReaderPage() {
     ) {
       noteScopeHydratedRef.current = true;
       syncedSnapshotRef.current = nextSnapshot;
+      noteRevisionsRef.current.set(currentNoteScopeKey, { id: currentNote?.id, updatedAt: currentNote?.updated_at ?? null });
       return;
     }
 
     setNoteId(currentNote?.id);
+    noteRevisionsRef.current.set(currentNoteScopeKey, { id: currentNote?.id, updatedAt: currentNote?.updated_at ?? null });
     setNoteTitle(nextTitle);
     setNoteContent(nextContent);
     setNoteMath(nextMath);
@@ -2034,6 +2089,8 @@ export function BinderReaderPage() {
       pendingNoteSaveRef.current = {
         input: {
           id: noteId,
+          ownerId,
+          expectedUpdatedAt: noteRevisionsRef.current.get(currentNoteScopeKey)?.updatedAt ?? null,
           binderId,
           lessonId: selectedLesson.id,
           folderId: activeFolderId,
@@ -2667,14 +2724,17 @@ export function BinderReaderPage() {
     onQueryChange: setQuery,
     onNoteTitleChange: (value) => {
       noteHasLocalEditsRef.current = true;
+      updateVisibleNoteDraft({ title: value });
       setNoteTitle(value);
     },
     onNoteContentChange: (value) => {
       noteHasLocalEditsRef.current = true;
+      updateVisibleNoteDraft({ content: value });
       setNoteContent(value);
     },
     onNoteMathChange: (value) => {
       noteHasLocalEditsRef.current = true;
+      updateVisibleNoteDraft({ mathBlocks: value });
       setNoteMath(value);
     },
     onCommentDraftChange: setCommentDraft,

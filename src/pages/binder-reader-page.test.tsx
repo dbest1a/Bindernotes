@@ -289,6 +289,7 @@ function createSingleLessonBundle(
 
 describe("BinderReaderPage", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
     setTestViewportSize(1024, 768);
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: matchesResponsiveQuery(query),
@@ -325,6 +326,21 @@ describe("BinderReaderPage", () => {
     const { container } = renderReaderPage("/binders/binder-1/documents/lesson-1");
 
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("sends the loaded revision and journals a reader draft before a save response", async () => {
+    mocks.workspacePreferences.active = { ...createDefaultWorkspacePreferences("user-1", "binder-1"), activeMode: "simple", styleChoiceCompleted: true };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    const savedNote = { id: "saved-note", owner_id: "user-1", binder_id: "binder-1", lesson_id: "lesson-1", folder_id: null, title: "Baseline", content: emptyDoc("Baseline body"), math_blocks: [], pinned: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" };
+    mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [savedNote] };
+    mocks.noteMutation.mutateAsync.mockReset().mockImplementation(() => new Promise(() => {}));
+    renderReaderPage("/binders/binder-1/documents/lesson-1");
+    const title = await screen.findByPlaceholderText("Like Terms notes");
+    fireEvent.change(title, { target: { value: "Reader final title" } });
+    const journal = JSON.parse(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1") || "null");
+    expect(journal.input).toMatchObject({ ownerId: "user-1", id: "saved-note", expectedUpdatedAt: savedNote.updated_at, title: "Reader final title", content: savedNote.content });
+    await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "user-1", id: "saved-note", expectedUpdatedAt: savedNote.updated_at, title: "Reader final title" })), { timeout: 2000 });
   });
 
   it("shows a real unavailable state instead of blanking when a binder has no lessons", () => {

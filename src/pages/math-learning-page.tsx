@@ -1,6 +1,6 @@
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -35,12 +35,13 @@ import {
   useMathModules,
   useQuestionBank,
   useQuizSet,
+  useQuizAttempt,
   useSaveMathGraphState,
   useSaveQuestion,
   useStartQuizAttempt,
   useSubmitQuestionAttempt,
 } from "@/hooks/use-math-learning";
-import type { SubmittedQuestionAnswer } from "@/lib/question-scoring";
+import { hasQuestionAnswer, requiresSelfReview, type QuestionScoreResult, type SubmittedQuestionAnswer } from "@/lib/question-scoring";
 import { cn } from "@/lib/utils";
 import { createStudyItem, type StudyItemType } from "@/services/study-items-service";
 import { listStudyGraphLinks } from "@/services/math-study-loop-service";
@@ -633,6 +634,8 @@ export function MathQuestionEditorPage() {
     }),
   );
 
+  const [draftError, setDraftError] = useState("");
+
   useEffect(() => {
     if (!existingQuestion) {
       return;
@@ -679,6 +682,16 @@ export function MathQuestionEditorPage() {
   const selectedModule = modules.find((module) => module.id === draft.moduleId) ?? null;
 
   const saveDraft = async () => {
+    setDraftError("");
+    if (draft.type === "numeric" && (!draft.numericExpected.trim() || !Number.isFinite(Number(draft.numericExpected)))) {
+      setDraftError("Enter the expected number. Enter 0 explicitly if zero is the answer.");
+      return;
+    }
+    if (draft.type === "numeric" && (!Number.isFinite(Number(draft.numericTolerance)) || Number(draft.numericTolerance) < 0)) {
+      setDraftError("Tolerance must be a number greater than or equal to zero.");
+      return;
+    }
+    try {
     const saved = await saveQuestionMutation.mutateAsync({
       id: draft.id || undefined,
       userId: profile.id,
@@ -705,6 +718,9 @@ export function MathQuestionEditorPage() {
         : [],
     });
     navigate(`/math/questions/${saved.id}/edit`);
+    } catch (caught) {
+      setDraftError(caught instanceof Error ? caught.message : "Could not save this question. Try again.");
+    }
   };
 
   return (
@@ -725,13 +741,14 @@ export function MathQuestionEditorPage() {
               {existingQuestion ? "Edit math question" : "Create math question"}
             </h1>
           </div>
-          <Button onClick={saveDraft} type="button">
+          <Button disabled={saveQuestionMutation.isPending} onClick={saveDraft} type="button">
             <Save data-icon="inline-start" />
             Save question
           </Button>
         </div>
       </section>
 
+      {draftError ? <p role="alert" className="rounded-lg border border-destructive/40 p-4">{draftError}</p> : null}
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(360px,0.55fr)]">
         <Card>
           <CardHeader>
@@ -876,69 +893,51 @@ export function MathQuizPage() {
 export function MathQuizAttemptPage() {
   const { quizId } = useParams();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const quizQuery = useQuizSet(quizId);
   const startAttempt = useStartQuizAttempt();
   const submitAttempt = useSubmitQuestionAttempt();
   const completeAttempt = useCompleteQuizAttempt();
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, SubmittedQuestionAnswer>>({});
-  const [results, setResults] = useState<Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const saving = useRef(false);
+  // Reuse successful answer writes when a later request fails.
+  const savedScores = useRef(new Map<string, QuestionScoreResult>());
+  useEffect(() => {
+    setAttemptId(null);
+    setAnswers({});
+    setError("");
+    savedScores.current.clear();
+  }, [quizId]);
 
-  if (quizQuery.isLoading) {
-    return <MathPageSkeleton />;
-  }
-
+  if (quizQuery.isLoading) return <MathPageSkeleton />;
   const quiz = quizQuery.data;
-  if (!quiz || !profile) {
-    return <Navigate replace to="/math/questions" />;
-  }
+  if (!quiz || !profile) return <Navigate replace to="/math/questions" />;
 
-  const begin = async () => {
-    const attempt = await startAttempt.mutateAsync({
-      quizSetId: quiz.id,
-      userId: profile.id,
-    });
-    setAttemptId(attempt.id);
-  };
-
-  const finish = async () => {
-    const activeAttemptId =
-      attemptId ??
-      (
-        await startAttempt.mutateAsync({
-          quizSetId: quiz.id,
-          userId: profile.id,
-        })
-      ).id;
-    setAttemptId(activeAttemptId);
-
-    const nextResults = [];
-    for (const question of quiz.questions ?? []) {
-      const answer = answers[question.id] ?? {};
-      const submitted = await submitAttempt.mutateAsync({
-        attemptId: activeAttemptId,
-        userId: profile.id,
-        question,
-        answer,
-      });
-      nextResults.push({
-        question,
-        isCorrect: submitted.score.isCorrect,
-        points: submitted.score.pointsAwarded,
-        total: submitted.score.totalPoints,
-      });
+  const save = async (finish: boolean) => {
+    if (saving.current) return;
+    saving.current = true;
+    setIsSaving(true);
+    setError("");
+    try {
+      const activeId = attemptId ?? (await startAttempt.mutateAsync({ quizSetId: quiz.id, userId: profile.id })).id;
+      setAttemptId(activeId);
+      if (!finish) return;
+      for (const question of quiz.questions ?? []) {
+        if (savedScores.current.has(question.id)) continue;
+        const submitted = await submitAttempt.mutateAsync({ attemptId: activeId, userId: profile.id, question, answer: answers[question.id] ?? {} });
+        savedScores.current.set(question.id, submitted.score);
+      }
+      await completeAttempt.mutateAsync({ attemptId: activeId, quizSet: quiz, userId: profile.id, scores: [...savedScores.current.values()] });
+      navigate(`/math/quizzes/${quiz.id}/results/${activeId}`, { replace: true });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save the results. Your answers are still here; retry submission.");
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
     }
-
-    await completeAttempt.mutateAsync({
-      attemptId: activeAttemptId,
-      quizSet: quiz,
-      userId: profile.id,
-      scores: nextResults.map((result) => ({
-        pointsAwarded: result.points,
-        totalPoints: result.total,
-      })),
-    });
-    setResults(nextResults);
   };
 
   return (
@@ -946,65 +945,55 @@ export function MathQuizAttemptPage() {
       <Breadcrumbs items={[{ label: "Math", to: "/math" }, { label: quiz.title }]} />
       <section className="page-shell p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Badge variant="outline">Practice quiz</Badge>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
-          </div>
-          {!attemptId ? (
-            <Button onClick={begin} type="button">Start attempt</Button>
-          ) : (
-            <Badge variant="outline">Attempt started</Badge>
-          )}
+          <div><Badge variant="outline">Practice quiz</Badge><h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1></div>
+          {!attemptId ? <Button disabled={isSaving} onClick={() => void save(false)} type="button">Start attempt</Button> : <Badge variant="outline">Attempt in progress</Badge>}
         </div>
+        <p className="mt-3 text-sm text-muted-foreground">Exact answers are checked automatically. Explanations are saved for self-review and excluded from the automatic score.</p>
       </section>
-
-      {results.length > 0 ? (
-        <QuizResultSummary results={results} />
-      ) : (
-        <section className="grid gap-4">
-          {(quiz.questions ?? []).map((question) => (
-            <QuestionRenderer
-              key={question.id}
-              onAnswerChange={(answer) =>
-                setAnswers((current) => ({ ...current, [question.id]: answer }))
-              }
-              question={question}
-              value={answers[question.id] ?? {}}
-            />
-          ))}
-          <Button className="justify-self-start" onClick={finish} type="button">
-            Submit answers
-          </Button>
-        </section>
-      )}
+      {error ? <p role="alert" className="rounded-lg border border-destructive/40 p-4">{error}</p> : null}
+      <section className="grid gap-4">
+        {(quiz.questions ?? []).map((question) => (
+          <fieldset className="min-w-0" disabled={isSaving || savedScores.current.has(question.id)} key={question.id}>
+            <QuestionRenderer question={question} value={answers[question.id] ?? {}}
+              onAnswerChange={(answer) => setAnswers((current) => ({ ...current, [question.id]: answer }))} />
+          </fieldset>
+        ))}
+        <Button className="justify-self-start" disabled={isSaving || !quiz.questions?.length} onClick={() => void save(true)} type="button">
+          {isSaving ? "Saving answers…" : error ? "Retry saving answers" : "Submit answers"}
+        </Button>
+      </section>
     </main>
   );
 }
 
 export function MathQuizResultsPage() {
-  const { quizId } = useParams();
+  const { quizId, attemptId } = useParams();
+  const { profile } = useAuth();
   const quizQuery = useQuizSet(quizId);
-
-  if (quizQuery.isLoading) {
-    return <MathPageSkeleton />;
-  }
-
+  const resultsQuery = useQuizAttempt(attemptId, quizId, profile?.id);
+  if (quizQuery.isLoading || resultsQuery.isLoading) return <MathPageSkeleton />;
+  if (quizQuery.error || resultsQuery.error) return <main className="app-page"><Card><CardHeader><CardTitle>Results could not load</CardTitle><CardDescription>Your saved attempt has not been changed.</CardDescription></CardHeader><CardContent><Button onClick={() => { void quizQuery.refetch(); void resultsQuery.refetch(); }}>Try again</Button></CardContent></Card></main>;
   const quiz = quizQuery.data;
-  if (!quiz) {
-    return <Navigate replace to="/math/questions" />;
-  }
-
+  const saved = resultsQuery.data;
+  if (!quiz || !saved) return <main className="app-page"><EmptyState title="Attempt not found" description="This result is not available for your account. Open the quiz to start again." action={<Button asChild><Link to="/math/questions">Open question bank</Link></Button>} /></main>;
+  const results: QuizResult[] = (quiz.questions ?? []).map((question) => {
+    const answer = [...saved.answers].reverse().find((item) => item.question_id === question.id);
+    const submitted = (answer?.submitted_answer_json ?? {}) as SubmittedQuestionAnswer;
+    const feedback = answer?.feedback_json ?? {};
+    const status = ["correct", "incorrect", "incomplete", "ungraded"].includes(String(feedback.status))
+      ? feedback.status as QuestionScoreResult["status"]
+      : !hasQuestionAnswer(question.type, submitted) ? "incomplete" : answer?.is_correct === null ? "ungraded" : answer?.is_correct ? "correct" : "incorrect";
+    return { question, answer: submitted, status, autoGraded: typeof feedback.autoGraded === "boolean" ? feedback.autoGraded : answer?.is_correct !== null,
+      isCorrect: answer?.is_correct ?? null, pointsAwarded: answer?.points_awarded ?? null,
+      totalPoints: typeof feedback.totalPoints === "number" ? feedback.totalPoints : 1,
+      feedback: { message: typeof feedback.message === "string" ? feedback.message : "Review your saved answer below.", expected: feedback.expected } };
+  });
   return (
-    <main className="app-page">
-      <EmptyState
-        action={
-          <Button asChild>
-            <Link to={`/math/quizzes/${quiz.id}/attempt`}>Start another attempt</Link>
-          </Button>
-        }
-        description="Open the attempt page to see a fresh scored result summary after submitting answers."
-        title={`${quiz.title} results`}
-      />
+    <main className="app-page max-w-[1120px]">
+      <Breadcrumbs items={[{ label: "Math", to: "/math" }, { label: quiz.title, to: `/math/quizzes/${quiz.id}` }, { label: "Results" }]} />
+      <section className="page-shell p-6"><Badge variant="outline">{saved.attempt.completed_at ? "Attempt completed" : "Attempt incomplete"}</Badge><h1 className="mt-3 text-3xl font-semibold">{quiz.title}</h1><p className="mt-2 text-sm text-muted-foreground">Saved results · Return to this link to review this attempt.</p></section>
+      <QuizResultSummary results={results} />
+      <Button asChild className="justify-self-start"><Link to={`/math/quizzes/${quiz.id}/attempt`}>Retry quiz</Link></Button>
     </main>
   );
 }
@@ -1300,6 +1289,7 @@ function QuestionRenderer({
         {question.prompt_latex ? <LatexBlock latex={question.prompt_latex} /> : null}
       </CardHeader>
       <CardContent>
+        {requiresSelfReview(question) ? <p className="mb-3 text-sm text-muted-foreground">Explain in your own words. This answer is saved for self-review, not automatically marked correct or incorrect.</p> : question.type === "short_answer" || question.type === "fill_blank" ? <p className="mb-3 text-sm text-muted-foreground">Enter a short exact answer. Automatic checking compares your answer with the accepted forms.</p> : null}
         <QuestionInput question={question} value={value} onAnswerChange={onAnswerChange} />
       </CardContent>
     </Card>
@@ -1385,6 +1375,8 @@ function QuestionInput({
     return (
       <Input
         onChange={(event) => onAnswerChange({ ...value, numeric: event.target.value })}
+        aria-label={`Answer: ${question.title ?? question.prompt_markdown}`}
+        inputMode="decimal"
         placeholder="Enter a number"
         value={String(value.numeric ?? "")}
       />
@@ -1415,6 +1407,7 @@ function QuestionInput({
             : { ...value, text: event.target.value },
         )
       }
+      aria-label={`Answer: ${question.title ?? question.prompt_markdown}`}
       placeholder="Write your answer"
       value={value.freeResponse ?? value.text ?? ""}
     />
@@ -1557,40 +1550,45 @@ function AnswerEditor({
   );
 }
 
-function QuizResultSummary({
-  results,
-}: {
-  results: Array<{ question: QuestionBankItem; isCorrect: boolean | null; points: number | null; total: number }>;
-}) {
-  const score = results.reduce((sum, result) => sum + (result.points ?? 0), 0);
-  const total = results.reduce((sum, result) => sum + result.total, 0);
+type QuizResult = QuestionScoreResult & { question: QuestionBankItem; answer: SubmittedQuestionAnswer };
 
+function QuizResultSummary({ results }: { results: QuizResult[] }) {
+  const graded = results.filter((result) => result.autoGraded);
+  const score = graded.reduce((sum, result) => sum + (result.pointsAwarded ?? 0), 0);
+  const total = graded.reduce((sum, result) => sum + result.totalPoints, 0);
+  const labels = { correct: "Correct", incorrect: "Incorrect", incomplete: "Incomplete", ungraded: "Ungraded · Self-review" };
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Score: {score} / {total}</CardTitle>
-        <CardDescription>Review explanations and retry anything that felt shaky.</CardDescription>
+        <CardTitle>{total ? `Automatic score: ${score} / ${total}` : "Saved for self-review"}</CardTitle>
+        <CardDescription>Explanations are excluded from the automatic score. Compare your answer with the rubric, then retry the quiz to practice again.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         {results.map((result) => (
           <div className="rounded-lg border border-border/70 bg-background/75 p-4" key={result.question.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={result.isCorrect ? "secondary" : "outline"}>
-                {result.isCorrect === null ? "Saved" : result.isCorrect ? "Correct" : "Review"}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {result.points ?? 0} / {result.total}
-              </span>
-            </div>
+            <Badge variant={result.status === "correct" ? "secondary" : "outline"}>{labels[result.status]}</Badge>
             <p className="mt-2 font-medium">{result.question.title ?? result.question.prompt_markdown}</p>
-            {result.question.explanation_markdown ? (
-              <MarkdownLite className="mt-2 text-sm text-muted-foreground" text={result.question.explanation_markdown} />
-            ) : null}
+            <p className="mt-2 text-sm"><strong>Your answer: </strong>{formatSavedAnswer(result.question, result.answer)}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{result.feedback.message}</p>
+            {result.feedback.expected !== undefined ? <p className="mt-2 text-sm"><strong>{result.autoGraded ? "Expected answer: " : "Review rubric: "}</strong>{formatExpectedAnswer(result.question, result.feedback.expected)}</p> : null}
+            {result.question.explanation_markdown ? <MarkdownLite className="mt-2 text-sm text-muted-foreground" text={result.question.explanation_markdown} /> : null}
           </div>
         ))}
       </CardContent>
     </Card>
   );
+}
+
+function formatExpectedAnswer(question: QuestionBankItem, value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => formatExpectedAnswer(question, item)).join("; ");
+  if (typeof value === "string") return question.choices?.find((choice) => choice.id === value)?.choice_text ?? value;
+  if (typeof value === "boolean") return value ? "True" : "False";
+  return value === undefined || value === null ? "Not supplied" : String(value);
+}
+
+function formatSavedAnswer(question: QuestionBankItem, answer: SubmittedQuestionAnswer) {
+  if (!hasQuestionAnswer(question.type, answer)) return "No answer submitted";
+  return formatExpectedAnswer(question, answer.selectedChoiceId ?? answer.selectedChoiceIds ?? answer.booleanAnswer ?? answer.numeric ?? answer.orderedStepIds ?? answer.freeResponse ?? answer.text);
 }
 
 function MarkdownLite({ className, text }: { className?: string; text: string }) {

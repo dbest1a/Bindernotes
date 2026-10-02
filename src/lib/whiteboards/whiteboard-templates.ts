@@ -2,7 +2,7 @@ import type { WhiteboardTemplate } from "@/lib/whiteboards/whiteboard-types";
 import type { ExcalidrawElement, ExcalidrawLinearElement, ExcalidrawRectangleElement, ExcalidrawTextElement } from "@excalidraw/excalidraw/element/types";
 
 // Native editable shapes keep the heavy Excalidraw runtime lazy-loaded.
-function createStarterElements(templateId: string, title: string, areas: Array<[string, string]>, diagram?: "graph" | "triangle" | "circle"): ExcalidrawElement[] {
+export function createStarterElements(templateId: string, title: string, areas: Array<[string, string]>, diagram?: "graph" | "triangle" | "circle"): ExcalidrawElement[] {
   let sequence = 0;
   const elements: ExcalidrawElement[] = [];
   function base(x: number, y: number, width: number, height: number): Omit<ExcalidrawRectangleElement, "type"> {

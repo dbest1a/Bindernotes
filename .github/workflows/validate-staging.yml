@@ -1,0 +1,31 @@
+name: Verify disposable staging notes
+on:
+  workflow_dispatch:
+    inputs:
+      staging_url:
+        description: Staging deployment URL (production is refused)
+        required: true
+      test_note_path:
+        description: Route to a disposable note titled TEST ...
+        required: true
+permissions:
+  contents: read
+jobs:
+  staging:
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:staging
+        env:
+          E2E_STAGING_URL: ${{ inputs.staging_url }}
+          E2E_NOTE_PATH: ${{ inputs.test_note_path }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}

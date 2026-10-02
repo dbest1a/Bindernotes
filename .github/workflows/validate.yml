@@ -1,0 +1,39 @@
+name: Validate application
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://ci-fixture.invalid
+      VITE_SUPABASE_ANON_KEY: ci-synthetic-public-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --maxWorkers=4
+      - run: npm run build
+      - run: npm run scan:build
+      - run: npm run verify:client-env
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            dist/build-info.json
+          retention-days: 14

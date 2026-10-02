@@ -3,7 +3,7 @@ import { sanitizeWhiteboardForStorage } from "@/lib/whiteboards/whiteboard-seria
 import type { WhiteboardFrame, WhiteboardViewportTransform } from "@/lib/whiteboards/whiteboard-coordinate-utils";
 import type { BinderWhiteboard } from "@/lib/whiteboards/whiteboard-types";
 
-export const WHITEBOARD_EXPORT_SCOPE = "SVG includes drawings and static study-card text. Live graphs and calculators are reference cards. JSON preserves board data and source links; linked lesson and graph content stays in its source.";
+export const WHITEBOARD_EXPORT_SCOPE = "SVG includes drawings and static study-card text. Live graphs and calculators are reference cards. JSON preserves board data, live graph state available on this device, and source links; linked lessons stay in their source.";
 
 export function getWhiteboardCanvasBackground(appState: Record<string, unknown> = {}) {
   // Excalidraw dark mode inverts logical colors; the old dark default produced a pale canvas.
@@ -53,7 +53,16 @@ export function composeWhiteboardSvg(board: BinderWhiteboard, viewport: Whiteboa
 }
 
 export function serializeWhiteboardBackup(board: BinderWhiteboard) {
-  const { ownerId: _ownerId, ...portable } = sanitizeWhiteboardForStorage(board);
+  const modules = board.modules.map((module) => {
+    if (module.moduleId !== "desmos-graph" || typeof window === "undefined") return module;
+    try {
+      const instanceId = module.graphInstanceId?.trim() || `whiteboard-desmos-${module.id}`;
+      const raw = localStorage.getItem(`binder-notes:math-lab:v3:${board.ownerId}:${instanceId}`);
+      const graphWorkspace = raw ? JSON.parse(raw) : module.graphWorkspace;
+      return graphWorkspace ? { ...module, graphWorkspace } : module;
+    } catch { return module; }
+  });
+  const { ownerId: _ownerId, ...portable } = sanitizeWhiteboardForStorage({ ...board, modules });
   return JSON.stringify({ format: "bindernotes-whiteboard", version: 1, exportedAt: new Date().toISOString(), scope: WHITEBOARD_EXPORT_SCOPE, board: portable }, null, 2);
 }
 

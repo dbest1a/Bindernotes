@@ -80,7 +80,7 @@ function createDefaultState(): MathWorkspaceState {
   };
 }
 
-function loadState(userId?: string, scopeId = "math-lab") {
+function loadState(userId?: string, scopeId = "math-lab", initialState?: MathWorkspaceState) {
   if (typeof window === "undefined") {
     return createDefaultState();
   }
@@ -88,7 +88,7 @@ function loadState(userId?: string, scopeId = "math-lab") {
   try {
     const raw = window.localStorage.getItem(storageKey(userId, scopeId));
     if (!raw) {
-      return createDefaultState();
+      return initialState ?? createDefaultState();
     }
 
     const parsed = JSON.parse(raw) as Partial<MathWorkspaceState>;
@@ -118,11 +118,11 @@ function mathWorkspaceStatesEqual(left: MathWorkspaceState, right: MathWorkspace
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function useMathWorkspace(userId?: string, scopeId = "math-lab") {
-  const [state, setState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId));
+export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialState?: MathWorkspaceState) {
+  const [state, setState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId, initialState));
 
   useEffect(() => {
-    const nextState = loadState(userId, scopeId);
+    const nextState = loadState(userId, scopeId, initialState);
     setState((current) => (mathWorkspaceStatesEqual(current, nextState) ? current : nextState));
   }, [scopeId, userId]);
 

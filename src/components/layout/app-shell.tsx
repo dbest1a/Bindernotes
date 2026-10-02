@@ -36,6 +36,7 @@ import { betaFeatureFlagDefinitions, betaFeatureGroups } from "@/lib/beta-featur
 import { revampBetaQaIssueMap, roleVerificationQaIssues } from "@/lib/revamp-beta-qa-map";
 import { dashboardViewModeOptions } from "@/lib/admin-dashboard-preferences";
 import { cn, initials } from "@/lib/utils";
+import { buildInfo, buildLabel } from "@/lib/build-info";
 import { workspaceThemes } from "@/lib/workspace-preferences";
 import { LogoMark } from "@/components/ui/logo-mark";
 import type { PersonalNotesPreferences } from "@/types";
@@ -665,6 +666,9 @@ export function AppShell() {
                       <LogOut data-icon="inline-start" />
                       Log out
                     </Button>
+                    <p className="text-xs text-muted-foreground" title={buildInfo.commit}>
+                      Build <code>{buildLabel}</code>
+                    </p>
                   </SettingsPanel>
                 ) : null}
 

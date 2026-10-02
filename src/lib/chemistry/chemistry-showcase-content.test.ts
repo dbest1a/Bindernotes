@@ -9,6 +9,7 @@ import {
   chemistryShowcaseLessonMetadata,
   chemistryShowcaseLessons,
   getChemistryShowcasePresetForLesson,
+  projectChemistryVocabularyForDisplay,
 } from "@/lib/chemistry/chemistry-showcase-content";
 import type { JSONContent } from "@tiptap/react";
 
@@ -39,6 +40,39 @@ const requiredUnitTitles = [
 ];
 
 describe("chemistry showcase content", () => {
+  it("contains real introductory definitions and no generated vocabulary filler", () => {
+    const text = chemistryShowcaseLessons.map((lesson) => extractText(lesson.content)).join(" ");
+    expect(text).not.toContain("a lesson-specific term used to reason about");
+    expect(text).not.toContain("using it as a vague label without evidence");
+    const first = extractText(chemistryShowcaseLessons[0].content);
+    expect(first).toContain("chemistry - the science of what substances are made of");
+    expect(first).toContain("matter - anything with mass that occupies space");
+  });
+
+  it("projects only exact legacy system vocabulary while preserving stored and authored content", () => {
+    const original = chemistryShowcaseLessons[0];
+    const legacy = (term: string) => `${term} - a lesson-specific term used to reason about ${original.title.toLowerCase()}. Precision note: Use it only when the evidence or particle model supports the claim. Example/non-example: Example: use ${term} when explaining Chemistry Toolkit / Foundations; non-example: using it as a vague label without evidence.`;
+    // Deliberately reorder keys as jsonb storage may do.
+    const item = (text: string): JSONContent => ({ content: [{ content: [{ text, type: "text" }], type: "paragraph" }], type: "listItem" });
+    const custom = item(`${legacy("chemistry")} Added by the instructor.`);
+    const lesson = { ...original, content: { type: "doc", content: [
+      { type: "paragraph", content: [{ type: "text", text: legacy("chemistry") }] },
+      { content: [{ text: "Vocab Sheet", type: "text" }], attrs: { level: 2 }, type: "heading" },
+      { type: "bulletList", content: [item(legacy("chemistry")), item(legacy("studies")), custom] },
+    ] } };
+    const before = JSON.stringify(lesson);
+    const projected = projectChemistryVocabularyForDisplay(lesson);
+    expect(projected.content.content?.[0]).toBe(lesson.content.content[0]);
+    expect(projected.content.content?.[2].content).toHaveLength(2);
+    expect(extractText(projected.content.content?.[2].content?.[0])).toContain("chemistry - the science");
+    expect(projected.content.content?.[2].content?.[1]).toBe(custom);
+    expect(JSON.stringify(lesson)).toBe(before);
+    const personal = { ...lesson, binder_id: "my-private-binder" };
+    expect(projectChemistryVocabularyForDisplay(personal)).toBe(personal);
+    const renamed = { ...lesson, title: "My edited source" };
+    expect(projectChemistryVocabularyForDisplay(renamed)).toBe(renamed);
+  });
+
   it("defines the stable Chemistry folder and full Chemistry 101 + AP Chemistry binder without touching user notes", () => {
     expect(chemistryShowcaseFolder.id).toBe(CHEMISTRY_SHOWCASE_FOLDER_ID);
     expect(chemistryShowcaseFolder.name).toBe("Chemistry");

@@ -128,4 +128,23 @@ describe("RichTextEditor", () => {
       sourceUrl: "/binders/binder-1/documents/lesson-a#section-2",
     });
   });
+
+  it.each([
+    ["commentAnnotation", { id: "comment", body: "Retain this comment" }],
+    ["selectionTagAnnotation", { id: "tag", tag: "definition" }],
+    ["link", { href: "https://example.com/source" }],
+  ])("propagates an unfocused %s command to the parent and does not echo hydration", async (mark, attrs) => {
+    let editor: Editor | null = null;
+    const onChange = vi.fn();
+    const { rerender } = render(<RichTextEditor onChange={onChange} onEditorReady={(value) => { editor = value; }} value={value} />);
+    await waitFor(() => expect(editor).not.toBeNull());
+    act(() => { editor!.chain().setTextSelection({ from: 1, to: 8 }).setMark(mark as string, attrs as Record<string, unknown>).run(); });
+    expect(editor!.isFocused).toBe(false);
+    expect(onChange).toHaveBeenLastCalledWith(editor!.getJSON());
+    const saved = onChange.mock.calls.at(-1)![0];
+    expect(saved.content[0].content[0].marks).toEqual(expect.arrayContaining([expect.objectContaining({ type: mark })]));
+    onChange.mockClear();
+    rerender(<RichTextEditor onChange={onChange} value={{ type: "doc", content: [{ type: "paragraph" }] }} />);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

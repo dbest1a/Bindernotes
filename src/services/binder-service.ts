@@ -60,6 +60,7 @@ import {
   chemistryShowcaseFolder,
   chemistryShowcaseFolderLink,
   chemistryShowcaseLessons,
+  projectChemistryVocabularyForDisplay,
 } from "@/lib/chemistry/chemistry-showcase-content";
 import type {
   Binder,
@@ -1155,6 +1156,7 @@ function mergeDemoLessons(remoteLessons: BinderLesson[], binderId?: string) {
 
   return [...lessonById.values()]
     .filter((lesson) => (binderId ? lesson.binder_id === binderId : true))
+    .map(projectChemistryVocabularyForDisplay)
     .sort((left, right) => {
       if (left.binder_id !== right.binder_id) {
         return left.binder_id.localeCompare(right.binder_id);
@@ -1898,6 +1900,7 @@ export async function getBinderOverview(
 
 export async function upsertLearnerNote(input: {
   id?: string;
+  expectedUpdatedAt?: string | null;
   ownerId: string;
   binderId: string;
   lessonId: string;
@@ -1910,11 +1913,11 @@ export async function upsertLearnerNote(input: {
   const client = getAccountDataSupabaseClient();
   await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
 
-  const persistWithFolderId = (folderId: string | null) =>
-    client
-      .from("learner_notes")
-      .upsert(
-        {
+  if (input.id && !input.expectedUpdatedAt) {
+    throw new Error("This note needs its saved revision before updating. Refresh to reload it; keep a copy of your draft.");
+  }
+  const persistWithFolderId = (folderId: string | null) => {
+    const payload = {
           owner_id: input.ownerId,
           binder_id: input.binderId,
           lesson_id: input.lessonId,
@@ -1922,13 +1925,19 @@ export async function upsertLearnerNote(input: {
           title: normalizedTitle,
           content: input.content,
           math_blocks: input.mathBlocks,
-          pinned: false,
-          updated_at: now(),
-        },
-        { onConflict: "owner_id,lesson_id" },
-      )
-      .select("*")
-      .single();
+          updated_at: input.expectedUpdatedAt
+            ? new Date(Math.max(Date.now(), Date.parse(input.expectedUpdatedAt) + 1)).toISOString()
+            : now(),
+    };
+    if (input.id) {
+      return client.from("learner_notes").update(payload)
+        .eq("id", input.id).eq("owner_id", input.ownerId)
+        .eq("binder_id", input.binderId).eq("lesson_id", input.lessonId)
+        .eq("updated_at", input.expectedUpdatedAt).select("*").maybeSingle();
+    }
+    // Creation must not overwrite a note another tab created for this lesson.
+    return client.from("learner_notes").insert({ ...payload, pinned: false }).select("*").single();
+  };
 
   let { data, error } = await persistWithFolderId(input.folderId ?? null);
 
@@ -1939,9 +1948,12 @@ export async function upsertLearnerNote(input: {
   }
 
   if (error) {
+    if (error.code === "23505") throw new Error("Another tab already created this lesson note. Your draft is preserved; reopen Personal Notes to keep a separate copy.");
     throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Private note");
     throw error;
   }
+
+  if (!data) throw new Error("A newer saved version exists. Your draft is preserved in this tab. Open Personal Notes to keep a separate copy.");
 
   return data as LearnerNote;
 }

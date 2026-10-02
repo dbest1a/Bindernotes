@@ -1,5 +1,5 @@
 import { FormEvent, ReactNode, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { AlertCircle, BookOpenCheck, FunctionSquare, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,75 +10,87 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { LogoMark } from "@/components/ui/logo-mark";
 
-const authSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  fullName: z.string().min(2).optional().or(z.literal("")),
-});
+type AuthMode = "login" | "signup" | "recovery" | "update-password";
 
 export function AuthPage() {
-  const { profile, signIn, signInWithGoogle, signUp, isConfigured } = useAuth();
+  const { profile, session, signIn, signInWithGoogle, signUp, requestPasswordReset, resendConfirmation, updatePassword, isConfigured } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [error, setError] = useState("");
+  const requestedMode = searchParams.get("mode");
+  const [mode, setMode] = useState<AuthMode>(requestedMode === "signup" || requestedMode === "recovery" || requestedMode === "update-password" ? requestedMode : "login");
+  const [error, setError] = useState(() => searchParams.get("error_description") ?? new URLSearchParams(window.location.hash.slice(1)).get("error_description") ?? "");
+  const [notice, setNotice] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const nextPath = getSafeNextPath(searchParams.get("next"));
-  const authDisabled = !isConfigured || isSubmitting;
+  const authDisabled = !isConfigured || isSubmitting || isGoogleSubmitting;
 
-  if (profile) {
-    return <Navigate replace to={nextPath} />;
-  }
+  if (profile && mode !== "update-password") return <Navigate replace to={nextPath} />;
+
+  const changeMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setError("");
+    setNotice("");
+    setConfirmationEmail("");
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (authDisabled) return;
     setError("");
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const values = {
-      email: String(formData.get("email") ?? ""),
-      password: String(formData.get("password") ?? ""),
-      fullName: String(formData.get("fullName") ?? ""),
-    };
-
-    const parsed = authSchema.safeParse(values);
-    if (!parsed.success) {
-      setError("Use a valid email and a password with at least 6 characters.");
-      setIsSubmitting(false);
-      return;
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    const fullName = String(form.get("fullName") ?? "").trim();
+    if (mode !== "update-password" && !z.string().email().safeParse(email).success) {
+      setError("Enter a valid email address."); return;
     }
-
+    if (mode !== "recovery" && password.length < (mode === "login" ? 1 : 6)) {
+      setError(mode === "login" ? "Enter your password." : "Use a password with at least 6 characters."); return;
+    }
+    setIsSubmitting(true);
     try {
-      if (mode === "login") {
-        await signIn(parsed.data.email, parsed.data.password);
+      if (mode === "recovery") {
+        await requestPasswordReset(email);
+        setNotice("If an account uses this email, a password reset link will arrive shortly. Check your inbox and spam folder.");
+        return;
+      }
+      if (mode === "update-password") {
+        if (!session) throw new Error("Open the password reset link from your email before choosing a new password.");
+        await updatePassword(password);
+      } else if (mode === "login") {
+        await signIn(email, password);
       } else {
-        await signUp(
-          parsed.data.email,
-          parsed.data.password,
-          parsed.data.fullName || parsed.data.email.split("@")[0],
-          "learner",
-        );
+        const result = await signUp(email, password, fullName || email.split("@")[0], "learner", nextPath);
+        if (result.confirmationRequired) {
+          setConfirmationEmail(email);
+          setNotice("Check your email to confirm your account. Open the confirmation link, then return to your workspace.");
+          return;
+        }
       }
       navigate(nextPath, { replace: true });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Authentication failed.");
+      setError(caught instanceof Error ? caught.message : "Authentication failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const submitGoogle = async () => {
-    setError("");
-    setIsGoogleSubmitting(true);
-
+  const resend = async () => {
+    setError(""); setIsSubmitting(true);
     try {
-      await signInWithGoogle(nextPath);
-    } catch (caught) {
-      setError(formatGoogleAuthError(caught));
-      setIsGoogleSubmitting(false);
-    }
+      await resendConfirmation(confirmationEmail, nextPath);
+      setNotice("Confirmation email requested. Check your inbox and spam folder before requesting another.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not resend the confirmation email."); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const submitGoogle = async () => {
+    setError(""); setIsGoogleSubmitting(true);
+    try { await signInWithGoogle(nextPath); }
+    catch (caught) { setError(formatGoogleAuthError(caught)); setIsGoogleSubmitting(false); }
   };
 
   return (
@@ -123,12 +135,11 @@ export function AuthPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <Badge className="w-fit" variant="outline">
-              {isConfigured ? "Supabase Auth" : "Account sign-in unavailable"}
+              {isConfigured ? "Your study workspace" : "Account sign-in unavailable"}
             </Badge>
-            <CardTitle className="text-3xl sm:text-4xl">Open Binder Notes</CardTitle>
+            <CardTitle className="text-3xl sm:text-4xl">{mode === "signup" ? "Create your account" : mode === "recovery" ? "Reset your password" : mode === "update-password" ? "Choose a new password" : "Welcome back"}</CardTitle>
             <CardDescription>
-              Sign in with email and password or Google. Your workspace is tied to your Supabase
-              account so notes, highlights, and layouts stay with you.
+              Read a lesson, keep your private notes beside it, and return to your saved work.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -140,16 +151,16 @@ export function AuthPage() {
                 <AlertCircle className="mt-0.5 shrink-0" data-icon="inline-start" />
                 <span>
                   <strong className="block">Account sign-in is not ready</strong>
-                  Required account service settings are missing. Configure client auth before releasing sign-in.
+                  Account access is temporarily unavailable. You can still read the quick start below.
                 </span>
               </p>
             ) : null}
 
-            <TabsList className="mb-5 w-full">
-              <TabsTrigger active={mode === "login"} className="flex-1" onClick={() => setMode("login")}>
+            <TabsList aria-label="Account access" className="mb-5 w-full">
+              <TabsTrigger active={mode === "login"} className="flex-1" disabled={isSubmitting || isGoogleSubmitting} onClick={() => changeMode("login")}>
                 Login
               </TabsTrigger>
-              <TabsTrigger active={mode === "signup"} className="flex-1" onClick={() => setMode("signup")}>
+              <TabsTrigger active={mode === "signup"} className="flex-1" disabled={isSubmitting || isGoogleSubmitting} onClick={() => changeMode("signup")}>
                 Signup
               </TabsTrigger>
             </TabsList>
@@ -160,6 +171,7 @@ export function AuthPage() {
               data-form-type={mode === "login" ? "login" : "register"}
               id="bindernotes-auth-form"
               method="post"
+              onChange={() => setError("")}
               onSubmit={submit}
             >
               {mode === "signup" ? (
@@ -167,19 +179,19 @@ export function AuthPage() {
                   <label htmlFor="auth-full-name">Full name</label>
                   <Input
                     autoComplete="name"
-                    disabled={!isConfigured}
+                    disabled={authDisabled || Boolean(confirmationEmail)}
                     id="auth-full-name"
                     name="fullName"
                     placeholder="Ada Lovelace"
                   />
                 </div>
               ) : null}
-              <div className="flex flex-col gap-2 text-sm font-medium">
+              {mode !== "update-password" ? <div className="flex flex-col gap-2 text-sm font-medium">
                 <label htmlFor="auth-email">Email</label>
                 <Input
                   autoCapitalize="none"
                   autoComplete="username"
-                  disabled={!isConfigured}
+                  disabled={authDisabled || Boolean(confirmationEmail)}
                   id="auth-email"
                   inputMode="email"
                   name="email"
@@ -187,38 +199,38 @@ export function AuthPage() {
                   spellCheck={false}
                   type="email"
                 />
-              </div>
-              <div className="flex flex-col gap-2 text-sm font-medium">
+              </div> : null}
+              {mode !== "recovery" ? <div className="flex flex-col gap-2 text-sm font-medium">
                 <label htmlFor="auth-password">Password</label>
                 <Input
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  disabled={!isConfigured}
+                  disabled={authDisabled || Boolean(confirmationEmail)}
                   id="auth-password"
                   name="password"
-                  placeholder="Enter your password"
+                  aria-describedby={mode !== "login" ? "password-hint" : undefined}
+                  placeholder={mode === "login" ? "Enter your password" : "Create a password"}
                   type="password"
                 />
-              </div>
+              </div> : null}
 
-              {mode === "signup" && isConfigured ? (
-                <p className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
-                  New accounts start as learners. Promote admins from the Supabase SQL editor.
-                </p>
-              ) : null}
+              {mode === "signup" || mode === "update-password" ? <p id="password-hint" className="text-xs text-muted-foreground">Use at least 6 characters. Choose a unique password you do not use elsewhere.</p> : null}
+              {mode === "login" ? <button className="self-start text-sm text-primary underline" type="button" onClick={() => changeMode("recovery")}>Forgot password?</button> : null}
+              {notice ? <p role="status" className="rounded-lg bg-secondary p-3 text-sm">{notice}</p> : null}
+              {confirmationEmail ? <Button disabled={authDisabled} onClick={() => void resend()} type="button" variant="outline">Resend confirmation email</Button> : null}
 
               {error ? (
-                <p className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   <AlertCircle data-icon="inline-start" />
                   {error}
                 </p>
               ) : null}
 
-              <Button disabled={authDisabled} type="submit">
-                {isSubmitting ? "Working..." : mode === "login" ? "Login" : "Create account"}
-              </Button>
+              {confirmationEmail ? <button className="self-start text-sm text-primary underline" type="button" onClick={() => changeMode("signup")}>Use a different email</button> : <Button disabled={authDisabled} type="submit">
+                {isSubmitting ? "Working…" : mode === "login" ? "Login" : mode === "recovery" ? "Send reset link" : mode === "update-password" ? "Save new password" : "Create account"}
+              </Button>}
             </form>
 
-            {isConfigured ? (
+            {isConfigured && (mode === "login" || mode === "signup") ? (
               <>
                 <div className="my-4 flex items-center gap-3">
                   <div className="h-px flex-1 bg-border/70" />
@@ -240,6 +252,7 @@ export function AuthPage() {
               </>
             ) : null}
 
+            <nav aria-label="Account help" className="mt-5 flex flex-wrap gap-4 text-sm text-primary underline"><Link to="/tutorial">Quick start</Link><Link to="/help">Help</Link><Link to="/help#privacy">Privacy & terms</Link><Link to="/pricing">Current offer</Link></nav>
           </CardContent>
         </Card>
       </section>
@@ -248,7 +261,7 @@ export function AuthPage() {
 }
 
 function getSafeNextPath(next: string | null) {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || /[\\\u0000-\u001f]/.test(next)) {
     return "/dashboard";
   }
 
@@ -296,7 +309,7 @@ function formatGoogleAuthError(caught: unknown) {
   const message = caught instanceof Error ? caught.message : fallback;
 
   if (message.toLowerCase().includes("provider is not enabled")) {
-    return "Google sign-in is wired in the app, but the Supabase Google provider still needs its client ID and secret.";
+    return "Google sign-in is currently unavailable. Please use email and password.";
   }
 
   return message;

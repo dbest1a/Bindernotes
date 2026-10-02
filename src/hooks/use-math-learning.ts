@@ -5,6 +5,7 @@ import {
   getMathCourseBundle,
   getMathModuleBundle,
   getQuizSet,
+  getQuizAttempt,
   listMathCourses,
   listMathModules,
   listQuestions,
@@ -61,6 +62,14 @@ export function useQuizSet(quizId?: string) {
     enabled: Boolean(quizId),
     queryKey: queryKeys.math.quiz(quizId),
     queryFn: () => getQuizSet(quizId!),
+  });
+}
+
+export function useQuizAttempt(attemptId?: string, quizId?: string, userId?: string) {
+  return useQuery({
+    enabled: Boolean(attemptId && quizId && userId),
+    queryKey: ["math", "quiz-attempt", userId, quizId, attemptId],
+    queryFn: () => getQuizAttempt(attemptId!, quizId!, userId!),
   });
 }
 
@@ -130,7 +139,7 @@ export function useCompleteQuizAttempt() {
       attemptId: string;
       quizSet: QuizSet;
       userId: string;
-      scores: Array<{ pointsAwarded: number | null; totalPoints: number }>;
+      scores: Array<{ pointsAwarded: number | null; totalPoints: number; autoGraded?: boolean }>;
     }) => completeQuizAttempt(input),
     onSuccess: (_attempt, input) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.math.quiz(input.quizSet.id) });

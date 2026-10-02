@@ -1,137 +1,35 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { chromium } from "@playwright/test";
 
-const forbiddenText = [
-  "Supabase configuration required",
-  "Auth setup required",
-  "Demo mode",
-  "Learner demo",
-  "Admin demo",
-];
-
-const forbiddenMarkers = ['data-auth-config-missing="true"'];
-
-const requiredLiveText = [
-  "Open Binder Notes",
-  "Login",
-  "Signup",
-  "Email",
-  "Password",
-  "Continue with Google",
-];
-
-const args = parseArgs(process.argv.slice(2));
-
-if (!args.url) {
-  args.url = "https://www.bindernotes.com/auth";
-}
-
-await verifyLiveAuthPage(args.url);
-
-function parseArgs(argv) {
-  const parsed = {
-    url: process.env.AUTH_VERIFY_URL || "",
-  };
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === "--url") {
-      parsed.url = argv[index + 1] ?? "";
-      index += 1;
-    }
+const args = process.argv.slice(2);
+const urlIndex = args.indexOf("--url");
+const url = (urlIndex >= 0 ? args[urlIndex + 1] : process.env.AUTH_VERIFY_URL) || "https://www.bindernotes.com/auth";
+const executablePath = process.env.AUTH_VERIFY_BROWSER;
+if (executablePath && !existsSync(executablePath)) throw new Error("AUTH_VERIFY_BROWSER does not exist.");
+const browser = await chromium.launch({
+  headless: true,
+  ...(executablePath ? { executablePath } : process.platform === "win32" ? { channel: "chrome" } : {}),
+});
+try {
+  // An isolated context verifies signed-out rendering without touching account data.
+  const page = await browser.newPage({ viewport: { width: 1180, height: 757 } });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  if (!response?.ok()) throw new Error(`Auth verification failed: HTTP ${response?.status() ?? "unavailable"}`);
+  await page.getByLabel("Email", { exact: true }).waitFor({ state: "visible", timeout: 20_000 });
+  await page.getByLabel("Password", { exact: true }).waitFor({ state: "visible" });
+  const body = await page.locator("body").innerText();
+  for (const text of ["Supabase configuration required", "Auth setup required", "Demo mode", "Learner demo", "Admin demo"]) {
+    if (body.includes(text)) throw new Error(`Auth verification failed: blocked text ${text}`);
   }
-
-  return parsed;
-}
-
-async function verifyLiveAuthPage(url) {
-  const response = await fetch(url, { redirect: "follow" });
-  if (!response.ok) {
-    throw new Error(`Auth verification failed: ${url} returned HTTP ${response.status}`);
+  if (await page.locator('[data-auth-config-missing="true"]').count()) throw new Error("Auth configuration is missing.");
+  for (const text of ["Login", "Signup", "Continue with Google"]) {
+    if (!body.includes(text)) throw new Error(`Auth verification failed: missing ${text}`);
   }
-
-  const browserPath = findBrowser();
-  if (!browserPath) {
-    throw new Error("Auth verification failed: no headless Chrome or Edge browser was found.");
-  }
-
-  const dom = renderDomWithBrowser(browserPath, url);
-  const normalizedDom = dom.replace(/\s+/g, " ");
-  const blocked = [
-    ...forbiddenText.filter((text) => normalizedDom.includes(text)),
-    ...forbiddenMarkers.filter((marker) => normalizedDom.includes(marker)),
-  ];
-  if (blocked.length > 0) {
-    throw new Error(`Auth verification failed: live page contains blocked text: ${blocked.join(", ")}`);
-  }
-
-  const missing = requiredLiveText.filter((text) => !normalizedDom.includes(text));
-  if (missing.length > 0) {
-    throw new Error(`Auth verification failed: live page is missing expected auth text: ${missing.join(", ")}`);
-  }
-
-  console.log(`Auth live verification passed for ${url}.`);
-}
-
-function findBrowser() {
-  const candidates = [
-    process.env.AUTH_VERIFY_BROWSER,
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-    "google-chrome",
-    "chrome",
-    "msedge",
-    "chromium",
-  ].filter(Boolean);
-
-  for (const candidate of candidates) {
-    if (candidate.includes("\\") && !existsSync(candidate)) {
-      continue;
-    }
-
-    const result = spawnSync(candidate, ["--version"], { encoding: "utf8" });
-    if (result.status === 0) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
-function renderDomWithBrowser(browserPath, url) {
-  const userDataDir = mkdtempSync(join(tmpdir(), "bindernotes-auth-verify-"));
-  try {
-    const result = spawnSync(
-      browserPath,
-      [
-        "--headless=new",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-default-browser-check",
-        `--user-data-dir=${userDataDir}`,
-        "--virtual-time-budget=8000",
-        "--dump-dom",
-        url,
-      ],
-      {
-        encoding: "utf8",
-        maxBuffer: 20 * 1024 * 1024,
-      },
-    );
-
-    if (result.status !== 0) {
-      throw new Error(
-        `Headless browser failed with exit ${result.status}: ${(result.stderr || result.stdout).slice(0, 800)}`,
-      );
-    }
-
-    return result.stdout;
-  } finally {
-    rmSync(userDataDir, { recursive: true, force: true });
-  }
+  if (await page.getByLabel("Email", { exact: true }).isDisabled()) throw new Error("Auth controls are disabled.");
+  if (errors.length) throw new Error(`Auth page runtime errors: ${errors.join("; ")}`);
+  console.log(`Signed-out auth rendering verified at ${url}. Authenticated save/load requires the staging suite.`);
+} finally {
+  await browser.close();
 }
