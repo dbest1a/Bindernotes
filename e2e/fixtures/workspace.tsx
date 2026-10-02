@@ -14,6 +14,9 @@ import "@/workspace-fit.css";
 
 const doc = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
 const noop = () => {};
+const renderBoardModule = (id: string, context: any) => id === "private-notes"
+  ? <RichTextEditor value={context.noteContent} onChange={context.onNoteContentChange} />
+  : (workspaceModuleRegistry as any)[id]?.render(context) ?? null;
 const params = new URLSearchParams(location.search);
 const now = new Date(0).toISOString();
 const binder = { id:"browser-binder", title:"Chemistry foundations", subject:"Chemistry", description:"", owner_id:"fixture", status:"published" };
@@ -39,11 +42,11 @@ function WorkspaceFixture() {
   if(params.has("board")) {
     if(params.has("notebook")) {
       const notebookContext={...context,binder:{...binder,id:"canvas-notebook",title:"Personal canvas"},selectedLesson:{...lesson,id:"canvas-page",binder_id:"canvas-notebook"},compactWhiteboardTools:true};
-      return <WhiteboardModule context={notebookContext} initialTemplate={mathWhiteboardTemplates.find(template=>template.id==="equation-solving")} scopeOnly variant="lab" renderModule={(id,c)=>(id==="private-notes"?<RichTextEditor value={c.noteContent} onChange={c.onNoteContentChange}/>:workspaceModuleRegistry.lesson.render(c))} />;
+      return <WhiteboardModule context={notebookContext} initialTemplate={mathWhiteboardTemplates.find(template=>template.id==="equation-solving")} scopeOnly variant="lab" renderModule={renderBoardModule} />;
     }
     const key="bindernotes:whiteboards:fixture:browser-binder:browser-lesson";
     if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify([{id:"fixture-board",ownerId:"fixture",binderId:binder.id,lessonId:lesson.id,title:"Browser board",subject:"Math",moduleContext:"lesson",scene:{elements:[],appState:{viewBackgroundColor:"#ffffff"},files:{}},modules:[],objectCount:0,sceneSizeBytes:0,assetSizeBytes:0,storageMode:"local-draft",createdAt:now,updatedAt:now,archivedAt:null}]));
-    return <WhiteboardModule context={context} variant="lab" renderModule={(id,c)=>(id==="private-notes"?<RichTextEditor value={c.noteContent} onChange={c.onNoteContentChange}/>:workspaceModuleRegistry.lesson.render(c))} />;
+    return <WhiteboardModule context={context} variant="lab" renderModule={renderBoardModule} />;
   }
   return <><header style={{height:64,padding:16}}>BinderNotes · isolated component check</header><div className="app-route-transition-shell"><main className="workspace-page" data-workspace-presentation="facelift" data-facelift-surface="simple"><div className="workspace-sticky-layer"><section className="facelift-presentation-stage"><FaceliftSimpleShell context={context} preferences={preferences} onChange={setPreferences} onOpenSettings={noop} isCompact={innerWidth<=820} /></section></div></main></div></>;
 }

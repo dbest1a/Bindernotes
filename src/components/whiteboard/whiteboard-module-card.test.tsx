@@ -44,6 +44,60 @@ beforeAll(() => {
 describe("WhiteboardModuleCard", () => {
   afterEach(() => cleanup());
 
+  it.each(["board-fixed-size", "viewport"] as const)("moves a %s Desmos card without changing layout offsets or scaling the graph", (anchorMode) => {
+    vi.useFakeTimers();
+    try {
+      const onChange = vi.fn();
+      const module = moduleElement({ moduleId: "desmos-graph", anchorMode, width: 720, height: 560 });
+      const props = { live: true, moduleElement: module, onBringToFront: vi.fn(), onChange, onRemove: vi.fn(), viewportTransform };
+      const { rerender } = render(<WhiteboardModuleCard {...props}>Live graph</WhiteboardModuleCard>);
+      const card = screen.getByTestId("whiteboard-module-card-module-1");
+      const x = anchorMode === "viewport" ? 100 : 200;
+      const y = anchorMode === "viewport" ? 120 : 240;
+      expect(card.style.left).toBe("0px");
+      expect(card.style.top).toBe("0px");
+      expect(card.style.transform).toBe(`translate3d(${x}px, ${y}px, 0)`);
+
+      fireEvent.pointerDown(card.firstElementChild!, { pointerId: 7, clientX: x + 20, clientY: y + 20, button: 0 });
+      fireEvent.pointerMove(window, { pointerId: 7, clientX: x + 80, clientY: y + 60 });
+      act(() => vi.advanceTimersByTime(20));
+      rerender(<WhiteboardModuleCard {...props}>Live graph after toolbar update</WhiteboardModuleCard>);
+      expect(card.style.transform).toBe(`translate3d(${x + 60}px, ${y + 40}px, 0)`);
+      expect(card.style.left).toBe("0px");
+      expect(card.style.top).toBe("0px");
+      expect(card.style.width).toBe("720px");
+      expect(card.style.height).toBe("560px");
+
+      fireEvent.pointerUp(window, { pointerId: 7, clientX: x + 80, clientY: y + 60 });
+      expect(card.style.transform).toBe(`translate3d(${x + 60}px, ${y + 40}px, 0)`);
+      expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
+        anchorMode, width: 720, height: 560,
+        x: anchorMode === "viewport" ? 160 : 130,
+        y: anchorMode === "viewport" ? 160 : 140,
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a fixed-size Desmos graph translated through camera sync and a React camera update", () => {
+    const module = moduleElement({ moduleId: "desmos-graph", anchorMode: "board-fixed-size", width: 720, height: 560 });
+    const props = { live: true, moduleElement: module, onBringToFront: vi.fn(), onChange: vi.fn(), onRemove: vi.fn() };
+    const tree = (camera: WhiteboardViewportTransform) => <div data-testid="camera-layer"><WhiteboardModuleCard {...props} viewportTransform={camera}>Live graph</WhiteboardModuleCard></div>;
+    const { rerender } = render(tree(viewportTransform));
+    const camera = { ...viewportTransform, scrollX: 50, scrollY: -10, zoom: 0.5 };
+    const card = screen.getByTestId("whiteboard-module-card-module-1");
+    syncWhiteboardPinnedModuleLayerToViewport(screen.getByTestId("camera-layer"), camera);
+    expect(card.style.transform).toBe("translate3d(75px, 55px, 0)");
+    rerender(tree(camera));
+    expect(card.style.transform).toBe("translate3d(75px, 55px, 0)");
+    expect(card.style.left).toBe("0px");
+    expect(card.style.top).toBe("0px");
+    expect(card.style.width).toBe("720px");
+    expect(card.dataset.cardSceneX).toBe("100");
+    expect(card.dataset.cardSceneY).toBe("120");
+  });
+
   it("keeps the last pointer frame through an unrelated camera render and cancellation", () => {
     vi.useFakeTimers();
     const onChange = vi.fn();
@@ -446,8 +500,9 @@ describe("WhiteboardModuleCard", () => {
     fireEvent.pointerMove(header, { clientX: 260, clientY: 280, pointerId: 1 });
     fireEvent.pointerUp(header, { clientX: 260, clientY: 280, pointerId: 1 });
 
-    expect(card.getAttribute("style")).toContain("left: 260px");
-    expect(card.getAttribute("style")).toContain("top: 280px");
+    expect(card.style.left).toBe("0px");
+    expect(card.style.top).toBe("0px");
+    expect(card.style.transform).toBe("translate3d(260px, 280px, 0)");
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         anchorMode: "board-fixed-size",

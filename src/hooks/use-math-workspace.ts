@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import {
   evaluateScientificExpression,
   parseFunctionDefinition,
@@ -119,20 +119,33 @@ function mathWorkspaceStatesEqual(left: MathWorkspaceState, right: MathWorkspace
 }
 
 export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialState?: MathWorkspaceState) {
-  const [state, setState] = useState<MathWorkspaceState>(() => loadState(userId, scopeId, initialState));
+  // Keep the latest workspace available synchronously when a graph unmounts.
+  // A scope gets its own snapshot so an outgoing graph cannot write to the next account or board.
+  const scopeSnapshot = useMemo(() => ({ state: loadState(userId, scopeId, initialState) }), [scopeId, userId]);
+  const activeSnapshotRef = useRef(scopeSnapshot);
+  activeSnapshotRef.current = scopeSnapshot;
+  const [state, setRenderedState] = useState<MathWorkspaceState>(() => scopeSnapshot.state);
+  const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
+    const snapshot = activeSnapshotRef.current;
+    const nextState = typeof update === "function" ? update(snapshot.state) : update;
+    snapshot.state = nextState;
+    setRenderedState(nextState);
+  }, []);
 
   useEffect(() => {
-    const nextState = loadState(userId, scopeId, initialState);
-    setState((current) => (mathWorkspaceStatesEqual(current, nextState) ? current : nextState));
-  }, [scopeId, userId]);
+    // A sibling's outgoing calculator flushes during unmount, after our render.
+    // Read again when this scope mounts so a pin-layer move sees that final state.
+    scopeSnapshot.state = loadState(userId, scopeId, initialState);
+    setRenderedState((current) => (mathWorkspaceStatesEqual(current, scopeSnapshot.state) ? current : scopeSnapshot.state));
+  }, [scopeSnapshot]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.localStorage.setItem(storageKey(userId, scopeId), JSON.stringify(state));
-  }, [scopeId, state, userId]);
+    window.localStorage.setItem(storageKey(userId, scopeId), JSON.stringify(scopeSnapshot.state));
+  }, [scopeId, scopeSnapshot, state, userId]);
 
   const lastAnswer = useMemo(
     () => state.history.find((item) => Number.isFinite(item.numericResult))?.numericResult,
@@ -302,16 +315,23 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
     });
   }, []);
 
-  const setCurrentGraphState = useCallback((graphState: DesmosState | null) => {
-    setState((current) => ({
+  const setCurrentGraphState = useCallback((graphState: DesmosState | null, sourceMode?: GraphMode) => {
+    const current = scopeSnapshot.state;
+    const graphMode = sourceMode ?? current.graphMode;
+    const nextState = {
       ...current,
-      currentGraphState: graphState,
+      currentGraphState: graphMode === current.graphMode ? graphState : current.currentGraphState,
       graphStatesByMode: {
         ...current.graphStatesByMode,
-        [current.graphMode]: graphState,
+        [graphMode]: graphState,
       },
-    }));
-  }, []);
+    };
+    scopeSnapshot.state = nextState;
+    // React effects do not run for an unmounted scope. Persist the final graph
+    // before acknowledging its change, including collapse and pin-layer moves.
+    try { window.localStorage.setItem(storageKey(userId, scopeId), JSON.stringify(nextState)); } catch { /* Keep the current graph editable if browser storage is unavailable. */ }
+    if (activeSnapshotRef.current === scopeSnapshot) setRenderedState(nextState);
+  }, [scopeId, scopeSnapshot, userId]);
 
   const saveGraphSnapshot = useCallback((name: string) => {
     if (!state.currentGraphState) {

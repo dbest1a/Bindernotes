@@ -56,4 +56,34 @@ describe("useMathWorkspace graph modes", () => {
     expect(result.current.state.graphMode).toBe("3d");
     expect(result.current.state.currentGraphState).toBe(state3d);
   });
+
+  it("persists an outgoing graph synchronously without replacing another mode", () => {
+    const { result } = renderHook(() => useMathWorkspace("user-1", "mode-flush"));
+    const final2d = { graph: { viewport: { xmin: 8, xmax: 28 } } };
+    const state3d = { expressions: { list: [{ latex: "z=x+y" }] } };
+    act(() => {
+      result.current.setGraphMode("3d");
+      result.current.setCurrentGraphState(state3d, "3d");
+      result.current.setCurrentGraphState(final2d, "2d");
+      const saved = JSON.parse(localStorage.getItem("binder-notes:math-lab:v3:user-1:mode-flush")!);
+      expect(saved.currentGraphState).toEqual(state3d);
+      expect(saved.graphStatesByMode["2d"]).toEqual(final2d);
+    });
+    expect(result.current.state.currentGraphState).toEqual(state3d);
+  });
+
+  it("keeps delayed outgoing graph saves scoped to their original account and card", () => {
+    const { result, rerender } = renderHook(({ owner, scope }) => useMathWorkspace(owner, scope), { initialProps: { owner: "owner-a", scope: "card-a" } });
+    const saveOutgoingGraph = result.current.setCurrentGraphState;
+    rerender({ owner: "owner-b", scope: "card-b" });
+    const currentGraph = { expressions: { list: [{ latex: "y=3x" }] } };
+    const outgoingGraph = { expressions: { list: [{ latex: "y=x^2" }] } };
+    act(() => {
+      result.current.setCurrentGraphState(currentGraph);
+      saveOutgoingGraph(outgoingGraph, "2d");
+    });
+    expect(result.current.state.currentGraphState).toEqual(currentGraph);
+    expect(JSON.parse(localStorage.getItem("binder-notes:math-lab:v3:owner-a:card-a")!).currentGraphState).toEqual(outgoingGraph);
+    expect(JSON.parse(localStorage.getItem("binder-notes:math-lab:v3:owner-b:card-b")!).currentGraphState).toEqual(currentGraph);
+  });
 });

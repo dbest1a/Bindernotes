@@ -24,6 +24,24 @@
   scrollbar-gutter: stable;
 }
 
+/* Live graphs already own their scrolling and render a large canvas. Avoid an
+   extra scroll surface and decorative filters around every graph gesture. */
+.whiteboard-module-card[data-whiteboard-module="desmos-graph"] {
+  animation: none;
+  filter: none;
+}
+
+.whiteboard-module-card[data-whiteboard-module="desmos-graph"]::before,
+.whiteboard-module-card[data-whiteboard-module="desmos-graph"]::after {
+  animation: none;
+  display: none;
+}
+
+.whiteboard-module-card[data-whiteboard-module="desmos-graph"] > .whiteboard-module-card__content {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
 .whiteboard-module-card__content:has(> .whiteboard-source-summary) {
   display: flex;
   flex-direction: column;

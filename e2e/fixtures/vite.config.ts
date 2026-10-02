@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: { entries: ["e2e/fixtures/index.html"] },
   resolve: { alias: [
+    { find: "@/lib/desmos-loader", replacement: path.resolve("e2e/fixtures/desmos-loader.ts") },
     { find: "@/lib/supabase", replacement: path.resolve("e2e/fixtures/supabase.ts") },
     { find: "@/components/workspace/workspace-modules", replacement: path.resolve("e2e/fixtures/modules.tsx") },
     { find: "@", replacement: path.resolve("src") },

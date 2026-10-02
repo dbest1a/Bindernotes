@@ -33,7 +33,7 @@ export const DesmosGraph = memo(function DesmosGraph({
   loadRequest?: GraphLoadRequest | null;
   onLoadApplied?: (id: string) => void;
   onExpressionApplied?: (id: string) => void;
-  onStateChange?: (state: DesmosState) => void;
+  onStateChange?: (state: DesmosState, sourceMode?: "2d" | "3d") => void;
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state: DesmosState | null;
@@ -70,7 +70,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
   loadRequest?: GraphLoadRequest | null;
   onLoadApplied?: (id: string) => void;
   onExpressionApplied?: (id: string) => void;
-  onStateChange?: (state: DesmosState) => void;
+  onStateChange?: (state: DesmosState, sourceMode?: "2d" | "3d") => void;
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state: DesmosState | null;

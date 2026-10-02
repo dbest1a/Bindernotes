@@ -808,8 +808,9 @@ describe("MathWhiteboardLabPage", () => {
       const card = container.querySelector('[data-whiteboard-module="desmos-graph"]');
       expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
       expect(card?.getAttribute("data-card-render-layer")).toBe("board");
-      expect(card?.getAttribute("style")).toContain("left: 150px");
-      expect(card?.getAttribute("style")).toContain("top: 50px");
+      expect(card?.getAttribute("style")).toContain("left: 0px");
+      expect(card?.getAttribute("style")).toContain("top: 0px");
+      expect(card?.getAttribute("style")).toContain("transform: translate3d(150px, 50px, 0)");
       expect(card?.getAttribute("style")).toContain("width: 720px");
       expect(card?.getAttribute("style")).toContain("height: 560px");
       expect(card?.getAttribute("style")).not.toContain("scale(");

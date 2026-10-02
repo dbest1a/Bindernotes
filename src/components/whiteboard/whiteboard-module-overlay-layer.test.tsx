@@ -299,8 +299,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const card = screen.getByTestId("whiteboard-module-card-module-1");
     expect(boardOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeNull();
     expect(viewportOverlay.querySelector('[data-whiteboard-module="desmos-graph"]')).toBeTruthy();
-    expect(card.getAttribute("style")).toContain("left: 120px");
-    expect(card.getAttribute("style")).toContain("top: 140px");
+    expect(card.style.left).toBe("0px");
+    expect(card.style.top).toBe("0px");
+    expect(card.style.transform).toBe("translate3d(120px, 140px, 0)");
     expect(card.getAttribute("style")).toContain("width: 720px");
     expect(card.getAttribute("style")).toContain("height: 560px");
     expect(card.getAttribute("data-card-render-layer")).toBe("viewport");
@@ -700,8 +701,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
 
     const lowZoomCard = screen.getByTestId("whiteboard-module-card-module-1");
     expect(lowZoomCard.getAttribute("data-card-anchor")).toBe("board-fixed-size");
-    expect(lowZoomCard.getAttribute("style")).toContain("left: 200px");
-    expect(lowZoomCard.getAttribute("style")).toContain("top: 120px");
+    expect(lowZoomCard.style.left).toBe("0px");
+    expect(lowZoomCard.style.top).toBe("0px");
+    expect(lowZoomCard.style.transform).toBe("translate3d(200px, 120px, 0)");
     expect(lowZoomCard.getAttribute("style")).toContain("width: 420px");
     expect(lowZoomCard.getAttribute("style")).toContain("height: 320px");
     expect(lowZoomCard.getAttribute("style")).not.toContain("scale(");
@@ -756,8 +758,9 @@ describe("WhiteboardModuleOverlayLayer", () => {
     expect(card.getAttribute("data-card-anchor")).toBe("viewport");
     expect(card.getAttribute("data-card-render-layer")).toBe("viewport");
     expect(card.getAttribute("data-whiteboard-floating-tool")).toBe("desmos-graph");
-    expect(card.getAttribute("style")).toContain("left: 8px");
-    expect(card.getAttribute("style")).toContain("top: 104px");
+    expect(card.style.left).toBe("0px");
+    expect(card.style.top).toBe("0px");
+    expect(card.style.transform).toBe("translate3d(8px, 104px, 0)");
     expect(card.getAttribute("style")).toContain("width: 720px");
     expect(card.getAttribute("style")).toContain("height: 560px");
     expect(card.getAttribute("style")).not.toContain("scale(");

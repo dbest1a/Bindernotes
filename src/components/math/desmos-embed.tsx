@@ -10,6 +10,7 @@ import {
 import {
   isWorkspaceMovementActive,
   recordWhiteboardPerformanceDiagnostic,
+  workspaceMovementStartEvent,
   workspaceMovementEndEvent,
 } from "@/lib/whiteboard-performance-diagnostics";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,7 @@ type DesmosSurfaceProps = {
   loadRequest?: GraphLoadRequest | null;
   onLoadApplied?: (id: string) => void;
   onExpressionApplied?: (id: string) => void;
-  onStateChange?: (state: DesmosState) => void;
+  onStateChange?: (state: DesmosState, sourceMode?: "2d" | "3d") => void;
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state?: DesmosState | null;
@@ -105,6 +106,17 @@ export const DesmosSurface = memo(function DesmosSurface({
   const flushCalculatorResize = (reason: string) => {
     const calculator = calculatorRef.current;
     if (!calculator) {
+      return;
+    }
+
+    // A gesture may have started after the resize timer was scheduled.
+    if (isWorkspaceMovementActive()) {
+      pendingResizeAfterMovementRef.current = true;
+      recordWhiteboardPerformanceDiagnostic("desmos-resize-deferred", {
+        instanceId: instanceIdRef.current,
+        kind,
+        reason,
+      });
       return;
     }
 
@@ -166,6 +178,12 @@ export const DesmosSurface = memo(function DesmosSurface({
       return;
     }
 
+    const deferScheduledResize = () => {
+      if (resizeTimerRef.current === null) return;
+      window.clearTimeout(resizeTimerRef.current);
+      resizeTimerRef.current = null;
+      pendingResizeAfterMovementRef.current = true;
+    };
     const flushPendingMovementResize = () => {
       if (!pendingResizeAfterMovementRef.current) {
         return;
@@ -175,8 +193,12 @@ export const DesmosSurface = memo(function DesmosSurface({
       scheduleCalculatorResize("workspace-movement-end", 40);
     };
 
+    window.addEventListener(workspaceMovementStartEvent, deferScheduledResize);
     window.addEventListener(workspaceMovementEndEvent, flushPendingMovementResize);
-    return () => window.removeEventListener(workspaceMovementEndEvent, flushPendingMovementResize);
+    return () => {
+      window.removeEventListener(workspaceMovementStartEvent, deferScheduledResize);
+      window.removeEventListener(workspaceMovementEndEvent, flushPendingMovementResize);
+    };
   });
 
   useEffect(() => {
@@ -259,7 +281,7 @@ export const DesmosSurface = memo(function DesmosSurface({
 
               const nextState = calculatorRef.current.getState();
               lastSerializedStateRef.current = safeSerialize(nextState);
-              onStateChangeRef.current?.(nextState);
+              onStateChangeRef.current?.(nextState, kind === "graphing-3d" ? "3d" : "2d");
             }, 250);
           });
         }
@@ -312,6 +334,7 @@ export const DesmosSurface = memo(function DesmosSurface({
       cancelled = true;
       if (throttleRef.current) {
         window.clearTimeout(throttleRef.current);
+        throttleRef.current = null;
       }
       if (rafRef.current) {
         window.cancelAnimationFrame(rafRef.current);
@@ -327,6 +350,14 @@ export const DesmosSurface = memo(function DesmosSurface({
       if (calculatorRef.current) {
         if (isGraphingCalculator(calculatorRef.current)) {
           calculatorRef.current.unobserveEvent("change");
+          // A collapse or pin-layer move may happen before the change debounce.
+          // Capture the live viewport before destroying its calculator.
+          const finalState = calculatorRef.current.getState();
+          const serialized = safeSerialize(finalState);
+          if (serialized !== lastSerializedStateRef.current) {
+            lastSerializedStateRef.current = serialized;
+            onStateChangeRef.current?.(finalState, kind === "graphing-3d" ? "3d" : "2d");
+          }
         }
         recordWhiteboardPerformanceDiagnostic("desmos-destroy", {
           instanceId: instanceIdRef.current,
@@ -423,7 +454,7 @@ export const DesmosSurface = memo(function DesmosSurface({
     const nextState = graphingCalculator.getState();
     lastSerializedStateRef.current = safeSerialize(nextState);
     lastAppliedLoadIdRef.current = loadRequest.id;
-    onStateChangeRef.current?.(nextState);
+    onStateChangeRef.current?.(nextState, kind === "graphing-3d" ? "3d" : "2d");
     onLoadAppliedRef.current?.(loadRequest.id);
   }, [loadRequest, status]);
 
@@ -486,6 +517,9 @@ function createDesmosCalculator(
     showKeypad: boolean;
   },
 ) {
+  // Our observer coordinates layout updates with card gestures. Desmos's own
+  // autosize would bypass that gate; retain it only as a legacy-browser fallback.
+  const autosize = typeof ResizeObserver === "undefined";
   if (kind === "graphing") {
     const graphingCalculator = getDesmosGraphingConstructor(api);
     if (
@@ -496,7 +530,7 @@ function createDesmosCalculator(
     }
 
     return graphingCalculator(container, {
-      autosize: true,
+      autosize,
       border: false,
       expressions: true,
       expressionsCollapsed: preferences.graphChrome === "focused",
@@ -521,7 +555,7 @@ function createDesmosCalculator(
     }
 
     return api.Calculator3D(container, {
-      autosize: true,
+      autosize,
       border: false,
       expressions: true,
       expressionsCollapsed: preferences.graphChrome === "focused",
@@ -545,7 +579,7 @@ function createDesmosCalculator(
   }
 
   return api.ScientificCalculator(container, {
-    autosize: true,
+    autosize,
     border: false,
     invertedColors: preferences.darkMode,
     keypad: preferences.showKeypad,

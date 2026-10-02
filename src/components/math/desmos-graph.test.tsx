@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import * as desmosLoader from "@/lib/desmos-loader";
+import { setWorkspaceMovementActive } from "@/lib/whiteboard-performance-diagnostics";
+import { useMathWorkspace } from "@/hooks/use-math-workspace";
 
 vi.mock("@/lib/desmos-loader", () => ({
   getDesmosGraphingConstructor: vi.fn((api: DesmosApi) =>
@@ -20,6 +22,7 @@ vi.mock("@/lib/desmos-loader", () => ({
 
 describe("DesmosGraph", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.mocked(desmosLoader.hasDesmosApiKey).mockReturnValue(true);
     class ResizeObserverMock {
       observe = vi.fn();
@@ -337,5 +340,112 @@ describe("DesmosGraph", () => {
     vi.advanceTimersByTime(250);
 
     expect(resize).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([true, false])("defers an already queued resize through a gesture (start event: %s) and resizes once afterward", async (dispatchStartEvent) => {
+    let observeResize: ResizeObserverCallback | undefined;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) { observeResize = callback; }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    const calculator = {
+      destroy: vi.fn(), getState: vi.fn(() => ({ expressions: { list: [] } })),
+      observeEvent: vi.fn(), resize: vi.fn(), setBlank: vi.fn(), setExpression: vi.fn(),
+      setState: vi.fn(), unobserveEvent: vi.fn(), updateSettings: vi.fn(),
+    };
+    const GraphingCalculator = vi.fn(() => calculator as unknown as DesmosGraphingCalculator);
+    vi.mocked(desmosLoader.isDesmosFeatureEnabled).mockReturnValue(true);
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({ GraphingCalculator } as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 640, bottom: 540, width: 640, height: 540, toJSON: () => ({}) });
+    const onStateChange = vi.fn();
+    const { rerender } = render(<DesmosGraph onStateChange={onStateChange} showKeypad={false} state={null} />);
+    await waitFor(() => expect(calculator.resize).toHaveBeenCalled());
+    expect(GraphingCalculator).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ autosize: false }));
+    calculator.resize.mockClear();
+    vi.useFakeTimers();
+    const resizeHost = (width: number, height: number) => observeResize?.([{ contentRect: { width, height } } as ResizeObserverEntry], {} as ResizeObserver);
+
+    resizeHost(720, 480);
+    act(() => vi.advanceTimersByTime(40));
+    if (dispatchStartEvent) setWorkspaceMovementActive(true);
+    else document.documentElement.dataset.workspaceDragging = "true";
+    act(() => vi.advanceTimersByTime(200));
+    expect(calculator.resize).not.toHaveBeenCalled();
+
+    // Host resize and preference changes during a drag must join the same work.
+    resizeHost(780, 510);
+    resizeHost(820, 550);
+    rerender(<DesmosGraph onStateChange={onStateChange} showKeypad state={null} />);
+    act(() => vi.advanceTimersByTime(200));
+    expect(calculator.resize).not.toHaveBeenCalled();
+    setWorkspaceMovementActive(false);
+    act(() => vi.advanceTimersByTime(39));
+    expect(calculator.resize).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(calculator.resize).toHaveBeenCalledTimes(1);
+
+    resizeHost(820, 550);
+    setWorkspaceMovementActive(true);
+    setWorkspaceMovementActive(false);
+    act(() => vi.advanceTimersByTime(200));
+    expect(calculator.resize).toHaveBeenCalledTimes(1);
+    expect(GraphingCalculator).toHaveBeenCalledTimes(1);
+    expect(calculator.destroy).not.toHaveBeenCalled();
+    expect(calculator.setState).not.toHaveBeenCalled();
+  });
+
+  it("retains Desmos automatic sizing when ResizeObserver is unavailable", async () => {
+    vi.stubGlobal("ResizeObserver", undefined);
+    const calculator = {
+      destroy: vi.fn(), getState: vi.fn(() => ({})), observeEvent: vi.fn(), resize: vi.fn(),
+      setBlank: vi.fn(), setExpression: vi.fn(), setState: vi.fn(), unobserveEvent: vi.fn(),
+    };
+    const GraphingCalculator = vi.fn(() => calculator as unknown as DesmosGraphingCalculator);
+    vi.mocked(desmosLoader.isDesmosFeatureEnabled).mockReturnValue(true);
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({ GraphingCalculator } as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 640, bottom: 540, width: 640, height: 540, toJSON: () => ({}) });
+    render(<DesmosGraph state={null} />);
+    await waitFor(() => expect(GraphingCalculator).toHaveBeenCalledWith(expect.any(HTMLElement), expect.objectContaining({ autosize: true })));
+  });
+
+  it.each(["collapse", "pin-layer"])("keeps the final viewport when a graph closes before its debounce (%s)", async (action) => {
+    const instances: Array<{ currentState: DesmosState; change?: () => void; api: DesmosGraphingCalculator }> = [];
+    const initial = { graph: { viewport: { xmin: -10, xmax: 10, ymin: -10, ymax: 10 } }, expressions: { list: [{ id: "a", latex: "y=x^2" }] } };
+    const panned = { ...initial, graph: { viewport: { xmin: 5, xmax: 25, ymin: 3, ymax: 23 } } };
+    const GraphingCalculator = vi.fn(() => {
+      const instance = { currentState: initial as DesmosState, change: undefined as (() => void) | undefined, api: null as unknown as DesmosGraphingCalculator };
+      instance.api = {
+        destroy: vi.fn(), resize: vi.fn(), setBlank: vi.fn(), setExpression: vi.fn(),
+        getState: () => structuredClone(instance.currentState),
+        setState: vi.fn((state: DesmosState) => { instance.currentState = structuredClone(state); }),
+        observeEvent: vi.fn((_name: "change", callback: (name: "change", event: DesmosChangeEvent) => void) => { instance.change = () => callback("change", { isUserInitiated: true }); }),
+        unobserveEvent: vi.fn(),
+      } as unknown as DesmosGraphingCalculator;
+      instances.push(instance);
+      return instance.api;
+    });
+    vi.mocked(desmosLoader.isDesmosFeatureEnabled).mockReturnValue(true);
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({ GraphingCalculator } as DesmosApi);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 640, bottom: 540, width: 640, height: 540, toJSON: () => ({}) });
+    function ScopedGraph({ visible = true }: { visible?: boolean }) {
+      const controller = useMathWorkspace("graph-owner", "graph-card");
+      return visible ? <DesmosGraph onStateChange={controller.setCurrentGraphState} state={controller.state.currentGraphState} /> : null;
+    }
+    function Card({ phase }: { phase: "initial" | "closed" | "reopened" }) {
+      if (action === "collapse") return <ScopedGraph visible={phase !== "closed"} />;
+      return <><div>{phase === "initial" ? <ScopedGraph /> : null}</div><div>{phase !== "initial" ? <ScopedGraph /> : null}</div></>;
+    }
+    const { rerender } = render(<Card phase="initial" />);
+    await waitFor(() => expect(instances).toHaveLength(1));
+    instances[0].currentState = panned;
+    act(() => instances[0].change?.());
+    // No 250 ms wait: the outgoing runtime must flush before destruction.
+    rerender(<Card phase="closed" />);
+    expect(JSON.parse(localStorage.getItem("binder-notes:math-lab:v3:graph-owner:graph-card")!).graphStatesByMode["2d"]).toEqual(panned);
+    expect(instances[0].api.destroy).toHaveBeenCalledTimes(1);
+    rerender(<Card phase="reopened" />);
+    await waitFor(() => expect(instances).toHaveLength(2));
+    await waitFor(() => expect(instances[1].currentState).toEqual(panned));
   });
 });

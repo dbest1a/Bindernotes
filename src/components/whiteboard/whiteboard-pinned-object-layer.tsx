@@ -263,6 +263,12 @@ export function syncWhiteboardPinnedModuleLayerToViewport(
     }
 
     card.dataset.cardRenderZoom = "1";
+    if (card.dataset.whiteboardModule === "desmos-graph") {
+      card.style.setProperty("left", "0px");
+      card.style.setProperty("top", "0px");
+      card.style.setProperty("transform", `translate3d(${point.x}px, ${point.y}px, 0)`);
+      return;
+    }
     card.style.setProperty("left", `${point.x}px`);
     card.style.setProperty("top", `${point.y}px`);
     card.style.setProperty("transform", "none");

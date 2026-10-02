@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
+    "test:e2e:desmos": "node scripts/verify-desmos-interactions.mjs",
     "test:e2e:staging": "playwright test --config playwright.staging.config.ts",
     "dev": "vite --config vite.config.ts --configLoader runner --host 127.0.0.1",
     "build": "node scripts/build-client.mjs",

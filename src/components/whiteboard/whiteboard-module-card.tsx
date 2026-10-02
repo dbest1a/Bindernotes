@@ -88,6 +88,14 @@ function getBoardRenderPoint(moduleElement: WhiteboardModuleElement, viewportTra
   };
 }
 
+function getUnscaledPositionStyle(moduleElement: WhiteboardModuleElement, x: number, y: number): StylePatch {
+  // Translating the live calculator avoids relaying out its entire DOM on each
+  // card/camera frame. Keep its CSS dimensions and graph coordinates unscaled.
+  return moduleElement.moduleId === "desmos-graph"
+    ? { left: "0px", top: "0px", transform: `translate3d(${x}px, ${y}px, 0)` }
+    : { left: `${x}px`, top: `${y}px`, transform: "none" };
+}
+
 function getModuleCardStyle(
   moduleElement: WhiteboardModuleElement,
   screenFrame: WhiteboardScreenRect,
@@ -117,15 +125,13 @@ function getModuleCardStyle(
   }
 
   return {
-    left: screenFrame.x,
-    top: screenFrame.y,
+    ...getUnscaledPositionStyle(moduleElement, screenFrame.x, screenFrame.y),
     width: screenFrame.width,
     height: screenFrame.height,
     ...(getWhiteboardModuleAnchorMode(moduleElement) === "board-fixed-size" && viewportTransform.viewportWidth <= 640
       ? { maxWidth: Math.max(1, viewportTransform.viewportWidth - 32), maxHeight: Math.max(72, viewportTransform.viewportHeight - 160) }
       : {}),
     boxSizing: "border-box",
-    transform: "none",
     transformOrigin: "top left",
     zIndex: moduleElement.zIndex,
   };
@@ -216,10 +222,7 @@ function getPointerStylePatch(active: PointerStart, dx: number, dy: number): Sty
       };
     }
 
-    return {
-      left: `${baseFrame.x + dx}px`,
-      top: `${baseFrame.y + dy}px`,
-    };
+    return getUnscaledPositionStyle(active.frame, baseFrame.x + dx, baseFrame.y + dy);
   }
 
   const zoomScaled = isWhiteboardModuleZoomScaled(active.frame);
@@ -259,11 +262,9 @@ function getCommittedStylePatch(
   }
 
   return {
-    left: `${screenFrame.x}px`,
-    top: `${screenFrame.y}px`,
+    ...getUnscaledPositionStyle(moduleElement, screenFrame.x, screenFrame.y),
     width: `${screenFrame.width}px`,
     height: `${screenFrame.height}px`,
-    transform: "none",
   };
 }
 
@@ -930,6 +931,23 @@ export function WhiteboardModuleCard({
             </span>
           )}
         </div>
+        {presentation === "chip" ? (
+          <Button
+            aria-label="Expand module"
+            data-whiteboard-card-control="true"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onChange({ ...moduleElement, mode: "live", updatedAt: new Date().toISOString() });
+            }}
+            size="icon"
+            title="Expand module"
+            type="button"
+            variant="ghost"
+          >
+            <PanelTopOpen className="size-4" />
+          </Button>
+        ) : null}
         <div className={cn("whiteboard-module-card__actions relative flex shrink-0 items-center gap-1", presentation === "chip" && "hidden")}>
           <Button
             aria-expanded={anchorMenuOpen}
