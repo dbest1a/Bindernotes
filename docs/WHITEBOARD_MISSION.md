@@ -305,6 +305,68 @@ Next after the top 10: springy inertial pan and zoom (once camera alignment is p
 - Offline IndexedDB revision vault: a local schema only, no Supabase change (A C9).
 - Replace Excalidraw with tldraw **[APPROVAL; not recommended]** (L26).
 
+## Owner decisions at the checkpoint (17:20)
+
+- **Budget $0.** No paid AI APIs, Mathpix, subscriptions or licences. Step-by-step solutions use free local engines (Compute Engine, deterministic solvers); anything that costs money is deferred.
+- **Keep free Desmos.** The owner is not selling BinderNotes. Desmos API Terms v1.0 (11 July 2025), §2.a: free use must be "personal, non-commercial use or a 90 day trial", and "Commercial use includes any use of the API in an Application that is accessed by End Users in production". By Desmos's own definition, a deployed site that other students use counts as commercial even when it is free. The owner's own use and local testing are covered. §5.b forbids hiding Desmos branding, which stays visible on every graph. Zero-cost options if Desmos ever objects are listed in the final report.
+- **Later in the session:** the owner allowed pushing live to Vercel and Supabase "if you want", and asked to make sure Desmos works.
+
+## Step 5: build
+
+### AI roster for the build (cost-efficient, existing subscriptions only)
+
+| Work | Model | Why this model |
+| --- | --- | --- |
+| Performance, UX, integration, browser checks, final verification | Claude Opus 5.5, max (lead) | Integration judgment and measurement discipline |
+| Worked Solutions board object (headline feature) | Claude Fable 5.1, high (worktree) | The premier model for the premier feature |
+| Exact chemistry engines and module fixes | GPT-6.1 Sol, high (worktree, Codex) | Numerical correctness; spreads load across both subscriptions |
+| Molecule and reaction card (RDKit.js) | Claude Sonnet 5.5, high (worktree) | Well-bounded integration, cheaper model |
+| Stress-test questions and verified answer keys | Claude Opus 5.5, high (worktree) | Deep math and chemistry reasoning without max cost |
+| Blind solve of the stress test | GPT-6 Astra, ultra (CLI, read-only) | As specified in the brief |
+
+### Free engines added (`fda96a7`)
+
+- `@cortex-js/compute-engine` 0.175 (MIT), `mathlive` 0.111 (MIT), `@rdkit/rdkit` 2026.9.1 (BSD-3-Clause).
+- Installed with npm 11 through the bundled pnpm, because npm is not on this machine; the lockfile diff is additive only.
+- All three load lazily.
+
+### Performance: measured, kept only where it helped
+
+Interleaved A/B: the previous build (port 5201) against the candidate (5199), alternating runs, so both sides share the same machine load. Background workstreams were compiling at the same time, which made single runs misleading (an early run looked like a regression).
+
+| Change | Scenario at 4× CPU | Before | After |
+| --- | --- | --- | --- |
+| Save path off strokes, pans and tool switches (`6cc888a`) | Draw: frames >16.7 ms / >33 ms, stall | 207 / 25, 24.1 ms/s | **19 / 0, 0.7 ms/s** |
+| | Hand pan | 140 / 9, 124 ms/s | **39 / 3, 50 ms/s** |
+| | Ctrl-wheel zoom | 25 / 2, 238 ms/s | **2 / 1, 37 ms/s** |
+| | Desmos slider drag | 151 / 3, 56 ms/s | **7 / 0, 4 ms/s** |
+| | Tool switches | 15 / 6, 91 ms/s | **11 / 3, 71 ms/s** |
+| Graph-first Desmos cards (`9cff6b8`) | Desmos layout reads: one idle second / one hand pan | 2,150 / 15,012 | **2 / 54** |
+| Realistic seeds in the harness (`064e6d4`) | Hand pan long animation frames | one ~130 ms | **none** (it was a one-time normalization save of unindexed seed elements) |
+
+What the profiles and probes found:
+- **Our save path ran on every stroke and pan.** Five full-scene serializations per stroke end; a full board re-render whenever the camera paused; a layout read on every Excalidraw change. Fixed with version signatures, idle-time recovery drafts, a settled-camera store and cached geometry.
+- **A latent data-safety bug.** The old change check compared two live Excalidraw scenes, and Excalidraw mutates elements in place while dragging, so a pure move could compare equal to itself. The signature is recorded when a scene is handed on, which closes that gap; a unit test covers it.
+- **Desmos's expression list reads layout every frame, on its own.** Three idle calculators on a bare page with no BinderNotes code: about 2,900 reads per second; with the list collapsed: 0. Board graphs therefore open graph-first (dark, list one click away). Graphs whose saved state has sliders open with the list, because that is where sliders live.
+- **A Desmos pointer filter was tried and reverted.** Desmos listens for pointer moves on `document`, but blocking moves away from graphs changed nothing measurable, and a global patch is not worth carrying without a benefit.
+- **Opening a board must not write it.** Desmos announces a change while normalizing a loaded state; that is no longer treated as an edit, and identical or no-op workspace updates no longer get a new timestamp.
+
+### Seamlessness and design
+
+- **Graphs are saved with the board** (`8e70755`). A graph card writes its workspace into the board save 800 ms after edits pause (and at once on unmount), outside card undo. Each workspace carries a `savedAt` stamp, and the newer of the board copy and this device's cache wins, so a stale device cannot overwrite newer work.
+- **New cards no longer land on existing ones** (`640ebed`, `ea62a11`), for board-pinned and screen-pinned cards alike.
+- **Minimal mode** (`d879cfc`): the board, its cards and one pill (save state, Add module, the way back), mirrored to Excalidraw's Zen mode (Alt+Z) and remembered per device. The pill fades while a pen is down.
+- **Honest copy:** notes cards report the board's real save state; no "Supabase-saved", no eyebrow label, no SCREEN / FIXED / BOARD chips; the full-screen hint shows once per device; on phones the control panel starts as a chip.
+- **Design skills installed and used** (`d52692c`): Impeccable (audit, craft floor, Operate mode), Emil Kowalski's design engineering and animation performance. Applied: restrained color with accent only for state, opacity-only motion at 180 ms with a strong ease-out, no animation on frequent actions, reduced motion respected, controls that name their action.
+- Screenshots after these changes: `docs/whiteboard-mission/screens-after/`.
+
+### Verification so far
+
+- Typecheck clean; 363 unit tests across the whiteboard, math, hooks and reader suites pass.
+- Real Desmos end-to-end (`e2e/desmos.spec.ts` through `scripts/verify-desmos-interactions.mjs`): 3/3. Whiteboard end-to-end (`e2e/whiteboard.spec.ts`): 4/4.
+- Desmos now works in the local preview too: the existing client key was copied into the gitignored `.env.development.local` (never printed).
+- This project has no linter configured; strict TypeScript checking stands in for "lint".
+
 ## Log
 
 - **16:15.** Created the branch and this log. Started Astra's independent brainstorm and performance deep dive (prompts and outputs in `docs/whiteboard-mission/astra/`). Started a Claude Opus high research delegate.
@@ -340,3 +402,8 @@ Next after the top 10: springy inertial pan and zoom (once camera alignment is p
   - **Result:** the production baseline re-scored to 109 passes and 19 real failures, with the measurements unchanged. It replaces the dev run as the official baseline, and friction points 1–4 now cite it.
   - A scan of 27,333 files under `docs`, `scripts`, `e2e`, `src` and the mission's `.tmp` logs found no Desmos key.
   - **Stopped at the checkpoint for owner decisions.** The AI explainer needs a paid API key.
+- **17:20.** The owner approved going ahead with a $0 budget, kept free Desmos and gave creative control. Desmos terms checked (see Owner decisions).
+- **17:35.** Installed the free engines (`fda96a7`); started four background workstreams in worktrees (Worked Solutions, chemistry engines, molecule card, stress test).
+- **18:05–18:35.** Save-path, camera and study-panel performance work; an interleaved A/B confirmed it (`6cc888a`); placement, graph sync and harness profiling commits.
+- **18:40.** Owner: keep working, make sure Desmos works, pushing live to Vercel and Supabase allowed. Local Desmos key added (gitignored); Desmos probes, graph-first cards and the load-is-not-an-edit fix (`9cff6b8`, `064e6d4`).
+- **19:10.** Minimal mode, dark graph cards, honest notes status, phone layout and copy fixes (`d879cfc`); screen-pinned placement (`ea62a11`). Real-Desmos and whiteboard end-to-end suites pass.
