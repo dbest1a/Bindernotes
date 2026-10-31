@@ -194,15 +194,28 @@ export function WhiteboardFloatingUiLayer({
               }}
             />
           </label>
-          <div
-            className="whiteboard-save-status rounded-md border px-2.5 py-2 text-xs font-semibold"
-            data-status={saveStatus}
-            data-testid="whiteboard-save-confirmation"
-            role="status"
-            aria-live="polite"
-          >
-            {visibleStatusLabel}
-            {saveStatus === "saved" && <time className="mt-1 block font-normal" dateTime={activeBoard.updatedAt}>Last saved {new Date(activeBoard.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>}
+          <div className="flex items-stretch gap-2">
+            <div
+              className="whiteboard-save-status min-w-0 flex-1 rounded-md border px-2.5 py-2 text-xs font-semibold"
+              data-status={saveStatus}
+              data-testid="whiteboard-save-confirmation"
+              role="status"
+              aria-live="polite"
+            >
+              {visibleStatusLabel}
+              {saveStatus === "saved" && <time className="mt-1 block font-normal" dateTime={activeBoard.updatedAt}>Last saved {new Date(activeBoard.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>}
+            </div>
+            <Button
+              aria-label="Save now"
+              className="whiteboard-action-button h-auto self-stretch"
+              onClick={onSaveNow}
+              size="icon"
+              title="Save now"
+              type="button"
+              variant="secondary"
+            >
+              <Save className="size-4" />
+            </Button>
           </div>
           {showSecondaryWarning ? (
             <span className="whiteboard-save-status inline-flex items-start gap-1 rounded-md border px-2 py-1.5" data-status="offline-draft">
@@ -218,6 +231,7 @@ export function WhiteboardFloatingUiLayer({
             type="button"
             variant="secondary"
           >
+            <Plus data-icon="inline-start" />
             New Whiteboard
           </Button>
           {templates}
@@ -228,10 +242,6 @@ export function WhiteboardFloatingUiLayer({
             onArchiveBoard={onArchiveBoard}
             onSelectBoard={onSelectBoard}
           />
-          <Button className="whiteboard-action-button justify-start" onClick={onSaveNow} size="sm" type="button" variant="secondary">
-            <Save data-icon="inline-start" />
-            Save
-          </Button>
           <Button
             className="whiteboard-action-button justify-start"
             data-testid="whiteboard-delete-board"

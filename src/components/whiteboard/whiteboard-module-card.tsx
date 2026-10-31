@@ -1083,7 +1083,7 @@ export function WhiteboardModuleCard({
           ) : null}
           <button
             aria-label="Resize module. Use arrow keys; hold Shift for larger steps."
-            className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-8 cursor-se-resize rounded-tl-lg border-l border-t border-primary/45 bg-primary text-primary-foreground transition hover:opacity-100"
+            className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-8 cursor-se-resize rounded-tl-lg text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground"
             data-testid="whiteboard-card-resize-handle"
             onKeyDown={(event) => {
               if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;

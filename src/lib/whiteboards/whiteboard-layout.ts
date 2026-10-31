@@ -127,9 +127,11 @@ function layerRect(moduleElement: WhiteboardModuleElement, transform: Whiteboard
  * `start` itself when free, otherwise spots right beside each existing card and in widening
  * rings around `start` (each also pulled inside the view). Spots clear of every card rank
  * first, then by how much of the card the view shows (5% steps), then nearest. `minShown` is
- * the visible share required (0-20 in 5% steps). Null when none fits.
+ * the visible share wanted (0-20 in 5% steps). With `allowPartial`, a free spot that shows
+ * less is still better than covering a card (the board can be panned to it). Null when no
+ * spot is free.
  */
-function findFreeLayerFrame(start: Frame, obstacles: Frame[], view: Frame, minShown: number): Frame | null {
+function findFreeLayerFrame(start: Frame, obstacles: Frame[], view: Frame, minShown: number, allowPartial = false): Frame | null {
   if (!collides(start, obstacles)) return start;
   const positions: Array<{ x: number; y: number }> = [];
   for (const obstacle of obstacles) {
@@ -167,12 +169,14 @@ function findFreeLayerFrame(start: Frame, obstacles: Frame[], view: Frame, minSh
   });
   // Clear of every card first, then the most visible, then the nearest.
   candidates.sort((first, second) => Number(first.touches) - Number(second.touches) || second.shown - first.shown || first.distance - second.distance);
-  return candidates.find((candidate) => candidate.shown >= minShown && !collides(candidate.frame, obstacles))?.frame ?? null;
+  const free = candidates.filter((candidate) => candidate.shown >= 1 && !collides(candidate.frame, obstacles));
+  return (free.find((candidate) => candidate.shown >= minShown) ?? (allowPartial ? free[0] : undefined))?.frame ?? null;
 }
 
 /**
  * Where a new board-pinned card goes: centered on the current view, unless that would cover a
- * card already there; then the nearest free spot that still shows at least half of it. Overlap
+ * card already there; then the nearest free spot that shows at least half of it, or failing
+ * that the free spot that shows the most (the board can be panned to it). Overlap
  * is judged on screen, so pinned, fixed-size and floating cards compare by what the student
  * sees. A packed board cascades the card into view instead of stacking it exactly on top.
  */
@@ -205,7 +209,7 @@ export function findOpenWhiteboardModuleFrameNearViewport(
   const start = layerRect(probe, transform);
   const view = { x: 0, y: 0, width: transform.viewportWidth, height: transform.viewportHeight };
   const obstacles = [...existingModules.map((moduleElement) => layerRect(moduleElement, transform)), ...reserved];
-  const free = findFreeLayerFrame(start, obstacles, view, 10);
+  const free = findFreeLayerFrame(start, obstacles, view, 10, true);
   if (free === start) {
     return centered;
   }

@@ -243,6 +243,28 @@ describe("whiteboard module layout", () => {
     expect(findOpenWhiteboardViewportModuleFrame([], calculatorDefinition, viewport)).toEqual({ x: 540, y: 240, width: 360, height: 420 });
   });
 
+  it("prefers a free spot partly off screen to covering a card on a crowded view", () => {
+    const viewport = { scrollX: 0, scrollY: 0, zoom: 1, viewportWidth: 1440, viewportHeight: 900 };
+    const graph = moduleElement({ id: "graph", moduleId: "desmos-graph", anchorMode: "board-fixed-size", x: 360, y: 170, width: 720, height: 560 });
+    const calculator = moduleElement({ id: "calc", moduleId: "scientific-calculator", anchorMode: "viewport", x: 8, y: 240, width: 360, height: 420 });
+    const controlPanel = { x: 1120, y: 96, width: 304, height: 590 };
+    const phDefinition: WhiteboardModuleDefinition = {
+      moduleId: "chem-ph-calculator", label: "pH Calculator", description: "pH", heavy: false,
+      defaultWidth: 460, defaultHeight: 480, defaultAnchorMode: "board-fixed-size",
+    };
+
+    const frame = findOpenWhiteboardModuleFrameNearViewport([graph, calculator], phDefinition, viewport, [controlPanel]);
+
+    const share = (other: { x: number; y: number; width: number; height: number }) =>
+      (Math.max(0, Math.min(frame.x + frame.width, other.x + other.width) - Math.max(frame.x, other.x)) *
+        Math.max(0, Math.min(frame.y + frame.height, other.y + other.height) - Math.max(frame.y, other.y))) /
+      (frame.width * frame.height);
+    expect(share(graph)).toBeLessThan(0.14);
+    expect(share(calculator)).toBeLessThan(0.14);
+    expect(share(controlPanel)).toBeLessThan(0.14);
+    expect(share({ x: 0, y: 0, width: 1440, height: 900 })).toBeGreaterThan(0);
+  });
+
   it("only falls back when module placement data is invalid", () => {
     const normalized = normalizeWhiteboardLabModules([
       moduleElement({

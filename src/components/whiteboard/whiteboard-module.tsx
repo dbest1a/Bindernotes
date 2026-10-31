@@ -51,6 +51,7 @@ import {
   defaultWhiteboardViewportTransform,
   extractWhiteboardViewportTransform,
   getWhiteboardModuleAnchorMode,
+  getWhiteboardModuleScreenRect,
   whiteboardViewportTransformsEqual,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
@@ -184,6 +185,26 @@ function getReservedOverlayRects(transform: WhiteboardViewportTransform) {
   const rect = dock?.getBoundingClientRect();
   if (!rect?.width || !rect.height) return [];
   return [{ x: rect.left - (transform.offsetLeft ?? 0), y: rect.top - (transform.offsetTop ?? 0), width: rect.width, height: rect.height }];
+}
+
+// A new board card should be seen arriving. When most of it would open off screen (a crowded
+// view), the camera shifts just enough to show it clear of the drawing toolbar, in one jump
+// with no animation. Cards that are mostly visible leave the camera alone.
+function revealCardTransform(moduleElement: WhiteboardModuleElement, transform: WhiteboardViewportTransform) {
+  const rect = getWhiteboardModuleScreenRect(moduleElement, transform);
+  const x = rect.x - (transform.offsetLeft ?? 0);
+  const y = rect.y - (transform.offsetTop ?? 0);
+  const visibleWidth = Math.max(0, Math.min(x + rect.width, transform.viewportWidth) - Math.max(x, 0));
+  const visibleHeight = Math.max(0, Math.min(y + rect.height, transform.viewportHeight) - Math.max(y, 0));
+  if ((visibleWidth * visibleHeight) / Math.max(1, rect.width * rect.height) >= 0.75) return null;
+  const margin = { top: 80, side: 24, bottom: 24 };
+  const shift = (start: number, size: number, low: number, high: number) =>
+    size > high - low || start < low ? low - start : start + size > high ? high - (start + size) : 0;
+  const dx = shift(x, rect.width, margin.side, transform.viewportWidth - margin.side);
+  const dy = shift(y, rect.height, margin.top, transform.viewportHeight - margin.bottom);
+  if (!dx && !dy) return null;
+  const zoom = transform.zoom > 0 ? transform.zoom : 1;
+  return { ...transform, scrollX: transform.scrollX + dx / zoom, scrollY: transform.scrollY + dy / zoom };
 }
 
 type ViewportStore = {
@@ -1574,11 +1595,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
 
       runWithModuleCreationZoomSafety(
         frame,
-        () => updateBoardModules((modules) => [...modules, moduleElement]),
+        () => {
+          updateBoardModules((modules) => [...modules, moduleElement]);
+          const reveal = labMode && anchorMode !== "viewport" ? revealCardTransform(moduleElement, viewportTransformRef.current) : null;
+          if (reveal) {
+            requestViewportTransformRef.current?.(reveal);
+            handleViewportChange(reveal);
+          }
+        },
         { skipZoomPrompt: anchorMode === "viewport" },
       );
     },
-    [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
+    [context.binder.id, context.selectedLesson.id, handleViewportChange, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );
 
   const addModuleById = useCallback(
@@ -1645,11 +1673,18 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       };
       runWithModuleCreationZoomSafety(
         frame,
-        () => updateBoardModules((modules) => [...modules, moduleElement]),
+        () => {
+          updateBoardModules((modules) => [...modules, moduleElement]);
+          const reveal = labMode && anchorMode !== "viewport" ? revealCardTransform(moduleElement, viewportTransformRef.current) : null;
+          if (reveal) {
+            requestViewportTransformRef.current?.(reveal);
+            handleViewportChange(reveal);
+          }
+        },
         { skipZoomPrompt: anchorMode === "viewport" },
       );
     },
-    [context.binder.id, context.selectedLesson.id, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
+    [context.binder.id, context.selectedLesson.id, handleViewportChange, labMode, runWithModuleCreationZoomSafety, updateBoardModules],
   );
 
   const renameActiveBoard = useCallback(

@@ -43,7 +43,7 @@ export function WhiteboardBoardList({
           <span>Recent whiteboards</span>
         </p>
         {shouldShowLimitStatus ? (
-          <Badge data-testid="whiteboard-board-count" variant="outline">
+          <Badge className="normal-case tracking-normal" data-testid="whiteboard-board-count" variant="outline">
             {boards.length} / {MAX_WHITEBOARDS_PER_USER} saved
           </Badge>
         ) : null}
