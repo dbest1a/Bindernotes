@@ -1,0 +1,432 @@
+{
+  "question": 5,
+  "title": "Q5 Jordan form and matrix exponential",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q5-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q5 · Jordan form and e^(At)",
+        "problem": "$A=\\begin{pmatrix}1&1&1&-1\\\\-4&2&4&-3\\\\-1&1&3&-1\\\\-3&0&3&-1\\end{pmatrix}$. Find the Jordan form, and solve $x'=Ax$, $x(0)=(1,0,0,0)^T$.",
+        "steps": [
+          {
+            "id": "q5-sol-s01",
+            "math": "1+2+3+(-1) = 2+2+2+(-1)",
+            "note": "Trace check: the eigenvalues 2, 2, 2, −1 sum to tr A = 5."
+          },
+          {
+            "id": "q5-sol-s02",
+            "math": "(\\lambda-2)^3(\\lambda+1) = \\lambda^4-5\\lambda^3+6\\lambda^2+4\\lambda-8",
+            "note": "Characteristic polynomial (λ − 2)³(λ + 1), expanded: the λ³ coefficient −5 = −tr A."
+          },
+          {
+            "id": "q5-sol-s03",
+            "math": "J=\\begin{pmatrix}-1&0&0&0\\\\0&2&1&0\\\\0&0&2&1\\\\0&0&0&2\\end{pmatrix}",
+            "note": "rank(A − 2I) = 3, rank(A − 2I)² = 2, rank(A − 2I)³ = 1: geometric multiplicity 4 − 3 = 1, so one 3×3 block J₃(2), plus J₁(−1)."
+          },
+          {
+            "id": "q5-sol-s04",
+            "math": "0+1+0-1 = 0,\\quad 0+2+0-3 = -1,\\quad 0+1+0-1 = 0,\\quad 0+0+0-1 = -1",
+            "note": "Rows of A times w = (0, 1, 0, 1): Aw = (0, −1, 0, −1) = −w, so w is the λ = −1 eigenvector."
+          },
+          {
+            "id": "q5-sol-s05",
+            "math": "1+0 = 1,\\quad -1+1 = 0,\\quad 0+0 = 0,\\quad -1+1 = 0",
+            "note": "Split x₀ = u + w with u = (1, −1, 0, −1) in ker(A − 2I)³."
+          },
+          {
+            "id": "q5-sol-s06",
+            "math": "-1-1+0+1 = -1,\\quad -4+0+0+3 = -1,\\quad -1-1+0+1 = -1,\\quad -3+0+0+3 = 0",
+            "note": "Rows of N = A − 2I times u: Nu = (−1, −1, −1, 0)."
+          },
+          {
+            "id": "q5-sol-s07",
+            "math": "1-1-1+0 = -1,\\quad 4+0-4+0 = 0,\\quad 1-1-1+0 = -1,\\quad 3+0-3+0 = 0",
+            "note": "N²u = N(Nu) = (−1, 0, −1, 0)."
+          },
+          {
+            "id": "q5-sol-s08",
+            "math": "1+0-1+0 = 0,\\quad 4+0-4+0 = 0,\\quad 1+0-1+0 = 0,\\quad 3+0-3+0 = 0",
+            "note": "N³u = N(N²u) = 0, so the exponential series stops after t²/2."
+          },
+          {
+            "id": "q5-sol-s09",
+            "math": "\\frac{d}{dt}\\left(\\left(1-t-\\frac{t^2}{2}\\right)e^{2t}\\right) = \\left(1-t-\\frac{t^2}{2}\\right)e^{2t}+\\left(e^{-t}-(1+t)e^{2t}\\right)+\\left(-\\left(t+\\frac{t^2}{2}\\right)e^{2t}\\right)-\\left(e^{-t}-e^{2t}\\right)",
+            "note": "x(t) = e^{2t}(u + tNu + t²N²u/2) + e^{−t}w. CAS check of row 1 of x′ = Ax."
+          },
+          {
+            "id": "q5-sol-s10",
+            "math": "\\frac{d}{dt}\\left(e^{-t}-(1+t)e^{2t}\\right) = -4\\left(1-t-\\frac{t^2}{2}\\right)e^{2t}+2\\left(e^{-t}-(1+t)e^{2t}\\right)+4\\left(-\\left(t+\\frac{t^2}{2}\\right)e^{2t}\\right)-3\\left(e^{-t}-e^{2t}\\right)",
+            "note": "Row 2 of x′ = Ax."
+          },
+          {
+            "id": "q5-sol-s11",
+            "math": "\\frac{d}{dt}\\left(-\\left(t+\\frac{t^2}{2}\\right)e^{2t}\\right) = -\\left(1-t-\\frac{t^2}{2}\\right)e^{2t}+\\left(e^{-t}-(1+t)e^{2t}\\right)+3\\left(-\\left(t+\\frac{t^2}{2}\\right)e^{2t}\\right)-\\left(e^{-t}-e^{2t}\\right)",
+            "note": "Row 3 of x′ = Ax."
+          },
+          {
+            "id": "q5-sol-s12",
+            "math": "\\frac{d}{dt}\\left(e^{-t}-e^{2t}\\right) = -3\\left(1-t-\\frac{t^2}{2}\\right)e^{2t}+3\\left(-\\left(t+\\frac{t^2}{2}\\right)e^{2t}\\right)-\\left(e^{-t}-e^{2t}\\right)",
+            "note": "Row 4 of x′ = Ax."
+          },
+          {
+            "id": "q5-sol-s13",
+            "math": "(1-0-0)e^{0} = 1,\\quad e^{0}-(1+0)e^{0} = 0,\\quad -(0+0)e^{0} = 0,\\quad e^{0}-e^{0} = 0",
+            "note": "Initial condition: x(0) = (1, 0, 0, 0)."
+          },
+          {
+            "id": "q5-sol-s14",
+            "math": "\\left(1-1-\\frac12\\right)e^{2} = -\\frac{e^2}{2} \\approx -3.6945",
+            "note": "x₁(1)."
+          },
+          {
+            "id": "q5-sol-s15",
+            "math": "e^{-1}-2e^{2} \\approx -14.4102",
+            "note": "x₂(1)."
+          },
+          {
+            "id": "q5-sol-s16",
+            "math": "-\\left(1+\\frac12\\right)e^{2} = -\\frac{3e^2}{2} \\approx -11.0836",
+            "note": "x₃(1)."
+          },
+          {
+            "id": "q5-sol-s17",
+            "math": "e^{-1}-e^{2} \\approx -7.0212",
+            "note": "x₄(1)."
+          }
+        ],
+        "answer": "J=J_3(2)\\oplus J_1(-1);\\quad x(1)=\\left(-\\tfrac{e^2}{2},\\ e^{-1}-2e^2,\\ -\\tfrac{3e^2}{2},\\ e^{-1}-e^2\\right)\\approx(-3.6945,-14.4102,-11.0836,-7.0212)",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q5-components",
+      "moduleId": "desmos-graph",
+      "title": "Components of x(t)",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq5-components",
+            "graph": {
+              "viewport": {
+                "xmin": -0.06,
+                "xmax": 1.75,
+                "ymin": -20,
+                "ymax": 3
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e73",
+                  "hidden": true,
+                  "latex": "x_{1}(t)=\\left(1-t-\\frac{t^{2}}{2}\\right)e^{2t}",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e74",
+                  "hidden": true,
+                  "latex": "x_{2}(t)=e^{-t}-(1+t)e^{2t}",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e75",
+                  "hidden": true,
+                  "latex": "x_{3}(t)=-\\left(t+\\frac{t^{2}}{2}\\right)e^{2t}",
+                  "color": "#388c46"
+                },
+                {
+                  "type": "expression",
+                  "id": "e76",
+                  "hidden": true,
+                  "latex": "x_{4}(t)=e^{-t}-e^{2t}",
+                  "color": "#6042a6"
+                },
+                {
+                  "type": "expression",
+                  "id": "e77",
+                  "latex": "y=x_{1}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                  "color": "#c74440",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e78",
+                  "latex": "y=x_{2}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e79",
+                  "latex": "y=x_{3}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                  "color": "#388c46",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e80",
+                  "latex": "y=x_{4}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                  "color": "#6042a6",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e81",
+                  "latex": "s=1"
+                },
+                {
+                  "type": "expression",
+                  "id": "e82",
+                  "latex": "v_{1}=\\frac{\\operatorname{round}\\left(10^{4}x_{1}(s)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e83",
+                  "latex": "v_{2}=\\frac{\\operatorname{round}\\left(10^{4}x_{2}(s)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e84",
+                  "latex": "v_{3}=\\frac{\\operatorname{round}\\left(10^{4}x_{3}(s)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e85",
+                  "latex": "v_{4}=\\frac{\\operatorname{round}\\left(10^{4}x_{4}(s)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e86",
+                  "latex": "(s,x_{1}(s))",
+                  "color": "#c74440",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag ↔  t = ${s}:  x₁ = ${v_1}",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e87",
+                  "latex": "(s,v_{2})",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "x₂(s) = ${v_2}",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e88",
+                  "latex": "(s,v_{3})",
+                  "color": "#388c46",
+                  "showLabel": true,
+                  "label": "x₃(s) = ${v_3}",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e89",
+                  "latex": "(s,v_{4})",
+                  "color": "#6042a6",
+                  "showLabel": true,
+                  "label": "x₄(s) = ${v_4}",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e90",
+                  "latex": "x=s",
+                  "color": "#9ca3af",
+                  "lineStyle": "DASHED"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq5-components",
+          "graph": {
+            "viewport": {
+              "xmin": -0.06,
+              "xmax": 1.75,
+              "ymin": -20,
+              "ymax": 3
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e73",
+                "hidden": true,
+                "latex": "x_{1}(t)=\\left(1-t-\\frac{t^{2}}{2}\\right)e^{2t}",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e74",
+                "hidden": true,
+                "latex": "x_{2}(t)=e^{-t}-(1+t)e^{2t}",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e75",
+                "hidden": true,
+                "latex": "x_{3}(t)=-\\left(t+\\frac{t^{2}}{2}\\right)e^{2t}",
+                "color": "#388c46"
+              },
+              {
+                "type": "expression",
+                "id": "e76",
+                "hidden": true,
+                "latex": "x_{4}(t)=e^{-t}-e^{2t}",
+                "color": "#6042a6"
+              },
+              {
+                "type": "expression",
+                "id": "e77",
+                "latex": "y=x_{1}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                "color": "#c74440",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e78",
+                "latex": "y=x_{2}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e79",
+                "latex": "y=x_{3}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                "color": "#388c46",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e80",
+                "latex": "y=x_{4}(x)\\left\\{0\\le x\\le1.2\\right\\}",
+                "color": "#6042a6",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e81",
+                "latex": "s=1"
+              },
+              {
+                "type": "expression",
+                "id": "e82",
+                "latex": "v_{1}=\\frac{\\operatorname{round}\\left(10^{4}x_{1}(s)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e83",
+                "latex": "v_{2}=\\frac{\\operatorname{round}\\left(10^{4}x_{2}(s)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e84",
+                "latex": "v_{3}=\\frac{\\operatorname{round}\\left(10^{4}x_{3}(s)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e85",
+                "latex": "v_{4}=\\frac{\\operatorname{round}\\left(10^{4}x_{4}(s)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e86",
+                "latex": "(s,x_{1}(s))",
+                "color": "#c74440",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag ↔  t = ${s}:  x₁ = ${v_1}",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e87",
+                "latex": "(s,v_{2})",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "x₂(s) = ${v_2}",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e88",
+                "latex": "(s,v_{3})",
+                "color": "#388c46",
+                "showLabel": true,
+                "label": "x₃(s) = ${v_3}",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e89",
+                "latex": "(s,v_{4})",
+                "color": "#6042a6",
+                "showLabel": true,
+                "label": "x₄(s) = ${v_4}",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e90",
+                "latex": "x=s",
+                "color": "#9ca3af",
+                "lineStyle": "DASHED"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

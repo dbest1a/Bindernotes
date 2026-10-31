@@ -1,0 +1,584 @@
+{
+  "question": 1,
+  "title": "Q1 Keyhole contour",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q1-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q1 · Keyhole contour",
+        "problem": "Evaluate $I=\\int_0^\\infty \\dfrac{x^{1/3}}{(x+1)(x+4)}\\,dx$ with a keyhole contour, branch cut on the positive real axis ($0<\\arg z<2\\pi$).",
+        "steps": [
+          {
+            "id": "q1-sol-s01",
+            "math": "\\left|\\int_{|z|=\\varepsilon} f\\,dz\\right| \\le 2\\pi\\varepsilon\\cdot\\frac{\\varepsilon^{1/3}}{(1-\\varepsilon)(4-\\varepsilon)}",
+            "note": "ML estimate, small circle: the bound is about (π/2)ε^(4/3), which tends to 0."
+          },
+          {
+            "id": "q1-sol-s02",
+            "math": "\\left|\\int_{|z|=R} f\\,dz\\right| \\le 2\\pi R\\cdot\\frac{R^{1/3}}{(R-1)(R-4)}",
+            "note": "ML estimate, large circle: the bound behaves like 2πR^(−2/3), which tends to 0."
+          },
+          {
+            "id": "q1-sol-s03",
+            "math": "(1-e^{2\\pi i/3})\\,I = 2\\pi i\\,(\\operatorname{Res}_{-1}+\\operatorname{Res}_{-4})",
+            "note": "The upper edge gives I; on the lower edge z^(1/3) = x^(1/3)e^(2πi/3), traversed inward."
+          },
+          {
+            "id": "q1-sol-s04",
+            "math": "\\frac{e^{i\\pi/3}}{(-1)+4} = \\frac{1}{6}+\\frac{\\sqrt{3}}{6}i",
+            "note": "Residue at z = −1: (−1)^(1/3) = e^(iπ/3) on this branch, divided by (z + 4) at z = −1."
+          },
+          {
+            "id": "q1-sol-s05",
+            "math": "\\frac{4^{1/3}e^{i\\pi/3}}{(-4)+1} = -\\frac{4^{1/3}}{3}e^{i\\pi/3}",
+            "note": "Residue at z = −4: (−4)^(1/3) = 4^(1/3)e^(iπ/3), divided by (z + 1) at z = −4."
+          },
+          {
+            "id": "q1-sol-s06",
+            "math": "\\frac{e^{i\\pi/3}}{3}-\\frac{4^{1/3}e^{i\\pi/3}}{3} = \\frac{e^{i\\pi/3}(1-4^{1/3})}{3}",
+            "note": "Sum of the residues."
+          },
+          {
+            "id": "q1-sol-s07",
+            "math": "1-e^{2\\pi i/3} = -i\\sqrt{3}\\,e^{i\\pi/3}",
+            "note": "Factor the left-hand coefficient."
+          },
+          {
+            "id": "q1-sol-s08",
+            "math": "\\frac{2\\pi i}{-i\\sqrt{3}\\,e^{i\\pi/3}}\\cdot\\frac{e^{i\\pi/3}(1-4^{1/3})}{3} = \\frac{2\\pi(4^{1/3}-1)}{3\\sqrt{3}}",
+            "note": "Divide: the phases e^(iπ/3) cancel and I is real, as it must be."
+          },
+          {
+            "id": "q1-sol-s09",
+            "math": "\\frac{2\\pi(4^{1/3}-1)}{3\\sqrt{3}} \\approx 0.710285",
+            "note": "Decimal value to 6 significant figures."
+          },
+          {
+            "id": "q1-sol-s10",
+            "math": "\\int_0^{\\infty}\\frac{x^{1/3}}{(x+1)(x+4)}\\,dx \\approx 0.710285",
+            "note": "Cross-check: direct numerical quadrature of the original integral."
+          },
+          {
+            "id": "q1-sol-s11",
+            "math": "\\frac{\\pi\\,(1^{1/3}-4^{1/3})}{(4-1)\\sin(4\\pi/3)} = \\frac{2\\pi(4^{1/3}-1)}{3\\sqrt{3}}",
+            "note": "Cross-check with the general formula π(b^(a−1) − c^(a−1))/((c − b) sin πa), a = 4/3, b = 1, c = 4."
+          }
+        ],
+        "answer": "I=\\dfrac{2\\pi\\left(\\sqrt[3]{4}-1\\right)}{3\\sqrt{3}}\\approx 0.710285",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q1-contour",
+      "moduleId": "desmos-graph",
+      "title": "Keyhole contour and poles",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 440,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq1-contour",
+            "graph": {
+              "viewport": {
+                "xmin": -11,
+                "xmax": 11,
+                "ymin": -5.3,
+                "ymax": 5.3
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e1",
+                  "latex": "R=4.8"
+                },
+                {
+                  "type": "expression",
+                  "id": "e2",
+                  "latex": "\\varepsilon=0.5"
+                },
+                {
+                  "type": "expression",
+                  "id": "e3",
+                  "latex": "\\delta=0.16"
+                },
+                {
+                  "type": "expression",
+                  "id": "e4",
+                  "latex": "(R\\cos t,R\\sin t)",
+                  "color": "#2d70b3",
+                  "parametricDomain": {
+                    "min": "\\arcsin(\\delta/R)",
+                    "max": "2\\pi-\\arcsin(\\delta/R)"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e5",
+                  "latex": "(\\varepsilon\\cos t,\\varepsilon\\sin t)",
+                  "color": "#2d70b3",
+                  "parametricDomain": {
+                    "min": "\\arcsin(\\delta/\\varepsilon)",
+                    "max": "2\\pi-\\arcsin(\\delta/\\varepsilon)"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e6",
+                  "latex": "(t,\\delta)",
+                  "color": "#388c46",
+                  "parametricDomain": {
+                    "min": "\\sqrt{\\varepsilon^2-\\delta^2}",
+                    "max": "\\sqrt{R^2-\\delta^2}"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e7",
+                  "latex": "(t,-\\delta)",
+                  "color": "#6042a6",
+                  "parametricDomain": {
+                    "min": "\\sqrt{\\varepsilon^2-\\delta^2}",
+                    "max": "\\sqrt{R^2-\\delta^2}"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e8",
+                  "latex": "y=0\\left\\{x>0\\right\\}",
+                  "color": "#9ca3af",
+                  "lineStyle": "DASHED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e9",
+                  "latex": "(-1,0)",
+                  "color": "#c74440",
+                  "pointSize": "11",
+                  "showLabel": true,
+                  "label": "pole −1",
+                  "labelOrientation": "below"
+                },
+                {
+                  "type": "expression",
+                  "id": "e10",
+                  "latex": "(-4,0)",
+                  "color": "#c74440",
+                  "pointSize": "11",
+                  "showLabel": true,
+                  "label": "pole −4",
+                  "labelOrientation": "below"
+                },
+                {
+                  "type": "expression",
+                  "id": "e11",
+                  "latex": "(2.6,\\delta)",
+                  "color": "#388c46",
+                  "showLabel": true,
+                  "label": "upper edge → I",
+                  "labelOrientation": "above_right",
+                  "pointStyle": "OPEN"
+                },
+                {
+                  "type": "expression",
+                  "id": "e12",
+                  "latex": "(2.6,-\\delta)",
+                  "color": "#6042a6",
+                  "showLabel": true,
+                  "label": "← lower edge: −e^(2πi/3)·I",
+                  "labelOrientation": "below_right",
+                  "pointStyle": "OPEN"
+                },
+                {
+                  "type": "expression",
+                  "id": "e13",
+                  "latex": "\\left(R\\cos\\frac{3\\pi}{4},R\\sin\\frac{3\\pi}{4}\\right)",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "C_R ↺ (→ 0 as R → ∞)",
+                  "labelOrientation": "above_left",
+                  "pointStyle": "OPEN"
+                },
+                {
+                  "type": "expression",
+                  "id": "e14",
+                  "latex": "(0,\\varepsilon)",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "C_ε ↻ (→ 0)",
+                  "labelOrientation": "above",
+                  "pointStyle": "OPEN"
+                },
+                {
+                  "type": "expression",
+                  "id": "e15",
+                  "latex": "(-10.6,-4.7)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "dashed: branch cut",
+                  "labelOrientation": "right",
+                  "color": "#9ca3af"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq1-contour",
+          "graph": {
+            "viewport": {
+              "xmin": -11,
+              "xmax": 11,
+              "ymin": -5.3,
+              "ymax": 5.3
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e1",
+                "latex": "R=4.8"
+              },
+              {
+                "type": "expression",
+                "id": "e2",
+                "latex": "\\varepsilon=0.5"
+              },
+              {
+                "type": "expression",
+                "id": "e3",
+                "latex": "\\delta=0.16"
+              },
+              {
+                "type": "expression",
+                "id": "e4",
+                "latex": "(R\\cos t,R\\sin t)",
+                "color": "#2d70b3",
+                "parametricDomain": {
+                  "min": "\\arcsin(\\delta/R)",
+                  "max": "2\\pi-\\arcsin(\\delta/R)"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e5",
+                "latex": "(\\varepsilon\\cos t,\\varepsilon\\sin t)",
+                "color": "#2d70b3",
+                "parametricDomain": {
+                  "min": "\\arcsin(\\delta/\\varepsilon)",
+                  "max": "2\\pi-\\arcsin(\\delta/\\varepsilon)"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e6",
+                "latex": "(t,\\delta)",
+                "color": "#388c46",
+                "parametricDomain": {
+                  "min": "\\sqrt{\\varepsilon^2-\\delta^2}",
+                  "max": "\\sqrt{R^2-\\delta^2}"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e7",
+                "latex": "(t,-\\delta)",
+                "color": "#6042a6",
+                "parametricDomain": {
+                  "min": "\\sqrt{\\varepsilon^2-\\delta^2}",
+                  "max": "\\sqrt{R^2-\\delta^2}"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e8",
+                "latex": "y=0\\left\\{x>0\\right\\}",
+                "color": "#9ca3af",
+                "lineStyle": "DASHED"
+              },
+              {
+                "type": "expression",
+                "id": "e9",
+                "latex": "(-1,0)",
+                "color": "#c74440",
+                "pointSize": "11",
+                "showLabel": true,
+                "label": "pole −1",
+                "labelOrientation": "below"
+              },
+              {
+                "type": "expression",
+                "id": "e10",
+                "latex": "(-4,0)",
+                "color": "#c74440",
+                "pointSize": "11",
+                "showLabel": true,
+                "label": "pole −4",
+                "labelOrientation": "below"
+              },
+              {
+                "type": "expression",
+                "id": "e11",
+                "latex": "(2.6,\\delta)",
+                "color": "#388c46",
+                "showLabel": true,
+                "label": "upper edge → I",
+                "labelOrientation": "above_right",
+                "pointStyle": "OPEN"
+              },
+              {
+                "type": "expression",
+                "id": "e12",
+                "latex": "(2.6,-\\delta)",
+                "color": "#6042a6",
+                "showLabel": true,
+                "label": "← lower edge: −e^(2πi/3)·I",
+                "labelOrientation": "below_right",
+                "pointStyle": "OPEN"
+              },
+              {
+                "type": "expression",
+                "id": "e13",
+                "latex": "\\left(R\\cos\\frac{3\\pi}{4},R\\sin\\frac{3\\pi}{4}\\right)",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "C_R ↺ (→ 0 as R → ∞)",
+                "labelOrientation": "above_left",
+                "pointStyle": "OPEN"
+              },
+              {
+                "type": "expression",
+                "id": "e14",
+                "latex": "(0,\\varepsilon)",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "C_ε ↻ (→ 0)",
+                "labelOrientation": "above",
+                "pointStyle": "OPEN"
+              },
+              {
+                "type": "expression",
+                "id": "e15",
+                "latex": "(-10.6,-4.7)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "dashed: branch cut",
+                "labelOrientation": "right",
+                "color": "#9ca3af"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q1-integrand",
+      "moduleId": "desmos-graph",
+      "title": "Integrand: drag b to grow the area",
+      "x": 580,
+      "y": 460,
+      "width": 760,
+      "height": 304,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq1-integrand",
+            "graph": {
+              "viewport": {
+                "xmin": -1.5,
+                "xmax": 31,
+                "ymin": -0.025,
+                "ymax": 0.15
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e16",
+                  "hidden": true,
+                  "latex": "f(x)=\\frac{x^{1/3}}{(x+1)(x+4)}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e17",
+                  "latex": "y=f(x)\\left\\{x\\ge0\\right\\}",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e18",
+                  "latex": "b=20"
+                },
+                {
+                  "type": "expression",
+                  "id": "e19",
+                  "latex": "0\\le y\\le f(x)\\left\\{0\\le x\\le b\\right\\}",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e20",
+                  "latex": "A=\\int_{0}^{b}f(x)dx"
+                },
+                {
+                  "type": "expression",
+                  "id": "e21",
+                  "latex": "I_{exact}=\\frac{2\\pi\\left(4^{\\frac{1}{3}}-1\\right)}{3\\sqrt{3}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e22",
+                  "latex": "(b,0)",
+                  "color": "#fa7e19",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag b: shaded area ∫₀ᵇ f = ${A}",
+                  "labelOrientation": "above_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e23",
+                  "latex": "(5,0.135)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "as b → ∞ the area tends to I = 2π(∛4 − 1)/(3√3) ≈ 0.710285",
+                  "labelOrientation": "right",
+                  "color": "#9ca3af"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq1-integrand",
+          "graph": {
+            "viewport": {
+              "xmin": -1.5,
+              "xmax": 31,
+              "ymin": -0.025,
+              "ymax": 0.15
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e16",
+                "hidden": true,
+                "latex": "f(x)=\\frac{x^{1/3}}{(x+1)(x+4)}"
+              },
+              {
+                "type": "expression",
+                "id": "e17",
+                "latex": "y=f(x)\\left\\{x\\ge0\\right\\}",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e18",
+                "latex": "b=20"
+              },
+              {
+                "type": "expression",
+                "id": "e19",
+                "latex": "0\\le y\\le f(x)\\left\\{0\\le x\\le b\\right\\}",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e20",
+                "latex": "A=\\int_{0}^{b}f(x)dx"
+              },
+              {
+                "type": "expression",
+                "id": "e21",
+                "latex": "I_{exact}=\\frac{2\\pi\\left(4^{\\frac{1}{3}}-1\\right)}{3\\sqrt{3}}"
+              },
+              {
+                "type": "expression",
+                "id": "e22",
+                "latex": "(b,0)",
+                "color": "#fa7e19",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag b: shaded area ∫₀ᵇ f = ${A}",
+                "labelOrientation": "above_left"
+              },
+              {
+                "type": "expression",
+                "id": "e23",
+                "latex": "(5,0.135)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "as b → ∞ the area tends to I = 2π(∛4 − 1)/(3√3) ≈ 0.710285",
+                "labelOrientation": "right",
+                "color": "#9ca3af"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

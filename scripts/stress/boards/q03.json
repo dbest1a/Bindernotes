@@ -1,0 +1,317 @@
+{
+  "question": 3,
+  "title": "Q3 Stokes cylinder and plane",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q3-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q3 · Circulation by Stokes' theorem",
+        "problem": "$\\mathbf F=(y-z^2,\\ z+x^2,\\ x-y^2)$; $C$: $(x-1)^2+y^2=4$ meets $x+y+z=3$, counterclockwise seen from above. Find $\\oint_C \\mathbf F\\cdot d\\mathbf r$.",
+        "steps": [
+          {
+            "id": "q3-sol-s01",
+            "math": "\\frac{\\partial}{\\partial y}\\left(x-y^2\\right)-\\frac{\\partial}{\\partial z}\\left(z+x^2\\right) = -2y-1",
+            "note": "curl F, first component: ∂F₃/∂y − ∂F₂/∂z."
+          },
+          {
+            "id": "q3-sol-s02",
+            "math": "\\frac{\\partial}{\\partial z}\\left(y-z^2\\right)-\\frac{\\partial}{\\partial x}\\left(x-y^2\\right) = -2z-1",
+            "note": "Second component: ∂F₁/∂z − ∂F₃/∂x."
+          },
+          {
+            "id": "q3-sol-s03",
+            "math": "\\frac{\\partial}{\\partial x}\\left(z+x^2\\right)-\\frac{\\partial}{\\partial y}\\left(y-z^2\\right) = 2x-1",
+            "note": "Third component: ∂F₂/∂x − ∂F₁/∂y."
+          },
+          {
+            "id": "q3-sol-s04",
+            "math": "(-2y-1)+(-2z-1)+(2x-1) = 2x-2y-2z-3",
+            "note": "Upward normal of z = 3 − x − y: n dS = (1, 1, 1) dA, which matches counterclockwise-from-above."
+          },
+          {
+            "id": "q3-sol-s05",
+            "math": "2x-2y-2(3-x-y)-3 = 4x-9",
+            "note": "Substitute z = 3 − x − y on the surface."
+          },
+          {
+            "id": "q3-sol-s06",
+            "math": "\\int_0^{2\\pi}\\int_0^{2}\\left(4(1+r\\cos\\theta)-9\\right)r\\,dr\\,d\\theta = -20\\pi",
+            "note": "Integrate over the disk D: centre (1, 0), radius 2, in polar coordinates about the centre."
+          },
+          {
+            "id": "q3-sol-s07",
+            "math": "4\\cdot1\\cdot4\\pi-9\\cdot4\\pi = -20\\pi",
+            "note": "Centroid shortcut: ∬4x dA = 4·x̄·Area = 16π and ∬9 dA = 36π."
+          },
+          {
+            "id": "q3-sol-s08",
+            "math": "\\int_0^{2\\pi}\\left(2\\sin t-(2-2\\cos t-2\\sin t)^2\\right)(-2\\sin t)\\,dt = -20\\pi",
+            "note": "Direct check: r(t) = (1 + 2cos t, 2 sin t, 2 − 2cos t − 2 sin t), 0 ≤ t ≤ 2π. The F₁·x′ part."
+          },
+          {
+            "id": "q3-sol-s09",
+            "math": "\\int_0^{2\\pi}\\left(2-2\\cos t-2\\sin t+(1+2\\cos t)^2\\right)(2\\cos t)\\,dt = 4\\pi",
+            "note": "The F₂·y′ part."
+          },
+          {
+            "id": "q3-sol-s10",
+            "math": "\\int_0^{2\\pi}\\left(1+2\\cos t-4\\sin^2 t\\right)(2\\sin t-2\\cos t)\\,dt = -4\\pi",
+            "note": "The F₃·z′ part."
+          },
+          {
+            "id": "q3-sol-s11",
+            "math": "-20\\pi+4\\pi-4\\pi = -20\\pi",
+            "note": "The line integral agrees with the surface integral."
+          },
+          {
+            "id": "q3-sol-s12",
+            "math": "-20\\pi \\approx -62.8319",
+            "note": "Decimal value. The sign is negative."
+          }
+        ],
+        "answer": "\\oint_C \\mathbf F\\cdot d\\mathbf r=-20\\pi\\approx -62.8319",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q3-scene",
+      "moduleId": "desmos-graph",
+      "title": "Cylinder, plane and the curve C",
+      "x": 660,
+      "y": 0,
+      "width": 680,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "3d",
+        "graphStatesByMode": {
+          "2d": null,
+          "3d": {
+            "version": 11,
+            "randomSeed": "stressq3-scene",
+            "graph": {
+              "viewport": {
+                "xmin": -2.5,
+                "xmax": 4.5,
+                "ymin": -3.5,
+                "ymax": 3.5,
+                "zmin": -4,
+                "zmax": 8
+              },
+              "threeDMode": true,
+              "product": "graphing-3d"
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e40",
+                  "latex": "(1+2\\cos t,2\\sin t,[-2,0,2,4,6])",
+                  "color": "#2d70b3",
+                  "lineWidth": "1",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "2\\pi"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e41",
+                  "latex": "w=\\frac{\\pi}{6}\\cdot\\left[0,1,2,3,4,5,6,7,8,9,10,11\\right]"
+                },
+                {
+                  "type": "expression",
+                  "id": "e42",
+                  "latex": "\\left(1+2\\cos\\left(w\\right),2\\sin\\left(w\\right),t\\right)",
+                  "color": "#2d70b3",
+                  "lineWidth": "1",
+                  "parametricDomain": {
+                    "min": "-2",
+                    "max": "6"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e43",
+                  "latex": "z=3-x-y\\left\\{(x-1)^2+y^2\\le4\\right\\}",
+                  "color": "#388c46",
+                  "fillOpacity": "0.55"
+                },
+                {
+                  "type": "expression",
+                  "id": "e44",
+                  "latex": "(1+2\\cos t,2\\sin t,2-2\\cos t-2\\sin t)",
+                  "color": "#c74440",
+                  "lineWidth": "4",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "2\\pi"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e45",
+                  "latex": "a=0.8"
+                },
+                {
+                  "type": "expression",
+                  "id": "e46",
+                  "latex": "P=(1+2\\cos a,2\\sin a,2-2\\cos a-2\\sin a)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "C, counterclockwise seen from above (arrow = r′(t))"
+                },
+                {
+                  "type": "expression",
+                  "id": "e47",
+                  "latex": "\\operatorname{vector}\\left(P,P+0.9(-2\\sin a,2\\cos a,2\\sin a-2\\cos a)\\right)",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e48",
+                  "latex": "\\operatorname{vector}\\left((1,0,2),(1,0,2)+(1,1,1)\\right)",
+                  "color": "#388c46"
+                },
+                {
+                  "type": "expression",
+                  "id": "e49",
+                  "latex": "(1,0,2)",
+                  "color": "#388c46",
+                  "showLabel": true,
+                  "label": "n = (1,1,1) upward"
+                }
+              ]
+            }
+          }
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq3-scene",
+          "graph": {
+            "viewport": {
+              "xmin": -2.5,
+              "xmax": 4.5,
+              "ymin": -3.5,
+              "ymax": 3.5,
+              "zmin": -4,
+              "zmax": 8
+            },
+            "threeDMode": true,
+            "product": "graphing-3d"
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e40",
+                "latex": "(1+2\\cos t,2\\sin t,[-2,0,2,4,6])",
+                "color": "#2d70b3",
+                "lineWidth": "1",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "2\\pi"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e41",
+                "latex": "w=\\frac{\\pi}{6}\\cdot\\left[0,1,2,3,4,5,6,7,8,9,10,11\\right]"
+              },
+              {
+                "type": "expression",
+                "id": "e42",
+                "latex": "\\left(1+2\\cos\\left(w\\right),2\\sin\\left(w\\right),t\\right)",
+                "color": "#2d70b3",
+                "lineWidth": "1",
+                "parametricDomain": {
+                  "min": "-2",
+                  "max": "6"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e43",
+                "latex": "z=3-x-y\\left\\{(x-1)^2+y^2\\le4\\right\\}",
+                "color": "#388c46",
+                "fillOpacity": "0.55"
+              },
+              {
+                "type": "expression",
+                "id": "e44",
+                "latex": "(1+2\\cos t,2\\sin t,2-2\\cos t-2\\sin t)",
+                "color": "#c74440",
+                "lineWidth": "4",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "2\\pi"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e45",
+                "latex": "a=0.8"
+              },
+              {
+                "type": "expression",
+                "id": "e46",
+                "latex": "P=(1+2\\cos a,2\\sin a,2-2\\cos a-2\\sin a)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "C, counterclockwise seen from above (arrow = r′(t))"
+              },
+              {
+                "type": "expression",
+                "id": "e47",
+                "latex": "\\operatorname{vector}\\left(P,P+0.9(-2\\sin a,2\\cos a,2\\sin a-2\\cos a)\\right)",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e48",
+                "latex": "\\operatorname{vector}\\left((1,0,2),(1,0,2)+(1,1,1)\\right)",
+                "color": "#388c46"
+              },
+              {
+                "type": "expression",
+                "id": "e49",
+                "latex": "(1,0,2)",
+                "color": "#388c46",
+                "showLabel": true,
+                "label": "n = (1,1,1) upward"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

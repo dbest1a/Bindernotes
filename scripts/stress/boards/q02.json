@@ -1,0 +1,426 @@
+{
+  "question": 2,
+  "title": "Q2 Log-squared integral",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q2-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q2 · ∫ ln²x / (x² + 2x + 4)",
+        "problem": "Evaluate $I=\\int_0^\\infty \\dfrac{(\\ln x)^2}{x^2+2x+4}\\,dx$ exactly.",
+        "steps": [
+          {
+            "id": "q2-sol-s01",
+            "math": "(2t)^2+2(2t)+4 = 4(t^2+t+1)",
+            "note": "Substitute x = 2t, so dx = 2 dt and the quadratic becomes 4(t² + t + 1)."
+          },
+          {
+            "id": "q2-sol-s02",
+            "math": "\\int_0^{\\infty}\\frac{(\\ln x)^2}{x^2+2x+4}\\,dx = \\frac12\\int_0^{\\infty}\\frac{(\\ln 2+\\ln t)^2}{t^2+t+1}\\,dt",
+            "note": "After the substitution; expand (ln 2 + ln t)² = ln²2 + 2 ln 2 · ln t + ln²t, giving J₀, J₁, J₂."
+          },
+          {
+            "id": "q2-sol-s03",
+            "math": "\\frac{d}{dt}\\left(\\frac{2}{\\sqrt{3}}\\arctan\\frac{2t+1}{\\sqrt{3}}\\right) = \\frac{1}{t^2+t+1}",
+            "note": "Antiderivative for J₀."
+          },
+          {
+            "id": "q2-sol-s04",
+            "math": "\\int_0^{\\infty}\\frac{1}{t^2+t+1}\\,dt = \\frac{2}{\\sqrt3}\\left(\\frac{\\pi}{2}-\\frac{\\pi}{6}\\right) = \\frac{2\\pi}{3\\sqrt{3}}",
+            "note": "J₀ from the arctan antiderivative."
+          },
+          {
+            "id": "q2-sol-s05",
+            "math": "\\int_0^{\\infty}\\frac{\\ln t}{t^2+t+1}\\,dt = 0",
+            "note": "J₁ = 0: t ↦ 1/t maps the integrand to its negative because t² + t + 1 is palindromic (see the graph)."
+          },
+          {
+            "id": "q2-sol-s06",
+            "math": "\\int_0^{\\infty}\\frac{t^{0.5-1}}{t^2+t+1}\\,dt = \\frac{\\pi\\sin(0.5\\pi/3)}{\\sin(\\pi/3)\\sin(0.5\\pi)}",
+            "note": "Mellin transform F(s) = ∫t^(s−1)/(t² + t + 1) dt = π sin((1 − s)π/3)/(sin(π/3) sin πs) for 0 < s < 2, so J_k = F⁽ᵏ⁾(1). Spot-check at s = 1/2."
+          },
+          {
+            "id": "q2-sol-s07",
+            "math": "\\frac{\\pi}{\\sin(\\pi/3)}\\cdot\\frac{\\sin(0.01\\pi/3)}{\\sin(0.01\\pi)} \\approx \\frac{2\\pi}{\\sqrt3}\\left(\\frac13+\\frac{4\\pi^2}{81}(0.01)^2\\right)",
+            "note": "With s = 1 + ε, F = (π/sin(π/3))·sin(πε/3)/sin(πε) = (2π/√3)(1/3 + 4π²ε²/81 + …). Spot-check of the expansion at ε = 0.01."
+          },
+          {
+            "id": "q2-sol-s08",
+            "math": "2\\cdot\\frac{2\\pi}{\\sqrt3}\\cdot\\frac{4\\pi^2}{81} = \\frac{16\\pi^3}{81\\sqrt3}",
+            "note": "J₂ = F″(1) = 2 × (coefficient of ε²)."
+          },
+          {
+            "id": "q2-sol-s09",
+            "math": "\\int_0^{\\infty}\\frac{(\\ln t)^2}{t^2+t+1}\\,dt = \\frac{16\\pi^3}{81\\sqrt{3}}",
+            "note": "Numerical check of J₂."
+          },
+          {
+            "id": "q2-sol-s10",
+            "math": "\\frac12\\left((\\ln 2)^2\\cdot\\frac{2\\pi}{3\\sqrt3}+0+\\frac{16\\pi^3}{81\\sqrt3}\\right) = \\frac{\\pi(\\ln 2)^2}{3\\sqrt3}+\\frac{8\\pi^3}{81\\sqrt3}",
+            "note": "Assemble I = ½(ln²2 · J₀ + 2 ln 2 · J₁ + J₂)."
+          },
+          {
+            "id": "q2-sol-s11",
+            "math": "= \\frac{\\sqrt3\\,\\pi\\left(27(\\ln 2)^2+8\\pi^2\\right)}{243}",
+            "note": "Single fraction."
+          },
+          {
+            "id": "q2-sol-s12",
+            "math": "\\frac{\\sqrt3\\,\\pi\\left(27(\\ln 2)^2+8\\pi^2\\right)}{243} \\approx 2.05853",
+            "note": "Decimal value."
+          },
+          {
+            "id": "q2-sol-s13",
+            "math": "\\int_0^{\\infty}\\frac{(\\ln x)^2}{x^2+2x+4}\\,dx \\approx 2.05853",
+            "note": "Final check against direct quadrature."
+          }
+        ],
+        "answer": "I=\\dfrac{\\pi\\ln^2 2}{3\\sqrt3}+\\dfrac{8\\pi^3}{81\\sqrt3}=\\dfrac{\\sqrt3\\,\\pi\\left(27\\ln^2 2+8\\pi^2\\right)}{243}\\approx 2.05853",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q2-symmetry",
+      "moduleId": "desmos-graph",
+      "title": "J₁ = 0: signed areas cancel",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq2-symmetry",
+            "graph": {
+              "viewport": {
+                "xmin": -0.5,
+                "xmax": 12,
+                "ymin": -1.1,
+                "ymax": 0.45
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e24",
+                  "hidden": true,
+                  "latex": "g(t)=\\frac{\\ln t}{t^2+t+1}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e25",
+                  "latex": "y=g(x)\\left\\{x>0\\right\\}",
+                  "color": "#6042a6"
+                },
+                {
+                  "type": "expression",
+                  "id": "e26",
+                  "latex": "g(x)\\le y\\le0\\left\\{0<x\\le1\\right\\}",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e27",
+                  "latex": "b=6"
+                },
+                {
+                  "type": "expression",
+                  "id": "e28",
+                  "latex": "0\\le y\\le g(x)\\left\\{1\\le x\\le b\\right\\}",
+                  "color": "#388c46"
+                },
+                {
+                  "type": "expression",
+                  "id": "e29",
+                  "latex": "A_{1}=\\int_{0}^{1}g(t)dt"
+                },
+                {
+                  "type": "expression",
+                  "id": "e30",
+                  "latex": "A_{2}=\\int_{1}^{b}g(t)dt"
+                },
+                {
+                  "type": "expression",
+                  "id": "e31",
+                  "latex": "S=A_{1}+A_{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e32",
+                  "latex": "(b,0)",
+                  "color": "#fa7e19",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag b: ∫₀ᵇ g = ${S}",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e33",
+                  "latex": "(0.5,-0.75)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "area on (0, 1) = ${A_1}",
+                  "labelOrientation": "right",
+                  "color": "#9ca3af"
+                },
+                {
+                  "type": "expression",
+                  "id": "e34",
+                  "latex": "(1.5,-0.4)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "area on (1, b) = ${A_2}  →  −(area on (0, 1)) as b → ∞, by t ↦ 1/t",
+                  "labelOrientation": "right",
+                  "color": "#9ca3af"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq2-symmetry",
+          "graph": {
+            "viewport": {
+              "xmin": -0.5,
+              "xmax": 12,
+              "ymin": -1.1,
+              "ymax": 0.45
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e24",
+                "hidden": true,
+                "latex": "g(t)=\\frac{\\ln t}{t^2+t+1}"
+              },
+              {
+                "type": "expression",
+                "id": "e25",
+                "latex": "y=g(x)\\left\\{x>0\\right\\}",
+                "color": "#6042a6"
+              },
+              {
+                "type": "expression",
+                "id": "e26",
+                "latex": "g(x)\\le y\\le0\\left\\{0<x\\le1\\right\\}",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e27",
+                "latex": "b=6"
+              },
+              {
+                "type": "expression",
+                "id": "e28",
+                "latex": "0\\le y\\le g(x)\\left\\{1\\le x\\le b\\right\\}",
+                "color": "#388c46"
+              },
+              {
+                "type": "expression",
+                "id": "e29",
+                "latex": "A_{1}=\\int_{0}^{1}g(t)dt"
+              },
+              {
+                "type": "expression",
+                "id": "e30",
+                "latex": "A_{2}=\\int_{1}^{b}g(t)dt"
+              },
+              {
+                "type": "expression",
+                "id": "e31",
+                "latex": "S=A_{1}+A_{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e32",
+                "latex": "(b,0)",
+                "color": "#fa7e19",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag b: ∫₀ᵇ g = ${S}",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e33",
+                "latex": "(0.5,-0.75)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "area on (0, 1) = ${A_1}",
+                "labelOrientation": "right",
+                "color": "#9ca3af"
+              },
+              {
+                "type": "expression",
+                "id": "e34",
+                "latex": "(1.5,-0.4)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "area on (1, b) = ${A_2}  →  −(area on (0, 1)) as b → ∞, by t ↦ 1/t",
+                "labelOrientation": "right",
+                "color": "#9ca3af"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q2-integrand",
+      "moduleId": "desmos-graph",
+      "title": "Original integrand",
+      "x": 580,
+      "y": 392,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq2-integrand",
+            "graph": {
+              "viewport": {
+                "xmin": -0.5,
+                "xmax": 20,
+                "ymin": -0.2,
+                "ymax": 3.2
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e35",
+                  "hidden": true,
+                  "latex": "f(x)=\\frac{(\\ln x)^2}{x^2+2x+4}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e36",
+                  "latex": "y=f(x)\\left\\{x>0\\right\\}",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e37",
+                  "latex": "0\\le y\\le f(x)\\left\\{0<x\\le20\\right\\}",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e38",
+                  "latex": "I_{num}=\\int_{0}^{1}f(x)dx+\\int_{1}^{10000}f(x)dx"
+                },
+                {
+                  "type": "expression",
+                  "id": "e39",
+                  "latex": "I_{exact}=\\frac{\\sqrt{3}\\pi\\left(27\\left(\\ln2\\right)^{2}+8\\pi^{2}\\right)}{243}"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq2-integrand",
+          "graph": {
+            "viewport": {
+              "xmin": -0.5,
+              "xmax": 20,
+              "ymin": -0.2,
+              "ymax": 3.2
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e35",
+                "hidden": true,
+                "latex": "f(x)=\\frac{(\\ln x)^2}{x^2+2x+4}"
+              },
+              {
+                "type": "expression",
+                "id": "e36",
+                "latex": "y=f(x)\\left\\{x>0\\right\\}",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e37",
+                "latex": "0\\le y\\le f(x)\\left\\{0<x\\le20\\right\\}",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e38",
+                "latex": "I_{num}=\\int_{0}^{1}f(x)dx+\\int_{1}^{10000}f(x)dx"
+              },
+              {
+                "type": "expression",
+                "id": "e39",
+                "latex": "I_{exact}=\\frac{\\sqrt{3}\\pi\\left(27\\left(\\ln2\\right)^{2}+8\\pi^{2}\\right)}{243}"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

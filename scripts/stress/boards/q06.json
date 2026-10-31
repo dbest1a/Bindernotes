@@ -1,0 +1,408 @@
+{
+  "question": 6,
+  "title": "Q6 Penney race HTHT vs THTT",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q6-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 420,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q6 · Conway leading numbers",
+        "problem": "Alice waits for HTHT, Bob for THTT on the same fair-coin sequence. (a) Each expected waiting time alone. (b) $P(\\text{Alice wins})$. (c) Expected game length.",
+        "steps": [
+          {
+            "id": "q6-sol-s01",
+            "math": "2^4+2^2 = 20",
+            "note": "AA (HTHT with itself): overlaps of length 4 and 2. (a) E[wait for HTHT] = 20."
+          },
+          {
+            "id": "q6-sol-s02",
+            "math": "2^4+2^1 = 18",
+            "note": "BB (THTT with itself): overlaps of length 4 and 1. (a) E[wait for THTT] = 18."
+          },
+          {
+            "id": "q6-sol-s03",
+            "math": "2^1+2^3 = 10",
+            "note": "AB: the last k letters of HTHT equal the first k of THTT for k = 1 (T) and k = 3 (THT)."
+          },
+          {
+            "id": "q6-sol-s04",
+            "math": "0 = 0",
+            "note": "BA: no suffix of THTT is a prefix of HTHT."
+          },
+          {
+            "id": "q6-sol-s05",
+            "math": "\\frac{18-0}{(18-0)+(20-10)} = \\frac{9}{14}",
+            "note": "(b) Conway's odds A : B = (BB − BA) : (AA − AB) = 18 : 10."
+          },
+          {
+            "id": "q6-sol-s06",
+            "math": "\\frac{20\\cdot18-10\\cdot0}{20+18-10-0} = \\frac{90}{7}",
+            "note": "(c) E[length] = (AA·BB − AB·BA)/(AA + BB − AB − BA)."
+          },
+          {
+            "id": "q6-sol-s07",
+            "math": "\\frac{90}{7} \\approx 12.857",
+            "note": "The slower pattern on its own (20 > 18) still wins the race 9 times in 14."
+          }
+        ],
+        "answer": "E_{HTHT}=20,\\ E_{THTT}=18;\\quad P(\\text{Alice})=\\tfrac{9}{14};\\quad E[\\text{length}]=\\tfrac{90}{7}",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q6-chain-p",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 440,
+      "y": 0,
+      "width": 500,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Check: absorbing chain for P(Alice)",
+        "problem": "States by longest useful suffix: p_0 ∅, p_1 H, p_2 T, p_3 HT, p_4 TH, p_5 HTH, p_6 THT. pₖ = P(Alice wins | state k).",
+        "steps": [
+          {
+            "id": "q6-chain-p-s01",
+            "math": "p_0=\\frac{p_1+p_2}{2}",
+            "note": "From ∅: H → H, T → T."
+          },
+          {
+            "id": "q6-chain-p-s02",
+            "math": "p_1=\\frac{p_1+p_3}{2}",
+            "note": "From H: H → H, T → HT."
+          },
+          {
+            "id": "q6-chain-p-s03",
+            "math": "p_2=\\frac{p_4+p_2}{2}",
+            "note": "From T: H → TH, T → T."
+          },
+          {
+            "id": "q6-chain-p-s04",
+            "math": "p_3=\\frac{p_5+p_2}{2}",
+            "note": "From HT: H → HTH, T → T (HTT keeps only T)."
+          },
+          {
+            "id": "q6-chain-p-s05",
+            "math": "p_4=\\frac{p_1+p_6}{2}",
+            "note": "From TH: H → H, T → THT."
+          },
+          {
+            "id": "q6-chain-p-s06",
+            "math": "p_5=\\frac{p_1+1}{2}",
+            "note": "From HTH: H → H, T completes HTHT (Alice wins)."
+          },
+          {
+            "id": "q6-chain-p-s07",
+            "math": "p_6=\\frac{p_5+0}{2}",
+            "note": "From THT: H → HTH, T completes THTT (Bob wins)."
+          },
+          {
+            "id": "q6-chain-p-s08",
+            "math": "p_0=\\tfrac{9}{14},\\ p_1=\\tfrac57,\\ p_2=\\tfrac47,\\ p_3=\\tfrac57,\\ p_4=\\tfrac47,\\ p_5=\\tfrac67,\\ p_6=\\tfrac37",
+            "note": "Exact solution of the linear system; the checker substitutes it into all seven equations."
+          }
+        ],
+        "answer": "P(\\text{Alice wins})=p_0=\\tfrac{9}{14}",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q6-chain-m",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 440,
+      "y": 392,
+      "width": 500,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Check: absorbing chain for the game length",
+        "problem": "Same states; mₖ = expected further tosses from state k.",
+        "steps": [
+          {
+            "id": "q6-chain-m-s01",
+            "math": "m_0=1+\\frac{m_1+m_2}{2}",
+            "note": "From ∅."
+          },
+          {
+            "id": "q6-chain-m-s02",
+            "math": "m_1=1+\\frac{m_1+m_3}{2}",
+            "note": "From H."
+          },
+          {
+            "id": "q6-chain-m-s03",
+            "math": "m_2=1+\\frac{m_4+m_2}{2}",
+            "note": "From T."
+          },
+          {
+            "id": "q6-chain-m-s04",
+            "math": "m_3=1+\\frac{m_5+m_2}{2}",
+            "note": "From HT."
+          },
+          {
+            "id": "q6-chain-m-s05",
+            "math": "m_4=1+\\frac{m_1+m_6}{2}",
+            "note": "From TH."
+          },
+          {
+            "id": "q6-chain-m-s06",
+            "math": "m_5=1+\\frac{m_1+0}{2}",
+            "note": "From HTH (T ends the game)."
+          },
+          {
+            "id": "q6-chain-m-s07",
+            "math": "m_6=1+\\frac{m_5+0}{2}",
+            "note": "From THT (T ends the game)."
+          },
+          {
+            "id": "q6-chain-m-s08",
+            "math": "m_0=\\tfrac{90}{7},\\ m_1=\\tfrac{86}{7},\\ m_2=\\tfrac{80}{7},\\ m_3=\\tfrac{72}{7},\\ m_4=\\tfrac{66}{7},\\ m_5=\\tfrac{50}{7},\\ m_6=\\tfrac{32}{7}",
+            "note": "Exact solution; substituted into all seven equations."
+          }
+        ],
+        "answer": "E[\\text{length}]=m_0=\\tfrac{90}{7}\\approx12.857",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q6-bars",
+      "moduleId": "desmos-graph",
+      "title": "Waiting time vs winning chance",
+      "x": 960,
+      "y": 0,
+      "width": 380,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq6-bars",
+            "graph": {
+              "viewport": {
+                "xmin": -0.4,
+                "xmax": 4.9,
+                "ymin": -3.2,
+                "ymax": 23
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e91",
+                  "latex": "\\operatorname{polygon}((0.2,0),(0.2,20),(0.8,20),(0.8,0))",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e92",
+                  "latex": "\\operatorname{polygon}((1.2,0),(1.2,18),(1.8,18),(1.8,0))",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e93",
+                  "latex": "\\operatorname{polygon}((2.7,0),(2.7,20\\cdot\\frac{9}{14}),(3.3,20\\cdot\\frac{9}{14}),(3.3,0))",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e94",
+                  "latex": "\\operatorname{polygon}((3.7,0),(3.7,20\\cdot\\frac{5}{14}),(4.3,20\\cdot\\frac{5}{14}),(4.3,0))",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e95",
+                  "latex": "(0.5,20)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "E[HTHT] = 20",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e96",
+                  "latex": "(1.5,18)",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "E[THTT] = 18",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e97",
+                  "latex": "(3,20\\cdot\\frac{9}{14})",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "P(Alice) = 9/14",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e98",
+                  "latex": "(4,20\\cdot\\frac{5}{14})",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "P(Bob) = 5/14",
+                  "labelOrientation": "above_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e99",
+                  "latex": "(1,-1.5)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "E[wait] (tosses)",
+                  "color": "#9ca3af"
+                },
+                {
+                  "type": "expression",
+                  "id": "e100",
+                  "latex": "(3.5,-1.5)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "P(win) × 20",
+                  "color": "#9ca3af"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq6-bars",
+          "graph": {
+            "viewport": {
+              "xmin": -0.4,
+              "xmax": 4.9,
+              "ymin": -3.2,
+              "ymax": 23
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e91",
+                "latex": "\\operatorname{polygon}((0.2,0),(0.2,20),(0.8,20),(0.8,0))",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e92",
+                "latex": "\\operatorname{polygon}((1.2,0),(1.2,18),(1.8,18),(1.8,0))",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e93",
+                "latex": "\\operatorname{polygon}((2.7,0),(2.7,20\\cdot\\frac{9}{14}),(3.3,20\\cdot\\frac{9}{14}),(3.3,0))",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e94",
+                "latex": "\\operatorname{polygon}((3.7,0),(3.7,20\\cdot\\frac{5}{14}),(4.3,20\\cdot\\frac{5}{14}),(4.3,0))",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e95",
+                "latex": "(0.5,20)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "E[HTHT] = 20",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e96",
+                "latex": "(1.5,18)",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "E[THTT] = 18",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e97",
+                "latex": "(3,20\\cdot\\frac{9}{14})",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "P(Alice) = 9/14",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e98",
+                "latex": "(4,20\\cdot\\frac{5}{14})",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "P(Bob) = 5/14",
+                "labelOrientation": "above_left"
+              },
+              {
+                "type": "expression",
+                "id": "e99",
+                "latex": "(1,-1.5)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "E[wait] (tosses)",
+                "color": "#9ca3af"
+              },
+              {
+                "type": "expression",
+                "id": "e100",
+                "latex": "(3.5,-1.5)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "P(win) × 20",
+                "color": "#9ca3af"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

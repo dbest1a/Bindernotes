@@ -1,0 +1,567 @@
+{
+  "question": 14,
+  "title": "Q14 A ⇌ B → C exact kinetics",
+  "subject": "Chemistry",
+  "modules": [
+    {
+      "id": "q14-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q14 · A ⇌ B → C, exact solution",
+        "problem": "$k_1=0.120$, $k_{-1}=0.0300$, $k_2=0.0450$ s$^{-1}$; $[A]_0=0.500$ M. (a) $t$ and value of $[B]_{max}$ (b) $t$ when $[C]=0.250$ M. No steady-state approximation.",
+        "steps": [
+          {
+            "id": "q14-sol-s01",
+            "math": "\\lambda^2-0.195\\lambda+0.0054=0",
+            "note": "Decay constants of M = [[−k₁, k₋₁], [k₁, −(k₋₁ + k₂)]]: λ₊ + λ₋ = k₁ + k₋₁ + k₂, λ₊λ₋ = k₁k₂."
+          },
+          {
+            "id": "q14-sol-s02",
+            "math": "\\lambda=\\frac{39\\pm3\\sqrt{73}}{400}",
+            "note": "λ₊ ≈ 0.16158 s⁻¹, λ₋ ≈ 0.03342 s⁻¹."
+          },
+          {
+            "id": "q14-sol-s03",
+            "math": "\\frac{d}{dt}\\left(\\frac{0.06}{\\frac{6\\sqrt{73}}{400}}\\left(e^{-\\frac{39-3\\sqrt{73}}{400}t}-e^{-\\frac{39+3\\sqrt{73}}{400}t}\\right)\\right) = 0.12\\cdot\\frac{0.5}{\\frac{6\\sqrt{73}}{400}}\\left(\\left(0.12-\\frac{39-3\\sqrt{73}}{400}\\right)e^{-\\frac{39+3\\sqrt{73}}{400}t}+\\left(\\frac{39+3\\sqrt{73}}{400}-0.12\\right)e^{-\\frac{39-3\\sqrt{73}}{400}t}\\right)-0.075\\cdot\\frac{0.06}{\\frac{6\\sqrt{73}}{400}}\\left(e^{-\\frac{39-3\\sqrt{73}}{400}t}-e^{-\\frac{39+3\\sqrt{73}}{400}t}\\right)",
+            "note": "CAS check that [B](t) = k₁[A]₀(e^(−λ₋t) − e^(−λ₊t))/(λ₊ − λ₋) and the matching [A](t) satisfy d[B]/dt = k₁[A] − (k₋₁ + k₂)[B]."
+          },
+          {
+            "id": "q14-sol-s04",
+            "math": "\\frac{d}{dt}\\left(\\frac{0.5}{\\frac{6\\sqrt{73}}{400}}\\left(\\left(0.12-\\frac{39-3\\sqrt{73}}{400}\\right)e^{-\\frac{39+3\\sqrt{73}}{400}t}+\\left(\\frac{39+3\\sqrt{73}}{400}-0.12\\right)e^{-\\frac{39-3\\sqrt{73}}{400}t}\\right)\\right) = -0.12\\cdot\\frac{0.5}{\\frac{6\\sqrt{73}}{400}}\\left(\\left(0.12-\\frac{39-3\\sqrt{73}}{400}\\right)e^{-\\frac{39+3\\sqrt{73}}{400}t}+\\left(\\frac{39+3\\sqrt{73}}{400}-0.12\\right)e^{-\\frac{39-3\\sqrt{73}}{400}t}\\right)+0.03\\cdot\\frac{0.06}{\\frac{6\\sqrt{73}}{400}}\\left(e^{-\\frac{39-3\\sqrt{73}}{400}t}-e^{-\\frac{39+3\\sqrt{73}}{400}t}\\right)",
+            "note": "… and d[A]/dt = −k₁[A] + k₋₁[B]."
+          },
+          {
+            "id": "q14-sol-s05",
+            "math": "\\frac{\\ln\\left(\\frac{39+3\\sqrt{73}}{39-3\\sqrt{73}}\\right)}{\\frac{6\\sqrt{73}}{400}} \\approx 12.2959",
+            "note": "(a) d[B]/dt = 0 at t_max = ln(λ₊/λ₋)/(λ₊ − λ₋), in s."
+          },
+          {
+            "id": "q14-sol-s06",
+            "math": "\\frac{0.06}{\\frac{6\\sqrt{73}}{400}}\\left(e^{-\\frac{39-3\\sqrt{73}}{400}\\cdot12.2959}-e^{-\\frac{39+3\\sqrt{73}}{400}\\cdot12.2959}\\right) \\approx 0.24621",
+            "note": "[B]max in M."
+          },
+          {
+            "id": "q14-sol-s07",
+            "math": "500\\left(1-\\frac{\\frac{39+3\\sqrt{73}}{400}e^{-\\frac{39-3\\sqrt{73}}{400}\\cdot27.4910}-\\frac{39-3\\sqrt{73}}{400}e^{-\\frac{39+3\\sqrt{73}}{400}\\cdot27.4910}}{\\frac{6\\sqrt{73}}{400}}\\right) \\approx 250.0",
+            "note": "(b) [C](t) = [A]₀(1 − (λ₊e^(−λ₋t) − λ₋e^(−λ₊t))/(λ₊ − λ₋)) equals 250.0 mM at t = 27.491 s."
+          },
+          {
+            "id": "q14-sol-s08",
+            "math": "\\frac{\\ln 2}{\\frac{0.120\\cdot0.0450}{0.0300+0.0450}} \\approx 9.627",
+            "note": "Contrast: the steady-state k_eff = k₁k₂/(k₋₁ + k₂) = 0.072 s⁻¹ would predict 9.63 s. Invalid: B builds up to half of [A]₀."
+          }
+        ],
+        "answer": "t_{max}=12.3\\ \\mathrm s,\\ [B]_{max}=0.246\\ \\mathrm M;\\quad t\\left([C]=0.250\\ \\mathrm M\\right)=27.5\\ \\mathrm s",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q14-curves",
+      "moduleId": "desmos-graph",
+      "title": "[A], [B], [C] from the exact solution",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq14-curves",
+            "graph": {
+              "viewport": {
+                "xmin": -4,
+                "xmax": 124,
+                "ymin": -0.03,
+                "ymax": 0.56
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e246",
+                  "latex": "k_{1}=0.12"
+                },
+                {
+                  "type": "expression",
+                  "id": "e247",
+                  "latex": "k_{r}=0.03"
+                },
+                {
+                  "type": "expression",
+                  "id": "e248",
+                  "latex": "k_{2}=0.045"
+                },
+                {
+                  "type": "expression",
+                  "id": "e249",
+                  "latex": "a_{0}=0.5"
+                },
+                {
+                  "type": "expression",
+                  "id": "e250",
+                  "latex": "\\sigma=k_{1}+k_{r}+k_{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e251",
+                  "latex": "l_{p}=\\frac{\\sigma+\\sqrt{\\sigma^{2}-4k_{1}k_{2}}}{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e252",
+                  "latex": "l_{m}=\\frac{\\sigma-\\sqrt{\\sigma^{2}-4k_{1}k_{2}}}{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e253",
+                  "hidden": true,
+                  "latex": "B(t)=\\frac{k_{1}a_{0}}{l_{p}-l_{m}}\\left(e^{-l_{m}t}-e^{-l_{p}t}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e254",
+                  "hidden": true,
+                  "latex": "A(t)=\\frac{a_{0}}{l_{p}-l_{m}}\\left(\\left(k_{1}-l_{m}\\right)e^{-l_{p}t}+\\left(l_{p}-k_{1}\\right)e^{-l_{m}t}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e255",
+                  "hidden": true,
+                  "latex": "C(t)=a_{0}-A(t)-B(t)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e256",
+                  "latex": "y=A(x)\\left\\{x\\ge0\\right\\}",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e257",
+                  "latex": "y=B(x)\\left\\{x\\ge0\\right\\}",
+                  "color": "#c74440",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e258",
+                  "latex": "y=C(x)\\left\\{x\\ge0\\right\\}",
+                  "color": "#388c46",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e259",
+                  "latex": "y=a_{0}\\left(1-e^{-\\frac{k_{1}k_{2}}{k_{r}+k_{2}}x}\\right)\\left\\{x\\ge0\\right\\}",
+                  "color": "#388c46",
+                  "lineStyle": "DASHED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e260",
+                  "latex": "t_{m}=\\frac{\\ln\\left(l_{p}/l_{m}\\right)}{l_{p}-l_{m}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e261",
+                  "latex": "(t_{m},B(t_{m}))",
+                  "color": "#c74440",
+                  "pointSize": "12",
+                  "showLabel": true,
+                  "label": "[B]max = ${B_m} M at t = ${t_r} s",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e262",
+                  "latex": "B_{m}=\\frac{\\operatorname{round}\\left(10^{4}B(t_{m})\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e263",
+                  "latex": "t_{r}=\\frac{\\operatorname{round}\\left(100t_{m}\\right)}{100}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e264",
+                  "latex": "(27.491,0.25)",
+                  "color": "#388c46",
+                  "pointSize": "12",
+                  "showLabel": true,
+                  "label": "[C] = 0.250 M at t = 27.49 s",
+                  "labelOrientation": "below_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e265",
+                  "latex": "t_{d}=60"
+                },
+                {
+                  "type": "expression",
+                  "id": "e266",
+                  "latex": "x=t_{d}",
+                  "color": "#9ca3af",
+                  "lineStyle": "DOTTED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e267",
+                  "latex": "(t_{d},A(t_{d}))",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e268",
+                  "latex": "(t_{d},C(t_{d}))",
+                  "color": "#388c46"
+                },
+                {
+                  "type": "expression",
+                  "id": "e269",
+                  "latex": "v_{A}=\\frac{\\operatorname{round}\\left(1000A(t_{d})\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e270",
+                  "latex": "v_{B}=\\frac{\\operatorname{round}\\left(1000B(t_{d})\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e271",
+                  "latex": "v_{C}=\\frac{\\operatorname{round}\\left(1000C(t_{d})\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e272",
+                  "latex": "(t_{d},B(t_{d}))",
+                  "color": "#c74440",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag: t = ${t_d} s  [A] ${v_A}  [B] ${v_B}  [C] ${v_C}",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e273",
+                  "latex": "(40,0.53)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "dashed: steady-state [C], k_eff = 0.072 s⁻¹ (fails)",
+                  "color": "#388c46",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e274",
+                  "latex": "(100,A(100))",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "[A]",
+                  "color": "#2d70b3",
+                  "labelOrientation": "below"
+                },
+                {
+                  "type": "expression",
+                  "id": "e275",
+                  "latex": "(100,B(100))",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "[B]",
+                  "color": "#c74440",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e276",
+                  "latex": "(110,C(110))",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "[C]",
+                  "color": "#388c46",
+                  "labelOrientation": "below"
+                },
+                {
+                  "type": "expression",
+                  "id": "e277",
+                  "latex": "(2,-0.015)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: t (s)   y: concentration (M)",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq14-curves",
+          "graph": {
+            "viewport": {
+              "xmin": -4,
+              "xmax": 124,
+              "ymin": -0.03,
+              "ymax": 0.56
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e246",
+                "latex": "k_{1}=0.12"
+              },
+              {
+                "type": "expression",
+                "id": "e247",
+                "latex": "k_{r}=0.03"
+              },
+              {
+                "type": "expression",
+                "id": "e248",
+                "latex": "k_{2}=0.045"
+              },
+              {
+                "type": "expression",
+                "id": "e249",
+                "latex": "a_{0}=0.5"
+              },
+              {
+                "type": "expression",
+                "id": "e250",
+                "latex": "\\sigma=k_{1}+k_{r}+k_{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e251",
+                "latex": "l_{p}=\\frac{\\sigma+\\sqrt{\\sigma^{2}-4k_{1}k_{2}}}{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e252",
+                "latex": "l_{m}=\\frac{\\sigma-\\sqrt{\\sigma^{2}-4k_{1}k_{2}}}{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e253",
+                "hidden": true,
+                "latex": "B(t)=\\frac{k_{1}a_{0}}{l_{p}-l_{m}}\\left(e^{-l_{m}t}-e^{-l_{p}t}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e254",
+                "hidden": true,
+                "latex": "A(t)=\\frac{a_{0}}{l_{p}-l_{m}}\\left(\\left(k_{1}-l_{m}\\right)e^{-l_{p}t}+\\left(l_{p}-k_{1}\\right)e^{-l_{m}t}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e255",
+                "hidden": true,
+                "latex": "C(t)=a_{0}-A(t)-B(t)"
+              },
+              {
+                "type": "expression",
+                "id": "e256",
+                "latex": "y=A(x)\\left\\{x\\ge0\\right\\}",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e257",
+                "latex": "y=B(x)\\left\\{x\\ge0\\right\\}",
+                "color": "#c74440",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e258",
+                "latex": "y=C(x)\\left\\{x\\ge0\\right\\}",
+                "color": "#388c46",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e259",
+                "latex": "y=a_{0}\\left(1-e^{-\\frac{k_{1}k_{2}}{k_{r}+k_{2}}x}\\right)\\left\\{x\\ge0\\right\\}",
+                "color": "#388c46",
+                "lineStyle": "DASHED"
+              },
+              {
+                "type": "expression",
+                "id": "e260",
+                "latex": "t_{m}=\\frac{\\ln\\left(l_{p}/l_{m}\\right)}{l_{p}-l_{m}}"
+              },
+              {
+                "type": "expression",
+                "id": "e261",
+                "latex": "(t_{m},B(t_{m}))",
+                "color": "#c74440",
+                "pointSize": "12",
+                "showLabel": true,
+                "label": "[B]max = ${B_m} M at t = ${t_r} s",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e262",
+                "latex": "B_{m}=\\frac{\\operatorname{round}\\left(10^{4}B(t_{m})\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e263",
+                "latex": "t_{r}=\\frac{\\operatorname{round}\\left(100t_{m}\\right)}{100}"
+              },
+              {
+                "type": "expression",
+                "id": "e264",
+                "latex": "(27.491,0.25)",
+                "color": "#388c46",
+                "pointSize": "12",
+                "showLabel": true,
+                "label": "[C] = 0.250 M at t = 27.49 s",
+                "labelOrientation": "below_right"
+              },
+              {
+                "type": "expression",
+                "id": "e265",
+                "latex": "t_{d}=60"
+              },
+              {
+                "type": "expression",
+                "id": "e266",
+                "latex": "x=t_{d}",
+                "color": "#9ca3af",
+                "lineStyle": "DOTTED"
+              },
+              {
+                "type": "expression",
+                "id": "e267",
+                "latex": "(t_{d},A(t_{d}))",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e268",
+                "latex": "(t_{d},C(t_{d}))",
+                "color": "#388c46"
+              },
+              {
+                "type": "expression",
+                "id": "e269",
+                "latex": "v_{A}=\\frac{\\operatorname{round}\\left(1000A(t_{d})\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e270",
+                "latex": "v_{B}=\\frac{\\operatorname{round}\\left(1000B(t_{d})\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e271",
+                "latex": "v_{C}=\\frac{\\operatorname{round}\\left(1000C(t_{d})\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e272",
+                "latex": "(t_{d},B(t_{d}))",
+                "color": "#c74440",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag: t = ${t_d} s  [A] ${v_A}  [B] ${v_B}  [C] ${v_C}",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e273",
+                "latex": "(40,0.53)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "dashed: steady-state [C], k_eff = 0.072 s⁻¹ (fails)",
+                "color": "#388c46",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e274",
+                "latex": "(100,A(100))",
+                "hidden": true,
+                "showLabel": true,
+                "label": "[A]",
+                "color": "#2d70b3",
+                "labelOrientation": "below"
+              },
+              {
+                "type": "expression",
+                "id": "e275",
+                "latex": "(100,B(100))",
+                "hidden": true,
+                "showLabel": true,
+                "label": "[B]",
+                "color": "#c74440",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e276",
+                "latex": "(110,C(110))",
+                "hidden": true,
+                "showLabel": true,
+                "label": "[C]",
+                "color": "#388c46",
+                "labelOrientation": "below"
+              },
+              {
+                "type": "expression",
+                "id": "e277",
+                "latex": "(2,-0.015)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: t (s)   y: concentration (M)",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

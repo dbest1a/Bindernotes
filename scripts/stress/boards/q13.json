@@ -1,0 +1,437 @@
+{
+  "question": 13,
+  "title": "Q13 van 't Hoff N2O4",
+  "subject": "Chemistry",
+  "modules": [
+    {
+      "id": "q13-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q13 · N₂O₄ ⇌ 2 NO₂ (van 't Hoff)",
+        "problem": "$K^\\circ=0.1420$ at 298.15 K, $\\Delta H^\\circ=+58.30$ kJ/mol. (a) $T$ where $K^\\circ=1$ (b) $K^\\circ$(340.0 K) (c) 0.400 bar N$_2$O$_4$ at 340.0 K: total pressure and fraction dissociated.",
+        "steps": [
+          {
+            "id": "q13-sol-s01",
+            "math": "\\left(\\frac{1}{298.15}-\\frac{8.314462\\ln(1/0.1420)}{58300}\\right)^{-1} \\approx 325.135",
+            "note": "(a) ln(K₂/K₁) = −(ΔH°/R)(1/T₂ − 1/T₁) with K₂ = 1."
+          },
+          {
+            "id": "q13-sol-s02",
+            "math": "\\frac{58300}{298.15}+8.314462\\ln 0.1420 \\approx 179.31",
+            "note": "Equivalently ΔS° = ΔH°/T + R ln K (J mol⁻¹ K⁻¹), and T = ΔH°/ΔS°."
+          },
+          {
+            "id": "q13-sol-s03",
+            "math": "0.1420\\,e^{-\\frac{58300}{8.314462}\\left(\\frac{1}{340.0}-\\frac{1}{298.15}\\right)} \\approx 2.56730",
+            "note": "(b) K° at 340.0 K."
+          },
+          {
+            "id": "q13-sol-s04",
+            "math": "4x^2+2.56730x-0.400\\cdot2.56730=0",
+            "note": "(c) ICE: P(N₂O₄) = 0.400 − x, P(NO₂) = 2x, K = 4x²/(0.400 − x)."
+          },
+          {
+            "id": "q13-sol-s05",
+            "math": "\\frac{-2.56730+\\sqrt{2.56730^2+16\\cdot0.400\\cdot2.56730}}{8} \\approx 0.278850",
+            "note": "Positive root (bar)."
+          },
+          {
+            "id": "q13-sol-s06",
+            "math": "\\frac{4\\cdot0.278850^2}{0.400-0.278850} \\approx 2.56730",
+            "note": "Check: the root reproduces K°."
+          },
+          {
+            "id": "q13-sol-s07",
+            "math": "0.400+0.278850 \\approx 0.6788",
+            "note": "Total pressure P = 0.400 + x (bar)."
+          },
+          {
+            "id": "q13-sol-s08",
+            "math": "\\frac{0.278850}{0.400} \\approx 0.6971",
+            "note": "Fraction dissociated α = x/0.400."
+          }
+        ],
+        "answer": "T=325.1\\ \\mathrm K;\\quad K^\\circ(340.0\\ \\mathrm K)=2.567;\\quad P_{tot}=0.679\\ \\mathrm{bar};\\quad \\alpha=0.697",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q13-vanthoff",
+      "moduleId": "desmos-graph",
+      "title": "van 't Hoff plot: ln K vs 1/T (×1000)",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq13-vanthoff",
+            "graph": {
+              "viewport": {
+                "xmin": 2.75,
+                "xmax": 3.55,
+                "ymin": -2.6,
+                "ymax": 1.6
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e230",
+                  "latex": "m=-\\frac{58300}{8.314462}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e231",
+                  "latex": "y=\\ln0.142+\\frac{m}{1000}\\left(x-\\frac{1000}{298.15}\\right)\\left\\{2.7\\le x\\le3.6\\right\\}",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e232",
+                  "latex": "\\left(\\frac{1000}{298.15},\\ln0.142\\right)",
+                  "color": "#000000",
+                  "showLabel": true,
+                  "label": "298.15 K: K = 0.1420",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e233",
+                  "latex": "\\left(\\frac{1000}{325.135},0\\right)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "K = 1 at 325.1 K",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e234",
+                  "latex": "\\left(\\frac{1000}{340},\\ln2.56730\\right)",
+                  "color": "#388c46",
+                  "showLabel": true,
+                  "label": "340.0 K: K = 2.567",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e235",
+                  "latex": "y=0",
+                  "color": "#9ca3af",
+                  "lineStyle": "DASHED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e236",
+                  "latex": "(2.78,-1.6)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "slope = −ΔH°/R = −7012 K",
+                  "color": "#2d70b3",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e237",
+                  "latex": "(2.78,-2.2)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: 1000/T (1/K)   y: ln K",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq13-vanthoff",
+          "graph": {
+            "viewport": {
+              "xmin": 2.75,
+              "xmax": 3.55,
+              "ymin": -2.6,
+              "ymax": 1.6
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e230",
+                "latex": "m=-\\frac{58300}{8.314462}"
+              },
+              {
+                "type": "expression",
+                "id": "e231",
+                "latex": "y=\\ln0.142+\\frac{m}{1000}\\left(x-\\frac{1000}{298.15}\\right)\\left\\{2.7\\le x\\le3.6\\right\\}",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e232",
+                "latex": "\\left(\\frac{1000}{298.15},\\ln0.142\\right)",
+                "color": "#000000",
+                "showLabel": true,
+                "label": "298.15 K: K = 0.1420",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e233",
+                "latex": "\\left(\\frac{1000}{325.135},0\\right)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "K = 1 at 325.1 K",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e234",
+                "latex": "\\left(\\frac{1000}{340},\\ln2.56730\\right)",
+                "color": "#388c46",
+                "showLabel": true,
+                "label": "340.0 K: K = 2.567",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e235",
+                "latex": "y=0",
+                "color": "#9ca3af",
+                "lineStyle": "DASHED"
+              },
+              {
+                "type": "expression",
+                "id": "e236",
+                "latex": "(2.78,-1.6)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "slope = −ΔH°/R = −7012 K",
+                "color": "#2d70b3",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e237",
+                "latex": "(2.78,-2.2)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: 1000/T (1/K)   y: ln K",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q13-alpha",
+      "moduleId": "desmos-graph",
+      "title": "Fraction dissociated α(T) at 0.400 bar initial",
+      "x": 580,
+      "y": 392,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq13-alpha",
+            "graph": {
+              "viewport": {
+                "xmin": 255,
+                "xmax": 405,
+                "ymin": -0.05,
+                "ymax": 1.05
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e238",
+                  "hidden": true,
+                  "latex": "K(T)=0.142e^{-\\frac{58300}{8.314462}\\left(\\frac{1}{T}-\\frac{1}{298.15}\\right)}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e239",
+                  "hidden": true,
+                  "latex": "q(T)=\\frac{-K(T)+\\sqrt{K(T)^{2}+6.4K(T)}}{8}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e240",
+                  "latex": "y=\\frac{q(x)}{0.4}",
+                  "color": "#6042a6",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e241",
+                  "latex": "T_{s}=340"
+                },
+                {
+                  "type": "expression",
+                  "id": "e242",
+                  "latex": "\\left(T_{s},\\frac{q(T_{s})}{0.4}\\right)",
+                  "color": "#c74440",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag: T = ${T_s} K → α = ${a_s}, P_tot = ${P_s} bar",
+                  "labelOrientation": "above_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e243",
+                  "latex": "a_{s}=\\frac{\\operatorname{round}\\left(1000\\frac{q(T_{s})}{0.4}\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e244",
+                  "latex": "P_{s}=\\frac{\\operatorname{round}\\left(1000\\left(0.4+q(T_{s})\\right)\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e245",
+                  "latex": "(258,0.95)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: T (K)   y: α (fraction of N₂O₄ dissociated)",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq13-alpha",
+          "graph": {
+            "viewport": {
+              "xmin": 255,
+              "xmax": 405,
+              "ymin": -0.05,
+              "ymax": 1.05
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e238",
+                "hidden": true,
+                "latex": "K(T)=0.142e^{-\\frac{58300}{8.314462}\\left(\\frac{1}{T}-\\frac{1}{298.15}\\right)}"
+              },
+              {
+                "type": "expression",
+                "id": "e239",
+                "hidden": true,
+                "latex": "q(T)=\\frac{-K(T)+\\sqrt{K(T)^{2}+6.4K(T)}}{8}"
+              },
+              {
+                "type": "expression",
+                "id": "e240",
+                "latex": "y=\\frac{q(x)}{0.4}",
+                "color": "#6042a6",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e241",
+                "latex": "T_{s}=340"
+              },
+              {
+                "type": "expression",
+                "id": "e242",
+                "latex": "\\left(T_{s},\\frac{q(T_{s})}{0.4}\\right)",
+                "color": "#c74440",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag: T = ${T_s} K → α = ${a_s}, P_tot = ${P_s} bar",
+                "labelOrientation": "above_left"
+              },
+              {
+                "type": "expression",
+                "id": "e243",
+                "latex": "a_{s}=\\frac{\\operatorname{round}\\left(1000\\frac{q(T_{s})}{0.4}\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e244",
+                "latex": "P_{s}=\\frac{\\operatorname{round}\\left(1000\\left(0.4+q(T_{s})\\right)\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e245",
+                "latex": "(258,0.95)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: T (K)   y: α (fraction of N₂O₄ dissociated)",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

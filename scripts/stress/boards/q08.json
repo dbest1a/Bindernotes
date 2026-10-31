@@ -1,0 +1,696 @@
+{
+  "question": 8,
+  "title": "Q8 Incenter to nine-point center",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q8-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q8 · Distance IN (Feuerbach)",
+        "problem": "Triangle with $AB=7$, $BC=8$, $CA=9$. $I$ = incenter, $N$ = nine-point center (midpoint of $OH$). Find $IN$ exactly.",
+        "steps": [
+          {
+            "id": "q8-sol-s01",
+            "math": "2^2+(3\\sqrt5)^2 = 7^2,\\quad (2-8)^2+(3\\sqrt5)^2 = 9^2",
+            "note": "Coordinates B = (0,0), C = (8,0), A = (2, 3√5) give AB = 7 and AC = 9."
+          },
+          {
+            "id": "q8-sol-s02",
+            "math": "\\sqrt{12\\cdot(12-8)(12-9)(12-7)} = 12\\sqrt5",
+            "note": "Heron: s = 12, area K = 12√5."
+          },
+          {
+            "id": "q8-sol-s03",
+            "math": "\\frac{12\\sqrt5}{12} = \\sqrt5",
+            "note": "Inradius r = K/s."
+          },
+          {
+            "id": "q8-sol-s04",
+            "math": "\\frac{7\\cdot8\\cdot9}{4\\cdot12\\sqrt5} = \\frac{21\\sqrt5}{10}",
+            "note": "Circumradius R = abc/(4K)."
+          },
+          {
+            "id": "q8-sol-s05",
+            "math": "4^2+\\left(\\frac{11\\sqrt5}{10}\\right)^2 = \\left(\\frac{21\\sqrt5}{10}\\right)^2",
+            "note": "O = (4, 11√5/10) is at distance R from B …"
+          },
+          {
+            "id": "q8-sol-s06",
+            "math": "(4-2)^2+\\left(\\frac{11\\sqrt5}{10}-3\\sqrt5\\right)^2 = \\left(\\frac{21\\sqrt5}{10}\\right)^2",
+            "note": "… and from A."
+          },
+          {
+            "id": "q8-sol-s07",
+            "math": "3\\sqrt5-2\\cdot\\frac{11\\sqrt5}{10} = \\frac{4\\sqrt5}{5},\\quad 2+0+8-2\\cdot4 = 2",
+            "note": "H = A + B + C − 2O = (2, 4√5/5), on the altitude x = 2."
+          },
+          {
+            "id": "q8-sol-s08",
+            "math": "\\frac12\\left(\\frac{11\\sqrt5}{10}+\\frac{4\\sqrt5}{5}\\right) = \\frac{19\\sqrt5}{20},\\quad \\frac{4+2}{2} = 3",
+            "note": "N = (O + H)/2 = (3, 19√5/20)."
+          },
+          {
+            "id": "q8-sol-s09",
+            "math": "\\frac{8\\cdot2+9\\cdot0+7\\cdot8}{24} = 3,\\quad \\frac{8\\cdot3\\sqrt5}{24} = \\sqrt5",
+            "note": "I = (aA + bB + cC)/(a + b + c) = (3, √5), with a = BC = 8, b = CA = 9, c = AB = 7."
+          },
+          {
+            "id": "q8-sol-s10",
+            "math": "\\sqrt5-\\frac{19\\sqrt5}{20} = \\frac{\\sqrt5}{20}",
+            "note": "I and N both lie on x = 3, so IN is the difference of the y-coordinates."
+          },
+          {
+            "id": "q8-sol-s11",
+            "math": "\\frac12\\cdot\\frac{21\\sqrt5}{10}-\\sqrt5 = \\frac{\\sqrt5}{20}",
+            "note": "Feuerbach check: the incircle is internally tangent to the nine-point circle, so IN = R/2 − r."
+          },
+          {
+            "id": "q8-sol-s12",
+            "math": "(4-3)^2+\\left(\\frac{11\\sqrt5}{10}-\\sqrt5\\right)^2 = \\frac{21\\sqrt5}{10}\\left(\\frac{21\\sqrt5}{10}-2\\sqrt5\\right)",
+            "note": "Side check, Euler: OI² = R(R − 2r) = 21/20."
+          },
+          {
+            "id": "q8-sol-s13",
+            "math": "\\frac{\\sqrt5}{20} \\approx 0.111803",
+            "note": "Decimal value."
+          }
+        ],
+        "answer": "IN=\\dfrac{\\sqrt5}{20}\\approx 0.111803",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q8-construction",
+      "moduleId": "desmos-graph",
+      "title": "Construction: incircle, nine-point circle, Euler line",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 500,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq8-construction",
+            "graph": {
+              "viewport": {
+                "xmin": -2.5,
+                "xmax": 10.5,
+                "ymin": -1.2,
+                "ymax": 7.8
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e109",
+                  "latex": "a_{x}=2"
+                },
+                {
+                  "type": "expression",
+                  "id": "e110",
+                  "latex": "a_{y}=6.7082039325"
+                },
+                {
+                  "type": "expression",
+                  "id": "e111",
+                  "latex": "(a_{x},a_{y})",
+                  "color": "#000000",
+                  "dragMode": "XY",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "A (drag): IN = ${d_IN}, R/2 − r = ${f_R}",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e112",
+                  "latex": "A=(a_{x},a_{y})"
+                },
+                {
+                  "type": "expression",
+                  "id": "e113",
+                  "latex": "B=(0,0)",
+                  "color": "#000000",
+                  "showLabel": true,
+                  "label": "B",
+                  "labelOrientation": "below_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e114",
+                  "latex": "C=(8,0)",
+                  "color": "#000000",
+                  "showLabel": true,
+                  "label": "C",
+                  "labelOrientation": "below_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e115",
+                  "latex": "\\operatorname{polygon}(A,B,C)",
+                  "color": "#000000",
+                  "fillOpacity": "0.04"
+                },
+                {
+                  "type": "expression",
+                  "id": "e116",
+                  "latex": "a=\\operatorname{distance}(B,C)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e117",
+                  "latex": "b=\\operatorname{distance}(C,A)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e118",
+                  "latex": "c=\\operatorname{distance}(A,B)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e119",
+                  "latex": "s=\\frac{a+b+c}{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e120",
+                  "latex": "r_{i}=\\frac{4a_{y}}{s}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e121",
+                  "latex": "I=\\frac{aA+bB+cC}{a+b+c}",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "I",
+                  "labelOrientation": "left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e122",
+                  "latex": "O=\\left(4,\\frac{a_{x}^{2}+a_{y}^{2}-8a_{x}}{2a_{y}}\\right)",
+                  "color": "#388c46",
+                  "showLabel": true,
+                  "label": "O",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e123",
+                  "latex": "R=\\operatorname{distance}(O,B)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e124",
+                  "latex": "H=A+B+C-2O",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "H",
+                  "labelOrientation": "left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e125",
+                  "latex": "N=\\frac{O+H}{2}",
+                  "color": "#6042a6",
+                  "showLabel": true,
+                  "label": "N",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e126",
+                  "latex": "(x-I.x)^{2}+(y-I.y)^{2}=r_{i}^{2}",
+                  "color": "#2d70b3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e127",
+                  "latex": "(x-N.x)^{2}+(y-N.y)^{2}=\\left(\\frac{R}{2}\\right)^{2}",
+                  "color": "#6042a6"
+                },
+                {
+                  "type": "expression",
+                  "id": "e128",
+                  "latex": "(x-O.x)^{2}+(y-O.y)^{2}=R^{2}",
+                  "color": "#388c46",
+                  "lineStyle": "DASHED",
+                  "lineWidth": "1.5"
+                },
+                {
+                  "type": "expression",
+                  "id": "e129",
+                  "latex": "O+t(H-O)",
+                  "color": "#fa7e19",
+                  "lineWidth": "2",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "1"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e130",
+                  "latex": "A+t\\left((a_{x},0)-A\\right)",
+                  "color": "#c74440",
+                  "lineStyle": "DOTTED",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "1"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e131",
+                  "latex": "F=N+\\frac{R}{2}\\cdot\\frac{I-N}{\\operatorname{distance}(I,N)}",
+                  "color": "#e64ba6",
+                  "showLabel": true,
+                  "label": "Feuerbach point",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e132",
+                  "latex": "I+t(N-I)",
+                  "color": "#e64ba6",
+                  "lineWidth": "4",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "1"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e133",
+                  "latex": "d_{IN}=\\operatorname{distance}(I,N)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e134",
+                  "latex": "f_{R}=\\frac{R}{2}-r_{i}"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq8-construction",
+          "graph": {
+            "viewport": {
+              "xmin": -2.5,
+              "xmax": 10.5,
+              "ymin": -1.2,
+              "ymax": 7.8
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e109",
+                "latex": "a_{x}=2"
+              },
+              {
+                "type": "expression",
+                "id": "e110",
+                "latex": "a_{y}=6.7082039325"
+              },
+              {
+                "type": "expression",
+                "id": "e111",
+                "latex": "(a_{x},a_{y})",
+                "color": "#000000",
+                "dragMode": "XY",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "A (drag): IN = ${d_IN}, R/2 − r = ${f_R}",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e112",
+                "latex": "A=(a_{x},a_{y})"
+              },
+              {
+                "type": "expression",
+                "id": "e113",
+                "latex": "B=(0,0)",
+                "color": "#000000",
+                "showLabel": true,
+                "label": "B",
+                "labelOrientation": "below_left"
+              },
+              {
+                "type": "expression",
+                "id": "e114",
+                "latex": "C=(8,0)",
+                "color": "#000000",
+                "showLabel": true,
+                "label": "C",
+                "labelOrientation": "below_right"
+              },
+              {
+                "type": "expression",
+                "id": "e115",
+                "latex": "\\operatorname{polygon}(A,B,C)",
+                "color": "#000000",
+                "fillOpacity": "0.04"
+              },
+              {
+                "type": "expression",
+                "id": "e116",
+                "latex": "a=\\operatorname{distance}(B,C)"
+              },
+              {
+                "type": "expression",
+                "id": "e117",
+                "latex": "b=\\operatorname{distance}(C,A)"
+              },
+              {
+                "type": "expression",
+                "id": "e118",
+                "latex": "c=\\operatorname{distance}(A,B)"
+              },
+              {
+                "type": "expression",
+                "id": "e119",
+                "latex": "s=\\frac{a+b+c}{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e120",
+                "latex": "r_{i}=\\frac{4a_{y}}{s}"
+              },
+              {
+                "type": "expression",
+                "id": "e121",
+                "latex": "I=\\frac{aA+bB+cC}{a+b+c}",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "I",
+                "labelOrientation": "left"
+              },
+              {
+                "type": "expression",
+                "id": "e122",
+                "latex": "O=\\left(4,\\frac{a_{x}^{2}+a_{y}^{2}-8a_{x}}{2a_{y}}\\right)",
+                "color": "#388c46",
+                "showLabel": true,
+                "label": "O",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e123",
+                "latex": "R=\\operatorname{distance}(O,B)"
+              },
+              {
+                "type": "expression",
+                "id": "e124",
+                "latex": "H=A+B+C-2O",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "H",
+                "labelOrientation": "left"
+              },
+              {
+                "type": "expression",
+                "id": "e125",
+                "latex": "N=\\frac{O+H}{2}",
+                "color": "#6042a6",
+                "showLabel": true,
+                "label": "N",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e126",
+                "latex": "(x-I.x)^{2}+(y-I.y)^{2}=r_{i}^{2}",
+                "color": "#2d70b3"
+              },
+              {
+                "type": "expression",
+                "id": "e127",
+                "latex": "(x-N.x)^{2}+(y-N.y)^{2}=\\left(\\frac{R}{2}\\right)^{2}",
+                "color": "#6042a6"
+              },
+              {
+                "type": "expression",
+                "id": "e128",
+                "latex": "(x-O.x)^{2}+(y-O.y)^{2}=R^{2}",
+                "color": "#388c46",
+                "lineStyle": "DASHED",
+                "lineWidth": "1.5"
+              },
+              {
+                "type": "expression",
+                "id": "e129",
+                "latex": "O+t(H-O)",
+                "color": "#fa7e19",
+                "lineWidth": "2",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "1"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e130",
+                "latex": "A+t\\left((a_{x},0)-A\\right)",
+                "color": "#c74440",
+                "lineStyle": "DOTTED",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "1"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e131",
+                "latex": "F=N+\\frac{R}{2}\\cdot\\frac{I-N}{\\operatorname{distance}(I,N)}",
+                "color": "#e64ba6",
+                "showLabel": true,
+                "label": "Feuerbach point",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e132",
+                "latex": "I+t(N-I)",
+                "color": "#e64ba6",
+                "lineWidth": "4",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "1"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e133",
+                "latex": "d_{IN}=\\operatorname{distance}(I,N)"
+              },
+              {
+                "type": "expression",
+                "id": "e134",
+                "latex": "f_{R}=\\frac{R}{2}-r_{i}"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q8-inset",
+      "moduleId": "desmos-graph",
+      "title": "Zoomed inset: the segment IN",
+      "x": 580,
+      "y": 520,
+      "width": 760,
+      "height": 244,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq8-inset",
+            "graph": {
+              "viewport": {
+                "xmin": 2.55,
+                "xmax": 3.45,
+                "ymin": 2.05,
+                "ymax": 2.31
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e135",
+                  "latex": "I=(3,\\sqrt{5})"
+                },
+                {
+                  "type": "expression",
+                  "id": "e136",
+                  "latex": "N=\\left(3,\\frac{19\\sqrt{5}}{20}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e137",
+                  "latex": "I",
+                  "color": "#2d70b3",
+                  "showLabel": true,
+                  "label": "I = (3, √5)",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e138",
+                  "latex": "N",
+                  "color": "#6042a6",
+                  "showLabel": true,
+                  "label": "N = (3, 19√5/20)",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e139",
+                  "latex": "I+t(N-I)",
+                  "color": "#e64ba6",
+                  "lineWidth": "4",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "1"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e140",
+                  "latex": "\\left(3,\\frac{39\\sqrt{5}}{40}\\right)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "IN = √5/20 ≈ 0.1118",
+                  "labelOrientation": "left",
+                  "color": "#e64ba6"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq8-inset",
+          "graph": {
+            "viewport": {
+              "xmin": 2.55,
+              "xmax": 3.45,
+              "ymin": 2.05,
+              "ymax": 2.31
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e135",
+                "latex": "I=(3,\\sqrt{5})"
+              },
+              {
+                "type": "expression",
+                "id": "e136",
+                "latex": "N=\\left(3,\\frac{19\\sqrt{5}}{20}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e137",
+                "latex": "I",
+                "color": "#2d70b3",
+                "showLabel": true,
+                "label": "I = (3, √5)",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e138",
+                "latex": "N",
+                "color": "#6042a6",
+                "showLabel": true,
+                "label": "N = (3, 19√5/20)",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e139",
+                "latex": "I+t(N-I)",
+                "color": "#e64ba6",
+                "lineWidth": "4",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "1"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e140",
+                "latex": "\\left(3,\\frac{39\\sqrt{5}}{40}\\right)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "IN = √5/20 ≈ 0.1118",
+                "labelOrientation": "left",
+                "color": "#e64ba6"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

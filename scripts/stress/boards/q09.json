@@ -1,0 +1,724 @@
+{
+  "question": 9,
+  "title": "Q9 Exact pH of Na2HA",
+  "subject": "Chemistry",
+  "modules": [
+    {
+      "id": "q9-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q9 · Exact pH of 2.00 mM Na₂HA",
+        "problem": "H$_3$A: p$K_{a1}=2.25$, p$K_{a2}=7.05$, p$K_{a3}=12.05$. Find the pH of $2.00\\times10^{-3}$ M Na$_2$HA from the full charge balance (3 d.p.).",
+        "steps": [
+          {
+            "id": "q9-sol-s01",
+            "math": "2C+h = C(\\alpha_1+2\\alpha_2+3\\alpha_3)+\\frac{K_w}{h}",
+            "note": "Charge balance with [Na⁺] = 2C. α are the species fractions, denominator D = h³ + K₁h² + K₁K₂h + K₁K₂K₃."
+          },
+          {
+            "id": "q9-sol-s02",
+            "math": "h+C\\alpha_1+2C\\alpha_0 = C\\alpha_3+\\frac{K_w}{h}",
+            "note": "Subtract the mass balance: proton condition [H⁺] + [H₂A⁻] + 2[H₃A] = [A³⁻] + [OH⁻]. Solved numerically: pH = 9.13818."
+          },
+          {
+            "id": "q9-sol-s03",
+            "math": "\\frac{10^{-9.13818}}{10^{-7.05}} \\approx 0.0081624",
+            "note": "[H₂A⁻]/[HA²⁻] = h/K₂ at the solution."
+          },
+          {
+            "id": "q9-sol-s04",
+            "math": "\\frac{10^{-12.05}}{10^{-9.13818}} \\approx 0.0012251",
+            "note": "[A³⁻]/[HA²⁻] = K₃/h."
+          },
+          {
+            "id": "q9-sol-s05",
+            "math": "\\frac{2000}{1+\\frac{10^{-9.13818}}{10^{-7.05}}+\\frac{10^{-12.05}}{10^{-9.13818}}+\\frac{10^{-2\\cdot9.13818}}{10^{-2.25}\\cdot10^{-7.05}}} \\approx 1981.4",
+            "note": "[HA²⁻] in µM (C = 2000 µM)."
+          },
+          {
+            "id": "q9-sol-s06",
+            "math": "1981.4\\cdot0.0081624 \\approx 16.17",
+            "note": "[H₂A⁻] in µM."
+          },
+          {
+            "id": "q9-sol-s07",
+            "math": "1981.4\\cdot0.0012251 \\approx 2.427",
+            "note": "[A³⁻] in µM."
+          },
+          {
+            "id": "q9-sol-s08",
+            "math": "10^{6}\\cdot\\frac{10^{-14}}{10^{-9.13818}} \\approx 13.75",
+            "note": "[OH⁻] in µM: much larger than [A³⁻], which is why the shortcut fails."
+          },
+          {
+            "id": "q9-sol-s09",
+            "math": "10^{6}\\cdot10^{-9.13818}+16.17+2\\cdot0.00000209 \\approx 2.427+13.75",
+            "note": "Proton condition balances in µM: left (H⁺ + H₂A⁻ + 2H₃A) = right (A³⁻ + OH⁻)."
+          },
+          {
+            "id": "q9-sol-s10",
+            "math": "\\frac{7.05+12.05}{2} = 9.55",
+            "note": "Contrast: the naive (pK₂ + pK₃)/2 is badly wrong here."
+          },
+          {
+            "id": "q9-sol-s11",
+            "math": "-\\log_{10}\\sqrt{\\frac{10^{-7.05}\\left(10^{-12.05}\\cdot0.002+10^{-14}\\right)}{10^{-7.05}+0.002}} \\approx 9.1399",
+            "note": "Contrast: the improved formula gives 9.140, which misses at 3 d.p."
+          }
+        ],
+        "answer": "\\mathrm{pH}=9.138",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q9-residual",
+      "moduleId": "desmos-graph",
+      "title": "Proton-condition residual vs pH (µM)",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq9-residual",
+            "graph": {
+              "viewport": {
+                "xmin": 8.4,
+                "xmax": 9.9,
+                "ymin": -60,
+                "ymax": 60
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e141",
+                  "latex": "K_{1}=10^{-2.25}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e142",
+                  "latex": "K_{2}=10^{-7.05}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e143",
+                  "latex": "K_{3}=10^{-12.05}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e144",
+                  "latex": "C=0.002"
+                },
+                {
+                  "type": "expression",
+                  "id": "e145",
+                  "hidden": true,
+                  "latex": "D(h)=h^{3}+K_{1}h^{2}+K_{1}K_{2}h+K_{1}K_{2}K_{3}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e146",
+                  "hidden": true,
+                  "latex": "P(h)=10^{6}\\left(h+\\frac{CK_{1}h^{2}+2Ch^{3}-CK_{1}K_{2}K_{3}}{D(h)}-\\frac{10^{-14}}{h}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e147",
+                  "latex": "y=P\\left(10^{-x}\\right)",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e148",
+                  "latex": "(9.13818,0)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "pH = 9.138 (C = 2.00 mM)",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e149",
+                  "latex": "x=9.55",
+                  "color": "#9ca3af",
+                  "lineStyle": "DASHED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e150",
+                  "latex": "(9.55,-40)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "naive 9.55",
+                  "color": "#9ca3af",
+                  "labelOrientation": "left"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq9-residual",
+          "graph": {
+            "viewport": {
+              "xmin": 8.4,
+              "xmax": 9.9,
+              "ymin": -60,
+              "ymax": 60
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e141",
+                "latex": "K_{1}=10^{-2.25}"
+              },
+              {
+                "type": "expression",
+                "id": "e142",
+                "latex": "K_{2}=10^{-7.05}"
+              },
+              {
+                "type": "expression",
+                "id": "e143",
+                "latex": "K_{3}=10^{-12.05}"
+              },
+              {
+                "type": "expression",
+                "id": "e144",
+                "latex": "C=0.002"
+              },
+              {
+                "type": "expression",
+                "id": "e145",
+                "hidden": true,
+                "latex": "D(h)=h^{3}+K_{1}h^{2}+K_{1}K_{2}h+K_{1}K_{2}K_{3}"
+              },
+              {
+                "type": "expression",
+                "id": "e146",
+                "hidden": true,
+                "latex": "P(h)=10^{6}\\left(h+\\frac{CK_{1}h^{2}+2Ch^{3}-CK_{1}K_{2}K_{3}}{D(h)}-\\frac{10^{-14}}{h}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e147",
+                "latex": "y=P\\left(10^{-x}\\right)",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e148",
+                "latex": "(9.13818,0)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "pH = 9.138 (C = 2.00 mM)",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e149",
+                "latex": "x=9.55",
+                "color": "#9ca3af",
+                "lineStyle": "DASHED"
+              },
+              {
+                "type": "expression",
+                "id": "e150",
+                "latex": "(9.55,-40)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "naive 9.55",
+                "color": "#9ca3af",
+                "labelOrientation": "left"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q9-alpha",
+      "moduleId": "desmos-graph",
+      "title": "Species fractions α vs pH",
+      "x": 580,
+      "y": 392,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq9-alpha",
+            "graph": {
+              "viewport": {
+                "xmin": 0,
+                "xmax": 14,
+                "ymin": -0.08,
+                "ymax": 1.1
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e151",
+                  "latex": "K_{1}=10^{-2.25}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e152",
+                  "latex": "K_{2}=10^{-7.05}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e153",
+                  "latex": "K_{3}=10^{-12.05}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e154",
+                  "hidden": true,
+                  "latex": "D(h)=h^{3}+K_{1}h^{2}+K_{1}K_{2}h+K_{1}K_{2}K_{3}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e155",
+                  "hidden": true,
+                  "latex": "a_{0}(x)=\\frac{10^{-3x}}{D(10^{-x})}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e156",
+                  "hidden": true,
+                  "latex": "a_{1}(x)=\\frac{K_{1}10^{-2x}}{D(10^{-x})}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e157",
+                  "hidden": true,
+                  "latex": "a_{2}(x)=\\frac{K_{1}K_{2}10^{-x}}{D(10^{-x})}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e158",
+                  "hidden": true,
+                  "latex": "a_{3}(x)=\\frac{K_{1}K_{2}K_{3}}{D(10^{-x})}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e159",
+                  "latex": "y=a_{0}(x)",
+                  "color": "#c74440",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e160",
+                  "latex": "y=a_{1}(x)",
+                  "color": "#fa7e19",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e161",
+                  "latex": "y=a_{2}(x)",
+                  "color": "#388c46",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e162",
+                  "latex": "y=a_{3}(x)",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e163",
+                  "latex": "x=9.13818",
+                  "color": "#000000",
+                  "lineStyle": "DASHED"
+                },
+                {
+                  "type": "expression",
+                  "id": "e164",
+                  "latex": "q=10.5"
+                },
+                {
+                  "type": "expression",
+                  "id": "e165",
+                  "latex": "w_{1}=\\frac{\\operatorname{round}\\left(10^{4}a_{1}(q)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e166",
+                  "latex": "w_{2}=\\frac{\\operatorname{round}\\left(10^{4}a_{2}(q)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e167",
+                  "latex": "w_{3}=\\frac{\\operatorname{round}\\left(10^{4}a_{3}(q)\\right)}{10^{4}}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e168",
+                  "latex": "q_{r}=\\frac{\\operatorname{round}\\left(100q\\right)}{100}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e169",
+                  "latex": "(q,a_{2}(q))",
+                  "color": "#388c46",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e170",
+                  "latex": "(3.3,0.52)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "at pH ${q_r}:",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e171",
+                  "latex": "(3.3,0.41)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "α(H₂A⁻) = ${w_1}",
+                  "color": "#fa7e19",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e172",
+                  "latex": "(3.3,0.30)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "α(HA²⁻) = ${w_2}",
+                  "color": "#388c46",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e173",
+                  "latex": "(3.3,0.19)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "α(A³⁻) = ${w_3}",
+                  "color": "#2d70b3",
+                  "labelOrientation": "right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e174",
+                  "latex": "(1.2,0.9)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "H₃A",
+                  "color": "#c74440"
+                },
+                {
+                  "type": "expression",
+                  "id": "e175",
+                  "latex": "(4.6,0.9)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "H₂A⁻",
+                  "color": "#fa7e19"
+                },
+                {
+                  "type": "expression",
+                  "id": "e176",
+                  "latex": "(8.2,1.03)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "HA²⁻ (pH 9.138)",
+                  "color": "#388c46"
+                },
+                {
+                  "type": "expression",
+                  "id": "e177",
+                  "latex": "(13.2,0.9)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "A³⁻",
+                  "color": "#2d70b3"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq9-alpha",
+          "graph": {
+            "viewport": {
+              "xmin": 0,
+              "xmax": 14,
+              "ymin": -0.08,
+              "ymax": 1.1
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e151",
+                "latex": "K_{1}=10^{-2.25}"
+              },
+              {
+                "type": "expression",
+                "id": "e152",
+                "latex": "K_{2}=10^{-7.05}"
+              },
+              {
+                "type": "expression",
+                "id": "e153",
+                "latex": "K_{3}=10^{-12.05}"
+              },
+              {
+                "type": "expression",
+                "id": "e154",
+                "hidden": true,
+                "latex": "D(h)=h^{3}+K_{1}h^{2}+K_{1}K_{2}h+K_{1}K_{2}K_{3}"
+              },
+              {
+                "type": "expression",
+                "id": "e155",
+                "hidden": true,
+                "latex": "a_{0}(x)=\\frac{10^{-3x}}{D(10^{-x})}"
+              },
+              {
+                "type": "expression",
+                "id": "e156",
+                "hidden": true,
+                "latex": "a_{1}(x)=\\frac{K_{1}10^{-2x}}{D(10^{-x})}"
+              },
+              {
+                "type": "expression",
+                "id": "e157",
+                "hidden": true,
+                "latex": "a_{2}(x)=\\frac{K_{1}K_{2}10^{-x}}{D(10^{-x})}"
+              },
+              {
+                "type": "expression",
+                "id": "e158",
+                "hidden": true,
+                "latex": "a_{3}(x)=\\frac{K_{1}K_{2}K_{3}}{D(10^{-x})}"
+              },
+              {
+                "type": "expression",
+                "id": "e159",
+                "latex": "y=a_{0}(x)",
+                "color": "#c74440",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e160",
+                "latex": "y=a_{1}(x)",
+                "color": "#fa7e19",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e161",
+                "latex": "y=a_{2}(x)",
+                "color": "#388c46",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e162",
+                "latex": "y=a_{3}(x)",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e163",
+                "latex": "x=9.13818",
+                "color": "#000000",
+                "lineStyle": "DASHED"
+              },
+              {
+                "type": "expression",
+                "id": "e164",
+                "latex": "q=10.5"
+              },
+              {
+                "type": "expression",
+                "id": "e165",
+                "latex": "w_{1}=\\frac{\\operatorname{round}\\left(10^{4}a_{1}(q)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e166",
+                "latex": "w_{2}=\\frac{\\operatorname{round}\\left(10^{4}a_{2}(q)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e167",
+                "latex": "w_{3}=\\frac{\\operatorname{round}\\left(10^{4}a_{3}(q)\\right)}{10^{4}}"
+              },
+              {
+                "type": "expression",
+                "id": "e168",
+                "latex": "q_{r}=\\frac{\\operatorname{round}\\left(100q\\right)}{100}"
+              },
+              {
+                "type": "expression",
+                "id": "e169",
+                "latex": "(q,a_{2}(q))",
+                "color": "#388c46",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e170",
+                "latex": "(3.3,0.52)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "at pH ${q_r}:",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e171",
+                "latex": "(3.3,0.41)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "α(H₂A⁻) = ${w_1}",
+                "color": "#fa7e19",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e172",
+                "latex": "(3.3,0.30)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "α(HA²⁻) = ${w_2}",
+                "color": "#388c46",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e173",
+                "latex": "(3.3,0.19)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "α(A³⁻) = ${w_3}",
+                "color": "#2d70b3",
+                "labelOrientation": "right"
+              },
+              {
+                "type": "expression",
+                "id": "e174",
+                "latex": "(1.2,0.9)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "H₃A",
+                "color": "#c74440"
+              },
+              {
+                "type": "expression",
+                "id": "e175",
+                "latex": "(4.6,0.9)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "H₂A⁻",
+                "color": "#fa7e19"
+              },
+              {
+                "type": "expression",
+                "id": "e176",
+                "latex": "(8.2,1.03)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "HA²⁻ (pH 9.138)",
+                "color": "#388c46"
+              },
+              {
+                "type": "expression",
+                "id": "e177",
+                "latex": "(13.2,0.9)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "A³⁻",
+                "color": "#2d70b3"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

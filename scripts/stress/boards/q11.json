@@ -1,0 +1,478 @@
+{
+  "question": 11,
+  "title": "Q11 AgCl in ammonia with chloride",
+  "subject": "Chemistry",
+  "modules": [
+    {
+      "id": "q11-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q11 · AgCl in 0.250 M NH₃ + 0.0100 M NaCl",
+        "problem": "$K_{sp}=1.9\\times10^{-10}$, $\\log\\beta_1=3.25$, $\\log\\beta_2=7.10$. Find the molar solubility $S$ (3 s.f.) and the fraction of dissolved Ag as Ag(NH$_3$)$_2^+$ (4 s.f.).",
+        "steps": [
+          {
+            "id": "q11-sol-s01",
+            "math": "S = \\frac{K_{sp}}{0.0100+S}\\left(1+\\beta_1L+\\beta_2L^2\\right)",
+            "note": "Silver balance; [Cl⁻] = 0.0100 + S and L = free NH₃."
+          },
+          {
+            "id": "q11-sol-s02",
+            "math": "0.250 = L+\\frac{K_{sp}}{0.0100+S}\\left(\\beta_1L+2\\beta_2L^2\\right)",
+            "note": "Ammonia balance, counting NH₃ bound in the complexes. Solved together: S = 7.53411 mM, L = 0.234936 M."
+          },
+          {
+            "id": "q11-sol-s03",
+            "math": "10^{9}\\cdot\\frac{1.9\\times10^{-10}}{0.0100+7.53411\\times10^{-3}} \\approx 10.836",
+            "note": "[Ag⁺] in nM."
+          },
+          {
+            "id": "q11-sol-s04",
+            "math": "10^{3}\\cdot10.836\\times10^{-9}\\left(1+10^{3.25}\\cdot0.234936+10^{7.10}\\cdot0.234936^2\\right) \\approx 7.53411",
+            "note": "Silver balance holds (mM): S = [Ag⁺](1 + β₁L + β₂L²)."
+          },
+          {
+            "id": "q11-sol-s05",
+            "math": "10^{3}\\left(0.234936+10.836\\times10^{-9}\\left(10^{3.25}\\cdot0.234936+2\\cdot10^{7.10}\\cdot0.234936^2\\right)\\right) \\approx 250.0",
+            "note": "Ammonia balance holds (mM)."
+          },
+          {
+            "id": "q11-sol-s06",
+            "math": "\\frac{10^{7.10}\\cdot0.234936^2}{1+10^{3.25}\\cdot0.234936+10^{7.10}\\cdot0.234936^2} \\approx 0.99940",
+            "note": "Fraction of dissolved silver present as Ag(NH₃)₂⁺."
+          },
+          {
+            "id": "q11-sol-s07",
+            "math": "10^{4}\\cdot\\frac{10^{3.25}\\cdot0.234936}{1+10^{3.25}\\cdot0.234936+10^{7.10}\\cdot0.234936^2} \\approx 6.01",
+            "note": "Ag(NH₃)⁺ fraction ×10⁴ (≈ 6.0 × 10⁻⁴); free Ag⁺ is about 1.4 × 10⁻⁶."
+          }
+        ],
+        "answer": "S=7.53\\times10^{-3}\\ \\mathrm{M};\\quad \\text{fraction as Ag(NH}_3)_2^+=0.9994",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q11-balances",
+      "moduleId": "desmos-graph",
+      "title": "The two balances in the (S, L) plane",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq11-balances",
+            "graph": {
+              "viewport": {
+                "xmin": 5.5,
+                "xmax": 9.5,
+                "ymin": 0.228,
+                "ymax": 0.242
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e200",
+                  "latex": "K=1.9\\cdot10^{-10}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e201",
+                  "latex": "\\beta_{1}=10^{3.25}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e202",
+                  "latex": "\\beta_{2}=10^{7.1}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e203",
+                  "latex": "N_{T}=0.25"
+                },
+                {
+                  "type": "expression",
+                  "id": "e204",
+                  "hidden": true,
+                  "latex": "a(x)=\\frac{K}{0.01+0.001x}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e205",
+                  "latex": "0.001x=a(x)\\left(1+\\beta_{1}y+\\beta_{2}y^{2}\\right)",
+                  "color": "#2d70b3",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e206",
+                  "latex": "y+a(x)\\left(\\beta_{1}y+2\\beta_{2}y^{2}\\right)=N_{T}",
+                  "color": "#c74440",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e207",
+                  "latex": "(7.53411,0.234936)",
+                  "color": "#000000",
+                  "pointSize": "12",
+                  "showLabel": true,
+                  "label": "solution: S = 7.53 mM, L = 0.2349 M",
+                  "labelOrientation": "below_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e208",
+                  "latex": "(7.750,0.23974)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "Ag balance: S = [Ag⁺](1 + β₁L + β₂L²)",
+                  "color": "#2d70b3",
+                  "labelOrientation": "left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e209",
+                  "latex": "(6.400,0.23402)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "NH₃ balance: 0.250 = L + bound NH₃",
+                  "color": "#c74440",
+                  "labelOrientation": "above"
+                },
+                {
+                  "type": "expression",
+                  "id": "e210",
+                  "latex": "(5.6,0.2288)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: S (mM)   y: free NH₃ L (M)",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq11-balances",
+          "graph": {
+            "viewport": {
+              "xmin": 5.5,
+              "xmax": 9.5,
+              "ymin": 0.228,
+              "ymax": 0.242
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e200",
+                "latex": "K=1.9\\cdot10^{-10}"
+              },
+              {
+                "type": "expression",
+                "id": "e201",
+                "latex": "\\beta_{1}=10^{3.25}"
+              },
+              {
+                "type": "expression",
+                "id": "e202",
+                "latex": "\\beta_{2}=10^{7.1}"
+              },
+              {
+                "type": "expression",
+                "id": "e203",
+                "latex": "N_{T}=0.25"
+              },
+              {
+                "type": "expression",
+                "id": "e204",
+                "hidden": true,
+                "latex": "a(x)=\\frac{K}{0.01+0.001x}"
+              },
+              {
+                "type": "expression",
+                "id": "e205",
+                "latex": "0.001x=a(x)\\left(1+\\beta_{1}y+\\beta_{2}y^{2}\\right)",
+                "color": "#2d70b3",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e206",
+                "latex": "y+a(x)\\left(\\beta_{1}y+2\\beta_{2}y^{2}\\right)=N_{T}",
+                "color": "#c74440",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e207",
+                "latex": "(7.53411,0.234936)",
+                "color": "#000000",
+                "pointSize": "12",
+                "showLabel": true,
+                "label": "solution: S = 7.53 mM, L = 0.2349 M",
+                "labelOrientation": "below_right"
+              },
+              {
+                "type": "expression",
+                "id": "e208",
+                "latex": "(7.750,0.23974)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "Ag balance: S = [Ag⁺](1 + β₁L + β₂L²)",
+                "color": "#2d70b3",
+                "labelOrientation": "left"
+              },
+              {
+                "type": "expression",
+                "id": "e209",
+                "latex": "(6.400,0.23402)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "NH₃ balance: 0.250 = L + bound NH₃",
+                "color": "#c74440",
+                "labelOrientation": "above"
+              },
+              {
+                "type": "expression",
+                "id": "e210",
+                "latex": "(5.6,0.2288)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: S (mM)   y: free NH₃ L (M)",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    },
+    {
+      "id": "q11-solubility",
+      "moduleId": "desmos-graph",
+      "title": "Solubility vs total NH₃ (exact, parametric in free NH₃)",
+      "x": 580,
+      "y": 392,
+      "width": 760,
+      "height": 372,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq11-solubility",
+            "graph": {
+              "viewport": {
+                "xmin": -0.02,
+                "xmax": 0.52,
+                "ymin": -1,
+                "ymax": 17
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e211",
+                  "latex": "K=1.9\\cdot10^{-10}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e212",
+                  "latex": "\\beta_{1}=10^{3.25}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e213",
+                  "latex": "\\beta_{2}=10^{7.1}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e214",
+                  "hidden": true,
+                  "latex": "\\phi(l)=1+\\beta_{1}l+\\beta_{2}l^{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e215",
+                  "hidden": true,
+                  "latex": "S(l)=\\frac{-0.01+\\sqrt{0.0001+4K\\phi(l)}}{2}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e216",
+                  "hidden": true,
+                  "latex": "T(l)=l+\\frac{K}{0.01+S(l)}\\left(\\beta_{1}l+2\\beta_{2}l^{2}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e217",
+                  "latex": "\\left(T(t),1000S(t)\\right)",
+                  "color": "#2d70b3",
+                  "lineWidth": "3",
+                  "parametricDomain": {
+                    "min": "0",
+                    "max": "0.48"
+                  }
+                },
+                {
+                  "type": "expression",
+                  "id": "e218",
+                  "latex": "(0.25,7.53411)",
+                  "color": "#c74440",
+                  "pointSize": "12",
+                  "showLabel": true,
+                  "label": "0.250 M NH₃: S = 7.53 mM",
+                  "labelOrientation": "above_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e219",
+                  "latex": "(0.01,15.5)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: total NH₃ (M)   y: S (mM), with 0.0100 M Cl⁻",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq11-solubility",
+          "graph": {
+            "viewport": {
+              "xmin": -0.02,
+              "xmax": 0.52,
+              "ymin": -1,
+              "ymax": 17
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e211",
+                "latex": "K=1.9\\cdot10^{-10}"
+              },
+              {
+                "type": "expression",
+                "id": "e212",
+                "latex": "\\beta_{1}=10^{3.25}"
+              },
+              {
+                "type": "expression",
+                "id": "e213",
+                "latex": "\\beta_{2}=10^{7.1}"
+              },
+              {
+                "type": "expression",
+                "id": "e214",
+                "hidden": true,
+                "latex": "\\phi(l)=1+\\beta_{1}l+\\beta_{2}l^{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e215",
+                "hidden": true,
+                "latex": "S(l)=\\frac{-0.01+\\sqrt{0.0001+4K\\phi(l)}}{2}"
+              },
+              {
+                "type": "expression",
+                "id": "e216",
+                "hidden": true,
+                "latex": "T(l)=l+\\frac{K}{0.01+S(l)}\\left(\\beta_{1}l+2\\beta_{2}l^{2}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e217",
+                "latex": "\\left(T(t),1000S(t)\\right)",
+                "color": "#2d70b3",
+                "lineWidth": "3",
+                "parametricDomain": {
+                  "min": "0",
+                  "max": "0.48"
+                }
+              },
+              {
+                "type": "expression",
+                "id": "e218",
+                "latex": "(0.25,7.53411)",
+                "color": "#c74440",
+                "pointSize": "12",
+                "showLabel": true,
+                "label": "0.250 M NH₃: S = 7.53 mM",
+                "labelOrientation": "above_left"
+              },
+              {
+                "type": "expression",
+                "id": "e219",
+                "latex": "(0.01,15.5)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: total NH₃ (M)   y: S (mM), with 0.0100 M Cl⁻",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

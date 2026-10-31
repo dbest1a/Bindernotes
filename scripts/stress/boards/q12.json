@@ -1,0 +1,569 @@
+{
+  "question": 12,
+  "title": "Q12 Nernst permanganate vs Ag/AgCl",
+  "subject": "Chemistry",
+  "modules": [
+    {
+      "id": "q12-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q12 · Nernst: MnO₄⁻/Mn²⁺ vs AgCl/Ag",
+        "problem": "Ag | AgCl | Cl$^-$ (0.0250 M) ‖ MnO$_4^-$ (0.0100 M), Mn$^{2+}$ (0.00200 M), pH 2.30 | Pt at 298.15 K. (a) $E^\\circ$(AgCl/Ag) (b) $E_{cell}$ (c) $\\Delta G$ for 5 e⁻.",
+        "steps": [
+          {
+            "id": "q12-sol-s01",
+            "math": "\\frac{8.314462\\cdot298.15}{96485.33}\\ln 10 \\approx 0.0591593",
+            "note": "(RT/F) ln 10 in volts."
+          },
+          {
+            "id": "q12-sol-s02",
+            "math": "0.7996+0.0591593\\log_{10}\\left(1.80\\times10^{-10}\\right) \\approx 0.223108",
+            "note": "(a) E°(AgCl/Ag) = E°(Ag⁺/Ag) + (RT/F) ln 10 · log K_sp."
+          },
+          {
+            "id": "q12-sol-s03",
+            "math": "1.512-\\frac{0.0591593}{5}\\log_{10}\\frac{0.00200}{0.0100\\cdot\\left(10^{-2.30}\\right)^{8}} \\approx 1.30256",
+            "note": "Cathode: MnO₄⁻ + 8H⁺ + 5e⁻ → Mn²⁺ + 4H₂O."
+          },
+          {
+            "id": "q12-sol-s04",
+            "math": "0.223108-0.0591593\\log_{10}(0.0250) \\approx 0.317885",
+            "note": "Anode couple: AgCl + e⁻ → Ag + Cl⁻ at [Cl⁻] = 0.0250 M."
+          },
+          {
+            "id": "q12-sol-s05",
+            "math": "1.30256-0.317885 \\approx 0.98468",
+            "note": "(b) E_cell = E_cathode − E_anode."
+          },
+          {
+            "id": "q12-sol-s06",
+            "math": "1.288892-\\frac{0.0591593}{5}\\log_{10}\\frac{0.00200}{0.0100\\cdot10^{-18.4}\\cdot0.0250^{5}} \\approx 0.98468",
+            "note": "Same result from E°cell = 1.512 − 0.2231 and the overall Q = [Mn²⁺]/([MnO₄⁻][H⁺]⁸[Cl⁻]⁵), n = 5; [H⁺]⁸ = 10^(−18.4)."
+          },
+          {
+            "id": "q12-sol-s07",
+            "math": "\\frac{-5\\cdot96485.33\\cdot0.984679}{1000} \\approx -475.04",
+            "note": "(c) ΔG = −nFE_cell in kJ mol⁻¹."
+          },
+          {
+            "id": "q12-sol-s08",
+            "math": "\\frac{5\\left(1.512-0.223108\\right)}{0.0591593} \\approx 108.9",
+            "note": "log K = nE°cell/((RT/F) ln 10): the reaction is overwhelmingly favourable."
+          }
+        ],
+        "answer": "E^\\circ_{\\mathrm{AgCl/Ag}}=0.2231\\ \\mathrm V;\\quad E_{cell}=0.985\\ \\mathrm V;\\quad \\Delta G=-475\\ \\mathrm{kJ\\,mol^{-1}}",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q12-ph",
+      "moduleId": "desmos-graph",
+      "title": "E_cell vs pH (slope −8·0.05916/5 V per pH)",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 430,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq12-ph",
+            "graph": {
+              "viewport": {
+                "xmin": -0.3,
+                "xmax": 7.3,
+                "ymin": 0.45,
+                "ymax": 1.32
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e220",
+                  "latex": "k=\\frac{8.314462\\cdot298.15}{96485.33}\\ln10"
+                },
+                {
+                  "type": "expression",
+                  "id": "e221",
+                  "latex": "E_{0}=0.7996+k\\log\\left(1.8\\cdot10^{-10}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e222",
+                  "latex": "c_{l}=0.025"
+                },
+                {
+                  "type": "expression",
+                  "id": "e223",
+                  "hidden": true,
+                  "latex": "E(p)=1.512-E_{0}-\\frac{k}{5}\\log\\left(\\frac{0.002}{0.01\\cdot10^{-8p}c_{l}^{5}}\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e224",
+                  "latex": "y=E(x)",
+                  "color": "#6042a6",
+                  "lineWidth": "3"
+                },
+                {
+                  "type": "expression",
+                  "id": "e225",
+                  "latex": "(2.3,E(2.3))",
+                  "color": "#c74440",
+                  "pointSize": "12",
+                  "showLabel": true,
+                  "label": "pH 2.30: E_cell = 0.985 V",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e226",
+                  "latex": "p_{d}=5"
+                },
+                {
+                  "type": "expression",
+                  "id": "e227",
+                  "latex": "E_{d}=\\frac{\\operatorname{round}\\left(1000E(p_{d})\\right)}{1000}"
+                },
+                {
+                  "type": "expression",
+                  "id": "e228",
+                  "latex": "(p_{d},E(p_{d}))",
+                  "color": "#fa7e19",
+                  "dragMode": "X",
+                  "pointSize": "14",
+                  "showLabel": true,
+                  "label": "drag: pH ${p_d} → E_cell = ${E_d} V",
+                  "labelOrientation": "below_left"
+                },
+                {
+                  "type": "expression",
+                  "id": "e229",
+                  "latex": "(3.2,1.27)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "x: pH   y: E_cell (V), [Cl⁻] = 0.0250 M, [MnO₄⁻] = 0.0100 M, [Mn²⁺] = 0.00200 M",
+                  "color": "#9ca3af",
+                  "labelOrientation": "right"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq12-ph",
+          "graph": {
+            "viewport": {
+              "xmin": -0.3,
+              "xmax": 7.3,
+              "ymin": 0.45,
+              "ymax": 1.32
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e220",
+                "latex": "k=\\frac{8.314462\\cdot298.15}{96485.33}\\ln10"
+              },
+              {
+                "type": "expression",
+                "id": "e221",
+                "latex": "E_{0}=0.7996+k\\log\\left(1.8\\cdot10^{-10}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e222",
+                "latex": "c_{l}=0.025"
+              },
+              {
+                "type": "expression",
+                "id": "e223",
+                "hidden": true,
+                "latex": "E(p)=1.512-E_{0}-\\frac{k}{5}\\log\\left(\\frac{0.002}{0.01\\cdot10^{-8p}c_{l}^{5}}\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e224",
+                "latex": "y=E(x)",
+                "color": "#6042a6",
+                "lineWidth": "3"
+              },
+              {
+                "type": "expression",
+                "id": "e225",
+                "latex": "(2.3,E(2.3))",
+                "color": "#c74440",
+                "pointSize": "12",
+                "showLabel": true,
+                "label": "pH 2.30: E_cell = 0.985 V",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e226",
+                "latex": "p_{d}=5"
+              },
+              {
+                "type": "expression",
+                "id": "e227",
+                "latex": "E_{d}=\\frac{\\operatorname{round}\\left(1000E(p_{d})\\right)}{1000}"
+              },
+              {
+                "type": "expression",
+                "id": "e228",
+                "latex": "(p_{d},E(p_{d}))",
+                "color": "#fa7e19",
+                "dragMode": "X",
+                "pointSize": "14",
+                "showLabel": true,
+                "label": "drag: pH ${p_d} → E_cell = ${E_d} V",
+                "labelOrientation": "below_left"
+              },
+              {
+                "type": "expression",
+                "id": "e229",
+                "latex": "(3.2,1.27)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "x: pH   y: E_cell (V), [Cl⁻] = 0.0250 M, [MnO₄⁻] = 0.0100 M, [Mn²⁺] = 0.00200 M",
+                "color": "#9ca3af",
+                "labelOrientation": "right"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "q12-anode",
+      "type": "rectangle",
+      "x": 600,
+      "y": 470,
+      "width": 300,
+      "height": 160,
+      "angle": 0,
+      "strokeColor": "#1971c2",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": {
+        "type": 3
+      },
+      "seed": 8919,
+      "version": 1,
+      "versionNonce": 16838,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false
+    },
+    {
+      "id": "q12-anode-t",
+      "type": "text",
+      "x": 615,
+      "y": 482,
+      "width": 228.8,
+      "height": 80,
+      "angle": 0,
+      "strokeColor": "#1971c2",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 24757,
+      "version": 1,
+      "versionNonce": 32676,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Anode (−), oxidation\nAg | AgCl | Cl⁻ (0.0250 M)\nAg + Cl⁻ → AgCl + e⁻\nE = 0.3179 V",
+      "originalText": "Anode (−), oxidation\nAg | AgCl | Cl⁻ (0.0250 M)\nAg + Cl⁻ → AgCl + e⁻\nE = 0.3179 V",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 14,
+      "autoResize": true
+    },
+    {
+      "id": "q12-cathode",
+      "type": "rectangle",
+      "x": 1020,
+      "y": 470,
+      "width": 320,
+      "height": 160,
+      "angle": 0,
+      "strokeColor": "#c2255c",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": {
+        "type": 3
+      },
+      "seed": 40595,
+      "version": 1,
+      "versionNonce": 48514,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false
+    },
+    {
+      "id": "q12-cathode-t",
+      "type": "text",
+      "x": 1035,
+      "y": 482,
+      "width": 272.8,
+      "height": 80,
+      "angle": 0,
+      "strokeColor": "#c2255c",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 56433,
+      "version": 1,
+      "versionNonce": 64352,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Cathode (+), reduction\nPt | MnO₄⁻, Mn²⁺, H⁺ (pH 2.30)\nMnO₄⁻ + 8H⁺ + 5e⁻ → Mn²⁺ + 4H₂O\nE = 1.3026 V",
+      "originalText": "Cathode (+), reduction\nPt | MnO₄⁻, Mn²⁺, H⁺ (pH 2.30)\nMnO₄⁻ + 8H⁺ + 5e⁻ → Mn²⁺ + 4H₂O\nE = 1.3026 V",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 14,
+      "autoResize": true
+    },
+    {
+      "id": "q12-bridge",
+      "type": "text",
+      "x": 925,
+      "y": 530,
+      "width": 52.800000000000004,
+      "height": 60,
+      "angle": 0,
+      "strokeColor": "#495057",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 72271,
+      "version": 1,
+      "versionNonce": 80190,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "‖\nsalt\nbridge",
+      "originalText": "‖\nsalt\nbridge",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 14,
+      "autoResize": true
+    },
+    {
+      "id": "q12-e",
+      "type": "arrow",
+      "x": 750,
+      "y": 466,
+      "width": 430,
+      "height": 18,
+      "angle": 0,
+      "strokeColor": "#f08c00",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 88109,
+      "version": 1,
+      "versionNonce": 96028,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          -18
+        ],
+        [
+          430,
+          -18
+        ],
+        [
+          430,
+          0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": null,
+      "endBinding": null,
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false
+    },
+    {
+      "id": "q12-e-t",
+      "type": "text",
+      "x": 905,
+      "y": 452,
+      "width": 96.80000000000001,
+      "height": 20,
+      "angle": 0,
+      "strokeColor": "#f08c00",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 103947,
+      "version": 1,
+      "versionNonce": 111866,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "e⁻ (wire) →",
+      "originalText": "e⁻ (wire) →",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 14,
+      "autoResize": true
+    },
+    {
+      "id": "q12-overall",
+      "type": "text",
+      "x": 600,
+      "y": 650,
+      "width": 668.8000000000001,
+      "height": 40,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 119785,
+      "version": 1,
+      "versionNonce": 127704,
+      "isDeleted": false,
+      "boundElements": null,
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Overall (n = 5): MnO₄⁻ + 8H⁺ + 5Ag + 5Cl⁻ → Mn²⁺ + 5AgCl + 4H₂O\nE°cell = 1.512 − 0.2231 = 1.2889 V;   E_cell = 0.985 V;   ΔG = −475 kJ mol⁻¹",
+      "originalText": "Overall (n = 5): MnO₄⁻ + 8H⁺ + 5Ag + 5Cl⁻ → Mn²⁺ + 5AgCl + 4H₂O\nE°cell = 1.512 − 0.2231 = 1.2889 V;   E_cell = 0.985 V;   ΔG = −475 kJ mol⁻¹",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "left",
+      "verticalAlign": "top",
+      "containerId": null,
+      "lineHeight": 1.25,
+      "baseline": 14,
+      "autoResize": true
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}

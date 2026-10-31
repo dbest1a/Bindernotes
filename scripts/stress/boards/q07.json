@@ -1,0 +1,252 @@
+{
+  "question": 7,
+  "title": "Q7 2^m + 5^n = k^2",
+  "subject": "Math",
+  "modules": [
+    {
+      "id": "q7-sol",
+      "moduleId": "solution-steps",
+      "title": "Worked solution",
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "solution": {
+        "version": 1,
+        "title": "Q7 · 2^m + 5^n is a perfect square",
+        "problem": "Find all nonnegative integers $(m,n)$ with $2^m+5^n=k^2$, and prove there are no others.",
+        "steps": [
+          {
+            "id": "q7-sol-s01",
+            "math": "(3-1)(3+1) = 2^3",
+            "note": "Case n = 0: (k − 1)(k + 1) = 2^m. Two powers of 2 that differ by 2 must be 2 and 4, so k = 3 and m = 3."
+          },
+          {
+            "id": "q7-sol-s02",
+            "math": "2^3+5^0 = 3^2",
+            "note": "So (m, n) = (3, 0) is a solution."
+          },
+          {
+            "id": "q7-sol-s03",
+            "math": "1^2\\bmod 5 = 1,\\quad 2^2\\bmod 5 = 4,\\quad 3^2\\bmod 5 = 4,\\quad 4^2\\bmod 5 = 1",
+            "note": "Case n ≥ 1: k² ≡ 2^m (mod 5) must be 1 or 4 …"
+          },
+          {
+            "id": "q7-sol-s04",
+            "math": "2^1\\bmod 5 = 2,\\quad 2^2\\bmod 5 = 4,\\quad 2^3\\bmod 5 = 3,\\quad 2^4\\bmod 5 = 1",
+            "note": "… and 2^m mod 5 cycles 2, 4, 3, 1, so m is even."
+          },
+          {
+            "id": "q7-sol-s05",
+            "math": "(1+(-1)^2)\\bmod 3 = 2",
+            "note": "Mod 3 with m even: 2^m + 5^n ≡ 1 + (−1)^n. If n were even this is 2, not a square mod 3 (squares are 0, 1). So n is odd."
+          },
+          {
+            "id": "q7-sol-s06",
+            "math": "5^1\\bmod 8 = 5,\\quad 5^3\\bmod 8 = 5,\\quad 5^5\\bmod 8 = 5",
+            "note": "Mod 8 with m ≥ 3 and n odd: 2^m + 5^n ≡ 5, but squares mod 8 are 0, 1, 4. So m ∈ {0, 2}."
+          },
+          {
+            "id": "q7-sol-s07",
+            "math": "(k-1)(k+1) = 5^n",
+            "note": "m = 0: both factors would be powers of 5 differing by 2. Impossible (5^a − 5^b is a multiple of 4, or 0)."
+          },
+          {
+            "id": "q7-sol-s08",
+            "math": "(3-2)(3+2) = 5^1",
+            "note": "m = 2: (k − 2)(k + 2) = 5^n; powers of 5 differing by 4 are 1 and 5, so k = 3, n = 1."
+          },
+          {
+            "id": "q7-sol-s09",
+            "math": "2^2+5^1 = 3^2",
+            "note": "So (m, n) = (2, 1) is a solution."
+          }
+        ],
+        "answer": "(m,n)=(3,0)\\ \\text{and}\\ (2,1),\\ \\text{both giving } 9;\\ \\text{no others}",
+        "source": {
+          "kind": "manual"
+        }
+      }
+    },
+    {
+      "id": "q7-search",
+      "moduleId": "desmos-graph",
+      "title": "Brute-force search (m ≤ 50, n ≤ 22)",
+      "x": 580,
+      "y": 0,
+      "width": 760,
+      "height": 764,
+      "anchorMode": "board-fixed-size",
+      "graphWorkspace": {
+        "version": 1,
+        "graphVisible": true,
+        "graphExpanded": false,
+        "graphMode": "2d",
+        "graphStatesByMode": {
+          "2d": {
+            "version": 11,
+            "randomSeed": "stressq7-search",
+            "graph": {
+              "viewport": {
+                "xmin": -1.5,
+                "xmax": 51,
+                "ymin": -1.5,
+                "ymax": 23
+              },
+              "squareAxes": false
+            },
+            "expressions": {
+              "list": [
+                {
+                  "type": "expression",
+                  "id": "e101",
+                  "latex": "P=\\left[(m,n)\\operatorname{for}m=[0...50],n=[0...22]\\right]",
+                  "color": "#9ca3af",
+                  "pointSize": "4"
+                },
+                {
+                  "type": "expression",
+                  "id": "e102",
+                  "latex": "f(m,n)=\\operatorname{mod}\\left(\\sqrt{2^{m}+5^{n}},1\\right)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e103",
+                  "latex": "Q=P\\left[f(P.x,P.y)=0\\right]",
+                  "color": "#c74440",
+                  "pointSize": "14"
+                },
+                {
+                  "type": "expression",
+                  "id": "e104",
+                  "latex": "\\operatorname{length}(Q)"
+                },
+                {
+                  "type": "expression",
+                  "id": "e105",
+                  "latex": "(3,0)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "(3,0): 8 + 1 = 9",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e106",
+                  "latex": "(2,1)",
+                  "color": "#c74440",
+                  "showLabel": true,
+                  "label": "(2,1): 4 + 5 = 9",
+                  "labelOrientation": "above_right"
+                },
+                {
+                  "type": "expression",
+                  "id": "e107",
+                  "latex": "(25,21)",
+                  "hidden": true,
+                  "showLabel": true,
+                  "label": "large points: 2^m + 5^n is a perfect square (${n_Q} of 1173 pairs)",
+                  "color": "#9ca3af"
+                },
+                {
+                  "type": "expression",
+                  "id": "e108",
+                  "latex": "n_{Q}=\\operatorname{length}(Q)"
+                }
+              ]
+            }
+          },
+          "3d": null
+        },
+        "angleMode": "rad",
+        "calculatorExpression": "",
+        "calculatorResult": null,
+        "calculatorError": null,
+        "history": [],
+        "currentGraphState": {
+          "version": 11,
+          "randomSeed": "stressq7-search",
+          "graph": {
+            "viewport": {
+              "xmin": -1.5,
+              "xmax": 51,
+              "ymin": -1.5,
+              "ymax": 23
+            },
+            "squareAxes": false
+          },
+          "expressions": {
+            "list": [
+              {
+                "type": "expression",
+                "id": "e101",
+                "latex": "P=\\left[(m,n)\\operatorname{for}m=[0...50],n=[0...22]\\right]",
+                "color": "#9ca3af",
+                "pointSize": "4"
+              },
+              {
+                "type": "expression",
+                "id": "e102",
+                "latex": "f(m,n)=\\operatorname{mod}\\left(\\sqrt{2^{m}+5^{n}},1\\right)"
+              },
+              {
+                "type": "expression",
+                "id": "e103",
+                "latex": "Q=P\\left[f(P.x,P.y)=0\\right]",
+                "color": "#c74440",
+                "pointSize": "14"
+              },
+              {
+                "type": "expression",
+                "id": "e104",
+                "latex": "\\operatorname{length}(Q)"
+              },
+              {
+                "type": "expression",
+                "id": "e105",
+                "latex": "(3,0)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "(3,0): 8 + 1 = 9",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e106",
+                "latex": "(2,1)",
+                "color": "#c74440",
+                "showLabel": true,
+                "label": "(2,1): 4 + 5 = 9",
+                "labelOrientation": "above_right"
+              },
+              {
+                "type": "expression",
+                "id": "e107",
+                "latex": "(25,21)",
+                "hidden": true,
+                "showLabel": true,
+                "label": "large points: 2^m + 5^n is a perfect square (${n_Q} of 1173 pairs)",
+                "color": "#9ca3af"
+              },
+              {
+                "type": "expression",
+                "id": "e108",
+                "latex": "n_{Q}=\\operatorname{length}(Q)"
+              }
+            ]
+          }
+        },
+        "savedGraphs": [],
+        "savedFunctions": []
+      }
+    }
+  ],
+  "appState": {
+    "scrollX": 20,
+    "scrollY": 76,
+    "zoom": {
+      "value": 1
+    }
+  }
+}
