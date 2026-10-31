@@ -59,6 +59,7 @@ import { buildBinderNotebookStructure } from "@/lib/notebook-structure";
 import { formatNoteSavedAt, NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 import { saveQueue } from "@/lib/save-queue";
 import { LearnerNoteConflictError } from "@/lib/note-conflict";
+import { classifyIncomingNoteRevision, serializeNoteSnapshot, type NoteRevision } from "@/lib/note-revision";
 import { getLatestLearnerNote } from "@/services/binder-service";
 import { createLoosePersonalNote } from "@/services/personal-notes-service";
 import { queryKeys } from "@/lib/query-keys";
@@ -266,8 +267,9 @@ export function BinderReaderPage() {
   const noteHasLocalEditsRef = useRef(false);
   const activeNoteScopeRef = useRef("");
   const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
-  const submittedNoteSnapshotRef = useRef<{ scopeKey: string; snapshot: string } | null>(null);
-  const noteRevisionsRef = useRef(new Map<string, { id?: string; updatedAt: string | null }>());
+  /** Scope of the learner-note write currently awaiting the server, if any. */
+  const savingNoteScopeRef = useRef<string | null>(null);
+  const noteRevisionsRef = useRef(new Map<string, NoteRevision>());
   const preserveNoteDraft = useCallback((draft: PendingNoteSave) => {
     try { writeReaderNoteDraft(draft); }
     catch { setNoteSaveError("Browser recovery storage is unavailable. Keep this tab open until your note saves."); }
@@ -1818,16 +1820,9 @@ export function BinderReaderPage() {
 
     pendingNoteSaveRef.current = null;
     noteSaveActiveRef.current = true;
+    savingNoteScopeRef.current = pendingDraft.scopeKey;
     setIsNoteSaveActive(true);
     setNoteSaveError(null);
-    submittedNoteSnapshotRef.current = {
-      scopeKey: pendingDraft.scopeKey,
-      snapshot: serializeNoteSnapshot(
-        pendingDraft.input.title,
-        pendingDraft.input.content,
-        pendingDraft.input.mathBlocks,
-      ),
-    };
 
     try {
       const expected = noteRevisionsRef.current.get(pendingDraft.scopeKey);
@@ -1878,6 +1873,7 @@ export function BinderReaderPage() {
       }
     } finally {
       noteSaveActiveRef.current = false;
+      savingNoteScopeRef.current = null;
       setIsNoteSaveActive(false);
       if (pendingNoteSaveRef.current && isOnline) {
         void flushQueuedNoteSave();
@@ -1971,7 +1967,6 @@ export function BinderReaderPage() {
       noteRevisionsRef.current.set(captured.scopeKey, { id: latest.id, updatedAt: latest.updated_at });
       syncedSnapshotRef.current = serializeNoteSnapshot(latest.title, latest.content, latest.math_blocks);
       noteHasLocalEditsRef.current = false;
-      submittedNoteSnapshotRef.current = null;
       latestVisibleNoteDraftRef.current = { ...captured, input: { ...captured.input, id: latest.id, expectedUpdatedAt: latest.updated_at, title: latest.title, content: latest.content, mathBlocks: latest.math_blocks } };
       setNoteId(latest.id);
       setNoteTitle(latest.title);
@@ -2119,19 +2114,34 @@ export function BinderReaderPage() {
           currentDraft.input.mathBlocks,
         )
       : "";
-    const isOwnSubmittedSaveEcho =
-      submittedNoteSnapshotRef.current?.scopeKey === currentNoteScopeKey &&
-      submittedNoteSnapshotRef.current.snapshot === nextSnapshot;
-
-    if (
+    const editingThisScope =
       currentNoteScopeKey === activeNoteScopeRef.current &&
       noteScopeHydratedRef.current &&
+      currentDraft?.scopeKey === currentNoteScopeKey;
+    const incomingRevision = classifyIncomingNoteRevision(
+      noteRevisionsRef.current.get(currentNoteScopeKey),
+      { id: currentNote?.id, updatedAt: currentNote?.updated_at ?? null },
+    );
+
+    // A refetch that started before this page's latest save can resolve after
+    // it. Keep the editor and the revision used for the next conditional write.
+    if (editingThisScope && incomingRevision === "older") {
+      return;
+    }
+
+    if (
+      editingThisScope &&
       noteHasLocalEditsRef.current &&
-      currentDraft?.scopeKey === currentNoteScopeKey &&
       currentSnapshot !== syncedSnapshotRef.current &&
       nextSnapshot !== currentSnapshot
     ) {
-      if (nextSnapshot !== syncedSnapshotRef.current && !isOwnSubmittedSaveEcho) {
+      // While this note's own write is in flight the row may be that write read
+      // back early; the write's typed conflict is the authority instead.
+      if (
+        incomingRevision === "newer" &&
+        savingNoteScopeRef.current !== currentNoteScopeKey &&
+        nextSnapshot !== syncedSnapshotRef.current
+      ) {
         conflictedNoteScopesRef.current.add(currentNoteScopeKey);
         setNoteConflict(true);
         clearNoteSaveTimer();
@@ -4162,14 +4172,6 @@ function appearanceColorsChanged(
     previous.appearance.customPalette.accent !== next.appearance.customPalette.accent ||
     previous.appearance.customPalette.sourceTheme !== next.appearance.customPalette.sourceTheme
   );
-}
-
-function serializeNoteSnapshot(title: string, content: JSONContent, mathBlocks: MathBlock[]) {
-  return JSON.stringify({
-    title,
-    content,
-    mathBlocks,
-  });
 }
 
 function getLearnerNoteSaveErrorMessage(caught: unknown) {

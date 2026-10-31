@@ -183,6 +183,15 @@ import { BinderReaderPage } from "@/pages/binder-reader-page";
 let viewportWidth = 1024;
 let viewportHeight = 768;
 
+/** Postgres jsonb output order: shorter keys first, ties bytewise. */
+function jsonbOrder(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(jsonbOrder);
+  if (!value || typeof value !== "object") return value;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .sort(([a], [b]) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(entries.map(([key, inner]) => [key, jsonbOrder(inner)]));
+}
+
 function renderReaderPage(initialEntry: string) {
   let navigate: ReturnType<typeof useNavigate>;
   function CaptureNavigation() { navigate = useNavigate(); return null; }
@@ -440,6 +449,94 @@ describe("BinderReaderPage", () => {
     finishCopy({ id: "recovered-copy" });
     await screen.findByText("Both versions are kept. You're viewing the latest account version.");
     expect((screen.getByPlaceholderText("Like Terms notes") as HTMLInputElement).value).toBe("Other tab's version");
+  });
+
+  describe("refetches racing this page's own saves", () => {
+    const v0 = { id: "saved-note", owner_id: "user-1", binder_id: "binder-1", lesson_id: "lesson-1", folder_id: null, title: "Baseline", content: emptyDoc("Baseline body"), math_blocks: [], pinned: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" };
+    type SaveInput = { title: string; content: typeof v0.content; mathBlocks: typeof v0.math_blocks };
+
+    function savingReader() {
+      mocks.workspacePreferences.active = { ...createDefaultWorkspacePreferences("user-1", "binder-1"), activeMode: "simple", styleChoiceCompleted: true };
+      mocks.binderBundle.isLoading = false;
+      mocks.binderBundle.error = null;
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [structuredClone(v0)] };
+      let saves = 0;
+      // Mirrors useLearnerNoteMutation.onSuccess writing the saved row into the binder cache.
+      mocks.noteMutation.mutateAsync.mockReset().mockImplementation(async (input: SaveInput) => {
+        saves += 1;
+        const saved = { ...v0, title: input.title, content: input.content, math_blocks: input.mathBlocks, updated_at: `2026-10-31T10:00:0${saves}.000Z` };
+        mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [saved] };
+        return saved;
+      });
+      return renderReaderPage("/binders/binder-1/documents/lesson-1");
+    }
+
+    it("ignores an older refetch that lands while the student keeps typing, and keeps autosaving", async () => {
+      const rendered = savingReader();
+      const title = (await screen.findByPlaceholderText("Like Terms notes")) as HTMLInputElement;
+      fireEvent.change(title, { target: { value: "Draft one" } });
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1), { timeout: 2000 });
+      rendered.refresh();
+
+      // A highlight-triggered refetch that started before "Draft one" committed resolves late.
+      fireEvent.change(title, { target: { value: "Draft two" } });
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [structuredClone(v0)] };
+      rendered.refresh();
+
+      expect(screen.queryByRole("button", { name: "Keep both" })).toBeNull();
+      expect(title.value).toBe("Draft two");
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(2), { timeout: 2000 });
+      expect(mocks.noteMutation.mutateAsync.mock.calls[1][0]).toMatchObject({ title: "Draft two", id: "saved-note", expectedUpdatedAt: "2026-10-31T10:00:01.000Z" });
+    });
+
+    it("does not roll the editor or its revision back when an older refetch lands after a save", async () => {
+      const rendered = savingReader();
+      const title = (await screen.findByPlaceholderText("Like Terms notes")) as HTMLInputElement;
+      fireEvent.change(title, { target: { value: "Draft one" } });
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1), { timeout: 2000 });
+      rendered.refresh();
+      await waitFor(() => expect(screen.queryByText("Saving this lesson note to your account now.")).toBeNull());
+
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [structuredClone(v0)] };
+      rendered.refresh();
+      expect(title.value).toBe("Draft one");
+
+      fireEvent.change(title, { target: { value: "Draft two" } });
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(2), { timeout: 2000 });
+      expect(mocks.noteMutation.mutateAsync.mock.calls[1][0]).toMatchObject({ expectedUpdatedAt: "2026-10-31T10:00:01.000Z" });
+    });
+
+    it("treats its own save read back with reordered jsonb keys as saved, not as a conflict", async () => {
+      mocks.workspacePreferences.active = { ...createDefaultWorkspacePreferences("user-1", "binder-1"), activeMode: "simple", styleChoiceCompleted: true };
+      mocks.binderBundle.isLoading = false;
+      mocks.binderBundle.error = null;
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [structuredClone(v0)] };
+      let resolveSave!: () => void;
+      mocks.noteMutation.mutateAsync.mockReset().mockImplementation((input: SaveInput) => new Promise((resolve) => {
+        resolveSave = () => {
+          const saved = { ...v0, title: input.title, content: jsonbOrder(input.content), math_blocks: jsonbOrder(input.mathBlocks), updated_at: "2026-10-31T10:00:01.000Z" };
+          mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [saved as typeof v0] };
+          resolve(saved);
+        };
+      }));
+      const rendered = renderReaderPage("/binders/binder-1/documents/lesson-1");
+      const title = (await screen.findByPlaceholderText("Like Terms notes")) as HTMLInputElement;
+      fireEvent.change(title, { target: { value: "Draft one" } });
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1), { timeout: 2000 });
+      const submitted = mocks.noteMutation.mutateAsync.mock.calls[0][0] as SaveInput;
+
+      // A refetch reads the committed row before the save response arrives.
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [{ ...v0, title: submitted.title, content: jsonbOrder(submitted.content), math_blocks: jsonbOrder(submitted.mathBlocks), updated_at: "2026-10-31T10:00:01.000Z" } as typeof v0] };
+      rendered.refresh();
+      expect(screen.queryByRole("button", { name: "Keep both" })).toBeNull();
+
+      await act(async () => resolveSave());
+      await waitFor(() => expect(screen.queryByText("Saving this lesson note to your account now.")).toBeNull());
+      expect(screen.queryByRole("button", { name: "Keep both" })).toBeNull();
+      expect(screen.queryByText("You have unsaved changes in this lesson note.")).toBeNull();
+      fireEvent.change(title, { target: { value: "Draft two" } });
+      await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    });
   });
 
   it("shows the loading shell instead of crashing before lessons are available", () => {
