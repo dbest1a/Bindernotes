@@ -269,6 +269,7 @@ export function BinderReaderPage() {
   const latestVisibleNoteDraftRef = useRef<PendingNoteSave | null>(null);
   /** Scope of the learner-note write currently awaiting the server, if any. */
   const savingNoteScopeRef = useRef<string | null>(null);
+  const openPersonalNoteAfterSaveRef = useRef<string | null>(null);
   const noteRevisionsRef = useRef(new Map<string, NoteRevision>());
   const preserveNoteDraft = useCallback((draft: PendingNoteSave) => {
     try { writeReaderNoteDraft(draft); }
@@ -1773,6 +1774,7 @@ export function BinderReaderPage() {
   useEffect(() => {
     noteScopeHydratedRef.current = false;
     noteHasLocalEditsRef.current = false;
+    openPersonalNoteAfterSaveRef.current = null;
     clearNoteSaveTimer();
     setNoteConflict(conflictedNoteScopesRef.current.has(currentNoteScopeKey));
     setNoteRecoveryBusy(recoveringNoteScopeRef.current === currentNoteScopeKey);
@@ -1859,7 +1861,20 @@ export function BinderReaderPage() {
             : savedSnapshot;
         noteHasLocalEditsRef.current = visibleSnapshot !== savedSnapshot;
       }
+      const queuedAfterSave = pendingNoteSaveRef.current as PendingNoteSave | null;
+      if (
+        openPersonalNoteAfterSaveRef.current === pendingDraft.scopeKey &&
+        queuedAfterSave?.scopeKey !== pendingDraft.scopeKey
+      ) {
+        // Open only once everything typed so far is in the account copy;
+        // otherwise drop the request rather than navigating on a later save.
+        openPersonalNoteAfterSaveRef.current = null;
+        if (pendingDraft.scopeKey === activeNoteScopeRef.current && !noteHasLocalEditsRef.current) {
+          navigate(`/notes/n/${savedNote.id}`);
+        }
+      }
     } catch (caught) {
+      if (openPersonalNoteAfterSaveRef.current === pendingDraft.scopeKey) openPersonalNoteAfterSaveRef.current = null;
       const conflict = caught instanceof LearnerNoteConflictError;
       retryNoteSaveRef.current = conflict ? null : pendingDraft;
       if (conflict) {
@@ -1879,7 +1894,7 @@ export function BinderReaderPage() {
         void flushQueuedNoteSave();
       }
     }
-  }, [isOnline]);
+  }, [isOnline, navigate]);
 
   useEffect(() => {
     if (!isOnline || !pendingNoteSaveRef.current || noteSaveActiveRef.current) {
@@ -1908,6 +1923,25 @@ export function BinderReaderPage() {
       void flushQueuedNoteSave();
     }
   }, [clearNoteSaveTimer, flushQueuedNoteSave, queueCurrentDraftForSave]);
+
+  const openInPersonalNotes = useCallback(() => {
+    const draft = latestVisibleNoteDraftRef.current;
+    if (!noteId || !draft || draft.scopeKey !== activeNoteScopeRef.current) return;
+    const unsaved =
+      savingNoteScopeRef.current === draft.scopeKey ||
+      pendingNoteSaveRef.current?.scopeKey === draft.scopeKey ||
+      serializeNoteSnapshot(draft.input.title, draft.input.content, draft.input.mathBlocks) !== syncedSnapshotRef.current;
+    if (!unsaved) {
+      navigate(`/notes/n/${noteId}`);
+      return;
+    }
+    // Leaving now would cancel the autosave timer and open an older account copy.
+    openPersonalNoteAfterSaveRef.current = draft.scopeKey;
+    saveNoteNow();
+    if (savingNoteScopeRef.current !== draft.scopeKey && pendingNoteSaveRef.current?.scopeKey !== draft.scopeKey) {
+      openPersonalNoteAfterSaveRef.current = null;
+    }
+  }, [navigate, noteId, saveNoteNow]);
 
   const downloadNoteDraft = useCallback(() => {
     const draft = latestVisibleNoteDraftRef.current;
@@ -2823,7 +2857,7 @@ export function BinderReaderPage() {
       onUseLatest: () => { void recoverNote(false); },
       onDownload: downloadNoteDraft,
     } : undefined,
-    onOpenPersonalNote: noteId ? () => navigate(`/notes/n/${noteId}`) : undefined,
+    onOpenPersonalNote: noteId && isOnline && !noteConflict ? openInPersonalNotes : undefined,
     canRetryNoteSave,
     noteInsertRequest,
     mathModules,

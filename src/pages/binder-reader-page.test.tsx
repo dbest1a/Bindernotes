@@ -2,7 +2,7 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyWorkspaceMode,
@@ -183,6 +183,11 @@ import { BinderReaderPage } from "@/pages/binder-reader-page";
 let viewportWidth = 1024;
 let viewportHeight = 768;
 
+function PersonalNoteRouteProbe() {
+  const { noteId } = useParams();
+  return <p>Personal note route {noteId}</p>;
+}
+
 /** Postgres jsonb output order: shorter keys first, ties bytewise. */
 function jsonbOrder(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(jsonbOrder);
@@ -208,6 +213,7 @@ function renderReaderPage(initialEntry: string) {
         <CaptureNavigation />
         <Routes>
           <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
+          <Route path="/notes/n/:noteId" element={<PersonalNoteRouteProbe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -536,6 +542,27 @@ describe("BinderReaderPage", () => {
       expect(screen.queryByText("You have unsaved changes in this lesson note.")).toBeNull();
       fireEvent.change(title, { target: { value: "Draft two" } });
       await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    });
+
+    it("saves typing before opening the lesson note in Personal Notes", async () => {
+      mocks.workspacePreferences.active = { ...createDefaultWorkspacePreferences("user-1", "binder-1"), activeMode: "simple", styleChoiceCompleted: true };
+      mocks.binderBundle.isLoading = false;
+      mocks.binderBundle.error = null;
+      mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [structuredClone(v0)] };
+      let resolveSave!: () => void;
+      mocks.noteMutation.mutateAsync.mockReset().mockImplementation((input: SaveInput) => new Promise((resolve) => {
+        resolveSave = () => resolve({ ...v0, title: input.title, content: input.content, math_blocks: input.mathBlocks, updated_at: "2026-10-31T10:00:01.000Z" });
+      }));
+      renderReaderPage("/binders/binder-1/documents/lesson-1");
+      const title = await screen.findByPlaceholderText("Like Terms notes");
+      fireEvent.change(title, { target: { value: "Typed just before leaving" } });
+      fireEvent.click(screen.getByRole("button", { name: "Open in Personal Notes" }));
+
+      expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.noteMutation.mutateAsync.mock.calls[0][0]).toMatchObject({ title: "Typed just before leaving", expectedUpdatedAt: v0.updated_at });
+      expect(screen.queryByText(/Personal note route/)).toBeNull();
+      await act(async () => resolveSave());
+      await screen.findByText("Personal note route saved-note");
     });
   });
 
