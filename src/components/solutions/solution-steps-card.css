@@ -1,0 +1,156 @@
+/* Worked Solution card: calm, board-like reveal motion and math sizing. */
+
+.solution-card {
+  container-type: inline-size;
+  --solution-accent: hsl(var(--primary));
+  --solution-verified: 158 64% 42%;
+  --solution-mismatch: hsl(var(--destructive));
+}
+
+.solution-card .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.solution-card .katex-display > .katex {
+  text-align: left;
+  white-space: normal;
+}
+
+.solution-math {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.solution-math--inline {
+  display: inline;
+  overflow: visible;
+}
+
+.solution-math--display .katex {
+  font-size: 1.14em;
+  line-height: 1.5;
+}
+
+/* A newly revealed line "writes" itself from left to right, then settles. */
+.solution-step[data-entering="true"] {
+  animation: solution-write 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  will-change: clip-path, opacity;
+}
+
+@keyframes solution-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.25;
+    transform: translateY(2px);
+  }
+  to {
+    clip-path: inset(0 -1% 0 0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.solution-answer[data-entering="true"] {
+  animation: solution-settle 360ms ease both;
+}
+
+@keyframes solution-settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.solution-chip {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.solution-chip[data-status="verified"] {
+  background: hsl(var(--solution-verified) / 0.14);
+  color: hsl(var(--solution-verified));
+  border-color: hsl(var(--solution-verified) / 0.35);
+}
+
+.solution-chip[data-status="mismatch"] {
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.4);
+}
+
+.solution-chip[data-status="error"] {
+  background: hsl(38 92% 50% / 0.14);
+  color: hsl(32 90% 40%);
+  border-color: hsl(38 92% 50% / 0.4);
+}
+
+.dark .solution-chip[data-status="error"] {
+  color: hsl(40 95% 65%);
+}
+
+/* Range scrubber: 44px tall hit area, visible thumb, app accent colour. */
+.solution-scrubber {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  accent-color: var(--solution-accent);
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.solution-scrubber:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.2);
+  border-radius: 999px;
+}
+
+/* MathLive field styling, matched to the app's inputs. */
+.solution-mathfield {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.45rem 0.7rem;
+  font-size: 1.15rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--input) / 0.85);
+  background: hsl(var(--background) / 0.92);
+  color: hsl(var(--foreground));
+  --caret-color: var(--solution-accent);
+  --selection-background-color: hsl(var(--primary) / 0.22);
+  --contains-highlight-background-color: hsl(var(--primary) / 0.1);
+  --placeholder-color: hsl(var(--muted-foreground));
+  --smart-fence-color: hsl(var(--muted-foreground));
+}
+
+.solution-mathfield:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.12);
+}
+
+.solution-mathfield::part(virtual-keyboard-toggle) {
+  color: hsl(var(--muted-foreground));
+}
+
+.solution-mathfield::part(menu-toggle) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solution-step[data-entering="true"],
+  .solution-answer[data-entering="true"] {
+    animation: none;
+  }
+
+  .solution-chip {
+    transition: none;
+  }
+}
