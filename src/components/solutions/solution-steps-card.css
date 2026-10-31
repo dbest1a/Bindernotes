@@ -12,9 +12,10 @@
   text-align: left;
 }
 
+/* Display math keeps KaTeX's single line: wrapped KaTeX lines collide (limits and subscripts
+   overlap the next line). A long line scrolls sideways instead, with a soft edge showing more. */
 .solution-card .katex-display > .katex {
   text-align: left;
-  white-space: normal;
 }
 
 .solution-math {
@@ -22,8 +23,66 @@
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  padding-block: 0.15em;
   scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+@property --solution-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --solution-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* The scroll timeline is inactive when the line fits, so both fades stay at 0. */
+@supports (animation-timeline: scroll()) {
+  .solution-math--display {
+    animation: solution-math-edges linear both;
+    animation-timeline: scroll(self inline);
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--solution-fade-start),
+      #000 calc(100% - var(--solution-fade-end)),
+      transparent
+    );
+  }
+}
+
+@keyframes solution-math-edges {
+  0% {
+    --solution-fade-start: 0px;
+    --solution-fade-end: 32px;
+  }
+  12%,
+  88% {
+    --solution-fade-start: 32px;
+    --solution-fade-end: 32px;
+  }
+  100% {
+    --solution-fade-start: 32px;
+    --solution-fade-end: 0px;
+  }
+}
+
+/* On a narrow card the check chip shrinks to its icon (name and tooltip keep the words), so the
+   math keeps most of the row. */
+@container (max-width: 599px) {
+  .solution-card .solution-chip {
+    width: 1.75rem;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .solution-card .solution-chip-label {
+    display: none;
+  }
 }
 
 .solution-math--inline {

@@ -176,10 +176,11 @@ const CheckChip = memo(function CheckChip({ check, expanded, onToggle }: { check
       )}
       data-status={status}
       onClick={check?.detail ? onToggle : undefined}
+      title={chipLabel(check)}
       type="button"
     >
       <Icon aria-hidden className="size-3" />
-      <span>{chipLabel(check)}</span>
+      <span className="solution-chip-label">{chipLabel(check)}</span>
     </button>
   );
 });
@@ -489,9 +490,13 @@ export function SolutionStepsCard({ value, onChange, readOnly = false, className
     return () => clearTimeout(timer);
   }, [playing, revealed, total, setRevealed]);
 
-  // Keep the newest revealed line in view.
+  // Keep the newest revealed line in view while stepping forward. Opening a card (which shows
+  // every step) must not jump to the bottom and hide the problem statement.
+  const previousRevealedRef = useRef(revealed);
   useEffect(() => {
-    if (effectiveMode !== "present" || revealed === 0) {
+    const previous = previousRevealedRef.current;
+    previousRevealedRef.current = revealed;
+    if (effectiveMode !== "present" || revealed === 0 || revealed <= previous) {
       return;
     }
     const list = listRef.current;

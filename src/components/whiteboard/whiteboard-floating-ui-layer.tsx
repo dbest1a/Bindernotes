@@ -31,6 +31,8 @@ type WhiteboardFloatingUiLayerProps = {
   onMinimalModeChange?: (enabled: boolean) => void;
 };
 
+const CONTROLS_COLLAPSED_KEY = "bindernotes:whiteboard:controls-collapsed";
+
 const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
   saved: "Saved",
   saving: "Saving...",
@@ -64,10 +66,26 @@ export function WhiteboardFloatingUiLayer({
   minimalMode = false,
   onMinimalModeChange,
 }: WhiteboardFloatingUiLayerProps) {
-  // On a phone the full panel would cover most of the board, so it starts as a chip there.
-  const [controlsCollapsed, setControlsCollapsed] = useState(
-    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches,
-  );
+  // The panel remembers whether it was collapsed. Without a saved choice it starts as a chip
+  // on a phone, where the full panel would cover most of the board.
+  const [controlsCollapsed, setControlsCollapsedState] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const saved = window.localStorage.getItem(CONTROLS_COLLAPSED_KEY);
+      if (saved === "1" || saved === "0") return saved === "1";
+    } catch {
+      // Fall back to the screen-size default.
+    }
+    return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches;
+  });
+  const setControlsCollapsed = (collapsed: boolean) => {
+    setControlsCollapsedState(collapsed);
+    try {
+      window.localStorage.setItem(CONTROLS_COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // The choice still applies for this visit.
+    }
+  };
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const statusLabel = saveMessage || fallbackSaveLabels[saveStatus];
   const visibleStatusLabel = saveStatus === "offline-draft" ? "Local draft" : statusLabel;
