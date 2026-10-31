@@ -54,7 +54,8 @@ type WhiteboardPinnedObjectLayerProps = {
   modules: WhiteboardModuleElement[];
   onAddLinkedModule?: (moduleElement: Partial<WhiteboardModuleElement> & Pick<WhiteboardModuleElement, "moduleId">) => void;
   renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
-  onChangeModule: (moduleElement: WhiteboardModuleElement) => void;
+  /** recordHistory: false keeps background syncs (such as graph state) out of card undo. */
+  onChangeModule: (moduleElement: WhiteboardModuleElement, options?: { recordHistory?: boolean }) => void;
   onRemoveModule: (moduleId: string) => void;
   onRouteSelectionToNotes?: (request: {
     anchorText?: string;
@@ -576,13 +577,17 @@ function getDesmosGraphInstanceId(moduleElement: WhiteboardModuleElement) {
   return moduleElement.graphInstanceId?.trim() || `whiteboard-desmos-${moduleElement.id}`;
 }
 
+const GRAPH_BOARD_SYNC_MS = 800;
+
 function WhiteboardScopedDesmosGraphModule({
   context,
   moduleElement,
+  onChangeModule,
   renderModule,
 }: {
   context: WorkspaceModuleContext;
   moduleElement: WhiteboardModuleElement;
+  onChangeModule: WhiteboardPinnedObjectLayerProps["onChangeModule"];
   renderModule: (moduleId: WhiteboardModuleElement["moduleId"], context: WorkspaceModuleContext) => ReactElement | null;
 }) {
   const {
@@ -593,6 +598,28 @@ function WhiteboardScopedDesmosGraphModule({
     savedFunctionMap,
     ...mathWorkspace
   } = useMathWorkspace(context.ownerId ?? undefined, getDesmosGraphInstanceId(moduleElement), moduleElement.graphWorkspace);
+  // The graph belongs to the board: its state is written into the board save (not only this
+  // device's cache) once edits pause, so the board opens with it anywhere. These syncs stay
+  // out of card undo, and a pending one is written immediately when the card unmounts.
+  const latestModuleRef = useRef(moduleElement);
+  latestModuleRef.current = moduleElement;
+  const onChangeModuleRef = useRef(onChangeModule);
+  onChangeModuleRef.current = onChangeModule;
+  const pendingGraphSyncRef = useRef<typeof state | null>(null);
+  const syncGraphToBoard = useCallback(() => {
+    const pending = pendingGraphSyncRef.current;
+    pendingGraphSyncRef.current = null;
+    const current = latestModuleRef.current;
+    if (!pending || pending.savedAt === current.graphWorkspace?.savedAt) return;
+    onChangeModuleRef.current({ ...current, graphWorkspace: pending, updatedAt: new Date().toISOString() }, { recordHistory: false });
+  }, []);
+  useEffect(() => {
+    if (!state.savedAt || state.savedAt === latestModuleRef.current.graphWorkspace?.savedAt) return;
+    pendingGraphSyncRef.current = state;
+    const timer = window.setTimeout(syncGraphToBoard, GRAPH_BOARD_SYNC_MS);
+    return () => window.clearTimeout(timer);
+  }, [state, syncGraphToBoard]);
+  useEffect(() => syncGraphToBoard, [syncGraphToBoard]);
   const [snapshotName, setSnapshotName] = useState("");
   const [pendingExpression, setPendingExpression] = useState<GraphExpressionRequest | null>(null);
   const [pendingGraphLoad, setPendingGraphLoad] = useState<GraphLoadRequest | null>(null);
@@ -693,6 +720,7 @@ function WhiteboardLiveModuleContent({
       <WhiteboardScopedDesmosGraphModule
         context={context}
         moduleElement={moduleElement}
+        onChangeModule={onChangeModule}
         renderModule={renderModule}
       />
     );

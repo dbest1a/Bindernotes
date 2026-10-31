@@ -49,6 +49,9 @@ export type MathWorkspaceState = {
   currentGraphState: DesmosState | null;
   savedGraphs: SavedGraphState[];
   savedFunctions: SavedMathFunction[];
+  /** When this workspace last changed. A board's copy and this device's cached copy are
+   *  compared by it, so an older copy never replaces newer work from another device. */
+  savedAt?: string;
 };
 
 const MAX_HISTORY = 24;
@@ -90,8 +93,13 @@ function loadState(userId?: string, scopeId = "math-lab", initialState?: MathWor
     if (!raw) {
       return initialState ?? createDefaultState();
     }
-
     const parsed = JSON.parse(raw) as Partial<MathWorkspaceState>;
+    // A board carries its own copy of the workspace. Prefer it when this device's cache is
+    // older (or predates timestamps), so opening a board elsewhere shows its latest graphs.
+    if (initialState?.savedAt && (!parsed.savedAt || parsed.savedAt < initialState.savedAt)) {
+      return initialState;
+    }
+
     const graphMode = normalizeGraphMode(parsed.graphMode);
     const graphStatesByMode = normalizeGraphStatesByMode(parsed, graphMode);
     return {
@@ -127,7 +135,8 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
   const [state, setRenderedState] = useState<MathWorkspaceState>(() => scopeSnapshot.state);
   const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
     const snapshot = activeSnapshotRef.current;
-    const nextState = typeof update === "function" ? update(snapshot.state) : update;
+    const updated = typeof update === "function" ? update(snapshot.state) : update;
+    const nextState = updated === snapshot.state ? updated : { ...updated, savedAt: new Date().toISOString() };
     snapshot.state = nextState;
     setRenderedState(nextState);
   }, []);
@@ -325,6 +334,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
         ...current.graphStatesByMode,
         [graphMode]: graphState,
       },
+      savedAt: new Date().toISOString(),
     };
     scopeSnapshot.state = nextState;
     // React effects do not run for an unmounted scope. Persist the final graph
