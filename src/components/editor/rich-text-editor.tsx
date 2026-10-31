@@ -253,7 +253,9 @@ export function RichTextEditor({
       return;
     }
 
-    editor.setEditable(editable);
+    // Changing editability is not a content edit. Emitting an update here can
+    // send the editor's pre-hydration document back over a newly loaded note.
+    editor.setEditable(editable, false);
     if (!editable && editor.isFocused) {
       editor.commands.blur();
     }

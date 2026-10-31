@@ -21,6 +21,16 @@ describe("RichTextEditor", () => {
     vi.restoreAllMocks();
   });
 
+  it("does not emit a content edit when mounting or changing editability during hydration", async () => {
+    const changed = vi.fn();
+    const blank: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
+    const { rerender } = render(<RichTextEditor value={blank} editable={false} onChange={changed} />);
+    await waitFor(() => expect(document.querySelector(".ProseMirror")).not.toBeNull());
+    rerender(<RichTextEditor value={value} editable onChange={changed} />);
+    await waitFor(() => expect(document.querySelector(".ProseMirror")?.textContent).toBe("A small note"));
+    expect(changed).not.toHaveBeenCalled();
+  });
+
   it("does not register duplicate underline extensions", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
