@@ -5,8 +5,9 @@
   row-gap: 0.25rem;
 }
 
+/* The title truncates down to about 5rem before the header wraps, so a 300 px card keeps one row. */
 .whiteboard-module-card__title {
-  flex: 1 1 8rem;
+  flex: 1 1 5rem;
 }
 
 .whiteboard-module-card__title > span:not(.truncate) {

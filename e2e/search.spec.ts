@@ -111,6 +111,8 @@ test.describe("global search", () => {
     await page.keyboard.type("practice");
 
     const panel = page.getByRole("dialog", { name: "Search BinderNotes" });
+    // Measure the settled panel: its entrance animation scales it up from 0.99.
+    await panel.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
     const panelBox = (await panel.boundingBox())!;
     expect(panelBox.x).toBeGreaterThanOrEqual(0);
     expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390);

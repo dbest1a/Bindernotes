@@ -31,6 +31,7 @@ import {
   setWorkspaceMovementActive,
 } from "@/lib/whiteboard-performance-diagnostics";
 import { cn } from "@/lib/utils";
+import { CardFooterSlotContext } from "@/components/workspace/card-footer-slot";
 
 type WhiteboardModuleCardProps = {
   moduleElement: WhiteboardModuleElement;
@@ -367,6 +368,7 @@ export function WhiteboardModuleCard({
   const [anchorMenuOpen, setAnchorMenuOpen] = useState(false);
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [selected, setSelected] = useState(false);
+  const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null);
   const definition = getWhiteboardModuleDefinition(moduleElement.moduleId);
   const heavy = isHeavyWhiteboardModule(moduleElement.moduleId);
   const stabilizedHeavyCard = moduleElement.moduleId === "desmos-graph";
@@ -912,7 +914,9 @@ export function WhiteboardModuleCard({
       >
         <div className="whiteboard-module-card__title flex min-w-0 items-center gap-2">
           <Grip className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-semibold">{moduleElement.title ?? definition?.label ?? moduleElement.moduleId}</span>
+          <span className="truncate font-semibold" title={moduleElement.title ?? definition?.label ?? moduleElement.moduleId}>
+            {moduleElement.title ?? definition?.label ?? moduleElement.moduleId}
+          </span>
           {presentation === "chip" ? (
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               chip
@@ -1071,7 +1075,7 @@ export function WhiteboardModuleCard({
       ) : null}
       {moduleElement.mode === "collapsed" || presentation === "chip" ? null : (
         <div className="whiteboard-module-card__content z-10 flex-1 min-h-0 overflow-auto bg-card p-0">
-          {children}
+          <CardFooterSlotContext.Provider value={footerSlot}>{children}</CardFooterSlotContext.Provider>
         </div>
       )}
       {moduleElement.mode !== "collapsed" && presentation !== "chip" ? (
@@ -1081,6 +1085,7 @@ export function WhiteboardModuleCard({
               Fit content
             </button>
           ) : null}
+          <div className="flex min-w-0 items-center" ref={setFooterSlot} />
           <button
             aria-label="Resize module. Use arrow keys; hold Shift for larger steps."
             className="whiteboard-module-card__resize-handle absolute bottom-0 right-0 z-50 size-8 cursor-se-resize rounded-tl-lg text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground"

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { FunctionSquare } from "lucide-react";
 import { Desmos3DGraph, DesmosGraph } from "@/components/math/desmos-graph";
 import { GraphStateList } from "@/components/math/graph-state-list";
@@ -7,7 +8,9 @@ import { ScientificCalculator } from "@/components/math/scientific-calculator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import { CardFooterSlotContext } from "@/components/workspace/card-footer-slot";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
+import { cn } from "@/lib/utils";
 import type { GraphMode, MathWorkspaceController } from "@/hooks/use-math-workspace";
 import type { MathBlock } from "@/types";
 
@@ -80,6 +83,8 @@ export function DesmosGraphModule({
     desmosStateHasSliders(controller.state.currentGraphState) ? whiteboardSliderGraphAppearance : whiteboardDesmosAppearance,
   );
   const [queuedExpression, setQueuedExpression] = useState<string | null>(null);
+  // Board cards hide the panel header, so the 2D/3D switch goes in the card's footer.
+  const cardFooterSlot = useContext(CardFooterSlotContext);
 
   useEffect(() => {
     if (pendingGraphLoad?.graphMode) {
@@ -224,6 +229,9 @@ export function DesmosGraphModule({
       title={title}
     >
       {graphInputControl}
+      {surface === "whiteboard" && cardFooterSlot && graphRuntimeVisible
+        ? createPortal(<GraphModeSwitch mode={controller.state.graphMode} onChange={controller.setGraphMode} />, cardFooterSlot)
+        : null}
       {mathPerformanceLazyLoading && !canUseDesmos ? (
         <CompactDesmosFallback />
       ) : graphRuntimeVisible ? (
@@ -256,6 +264,27 @@ export function DesmosGraphModule({
         <GraphPreview onOpen={activateGraph} />
       )}
     </WorkspacePanel>
+  );
+}
+
+function GraphModeSwitch({ mode, onChange }: { mode: GraphMode; onChange: (mode: GraphMode) => void }) {
+  return (
+    <div aria-label="Graph type" className="flex items-center gap-0.5 rounded-md bg-muted/60 p-0.5" role="group">
+      {(["2d", "3d"] as const).map((option) => (
+        <button
+          aria-pressed={mode === option}
+          className={cn(
+            "h-6 min-w-10 rounded px-2 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            mode === option ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+          key={option}
+          onClick={() => onChange(option)}
+          type="button"
+        >
+          {option === "2d" ? "2D" : "3D"}
+        </button>
+      ))}
+    </div>
   );
 }
 
