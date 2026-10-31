@@ -13,5 +13,8 @@ export default defineConfig({
     { find: "@/components/workspace/workspace-modules", replacement: path.resolve("e2e/fixtures/modules.tsx") },
     { find: "@", replacement: path.resolve("src") },
   ] },
-  server: { host: "127.0.0.1", port: 5196, strictPort: true },
+  server: {
+    host: "127.0.0.1", port: 5196, strictPort: true,
+    watch: { ignored: ["**/.tmp/**", "**/playwright-report/**", "**/test-results/**"] },
+  },
 });

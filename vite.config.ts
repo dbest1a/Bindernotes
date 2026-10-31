@@ -18,6 +18,9 @@ const buildInfo = (() => {
 })();
 
 export default defineConfig({
+  // Local rollback checkouts and test reports are artifacts, not app entries.
+  optimizeDeps: { entries: ["index.html"] },
+  server: { watch: { ignored: ["**/.tmp/**", "**/playwright-report/**", "**/test-results/**"] } },
   define: { __BUILD_INFO__: JSON.stringify(buildInfo) },
   plugins: [react(), {
     name: "build-identity",
