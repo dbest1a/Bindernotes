@@ -498,6 +498,8 @@ export function WhiteboardCanvas({
         viewBackgroundColor: getWhiteboardCanvasBackground(initialData.appState),
         exportWithDarkMode: true,
         exportBackground: true,
+        // Shapes snap to each other with alignment guides (Excalidraw's own; Alt+S toggles it).
+        objectsSnapModeEnabled: true,
       },
       files: (initialData.files ?? {}) as never,
     }),

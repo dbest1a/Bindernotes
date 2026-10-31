@@ -67,12 +67,7 @@ export function ScientificCalculator({
   const content = (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Scientific calculator
-          </p>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight">Fast numeric work</h2>
-        </div>
+        <h2 className="text-lg font-semibold tracking-tight">Scientific calculator</h2>
         <div className="flex items-center gap-2">
           <Toggle active={angleMode === "rad"} label="Rad" onClick={() => onAngleModeChange("rad")} />
           <Toggle active={angleMode === "deg"} label="Deg" onClick={() => onAngleModeChange("deg")} />
@@ -98,9 +93,7 @@ export function ScientificCalculator({
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Result
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">Result</p>
             <p
               aria-label="Calculator result"
               aria-live="polite"
