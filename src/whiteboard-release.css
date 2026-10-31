@@ -336,3 +336,10 @@
     top: 1rem;
   }
 }
+
+/* Excalidraw's "To move canvas…" hint shows whenever the selection tool is idle, which on a board
+   of cards is nearly always, and it sits over card headers. Drawing tools and selected drawings
+   keep their hints. */
+.bindernotes-whiteboard-lab .excalidraw:has(input[data-testid="toolbar-selection"]:checked):not(:has(.App-menu__left)) .HintViewer {
+  display: none;
+}

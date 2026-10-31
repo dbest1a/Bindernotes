@@ -53,6 +53,22 @@ describe("checkSolution", () => {
     checks.forEach((check) => expect(check.detail).toBeTruthy());
   });
 
+  it("checks inequalities between numbers and leaves ones with variables unchecked", async () => {
+    const checks = await checkStepMaths([
+      String.raw`1.5 > 1.3739`,
+      String.raw`0.5 < 0.5837`,
+      String.raw`\frac{1}{3} \le 0.34`,
+      String.raw`\sqrt{2} > 1.5`,
+      String.raw`2 < 2`,
+      String.raw`x > 2`,
+    ]);
+    expect(checks.map((check) => check.status)).toEqual(["verified", "verified", "verified", "mismatch", "unchecked", "unchecked"]);
+    expect(checks.map((check) => check.method)).toEqual(Array(6).fill("inequality"));
+    expect(checks[0].detail).toBe("The numbers compare as written: 1.5 > 1.3739.");
+    expect(checks[3].detail).toBe("Left ≈ 1.41421, right ≈ 1.5, so > doesn't hold.");
+    expect(checks[5].detail).toMatch(/with variables/);
+  });
+
   it("treats a solved equation chain as equivalent lines and confirms the roots", async () => {
     const result = await checkSolution(
       doc(String.raw`x^2 - 5x + 6 = 0`, String.raw`(x-2)(x-3) = 0`, String.raw`x = 2 \quad\text{or}\quad x = 3`),

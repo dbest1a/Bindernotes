@@ -52,13 +52,27 @@ type Complex = { re: number; im: number };
 
 type SamplePoint = Record<string, number>;
 
+type InequalityOperator = "Less" | "LessEqual" | "Greater" | "GreaterEqual" | "NotEqual";
+
+const INEQUALITY_SYMBOLS: Record<InequalityOperator, string> = {
+  Less: "<",
+  LessEqual: "≤",
+  Greater: ">",
+  GreaterEqual: "≥",
+  NotEqual: "≠",
+};
+
+function isInequalityOperator(operator: string): operator is InequalityOperator {
+  return Object.hasOwn(INEQUALITY_SYMBOLS, operator);
+}
+
 type Classified =
   | { kind: "empty" }
   | { kind: "prose" }
   | { kind: "chemistry" }
   | { kind: "matrix" }
   | { kind: "unreadable"; reason: string }
-  | { kind: "inequality" }
+  | { kind: "inequality"; expr: BoxedExpression; op: InequalityOperator; latex: string }
   | { kind: "expression"; expr: BoxedExpression }
   | {
       kind: "equation";
@@ -356,7 +370,7 @@ export class SolutionChecker implements Iterator<StepCheck> {
     }
     const op = expr.operator;
     if (op === "Less" || op === "LessEqual" || op === "Greater" || op === "GreaterEqual" || op === "NotEqual") {
-      return { kind: "inequality" };
+      return { kind: "inequality", expr, op, latex };
     }
     if (op === "Equal") {
       return { kind: "equation", expr, chains: [[...(opsOf(expr) ?? [])]], connective: "single", approximate };
@@ -566,7 +580,7 @@ export class SolutionChecker implements Iterator<StepCheck> {
           detail: "Matrix and determinant notation can't be checked yet. Lines of plain arithmetic are checked.",
         };
       case "inequality":
-        return { status: "unchecked", method: "inequality", detail: "Inequalities can't be checked yet." };
+        return this.checkInequality(item);
       case "unreadable":
         return { status: "unchecked", method: "unreadable", detail: item.reason };
       case "expression":
@@ -585,6 +599,56 @@ export class SolutionChecker implements Iterator<StepCheck> {
       case "equation":
         return this.checkEquation(item, stepIndex);
     }
+  }
+
+  /** Comparisons of plain numbers (1.5 > 1.3739, a chain like 0 < 0.2 ≤ 1) are checked; with variables they are not. */
+  private checkInequality(item: Extract<Classified, { kind: "inequality" }>): StepCheck {
+    // The canonical form turns a > b into b < a; report the sides in the order they were written.
+    let op = item.op;
+    let operands = opsOf(item.expr) ?? [];
+    try {
+      const written = this.ce.parse(item.latex, { form: "raw" });
+      const writtenOperands = opsOf(written);
+      if (isInequalityOperator(written.operator) && writtenOperands && writtenOperands.length >= 2) {
+        op = written.operator;
+        operands = writtenOperands.map((operand) => operand.canonical);
+      }
+    } catch {
+      // Keep the canonical order.
+    }
+    if (operands.length < 2 || operands.some((operand) => operand.unknowns.length > 0)) {
+      return {
+        status: "unchecked",
+        method: "inequality",
+        detail: "Inequalities with variables can't be checked yet. Lines comparing numbers are checked.",
+      };
+    }
+    const values: number[] = [];
+    for (const operand of operands) {
+      const value = this.toComplex(this.prepare(operand));
+      if (!value || Math.abs(value.im) > RELATIVE_TOLERANCE * Math.max(1, Math.abs(value.re))) {
+        return { status: "unchecked", method: "inequality", detail: "Couldn't evaluate both sides as real numbers." };
+      }
+      values.push(value.re);
+    }
+    const symbol = INEQUALITY_SYMBOLS[op];
+    const shown = values.map(formatNumber).join(` ${symbol} `);
+    for (let index = 0; index + 1 < values.length; index += 1) {
+      const left = values[index];
+      const right = values[index + 1];
+      const scale = Math.max(1, Math.abs(left), Math.abs(right));
+      // Positive when the relation holds with room to spare.
+      const margin = op === "Less" || op === "LessEqual" ? right - left : op === "NotEqual" ? Math.abs(right - left) : left - right;
+      const strict = op === "Less" || op === "Greater" || op === "NotEqual";
+      if (margin > RELATIVE_TOLERANCE * scale || (!strict && margin >= -RELATIVE_TOLERANCE * scale)) {
+        continue;
+      }
+      if (op !== "NotEqual" && margin < -CLEAR_MISMATCH_TOLERANCE * scale) {
+        return { status: "mismatch", method: "inequality", detail: `Left ≈ ${formatNumber(left)}, right ≈ ${formatNumber(right)}, so ${symbol} doesn't hold.` };
+      }
+      return { status: "unchecked", method: "inequality", detail: `The two sides are too close to tell (≈ ${formatNumber(left)}).` };
+    }
+    return { status: "verified", method: "inequality", detail: `The numbers compare as written: ${shown}.` };
   }
 
   private checkEquation(item: Extract<Classified, { kind: "equation" }>, stepIndex: number): StepCheck {
