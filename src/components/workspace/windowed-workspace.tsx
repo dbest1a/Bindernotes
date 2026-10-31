@@ -18,6 +18,7 @@ import {
   type WorkspaceModuleContext,
   workspaceModuleRegistry,
 } from "@/components/workspace/workspace-modules";
+import { boardOnlyWhiteboardModuleIds } from "@/lib/whiteboards/whiteboard-module-registry";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -192,7 +193,7 @@ export function WindowedWorkspace({
     [preferences.enabledModules, preferences.moduleLayout],
   );
   const allModuleIds = useMemo(
-    () => Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[],
+    () => (Object.keys(workspaceModuleRegistry) as WorkspaceModuleId[]).filter((moduleId) => !boardOnlyWhiteboardModuleIds.has(moduleId)),
     [],
   );
   const isJacobMathCanvasContext = useMemo(

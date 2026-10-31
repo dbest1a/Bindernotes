@@ -419,6 +419,16 @@ type WorkspaceModuleDefinition = {
   render: (context: WorkspaceModuleContext) => ReactElement;
 };
 
+function BoardOnlyModuleNotice({ title }: { title: string }) {
+  return (
+    <WorkspacePanel description="This lives on whiteboards." title={title}>
+      <p className="text-sm leading-6 text-muted-foreground">
+        Open a whiteboard and add it from Add module. It saves with that board.
+      </p>
+    </WorkspacePanel>
+  );
+}
+
 function LazyModuleBoundary({ children, title }: { children: ReactNode; title: string }) {
   return (
     <Suspense
@@ -1381,6 +1391,20 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         </div>
       </WorkspacePanel>
     ),
+  },
+  // Board objects keep their content on a whiteboard card, so outside a whiteboard they only
+  // say where they live, and windowed launchers leave them out.
+  "solution-steps": {
+    id: "solution-steps",
+    title: "Worked solution",
+    description: "Step-by-step solutions on the whiteboard, checked by a local math engine",
+    render: () => <BoardOnlyModuleNotice title="Worked solution" />,
+  },
+  "chem-molecule": {
+    id: "chem-molecule",
+    title: "Molecule",
+    description: "Correct structures and reactions on the whiteboard",
+    render: () => <BoardOnlyModuleNotice title="Molecule" />,
   },
 };
 

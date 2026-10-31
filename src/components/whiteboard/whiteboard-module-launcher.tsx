@@ -44,7 +44,8 @@ export function WhiteboardModuleLauncher({
         (module) =>
           module.moduleId === "formula-sheet" ||
           module.moduleId === "math-blocks" ||
-          module.moduleId === "scientific-calculator",
+          module.moduleId === "scientific-calculator" ||
+          module.moduleId === "solution-steps",
       ),
     },
     {

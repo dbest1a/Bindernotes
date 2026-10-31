@@ -1364,6 +1364,18 @@ const toolPreviewCopy: Record<
     subject: "chemistry",
     stability: "beta",
   },
+  "solution-steps": {
+    title: "Worked solution",
+    description: "Lives on whiteboards: step-by-step solutions checked by a local math engine.",
+    subject: "general",
+    stability: "beta",
+  },
+  "chem-molecule": {
+    title: "Molecule",
+    description: "Lives on whiteboards: correct structures and reactions from a name or SMILES.",
+    subject: "chemistry",
+    stability: "beta",
+  },
   "chem-lab-notebook": {
     title: "Lab Notebook",
     description: "Write hypothesis, procedure, data, calculations, and conclusion.",

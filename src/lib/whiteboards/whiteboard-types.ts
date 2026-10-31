@@ -1,6 +1,8 @@
 import type { JSONContent } from "@tiptap/react";
 import type { Comment, Highlight, WorkspaceModuleId } from "@/types";
 import type { MathWorkspaceState } from "@/hooks/use-math-workspace";
+import type { MoleculeDocument } from "@/lib/chemistry/molecule-types";
+import type { SolutionDocument } from "@/lib/solutions/solution-types";
 
 export type WhiteboardModuleMode = "live" | "preview" | "collapsed";
 export type WhiteboardModuleAnchorMode = "board" | "board-fixed-size" | "viewport";
@@ -24,6 +26,10 @@ export type WhiteboardModuleElement = {
   cardDensity?: "compact" | "comfortable";
   textSize?: "small" | "normal" | "large";
   showMathInline?: boolean;
+  /** Worked Solution card content (steps, checks, answer). */
+  solution?: SolutionDocument;
+  /** Molecule card content (SMILES and display options). */
+  molecule?: MoleculeDocument;
   x: number;
   y: number;
   width: number;

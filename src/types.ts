@@ -440,6 +440,8 @@ export type WorkspaceModuleId =
   | "scientific-calculator"
   | "saved-graphs"
   | "whiteboard"
+  | "solution-steps"
+  | "chem-molecule"
   | "chem-concept-cards"
   | "chem-quick-tools"
   | "chem-periodic-table"

@@ -104,6 +104,24 @@ const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
     defaultHeight: 320,
     defaultAnchorMode: "board-fixed-size",
   },
+  {
+    moduleId: "solution-steps",
+    label: "Worked Solution",
+    description: "Write or generate steps; a local math engine checks each one.",
+    heavy: false,
+    defaultWidth: 560,
+    defaultHeight: 620,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "chem-molecule",
+    label: "Molecule",
+    description: "Draw a correct structure or reaction from a name or SMILES.",
+    heavy: true,
+    defaultWidth: 520,
+    defaultHeight: 480,
+    defaultAnchorMode: "board-fixed-size",
+  },
   // Chemistry tools for the math and science board. Each renders its live module lazily.
   {
     moduleId: "chem-periodic-table",
@@ -179,6 +197,10 @@ const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
   },
 ];
 
+/** Modules that only exist as whiteboard cards: their content is saved on the card, so other
+ *  surfaces (such as the windowed workspace launcher) leave them out. */
+export const boardOnlyWhiteboardModuleIds = new Set<WorkspaceModuleId>(["solution-steps", "chem-molecule"]);
+
 const mathWhiteboardModuleIds = new Set<WorkspaceModuleId>([
   "formula-sheet",
   "math-blocks",
@@ -187,8 +209,10 @@ const mathWhiteboardModuleIds = new Set<WorkspaceModuleId>([
   "saved-graphs",
 ]);
 
-// Chemistry tools sit on the math and science board (and general boards), not history boards.
+// Worked solutions and chemistry tools sit on math, science and general boards, not history boards.
 const chemistryWhiteboardModuleIds = new Set<WorkspaceModuleId>([
+  "solution-steps",
+  "chem-molecule",
   "chem-periodic-table",
   "chem-ph-calculator",
   "chem-titration-lab",

@@ -1,4 +1,4 @@
-import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
+import { lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -675,6 +675,18 @@ export function WhiteboardAnnotations({ context, moduleElement, onChangeModule, 
   </section>;
 }
 
+// Board objects with heavy engines (Compute Engine, MathLive, RDKit) load only when placed.
+const LazySolutionStepsCard = lazy(() => import("@/components/solutions/solution-steps-card"));
+const LazyMoleculeCard = lazy(() => import("@/components/chemistry/molecule-card"));
+
+function BoardObjectLoading({ label }: { label: string }) {
+  return (
+    <div aria-busy="true" aria-label={label} className="grid h-full min-h-[160px] place-items-center text-sm text-muted-foreground" role="status">
+      {label}…
+    </div>
+  );
+}
+
 function WhiteboardLiveModuleContent({
   context,
   moduleElement,
@@ -689,6 +701,26 @@ function WhiteboardLiveModuleContent({
   onRouteSelectionToNotes?: WhiteboardPinnedObjectLayerProps["onRouteSelectionToNotes"];
 }) {
   if (moduleElement.moduleId === "comments") return <WhiteboardAnnotations context={context} moduleElement={moduleElement} onChangeModule={onChangeModule} onRouteSelectionToNotes={onRouteSelectionToNotes} />;
+  if (moduleElement.moduleId === "solution-steps") {
+    return (
+      <Suspense fallback={<BoardObjectLoading label="Loading worked solution" />}>
+        <LazySolutionStepsCard
+          onChange={(solution) => onChangeModule({ ...moduleElement, solution, updatedAt: new Date().toISOString() })}
+          value={moduleElement.solution}
+        />
+      </Suspense>
+    );
+  }
+  if (moduleElement.moduleId === "chem-molecule") {
+    return (
+      <Suspense fallback={<BoardObjectLoading label="Loading molecule" />}>
+        <LazyMoleculeCard
+          onChange={(molecule) => onChangeModule({ ...moduleElement, molecule, updatedAt: new Date().toISOString() })}
+          value={moduleElement.molecule}
+        />
+      </Suspense>
+    );
+  }
   if (moduleElement.moduleId === "desmos-graph") {
     return (
       <WhiteboardScopedDesmosGraphModule

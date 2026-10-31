@@ -8,6 +8,8 @@ import {
   getWhiteboardModuleDefinition,
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import { getWhiteboardSceneSignature } from "@/lib/whiteboards/whiteboard-scene-signature";
+import { sanitizeMoleculeDocument } from "@/lib/chemistry/molecule-types";
+import { sanitizeSolutionDocument } from "@/lib/solutions/solution-types";
 import type {
   BinderWhiteboard,
   WhiteboardModuleAnchorMode,
@@ -121,6 +123,8 @@ export function sanitizeWhiteboardModuleElement(
     cardDensity: moduleElement.cardDensity,
     textSize: moduleElement.textSize,
     showMathInline: moduleElement.showMathInline,
+    solution: moduleElement.solution === undefined ? undefined : sanitizeSolutionDocument(moduleElement.solution),
+    molecule: moduleElement.molecule === undefined ? undefined : sanitizeMoleculeDocument(moduleElement.molecule),
     x: typeof moduleElement.x === "number" && Number.isFinite(moduleElement.x) ? moduleElement.x : 0,
     y: typeof moduleElement.y === "number" && Number.isFinite(moduleElement.y) ? moduleElement.y : 0,
     width:
