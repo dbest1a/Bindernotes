@@ -173,6 +173,54 @@ describe("whiteboard module layout", () => {
     expect(frame.height).toBe(desmosDefinition.defaultHeight);
   });
 
+  it("moves a new card off an existing card at the view center, beside it and mostly in view", () => {
+    const viewport = { scrollX: 0, scrollY: 0, zoom: 1, viewportWidth: 1440, viewportHeight: 900 };
+    const centered = findOpenWhiteboardModuleFrameNearViewport([], lessonDefinition, viewport);
+    const graph = moduleElement({ id: "graph", moduleId: "desmos-graph", anchorMode: "board-fixed-size", x: centered.x + 20, y: centered.y + 10, width: 560, height: 420 });
+
+    const frame = findOpenWhiteboardModuleFrameNearViewport([graph], lessonDefinition, viewport);
+
+    const overlap = (left: typeof frame, right: { x: number; y: number; width: number; height: number }) =>
+      Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x)) *
+      Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y));
+    expect(overlap(frame, graph)).toBe(0);
+    // No fully visible free spot exists here (the graph fills the middle), so the card sits
+    // beside it with most of it on screen.
+    expect(overlap(frame, { x: 0, y: 0, width: 1440, height: 900 }) / (frame.width * frame.height)).toBeGreaterThan(0.7);
+    expect(frame.y).toBe(centered.y);
+    expect({ width: frame.width, height: frame.height }).toEqual({ width: 560, height: 420 });
+  });
+
+  it("uses a fully visible free spot when the view has room", () => {
+    const viewport = { scrollX: 0, scrollY: 0, zoom: 1, viewportWidth: 2400, viewportHeight: 1400 };
+    const centered = findOpenWhiteboardModuleFrameNearViewport([], lessonDefinition, viewport);
+    const graph = moduleElement({ id: "graph", anchorMode: "board-fixed-size", x: centered.x, y: centered.y, width: 560, height: 420 });
+
+    const frame = findOpenWhiteboardModuleFrameNearViewport([graph], lessonDefinition, viewport);
+
+    expect(frame.x === graph.x + 560 + 24 || frame.x === graph.x - 24 - 560 || frame.y === graph.y + 420 + 24 || frame.y === graph.y - 24 - 420).toBe(true);
+    expect(frame.x).toBeGreaterThanOrEqual(0);
+    expect(frame.y).toBeGreaterThanOrEqual(0);
+    expect(frame.x + frame.width).toBeLessThanOrEqual(2400);
+    expect(frame.y + frame.height).toBeLessThanOrEqual(1400);
+  });
+
+  it("keeps the centered spot when existing cards are elsewhere, and cascades on a packed board", () => {
+    const viewport = { scrollX: 0, scrollY: 0, zoom: 1, viewportWidth: 1440, viewportHeight: 900 };
+    const centered = findOpenWhiteboardModuleFrameNearViewport([], lessonDefinition, viewport);
+    const farAway = moduleElement({ id: "far", anchorMode: "board-fixed-size", x: 5000, y: 5000 });
+    expect(findOpenWhiteboardModuleFrameNearViewport([farAway], lessonDefinition, viewport)).toEqual(centered);
+
+    const packed = [];
+    for (let column = -4; column <= 4; column += 1) {
+      for (let row = -4; row <= 4; row += 1) {
+        packed.push(moduleElement({ id: `card-${column}-${row}`, anchorMode: "board-fixed-size", x: centered.x + column * 584, y: centered.y + row * 444 }));
+      }
+    }
+    const cascaded = findOpenWhiteboardModuleFrameNearViewport(packed, lessonDefinition, viewport);
+    expect(cascaded).toMatchObject({ x: centered.x + 40, y: centered.y + 40 });
+  });
+
   it("only falls back when module placement data is invalid", () => {
     const normalized = normalizeWhiteboardLabModules([
       moduleElement({

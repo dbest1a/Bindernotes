@@ -5,6 +5,7 @@ import {
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import {
   getViewportCenterBoardPoint,
+  getWhiteboardModuleScreenRect,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
 import type { WhiteboardModuleAnchorMode, WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
@@ -111,20 +112,84 @@ export function findOpenWhiteboardModuleFrame(
   };
 }
 
+const placementGap = 24;
+
+/**
+ * Where a new card goes on the board: centered on the current view, unless that spot would
+ * cover a card already there. Then it tries spots right beside each existing card and in
+ * widening rings around the center, and takes the free spot that shows the most of the new
+ * card, nearest first. Collisions are judged on screen, so board-pinned, fixed-size and
+ * floating cards are all compared by what the student actually sees.
+ */
 export function findOpenWhiteboardModuleFrameNearViewport(
-  _existingModules: WhiteboardModuleElement[],
+  existingModules: WhiteboardModuleElement[],
   definition: WhiteboardModuleDefinition,
   transform: WhiteboardViewportTransform,
 ) {
   const center = getViewportCenterBoardPoint(transform);
   const width = definition.defaultWidth;
   const height = definition.defaultHeight;
+  const centered = { x: center.x - width / 2, y: center.y - height / 2, width, height };
+  if (!existingModules.length) {
+    return centered;
+  }
+
+  const probe: WhiteboardModuleElement = {
+    id: "placement-probe",
+    type: "bindernotes-module",
+    moduleId: definition.moduleId,
+    anchorMode: definition.defaultAnchorMode ?? getDefaultWhiteboardModuleAnchorMode(definition.moduleId),
+    mode: "live",
+    zIndex: 0,
+    createdAt: "",
+    updatedAt: "",
+    ...centered,
+  };
+  const obstacles = existingModules.map((moduleElement) => getWhiteboardModuleScreenRect(moduleElement, transform));
+  const start = getWhiteboardModuleScreenRect(probe, transform);
+  if (!collides(start, obstacles)) {
+    return centered;
+  }
+
+  const zoom = transform.zoom > 0 ? transform.zoom : 1;
+  const view = { x: transform.offsetLeft ?? 0, y: transform.offsetTop ?? 0, width: transform.viewportWidth, height: transform.viewportHeight };
+  const positions: Array<{ x: number; y: number }> = [];
+  for (const obstacle of obstacles) {
+    positions.push(
+      { x: obstacle.x - placementGap - start.width, y: start.y },
+      { x: obstacle.x + obstacle.width + placementGap, y: start.y },
+      { x: start.x, y: obstacle.y - placementGap - start.height },
+      { x: start.x, y: obstacle.y + obstacle.height + placementGap },
+    );
+  }
+  const stepX = start.width + placementGap;
+  const stepY = start.height + placementGap;
+  for (let ring = 1; ring <= 3; ring += 1) {
+    for (let column = -ring; column <= ring; column += 1) {
+      for (let row = -ring; row <= ring; row += 1) {
+        if (Math.max(Math.abs(column), Math.abs(row)) === ring) positions.push({ x: start.x + column * stepX, y: start.y + row * stepY });
+      }
+    }
+  }
+  const candidates = positions.map((position) => {
+    const frame = { ...position, width: start.width, height: start.height };
+    return {
+      ...frame,
+      // Visible share in 5% steps, so "about as visible" ties go to the nearer spot.
+      shown: Math.round((intersectionArea(frame, view) / (frame.width * frame.height)) * 20),
+      distance: Math.hypot(position.x - start.x, position.y - start.y),
+    };
+  });
+  candidates.sort((first, second) => second.shown - first.shown || first.distance - second.distance);
+  // A spot that hides most of the new card is no better than stacking it, so it must show
+  // at least half; otherwise (a packed board) cascade in view instead of stacking exactly on top.
+  const free = candidates.find((candidate) => candidate.shown >= 10 && !collides(candidate, obstacles));
+  const screenOffset = free ? { x: free.x - start.x, y: free.y - start.y } : { x: 40, y: 40 };
 
   return {
-    x: center.x - width / 2,
-    y: center.y - height / 2,
-    width,
-    height,
+    ...centered,
+    x: centered.x + screenOffset.x / zoom,
+    y: centered.y + screenOffset.y / zoom,
   };
 }
 
