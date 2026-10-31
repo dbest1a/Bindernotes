@@ -32,11 +32,11 @@ export function SaveStatusPill({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Badge className="gap-1.5" variant={variant}>
+      <Badge aria-live="polite" aria-atomic="true" role="status" className="gap-1.5" variant={variant}>
         {icon}
         {snapshot.detail}
       </Badge>
-      {snapshot.state === "failed" && onRetry ? (
+      {(snapshot.state === "failed" || snapshot.state === "offline") && onRetry ? (
         <Button onClick={onRetry} size="sm" type="button" variant="outline">
           <RefreshCcw data-icon="inline-start" />
           Retry

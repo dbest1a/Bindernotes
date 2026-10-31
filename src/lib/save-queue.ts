@@ -11,9 +11,11 @@ type SaveQueueRecord<T> = {
 
 type SaveQueueListener = (scopeKey: string, snapshot: SaveStatusSnapshot) => void;
 
-class SaveQueue {
+export class SaveQueue {
   private records = new Map<string, SaveQueueRecord<unknown>>();
   private listeners = new Set<SaveQueueListener>();
+  private revisions = new Map<string, number>();
+  private pending = new Map<string, Promise<unknown>>();
 
   subscribe(listener: SaveQueueListener) {
     this.listeners.add(listener);
@@ -32,56 +34,50 @@ class SaveQueue {
     scopeKey: string;
     runner: () => Promise<T>;
   }) {
-    const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    if (offline) {
+    const revision = (this.revisions.get(input.scopeKey) ?? 0) + 1;
+    this.revisions.set(input.scopeKey, revision);
+    const update = (state: SaveStatusState, error: string | null = null) => {
+      // An earlier request may finish after another edit has been queued. Only
+      // the newest edit owns the visible status and retry closure.
+      if (this.revisions.get(input.scopeKey) !== revision) return;
       this.setRecord(input.scopeKey, {
         entityType: input.entityType,
         scopeKey: input.scopeKey,
-        state: "offline",
-        lastSavedAt: this.records.get(input.scopeKey)?.lastSavedAt ?? null,
-        error: null,
-        retry: input.runner,
+        state,
+        lastSavedAt: state === "saved" ? new Date().toISOString() : this.records.get(input.scopeKey)?.lastSavedAt ?? null,
+        error,
+        retry: state === "saved" ? null : input.runner,
       });
-      throw new Error("You are offline. This change is safe on this device, but it has not synced yet.");
-    }
-
-    this.setRecord(input.scopeKey, {
-      entityType: input.entityType,
-      scopeKey: input.scopeKey,
-      state: "saving",
-      lastSavedAt: this.records.get(input.scopeKey)?.lastSavedAt ?? null,
-      error: null,
-      retry: input.runner,
-    });
-
+    };
+    update("saving");
+    const previous = this.pending.get(input.scopeKey);
+    const operation = (async () => {
+      // Serialize writes to the same entity, without blocking other entities.
+      if (previous) await previous.catch(() => undefined);
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        update("offline");
+        throw new Error("You are offline. Keep this tab open and retry when connected; this change has not synced.");
+      }
+      try {
+        const result = await input.runner();
+        update("saved");
+        return result;
+      } catch (error) {
+        update("failed", error instanceof Error ? error.message : "Save failed.");
+        throw error;
+      }
+    })();
+    this.pending.set(input.scopeKey, operation);
     try {
-      const result = await input.runner();
-      this.setRecord(input.scopeKey, {
-        entityType: input.entityType,
-        scopeKey: input.scopeKey,
-        state: "saved",
-        lastSavedAt: new Date().toISOString(),
-        error: null,
-        retry: input.runner,
-      });
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Save failed.";
-      this.setRecord(input.scopeKey, {
-        entityType: input.entityType,
-        scopeKey: input.scopeKey,
-        state: "failed",
-        lastSavedAt: this.records.get(input.scopeKey)?.lastSavedAt ?? null,
-        error: message,
-        retry: input.runner,
-      });
-      throw error;
+      return await operation;
+    } finally {
+      if (this.pending.get(input.scopeKey) === operation) this.pending.delete(input.scopeKey);
     }
   }
 
   async retry(scopeKey: string) {
     const record = this.records.get(scopeKey);
-    if (!record?.retry) {
+    if (!record?.retry || (record.state !== "failed" && record.state !== "offline")) {
       return;
     }
 
@@ -114,9 +110,9 @@ class SaveQueue {
       })
       .map(([scopeKey]) => scopeKey);
 
-    for (const scopeKey of scopeKeys) {
-      await this.retry(scopeKey);
-    }
+    const results = await Promise.allSettled(scopeKeys.map((scopeKey) => this.retry(scopeKey)));
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length) throw new AggregateError(failures.map((result) => result.reason), "Some changes could not sync. Keep this tab open and retry.");
   }
 
   private setRecord(scopeKey: string, record: SaveQueueRecord<unknown>) {
@@ -151,11 +147,11 @@ function buildSaveStatusDetail(record?: SaveQueueRecord<unknown>) {
           }).format(new Date(record.lastSavedAt))}`
         : "Saved";
     case "offline":
-      return "Offline - edits safe on this device";
+      return "Offline - keep this tab open";
     case "retrying":
       return "Couldn't sync - retrying";
     case "failed":
-      return "Save failed - copy backup or retry";
+      return "Save failed - keep this tab open";
     case "conflict":
       return "Conflict found - choose version";
     case "idle":
