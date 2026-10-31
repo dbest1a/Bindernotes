@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { AppShell } from "@/components/layout/app-shell";
+import { AppShell, isNavItemActive } from "@/components/layout/app-shell";
 import { betaFeatureFlagDefinitions, betaFeatureGroups } from "@/lib/beta-features";
 import { loadPersonalNotesPreferences } from "@/lib/personal-notes";
 import { tutorialPromptPreferenceStorageKey } from "@/lib/tutorials/tutorial-preferences";
@@ -67,6 +68,32 @@ vi.mock("@/hooks/use-theme", () => ({
     setThemeId: themeMock.setThemeId,
   }),
 }));
+
+// Global search only loads account data once it opens; these tests use an empty library.
+vi.mock("@/hooks/use-binders", () => ({
+  useDashboard: () => ({ data: undefined, isError: false, isFetching: false, refetch: vi.fn() }),
+}));
+vi.mock("@/hooks/use-personal-notes", () => ({
+  usePersonalNotes: () => ({ data: undefined, isError: false, isFetching: false, refetch: vi.fn() }),
+}));
+
+function renderShellAt(path: string) {
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<AppShell />} path="/">
+            <Route element={<div>Route body</div>} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function primaryNavLink(name: string) {
+  return within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name });
+}
 
 function renderShell() {
   return render(
@@ -712,5 +739,75 @@ describe("AppShell profile settings", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.queryByTestId("app-settings-window")).toBeNull();
+  });
+});
+
+describe("AppShell navigation and global search", () => {
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+  });
+
+  it("keeps Workspace active on binder, folder, and reader routes", () => {
+    for (const path of ["/dashboard", "/binders/binder-1", "/binders/binder-1/documents/lesson-1", "/folders/folder-1", "/binder/legacy"]) {
+      renderShellAt(path);
+      expect(primaryNavLink("Workspace").getAttribute("aria-current"), path).toBe("page");
+      expect(primaryNavLink("Personal Notes").getAttribute("aria-current"), path).toBeNull();
+      expect(primaryNavLink("Math lab").getAttribute("aria-current"), path).toBeNull();
+      cleanup();
+    }
+  });
+
+  it("keeps Math lab active anywhere under /math and Personal Notes on note routes", () => {
+    for (const path of ["/math", "/math/lab", "/math/modules/linear-equations", "/math/quizzes/quiz-1/results/attempt-1"]) {
+      renderShellAt(path);
+      expect(primaryNavLink("Math lab").getAttribute("aria-current"), path).toBe("page");
+      expect(primaryNavLink("Workspace").getAttribute("aria-current"), path).toBeNull();
+      cleanup();
+    }
+
+    renderShellAt("/notes/n/note-1");
+    expect(primaryNavLink("Personal Notes").getAttribute("aria-current")).toBe("page");
+    expect(primaryNavLink("Workspace").getAttribute("aria-current")).toBeNull();
+  });
+
+  it("matches whole path segments only", () => {
+    expect(isNavItemActive("/notes-archive", ["/notes"])).toBe(false);
+    expect(isNavItemActive("/mathematics", ["/math"])).toBe(false);
+    expect(isNavItemActive("/math", ["/math"])).toBe(true);
+  });
+
+  it("offers a labelled search button in the header", () => {
+    renderShellAt("/dashboard");
+
+    const trigger = screen.getByTestId("global-search-trigger");
+    expect(trigger.getAttribute("aria-label")).toBe("Search lessons, binders, and notes");
+    expect(trigger.getAttribute("aria-keyshortcuts")).toBe("Control+K Meta+K");
+    expect(trigger.closest("header")).toBeTruthy();
+  });
+
+  it("opens search with Ctrl+K on any signed-in route and closes the profile menu first", async () => {
+    renderShellAt("/math/modules/linear-equations");
+
+    fireEvent.click(screen.getByTestId("profile-menu-button"));
+    expect(screen.getByTestId("profile-settings-popover")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+
+    expect(await screen.findByRole("combobox", { name: "Search lessons, binders, and notes" })).toBeTruthy();
+    expect(screen.queryByTestId("profile-settings-popover")).toBeNull();
+    expect(screen.getByRole("option", { name: /Math lab/ })).toBeTruthy();
+  });
+
+  it("leaves Ctrl+K alone while the settings window has focus", async () => {
+    renderShellAt("/dashboard");
+
+    fireEvent.click(screen.getByTestId("compact-open-settings"));
+    const settingsSearch = screen.getByLabelText("Search settings");
+    settingsSearch.focus();
+    fireEvent.keyDown(settingsSearch, { key: "k", ctrlKey: true });
+
+    await waitFor(() => expect(screen.getByTestId("app-settings-window")).toBeTruthy());
+    expect(screen.queryByTestId("global-search-dialog")).toBeNull();
   });
 });

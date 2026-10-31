@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpenCheck,
   Calculator,
@@ -17,9 +17,11 @@ import {
   UserCircle,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { GlobalSearchAction, GlobalSearchPage } from "@/components/search/global-search-context";
+import { GlobalSearchProvider, GlobalSearchTrigger } from "@/components/search/global-search-provider";
 import { useAdminMotionSettings } from "@/hooks/use-admin-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
@@ -73,6 +75,41 @@ export function AppShell() {
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const settingsScrollRef = useRef<HTMLDivElement | null>(null);
   const settingsSectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const reviewNavEnabled = betaFeatures.isFeatureEnabled("betaRevampReviewQueue");
+  const adminNavVisible = profile?.role === "admin" && !studentPreviewAdminChromeGuard;
+  const primaryNavItems = useMemo(
+    () => buildPrimaryNavItems({ adminNavVisible, reviewNavEnabled }),
+    [adminNavVisible, reviewNavEnabled],
+  );
+  const searchPages = useMemo<GlobalSearchPage[]>(
+    () =>
+      primaryNavItems.map((item) => ({
+        description: item.description,
+        href: item.to,
+        icon: item.icon,
+        keywords: item.keywords,
+        label: item.label,
+      })),
+    [primaryNavItems],
+  );
+  const searchActions = useMemo<GlobalSearchAction[]>(
+    () => [
+      {
+        description: "Theme, performance, tutorials, Quick Access, and beta features",
+        icon: <Settings />,
+        id: "settings",
+        keywords: "preferences appearance theme dark light performance enhanced visuals motion tutorial prompts quick access beta account log out",
+        label: "Settings",
+        run: () => {
+          setSettingsWindowOpen(true);
+          setProfileMenuOpen(false);
+        },
+      },
+    ],
+    [],
+  );
+  const closeMenusForSearch = useCallback(() => setProfileMenuOpen(false), []);
 
   const logout = async () => {
     await signOut();
@@ -303,6 +340,12 @@ export function AppShell() {
   }, [activeSettingsSection, settingsSections, settingsWindowOpen]);
 
   return (
+    <GlobalSearchProvider
+      actions={searchActions}
+      onBeforeOpen={closeMenusForSearch}
+      pages={searchPages}
+      profile={profile}
+    >
     <div
       className="min-h-screen bg-background"
       data-testid="app-shell-root"
@@ -334,35 +377,19 @@ export function AppShell() {
             <LogoMark className="size-10" />
           </Link>
 
-          <nav className="app-primary-nav hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex">
-            <NavItem to="/dashboard" icon={<LayoutDashboard data-icon="inline-start" />}>
-              Workspace
-            </NavItem>
-            <NavItem to="/notes" icon={<NotebookTabs data-icon="inline-start" />}>
-              Personal Notes
-            </NavItem>
-            {betaFeatures.isFeatureEnabled("betaRevampReviewQueue") ? (
-              <NavItem to="/review" icon={<BookOpenCheck data-icon="inline-start" />}>
-                Review
+          <nav
+            aria-label="Primary"
+            className="app-primary-nav hidden items-center gap-1 rounded-lg border border-border/70 bg-card/72 p-1 md:flex"
+          >
+            {primaryNavItems.map((item) => (
+              <NavItem icon={item.icon} key={item.to} matches={item.matches} to={item.to}>
+                {item.label}
               </NavItem>
-            ) : null}
-            <NavItem to="/math/lab" icon={<Calculator data-icon="inline-start" />}>
-              Math lab
-            </NavItem>
-            <NavItem to="/tutorial" icon={<BookOpenCheck data-icon="inline-start" />}>
-              Tutorial
-            </NavItem>
-            {profile?.role === "admin" && !studentPreviewAdminChromeGuard ? (
-              <NavItem to="/admin" icon={<PenTool data-icon="inline-start" />}>
-                Admin studio
-              </NavItem>
-            ) : null}
-            <NavItem to="/pricing" icon={<GraduationCap data-icon="inline-start" />}>
-              Pricing
-            </NavItem>
+            ))}
           </nav>
 
           <div className="app-header__actions flex items-center gap-2">
+            <GlobalSearchTrigger />
             <label
               className="hidden h-10 items-center gap-2 rounded-lg border border-border/70 bg-card/72 px-3 text-sm text-foreground shadow-sm transition hover:bg-secondary lg:flex"
               data-compact-study-direct-control="theme"
@@ -1166,6 +1193,7 @@ export function AppShell() {
         </div>
       ) : null}
     </div>
+    </GlobalSearchProvider>
   );
 }
 
@@ -1230,27 +1258,120 @@ function AdminMotionSelect({
   );
 }
 
+type PrimaryNavItem = {
+  description: string;
+  icon: ReactNode;
+  keywords: string;
+  label: string;
+  /** Path prefixes that belong to this section, such as binder and folder pages under Workspace. */
+  matches: readonly string[];
+  to: string;
+};
+
+function buildPrimaryNavItems({
+  adminNavVisible,
+  reviewNavEnabled,
+}: {
+  adminNavVisible: boolean;
+  reviewNavEnabled: boolean;
+}): PrimaryNavItem[] {
+  return [
+    {
+      description: "Folders, binders, and recent documents",
+      icon: <LayoutDashboard data-icon="inline-start" />,
+      keywords: "dashboard home library binders folders documents lessons",
+      label: "Workspace",
+      matches: ["/dashboard", "/binders", "/binder", "/folders"],
+      to: "/dashboard",
+    },
+    {
+      description: "Your notes, notebooks, and lesson-linked notes",
+      icon: <NotebookTabs data-icon="inline-start" />,
+      keywords: "notebook notes writing documents canvas",
+      label: "Personal Notes",
+      matches: ["/notes"],
+      to: "/notes",
+    },
+    ...(reviewNavEnabled
+      ? [
+          {
+            description: "Study items ready for review",
+            icon: <BookOpenCheck data-icon="inline-start" />,
+            keywords: "flashcards practice recall spaced repetition",
+            label: "Review",
+            matches: ["/review"],
+            to: "/review",
+          },
+        ]
+      : []),
+    {
+      description: "Graphing, calculator, courses, and quizzes",
+      icon: <Calculator data-icon="inline-start" />,
+      keywords: "desmos graph calculator whiteboard algebra courses modules questions quizzes",
+      label: "Math lab",
+      matches: ["/math"],
+      to: "/math/lab",
+    },
+    {
+      description: "Learn BinderNotes step by step",
+      icon: <BookOpenCheck data-icon="inline-start" />,
+      keywords: "help guide videos how to quick start walkthrough",
+      label: "Tutorial",
+      matches: ["/tutorial"],
+      to: "/tutorial",
+    },
+    ...(adminNavVisible
+      ? [
+          {
+            description: "Create and publish binders and lessons",
+            icon: <PenTool data-icon="inline-start" />,
+            keywords: "admin edit publish manage content",
+            label: "Admin studio",
+            matches: ["/admin"],
+            to: "/admin",
+          },
+        ]
+      : []),
+    {
+      description: "Plans and pricing",
+      icon: <GraduationCap data-icon="inline-start" />,
+      keywords: "plan subscription billing price",
+      label: "Pricing",
+      matches: ["/pricing"],
+      to: "/pricing",
+    },
+  ];
+}
+
+export function isNavItemActive(pathname: string, matches: readonly string[]) {
+  return matches.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 function NavItem({
   children,
   icon,
+  matches,
   to,
 }: {
   children: ReactNode;
   icon: ReactNode;
+  matches: readonly string[];
   to: string;
 }) {
+  const { pathname } = useLocation();
+  const isActive = isNavItemActive(pathname, matches);
+
   return (
-    <NavLink
-      className={({ isActive }) =>
-        cn(
-          "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground",
-          isActive && "bg-secondary text-foreground",
-        )
-      }
+    <Link
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground",
+        isActive && "bg-secondary text-foreground",
+      )}
       to={to}
     >
       {icon}
       {children}
-    </NavLink>
+    </Link>
   );
 }
