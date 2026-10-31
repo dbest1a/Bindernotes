@@ -1,0 +1,1879 @@
+{
+  "label": "baseline-prod",
+  "startedAt": "2026-10-31T15:55:02.448Z",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "desmosReal": true,
+  "strokes": 200,
+  "base": "http://127.0.0.1:5199",
+  "settleMs": 1800,
+  "profiled": false,
+  "results": {
+    "draw@1x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 12648,
+        "callbackRateHz": 239.9,
+        "framesOver16ms": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 12.5,
+        "stallMsPerSecond": 0,
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "topLoafScripts": [],
+        "pointerToRafP95Ms": 4.3,
+        "pointerToRafMaxMs": 9.5,
+        "pressedMoves": 3200,
+        "deliveredMovesPerSecond": 60.7,
+        "coalescedPerMove": 1,
+        "worstInteractionMs": 24,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 4.4
+      },
+      "strokesDrawn": 200,
+      "status": "valid",
+      "pageErrors": []
+    },
+    "pan@1x": {
+      "handPan": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 755,
+          "callbackRateHz": 236.2,
+          "framesOver16ms": 2,
+          "framesOver33ms": 0,
+          "longestFrameMs": 25,
+          "stallMsPerSecond": 3.9,
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "topLoafScripts": [],
+          "pointerToRafP95Ms": 4.2,
+          "pointerToRafMaxMs": 12.6,
+          "pressedMoves": 180,
+          "deliveredMovesPerSecond": 56.4,
+          "coalescedPerMove": 1,
+          "worstInteractionMs": 16,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 20.9
+        }
+      },
+      "ctrlWheelZoom": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 183,
+          "callbackRateHz": 213.9,
+          "framesOver16ms": 1,
+          "framesOver33ms": 1,
+          "longestFrameMs": 46,
+          "stallMsPerSecond": 34.4,
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "topLoafScripts": [],
+          "pointerToRafP95Ms": null,
+          "pointerToRafMaxMs": null,
+          "pressedMoves": 0,
+          "deliveredMovesPerSecond": 0,
+          "coalescedPerMove": null,
+          "worstInteractionMs": 0,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 8.3
+        }
+      },
+      "wheelScroll": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 150,
+          "callbackRateHz": 240.7,
+          "framesOver16ms": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 4.3,
+          "stallMsPerSecond": 0,
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "topLoafScripts": [],
+          "pointerToRafP95Ms": null,
+          "pointerToRafMaxMs": null,
+          "pressedMoves": 0,
+          "deliveredMovesPerSecond": 0,
+          "coalescedPerMove": null,
+          "worstInteractionMs": 0,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 4.3
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "slider@1x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 1441,
+        "callbackRateHz": 239.1,
+        "framesOver16ms": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 12.5,
+        "stallMsPerSecond": 0,
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "topLoafScripts": [],
+        "pointerToRafP95Ms": 4.8,
+        "pointerToRafMaxMs": 5.5,
+        "pressedMoves": 246,
+        "deliveredMovesPerSecond": 40.9,
+        "coalescedPerMove": 1,
+        "worstInteractionMs": 0,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 4.4
+      },
+      "sliderBefore": "a=1",
+      "sliderAfter": "a=-4",
+      "status": "valid",
+      "pageErrors": []
+    },
+    "tools@1x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 653,
+        "callbackRateHz": 235.1,
+        "framesOver16ms": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 16.7,
+        "stallMsPerSecond": 0,
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "topLoafScripts": [],
+        "pointerToRafP95Ms": null,
+        "pointerToRafMaxMs": null,
+        "pressedMoves": 0,
+        "deliveredMovesPerSecond": 0,
+        "coalescedPerMove": null,
+        "worstInteractionMs": 24,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 4.9
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "open@1x": {
+      "cases": {
+        "emptyBoard": {
+          "coldReadyMs": 257,
+          "warmReadyMs": 172,
+          "warmRuns": [
+            172,
+            185,
+            165
+          ]
+        },
+        "board320": {
+          "coldReadyMs": 300,
+          "warmReadyMs": 210,
+          "warmRuns": [
+            232,
+            210,
+            198
+          ]
+        },
+        "board3Desmos": {
+          "coldReadyMs": 487,
+          "warmReadyMs": 343,
+          "warmRuns": [
+            346,
+            343,
+            326
+          ]
+        },
+        "studyWorkspace": {
+          "coldReadyMs": 179,
+          "warmReadyMs": 101,
+          "warmRuns": [
+            94,
+            105,
+            101
+          ]
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "labs@1x": {
+      "cases": {
+        "mathWhiteboardLab": {
+          "warmReadyMs": 151,
+          "warmRuns": [
+            147,
+            151,
+            166
+          ]
+        },
+        "mathLab": {
+          "warmReadyMs": 253,
+          "warmRuns": [
+            256,
+            253,
+            249
+          ]
+        },
+        "chem-concept-cards": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            366,
+            367
+          ]
+        },
+        "chem-quick-tools": {
+          "warmReadyMs": 371,
+          "warmRuns": [
+            366,
+            371,
+            371
+          ]
+        },
+        "chem-periodic-table": {
+          "warmReadyMs": 420,
+          "warmRuns": [
+            448,
+            420,
+            405
+          ]
+        },
+        "chem-element-builder": {
+          "warmReadyMs": 371,
+          "warmRuns": [
+            370,
+            371,
+            376
+          ]
+        },
+        "chem-electron-config-builder": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            366,
+            367,
+            367
+          ]
+        },
+        "chem-periodic-trends-graph": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            366,
+            371,
+            367
+          ]
+        },
+        "chem-molecule-builder": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            366,
+            367
+          ]
+        },
+        "chem-geometry-viewer": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            367,
+            371
+          ]
+        },
+        "chem-reaction-balancer": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            371,
+            367,
+            366
+          ]
+        },
+        "chem-tri-reaction-view": {
+          "warmReadyMs": 374,
+          "warmRuns": [
+            374,
+            367,
+            375
+          ]
+        },
+        "chem-lab-coach": {
+          "warmReadyMs": 369,
+          "warmRuns": [
+            368,
+            369,
+            369
+          ]
+        },
+        "chem-stoichiometry-coach": {
+          "warmReadyMs": 370,
+          "warmRuns": [
+            371,
+            367,
+            370
+          ]
+        },
+        "chem-molar-mass-calculator": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            367,
+            362
+          ]
+        },
+        "chem-solution-mixer": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            362,
+            367,
+            367
+          ]
+        },
+        "chem-molarity-calculator": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            367,
+            367
+          ]
+        },
+        "chem-desmos-concentration-graph": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            369,
+            367,
+            366
+          ]
+        },
+        "chem-ph-calculator": {
+          "warmReadyMs": 371,
+          "warmRuns": [
+            375,
+            371,
+            371
+          ]
+        },
+        "chem-titration-lab": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            367,
+            366
+          ]
+        },
+        "chem-desmos-titration-curve": {
+          "warmReadyMs": 366,
+          "warmRuns": [
+            367,
+            366,
+            363
+          ]
+        },
+        "chem-kinetics-simulator": {
+          "warmReadyMs": 366,
+          "warmRuns": [
+            366,
+            367,
+            366
+          ]
+        },
+        "chem-desmos-kinetics-plot": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            372,
+            365
+          ]
+        },
+        "chem-data-table": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            366,
+            367,
+            371
+          ]
+        },
+        "chem-calorimetry-lab": {
+          "warmReadyMs": 366,
+          "warmRuns": [
+            366,
+            367,
+            366
+          ]
+        },
+        "chem-energy-diagram": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            367,
+            363,
+            370
+          ]
+        },
+        "chem-calculation-sheet": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            371,
+            362,
+            367
+          ]
+        },
+        "chem-safety-cards": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            370,
+            363,
+            367
+          ]
+        },
+        "chem-review-queue": {
+          "warmReadyMs": 366,
+          "warmRuns": [
+            366,
+            367,
+            366
+          ]
+        },
+        "chem-lab-notebook": {
+          "warmReadyMs": 367,
+          "warmRuns": [
+            371,
+            367,
+            366
+          ]
+        },
+        "chem-reference-safety": {
+          "warmReadyMs": 370,
+          "warmRuns": [
+            371,
+            370,
+            363
+          ]
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "memory@1x": {
+      "samples": [
+        {
+          "heapMB": 20.33,
+          "nodes": 1457,
+          "listeners": 621,
+          "documents": 5
+        },
+        {
+          "heapMB": 21.75,
+          "nodes": 1459,
+          "listeners": 623,
+          "documents": 5
+        },
+        {
+          "heapMB": 22.09,
+          "nodes": 1453,
+          "listeners": 623,
+          "documents": 5
+        },
+        {
+          "heapMB": 22.27,
+          "nodes": 1453,
+          "listeners": 623,
+          "documents": 5
+        }
+      ],
+      "heapGrowthPer10CyclesMB": [
+        1.42,
+        0.34,
+        0.18
+      ],
+      "nodeGrowthTotal": -4,
+      "listenerGrowthTotal": 2,
+      "calculators": {
+        "created": 33,
+        "destroyed": 32,
+        "retained": 1
+      },
+      "liveCalculators": 1,
+      "status": "valid",
+      "pageErrors": []
+    },
+    "draw@4x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 16772,
+        "callbackRateHz": 219.2,
+        "framesOver16ms": 225,
+        "framesOver33ms": 30,
+        "longestFrameMs": 45.9,
+        "stallMsPerSecond": 26.7,
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "topLoafScripts": [],
+        "pointerToRafP95Ms": 5,
+        "pointerToRafMaxMs": 34,
+        "pressedMoves": 3200,
+        "deliveredMovesPerSecond": 41.8,
+        "coalescedPerMove": 1,
+        "worstInteractionMs": 56,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 1,
+        "longestFrameMs": 41.6
+      },
+      "strokesDrawn": 200,
+      "status": "valid",
+      "pageErrors": []
+    },
+    "pan@4x": {
+      "handPan": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 731,
+          "callbackRateHz": 88.6,
+          "framesOver16ms": 132,
+          "framesOver33ms": 5,
+          "longestFrameMs": 179.1,
+          "stallMsPerSecond": 95,
+          "longAnimationFrames": 1,
+          "maxLoafMs": 172.1,
+          "topLoafScripts": [
+            "/assets/index-C4TZVDPe.js:TimerHandler:setTimeout 162ms",
+            "/api/v1.11/calculator.js:FrameRequestCallback 8ms"
+          ],
+          "pointerToRafP95Ms": 15.5,
+          "pointerToRafMaxMs": 174.9,
+          "pressedMoves": 180,
+          "deliveredMovesPerSecond": 21.9,
+          "coalescedPerMove": 1,
+          "worstInteractionMs": 56,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 8.3
+        }
+      },
+      "ctrlWheelZoom": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 88,
+          "callbackRateHz": 99.9,
+          "framesOver16ms": 23,
+          "framesOver33ms": 1,
+          "longestFrameMs": 41.7,
+          "stallMsPerSecond": 209.6,
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "topLoafScripts": [],
+          "pointerToRafP95Ms": null,
+          "pointerToRafMaxMs": null,
+          "pressedMoves": 0,
+          "deliveredMovesPerSecond": 0,
+          "coalescedPerMove": null,
+          "worstInteractionMs": 16,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 1,
+          "maxLoafMs": 52.9,
+          "framesOver33ms": 1,
+          "longestFrameMs": 50
+        }
+      },
+      "wheelScroll": {
+        "active": {
+          "support": {
+            "loaf": true,
+            "events": true
+          },
+          "callbacks": 111,
+          "callbackRateHz": 179.2,
+          "framesOver16ms": 1,
+          "framesOver33ms": 0,
+          "longestFrameMs": 20.8,
+          "stallMsPerSecond": 6.7,
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "topLoafScripts": [],
+          "pointerToRafP95Ms": null,
+          "pointerToRafMaxMs": null,
+          "pressedMoves": 0,
+          "deliveredMovesPerSecond": 0,
+          "coalescedPerMove": null,
+          "worstInteractionMs": 0,
+          "interactionsOver100ms": 0
+        },
+        "settle": {
+          "longAnimationFrames": 0,
+          "maxLoafMs": 0,
+          "framesOver33ms": 0,
+          "longestFrameMs": 4.4
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "slider@4x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 1436,
+        "callbackRateHz": 127.6,
+        "framesOver16ms": 118,
+        "framesOver33ms": 4,
+        "longestFrameMs": 37.6,
+        "stallMsPerSecond": 42.1,
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "topLoafScripts": [],
+        "pointerToRafP95Ms": 12,
+        "pointerToRafMaxMs": 20.9,
+        "pressedMoves": 246,
+        "deliveredMovesPerSecond": 21.9,
+        "coalescedPerMove": 1,
+        "worstInteractionMs": 0,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 4.5
+      },
+      "sliderBefore": "a=1",
+      "sliderAfter": "a=-4",
+      "status": "valid",
+      "pageErrors": []
+    },
+    "tools@4x": {
+      "active": {
+        "support": {
+          "loaf": true,
+          "events": true
+        },
+        "callbacks": 658,
+        "callbackRateHz": 206,
+        "framesOver16ms": 11,
+        "framesOver33ms": 4,
+        "longestFrameMs": 104.1,
+        "stallMsPerSecond": 71.6,
+        "longAnimationFrames": 2,
+        "maxLoafMs": 107.8,
+        "topLoafScripts": [
+          "/assets/index-C4TZVDPe.js:TimerHandler:setTimeout 80ms",
+          "/assets/index-C4TZVDPe.js:zN 73ms"
+        ],
+        "pointerToRafP95Ms": null,
+        "pointerToRafMaxMs": null,
+        "pressedMoves": 0,
+        "deliveredMovesPerSecond": 0,
+        "coalescedPerMove": null,
+        "worstInteractionMs": 64,
+        "interactionsOver100ms": 0
+      },
+      "settle": {
+        "longAnimationFrames": 0,
+        "maxLoafMs": 0,
+        "framesOver33ms": 0,
+        "longestFrameMs": 4.3
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "open@4x": {
+      "cases": {
+        "emptyBoard": {
+          "coldReadyMs": 927,
+          "warmReadyMs": 464,
+          "warmRuns": [
+            464,
+            446,
+            480
+          ]
+        },
+        "board320": {
+          "coldReadyMs": 1145,
+          "warmReadyMs": 756,
+          "warmRuns": [
+            757,
+            690,
+            756
+          ]
+        },
+        "board3Desmos": {
+          "coldReadyMs": 2050,
+          "warmReadyMs": 1516,
+          "warmRuns": [
+            1264,
+            1629,
+            1516
+          ]
+        },
+        "studyWorkspace": {
+          "coldReadyMs": 846,
+          "warmReadyMs": 327,
+          "warmRuns": [
+            340,
+            327,
+            324
+          ]
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "labs@4x": {
+      "cases": {
+        "mathWhiteboardLab": {
+          "warmReadyMs": 664,
+          "warmRuns": [
+            664,
+            689,
+            539
+          ]
+        },
+        "mathLab": {
+          "warmReadyMs": 1165,
+          "warmRuns": [
+            1210,
+            1132,
+            1165
+          ]
+        },
+        "chem-concept-cards": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            433,
+            429,
+            446
+          ]
+        },
+        "chem-quick-tools": {
+          "warmReadyMs": 442,
+          "warmRuns": [
+            445,
+            438,
+            442
+          ]
+        },
+        "chem-periodic-table": {
+          "warmReadyMs": 714,
+          "warmRuns": [
+            787,
+            714,
+            678
+          ]
+        },
+        "chem-element-builder": {
+          "warmReadyMs": 434,
+          "warmRuns": [
+            445,
+            434,
+            433
+          ]
+        },
+        "chem-electron-config-builder": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            433,
+            433,
+            438
+          ]
+        },
+        "chem-periodic-trends-graph": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            433,
+            428,
+            435
+          ]
+        },
+        "chem-molecule-builder": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            433,
+            433,
+            438
+          ]
+        },
+        "chem-geometry-viewer": {
+          "warmReadyMs": 429,
+          "warmRuns": [
+            451,
+            429,
+            425
+          ]
+        },
+        "chem-reaction-balancer": {
+          "warmReadyMs": 441,
+          "warmRuns": [
+            442,
+            425,
+            441
+          ]
+        },
+        "chem-tri-reaction-view": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            432,
+            433,
+            433
+          ]
+        },
+        "chem-lab-coach": {
+          "warmReadyMs": 438,
+          "warmRuns": [
+            437,
+            438,
+            450
+          ]
+        },
+        "chem-stoichiometry-coach": {
+          "warmReadyMs": 432,
+          "warmRuns": [
+            437,
+            432,
+            425
+          ]
+        },
+        "chem-molar-mass-calculator": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            434,
+            429,
+            433
+          ]
+        },
+        "chem-solution-mixer": {
+          "warmReadyMs": 426,
+          "warmRuns": [
+            433,
+            426,
+            425
+          ]
+        },
+        "chem-molarity-calculator": {
+          "warmReadyMs": 429,
+          "warmRuns": [
+            425,
+            438,
+            429
+          ]
+        },
+        "chem-desmos-concentration-graph": {
+          "warmReadyMs": 425,
+          "warmRuns": [
+            425,
+            425,
+            434
+          ]
+        },
+        "chem-ph-calculator": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            444,
+            426,
+            433
+          ]
+        },
+        "chem-titration-lab": {
+          "warmReadyMs": 438,
+          "warmRuns": [
+            434,
+            441,
+            438
+          ]
+        },
+        "chem-desmos-titration-curve": {
+          "warmReadyMs": 425,
+          "warmRuns": [
+            425,
+            434,
+            425
+          ]
+        },
+        "chem-kinetics-simulator": {
+          "warmReadyMs": 441,
+          "warmRuns": [
+            442,
+            433,
+            441
+          ]
+        },
+        "chem-desmos-kinetics-plot": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            438,
+            433,
+            433
+          ]
+        },
+        "chem-data-table": {
+          "warmReadyMs": 429,
+          "warmRuns": [
+            429,
+            429,
+            438
+          ]
+        },
+        "chem-calorimetry-lab": {
+          "warmReadyMs": 431,
+          "warmRuns": [
+            429,
+            431,
+            436
+          ]
+        },
+        "chem-energy-diagram": {
+          "warmReadyMs": 437,
+          "warmRuns": [
+            438,
+            425,
+            437
+          ]
+        },
+        "chem-calculation-sheet": {
+          "warmReadyMs": 429,
+          "warmRuns": [
+            446,
+            425,
+            429
+          ]
+        },
+        "chem-safety-cards": {
+          "warmReadyMs": 433,
+          "warmRuns": [
+            433,
+            438,
+            425
+          ]
+        },
+        "chem-review-queue": {
+          "warmReadyMs": 430,
+          "warmRuns": [
+            425,
+            430,
+            445
+          ]
+        },
+        "chem-lab-notebook": {
+          "warmReadyMs": 431,
+          "warmRuns": [
+            431,
+            427,
+            436
+          ]
+        },
+        "chem-reference-safety": {
+          "warmReadyMs": 438,
+          "warmRuns": [
+            433,
+            450,
+            438
+          ]
+        }
+      },
+      "status": "valid",
+      "pageErrors": []
+    },
+    "memory@4x": {
+      "samples": [
+        {
+          "heapMB": 20.43,
+          "nodes": 1457,
+          "listeners": 621,
+          "documents": 5
+        },
+        {
+          "heapMB": 21.74,
+          "nodes": 1453,
+          "listeners": 623,
+          "documents": 5
+        },
+        {
+          "heapMB": 22.06,
+          "nodes": 1453,
+          "listeners": 623,
+          "documents": 5
+        },
+        {
+          "heapMB": 22.27,
+          "nodes": 1453,
+          "listeners": 623,
+          "documents": 5
+        }
+      ],
+      "heapGrowthPer10CyclesMB": [
+        1.31,
+        0.32,
+        0.21
+      ],
+      "nodeGrowthTotal": -4,
+      "listenerGrowthTotal": 2,
+      "calculators": {
+        "created": 33,
+        "destroyed": 32,
+        "retained": 1
+      },
+      "liveCalculators": 1,
+      "status": "valid",
+      "pageErrors": []
+    }
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "cores": 32,
+    "supportedEntryTypes": [
+      "element",
+      "event",
+      "first-input",
+      "interaction-contentful-paint",
+      "largest-contentful-paint",
+      "layout-shift",
+      "long-animation-frame",
+      "longtask",
+      "mark",
+      "measure",
+      "navigation",
+      "paint",
+      "resource",
+      "soft-navigation",
+      "visibility-state"
+    ]
+  },
+  "budgets": [
+    {
+      "key": "draw@1x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "0 (stall 0 ms/s)",
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 4.3,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:handPan",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "2 (stall 3.9 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "pan@1x:handPan",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:handPan",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:handPan",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:handPan",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 4.2,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:ctrlWheelZoom",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "1 (stall 34.4 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "pan@1x:ctrlWheelZoom",
+      "check": "no frame over 33 ms",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "pan@1x:ctrlWheelZoom",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:ctrlWheelZoom",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:wheelScroll",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "0 (stall 0 ms/s)",
+      "pass": true
+    },
+    {
+      "key": "pan@1x:wheelScroll",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:wheelScroll",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x:wheelScroll",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "0 (stall 0 ms/s)",
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 4.8,
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "0 (stall 0 ms/s)",
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "every interaction ≤ 100 ms (INP proxy)",
+      "value": 24,
+      "pass": true
+    },
+    {
+      "key": "open@1x:emptyBoard",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 172,
+      "pass": true
+    },
+    {
+      "key": "open@1x:board320",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 210,
+      "pass": true
+    },
+    {
+      "key": "open@1x:board3Desmos",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 343,
+      "pass": true
+    },
+    {
+      "key": "open@1x:studyWorkspace",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 101,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:mathWhiteboardLab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 151,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:mathLab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 253,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-concept-cards",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-quick-tools",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 371,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-periodic-table",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 420,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-element-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 371,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-electron-config-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-periodic-trends-graph",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molecule-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-geometry-viewer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-reaction-balancer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-tri-reaction-view",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 374,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-lab-coach",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 369,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-stoichiometry-coach",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 370,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molar-mass-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-solution-mixer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molarity-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-concentration-graph",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-ph-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 371,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-titration-lab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-titration-curve",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 366,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-kinetics-simulator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 366,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-kinetics-plot",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-data-table",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-calorimetry-lab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 366,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-energy-diagram",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-calculation-sheet",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-safety-cards",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-review-queue",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 366,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-lab-notebook",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 367,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-reference-safety",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 370,
+      "pass": true
+    },
+    {
+      "key": "memory@1x",
+      "check": "no growth after the first 10 open/close cycles (each later batch of 10 ≤ +0.5 MB and not rising; 1 live, 1 retained calculator)",
+      "value": "warm-up 1.42 MB, then 0.34 / 0.18 MB; 1 live; 1 retained",
+      "pass": true
+    },
+    {
+      "key": "draw@4x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "225 (stall 26.7 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no frame over 33 ms",
+      "value": 30,
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@4x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@4x",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 5,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:handPan",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "132 (stall 95 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "pan@4x:handPan",
+      "check": "no frame over 33 ms",
+      "value": 5,
+      "pass": false
+    },
+    {
+      "key": "pan@4x:handPan",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "pan@4x:handPan",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:handPan",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 15.5,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:ctrlWheelZoom",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "23 (stall 209.6 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "pan@4x:ctrlWheelZoom",
+      "check": "no frame over 33 ms",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "pan@4x:ctrlWheelZoom",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:ctrlWheelZoom",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "pan@4x:wheelScroll",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "1 (stall 6.7 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "pan@4x:wheelScroll",
+      "check": "no frame over 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:wheelScroll",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@4x:wheelScroll",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@4x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "118 (stall 42.1 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "slider@4x",
+      "check": "no frame over 33 ms",
+      "value": 4,
+      "pass": false
+    },
+    {
+      "key": "slider@4x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@4x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@4x",
+      "check": "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)",
+      "value": 12,
+      "pass": true
+    },
+    {
+      "key": "tools@4x",
+      "check": "60 fps: no frame over 16.7 ms",
+      "value": "11 (stall 71.6 ms/s)",
+      "pass": false
+    },
+    {
+      "key": "tools@4x",
+      "check": "no frame over 33 ms",
+      "value": 4,
+      "pass": false
+    },
+    {
+      "key": "tools@4x",
+      "check": "no long animation frame over 50 ms (interaction)",
+      "value": 2,
+      "pass": false
+    },
+    {
+      "key": "tools@4x",
+      "check": "no long animation frame over 50 ms (settle, incl. autosave)",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "tools@4x",
+      "check": "every interaction ≤ 100 ms (INP proxy)",
+      "value": 64,
+      "pass": true
+    },
+    {
+      "key": "open@4x:emptyBoard",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 464,
+      "pass": true
+    },
+    {
+      "key": "open@4x:board320",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 756,
+      "pass": true
+    },
+    {
+      "key": "open@4x:board3Desmos",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 1516,
+      "pass": false
+    },
+    {
+      "key": "open@4x:studyWorkspace",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 327,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:mathWhiteboardLab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 664,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:mathLab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 1165,
+      "pass": false
+    },
+    {
+      "key": "labs@4x:chem-concept-cards",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-quick-tools",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 442,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-periodic-table",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 714,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-element-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 434,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-electron-config-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-periodic-trends-graph",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molecule-builder",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-geometry-viewer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 429,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-reaction-balancer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 441,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-tri-reaction-view",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-lab-coach",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 438,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-stoichiometry-coach",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 432,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molar-mass-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-solution-mixer",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 426,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molarity-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 429,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-concentration-graph",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 425,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-ph-calculator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-titration-lab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 438,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-titration-curve",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 425,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-kinetics-simulator",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 441,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-kinetics-plot",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-data-table",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 429,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-calorimetry-lab",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 431,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-energy-diagram",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 437,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-calculation-sheet",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 429,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-safety-cards",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 433,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-review-queue",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 430,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-lab-notebook",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 431,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-reference-safety",
+      "check": "warm reopen interactive ≤ 1000 ms (median of 3)",
+      "value": 438,
+      "pass": true
+    },
+    {
+      "key": "memory@4x",
+      "check": "no growth after the first 10 open/close cycles (each later batch of 10 ≤ +0.5 MB and not rising; 1 live, 1 retained calculator)",
+      "value": "warm-up 1.31 MB, then 0.32 / 0.21 MB; 1 live; 1 retained",
+      "pass": true
+    }
+  ],
+  "rebudgetedAt": "2026-10-31T16:08:05.436Z",
+  "budgetRules": "r2"
+}

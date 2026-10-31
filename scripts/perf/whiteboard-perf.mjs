@@ -7,12 +7,14 @@
 //   node scripts/perf/whiteboard-perf.mjs [--label baseline] [--throttle 1,4]
 //        [--scenarios draw,pan,slider,tools,open,labs,memory] [--strokes 200] [--profile]
 //        [--out docs/whiteboard-mission/perf]
+//   node scripts/perf/whiteboard-perf.mjs --rebudget <saved report .json>
+//        (re-evaluates a saved run's budgets with the current rules; no browser, measurements unchanged)
 //   PERF_BASE_URL (board fixture origin, default http://127.0.0.1:5196)
 //   PERF_LAB_URL  (lab fixture page, default http://127.0.0.1:5198/e2e/fixtures/lab.html)
 // Real Desmos needs the project's client key (scripts/perf/desmos-key.mjs). It is injected only into
 // the fixture's own HTML response, never logged, and redacted from every report.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { chromium } from "@playwright/test";
 import { resolveDesmosKey } from "./desmos-key.mjs";
 
@@ -32,6 +34,10 @@ const STROKES = Number(args.strokes ?? 200);
 const OUT_DIR = String(args.out ?? "docs/whiteboard-mission/perf");
 const LABEL = String(args.label ?? "baseline");
 const PROFILE = args.profile === "true";
+const REBUDGET = args.rebudget && args.rebudget !== "true" ? String(args.rebudget) : null;
+// r2: pointer budget only where the pointer is pressed; memory judged after a warm-up batch;
+// frame budgets also cover tool switches.
+const BUDGET_RULES = "r2";
 const INPUT_INTERVAL_MS = 8; // requested pause between moves; the delivered rate is reported
 const SETTLE_MS = 1800; // longer than the 1500 ms whiteboard autosave debounce
 const DESMOS_KEY = resolveDesmosKey();
@@ -521,37 +527,43 @@ async function newScenarioPage(browser, throttle) {
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
   return { context, page, cdp, errors, seedState };
 }
-const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || "chrome", headless: process.env.PERF_HEADED ? false : true, args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] });
-const report = { label: LABEL, startedAt: new Date().toISOString(), viewport: VIEWPORT, desmosReal: Boolean(DESMOS_KEY), strokes: STROKES, base: BASE, settleMs: SETTLE_MS, profiled: PROFILE, results: {} };
-try {
-  for (const throttle of THROTTLES) {
-    for (const name of SCENARIOS) {
-      const session = await newScenarioPage(browser, throttle);
-      if (!report.environment) {
-        await session.page.goto(`${BASE}/e2e/fixtures/index.html?board=1`);
-        report.environment = await session.page.evaluate(() => {
-          const gl = document.createElement("canvas").getContext("webgl");
-          const info = gl?.getExtension("WEBGL_debug_renderer_info");
-          return { userAgent: navigator.userAgent, gpu: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "unknown", cores: navigator.hardwareConcurrency, supportedEntryTypes: PerformanceObserver.supportedEntryTypes };
-        });
+let report;
+if (REBUDGET) {
+  report = JSON.parse(readFileSync(REBUDGET, "utf8"));
+  report.rebudgetedAt = new Date().toISOString();
+} else {
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || "chrome", headless: process.env.PERF_HEADED ? false : true, args: ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] });
+  report = { label: LABEL, startedAt: new Date().toISOString(), viewport: VIEWPORT, desmosReal: Boolean(DESMOS_KEY), strokes: STROKES, base: BASE, settleMs: SETTLE_MS, profiled: PROFILE, results: {} };
+  try {
+    for (const throttle of THROTTLES) {
+      for (const name of SCENARIOS) {
+        const session = await newScenarioPage(browser, throttle);
+        if (!report.environment) {
+          await session.page.goto(`${BASE}/e2e/fixtures/index.html?board=1`);
+          report.environment = await session.page.evaluate(() => {
+            const gl = document.createElement("canvas").getContext("webgl");
+            const info = gl?.getExtension("WEBGL_debug_renderer_info");
+            return { userAgent: navigator.userAgent, gpu: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "unknown", cores: navigator.hardwareConcurrency, supportedEntryTypes: PerformanceObserver.supportedEntryTypes };
+          });
+        }
+        process.stdout.write(`[${LABEL}] ${name} @${throttle}x CPU ... `);
+        activeCdp = session.cdp;
+        let result;
+        try {
+          result = await scenarios[name]({ ...session, browser, throttle });
+          result.status ??= "valid";
+        } catch (error) {
+          result = { status: error instanceof InvalidRun ? "invalid" : "failed", error: redact(error.message.split("\n")[0]) };
+        }
+        result.pageErrors = session.errors.slice(0, 5);
+        report.results[`${name}@${throttle}x`] = result;
+        console.log(result.status === "valid" ? "valid" : `${result.status.toUpperCase()} ${result.error ?? result.reason ?? ""}`);
+        await session.context.close();
       }
-      process.stdout.write(`[${LABEL}] ${name} @${throttle}x CPU ... `);
-      activeCdp = session.cdp;
-      let result;
-      try {
-        result = await scenarios[name]({ ...session, browser, throttle });
-        result.status ??= "valid";
-      } catch (error) {
-        result = { status: error instanceof InvalidRun ? "invalid" : "failed", error: redact(error.message.split("\n")[0]) };
-      }
-      result.pageErrors = session.errors.slice(0, 5);
-      report.results[`${name}@${throttle}x`] = result;
-      console.log(result.status === "valid" ? "valid" : `${result.status.toUpperCase()} ${result.error ?? result.reason ?? ""}`);
-      await session.context.close();
     }
+  } finally {
+    await browser.close();
   }
-} finally {
-  await browser.close();
 }
 
 // ---------- budgets ----------
@@ -560,7 +572,8 @@ const add = (key, check, value, pass) => budgets.push({ key, check, value, pass 
 for (const [key, result] of Object.entries(report.results)) {
   const [name] = key.split("@");
   if (result.status !== "valid") { add(key, "scenario produced a valid measurement", `${result.status}: ${result.error ?? result.reason ?? ""}`, false); continue; }
-  const motion = name === "pan" ? Object.entries(result).filter(([, value]) => value?.active).map(([part, value]) => [`${key}:${part}`, value]) : ["draw", "slider"].includes(name) ? [[key, result]] : [];
+  // Frame budgets apply to every interactive scenario, tool switches included.
+  const motion = name === "pan" ? Object.entries(result).filter(([, value]) => value?.active).map(([part, value]) => [`${key}:${part}`, value]) : ["draw", "slider", "tools"].includes(name) ? [[key, result]] : [];
   for (const [label, value] of motion) {
     const a = value.active;
     if (a.support?.loaf === false) add(label, "Long Animation Frames supported", "unsupported", false);
@@ -568,7 +581,8 @@ for (const [key, result] of Object.entries(report.results)) {
     add(label, "no frame over 33 ms", a.framesOver33ms, a.framesOver33ms === 0);
     add(label, "no long animation frame over 50 ms (interaction)", a.longAnimationFrames, a.longAnimationFrames === 0);
     add(label, "no long animation frame over 50 ms (settle, incl. autosave)", value.settle.longAnimationFrames, value.settle.longAnimationFrames === 0);
-    add(label, "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)", a.pointerToRafP95Ms, a.pointerToRafP95Ms !== null && a.pointerToRafP95Ms <= 16.7);
+    // Wheel pans and zooms have no pressed pointer to keep ink glued to, so the proxy does not apply.
+    if (a.pressedMoves > 0) add(label, "pointer→rAF proxy p95 ≤ 16.7 ms (not visible-ink latency)", a.pointerToRafP95Ms, a.pointerToRafP95Ms !== null && a.pointerToRafP95Ms <= 16.7);
   }
   if (name === "tools") {
     if (result.active.support?.events === false) add(key, "Event Timing supported", "unsupported", false);
@@ -576,20 +590,27 @@ for (const [key, result] of Object.entries(report.results)) {
   }
   if (["open", "labs"].includes(name)) for (const [demo, timing] of Object.entries(result.cases)) add(`${key}:${demo}`, "warm reopen interactive ≤ 1000 ms (median of 3)", timing.warmReadyMs, timing.warmReadyMs <= 1000);
   if (name === "memory") {
-    const worst = Math.max(...result.heapGrowthPer10CyclesMB);
-    add(key, "no growth across 3×10 open/close (heap ≤ +0.5 MB per batch, 1 live calculator)", `${result.heapGrowthPer10CyclesMB.join(" / ")} MB; ${result.liveCalculators} live; ${result.calculators.retained} retained`, worst <= 0.5 && result.liveCalculators === 1 && result.calculators.retained === 1);
+    // The first 10 cycles are warm-up (lazy code and caches). After that a leak shows as steady or
+    // rising growth per batch; heap noise after GC is a few hundred KB, and a leaked calculator is
+    // caught directly by the live/retained counts.
+    const [warmup, ...steady] = result.heapGrowthPer10CyclesMB;
+    const flat = steady.length > 0 && steady.every((mb, index) => mb <= 0.5 && (index === 0 || mb <= steady[index - 1] + 0.1));
+    add(key, "no growth after the first 10 open/close cycles (each later batch of 10 ≤ +0.5 MB and not rising; 1 live, 1 retained calculator)", `warm-up ${warmup} MB, then ${steady.join(" / ")} MB; ${result.liveCalculators} live; ${result.calculators.retained} retained`, flat && result.liveCalculators === 1 && result.calculators.retained === 1);
   }
 }
 report.budgets = budgets;
-mkdirSync(OUT_DIR, { recursive: true });
+report.budgetRules = BUDGET_RULES;
+const outDir = REBUDGET ? dirname(REBUDGET) : OUT_DIR;
+mkdirSync(outDir, { recursive: true });
 const stamp = report.startedAt.replace(/[:.]/g, "-");
-const jsonPath = join(OUT_DIR, `${LABEL}-${stamp}.json`);
+const jsonPath = join(outDir, `${report.label}-${stamp}.json`);
 writeFileSync(jsonPath, redact(JSON.stringify(report, null, 2)));
 const row = (label, a, settle) => `| ${label} | ${a.callbacks} @ ${a.callbackRateHz} Hz | ${a.framesOver16ms} | ${a.framesOver33ms} | ${a.longestFrameMs} | ${a.stallMsPerSecond} | ${a.longAnimationFrames ?? "n/a"} (${a.maxLoafMs ?? "–"}) | ${settle.longAnimationFrames ?? "n/a"} (${settle.maxLoafMs ?? "–"}) | ${a.pointerToRafP95Ms ?? "–"} | ${a.worstInteractionMs ?? "n/a"} | ${a.deliveredMovesPerSecond ?? "–"} | ${a.topLoafScripts.slice(0, 2).join("; ")} |`;
 const lines = [
-  `# Whiteboard perf: ${LABEL} (${report.startedAt})`, "",
-  `Fixture origin ${BASE}; GPU ${report.environment?.gpu}; cores ${report.environment?.cores}; real Desmos ${report.desmosReal}; viewport ${VIEWPORT.width}×${VIEWPORT.height}; settle window ${SETTLE_MS} ms.`,
-  "rAF callbacks are uncapped in headless GPU Chrome, so frame budgets use frames over 16.7/33 ms and stall time, not average fps. The pointer→rAF figure is a scheduling proxy, not measured visible-ink latency.", "",
+  `# Whiteboard perf: ${report.label} (${report.startedAt})`, "",
+  `Fixture origin ${report.base}; GPU ${report.environment?.gpu}; cores ${report.environment?.cores}; real Desmos ${report.desmosReal}; viewport ${report.viewport.width}×${report.viewport.height}; settle window ${report.settleMs} ms.`,
+  "rAF callbacks are uncapped in headless GPU Chrome, so frame budgets use frames over 16.7/33 ms and stall time, not average fps. The pointer→rAF figure is a scheduling proxy, not measured visible-ink latency.",
+  `Budget rules ${report.budgetRules}${report.rebudgetedAt ? `, re-evaluated ${report.rebudgetedAt} from the saved measurements (no new run)` : ""}.`, "",
   "| Scenario | rAF callbacks | >16.7 ms | >33 ms | longest | stall ms/s | LoAF >50 ms (max) | settle LoAF (max) | ptr→rAF p95 | worst interaction | moves/s | top LoAF scripts |",
   "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
 ];
@@ -601,7 +622,7 @@ for (const [key, result] of Object.entries(report.results)) {
   else lines.push(`| ${key} | heap Δ per 10 cycles ${result.heapGrowthPer10CyclesMB.join(" / ")} MB; nodes Δ ${result.nodeGrowthTotal}; listeners Δ ${result.listenerGrowthTotal}; calculators ${JSON.stringify(result.calculators)} |||||||||||`);
 }
 lines.push("", "## Budgets", "", "| Check | Scenario | Value | Pass |", "| --- | --- | --- | --- |", ...budgets.map((budget) => `| ${budget.check} | ${budget.key} | ${budget.value} | ${budget.pass ? "✅" : "❌"} |`));
-writeFileSync(join(OUT_DIR, `${LABEL}-${stamp}.md`), redact(lines.join("\n") + "\n"));
+writeFileSync(join(outDir, `${report.label}-${stamp}.md`), redact(lines.join("\n") + "\n"));
 console.log(redact(lines.join("\n")));
 console.log(`\nSaved ${jsonPath}`);
 process.exitCode = budgets.every((budget) => budget.pass) ? 0 : 2;

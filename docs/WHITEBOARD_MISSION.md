@@ -43,26 +43,63 @@ Each assignment is based on what the model actually did earlier in this session.
 
 ## Step 2: baseline (before any fixes)
 
+### Official baseline: production build (the budget reference)
+
+Report: `docs/whiteboard-mission/perf/baseline-prod-2026-10-31T15-55-02-448Z.md` (and `.json`).
+
+- **How it was run:** the hardened harness (`40f4ed4`) against production builds of the isolated fixtures (ports 5199 and 5200). Every scenario produced a valid measurement.
+- **Budget rules r2:**
+  - The pointer proxy is only judged where a pointer is pressed. Wheel zoom and scroll have no ink to keep glued.
+  - Memory is judged after a warm-up batch of 10 cycles.
+  - Tool switches also face the frame budgets, not only the INP check.
+  - The saved measurements were re-scored with `--rebudget`; no numbers changed.
+- **Result:** 109 checks pass and **19 fail. All 19 are real product problems.**
+- **Machine:** RTX 5090 through ANGLE/D3D11, 32 cores, headless Chrome, 1440×900. The 4× CPU throttle stands in for a typical student laptop.
+- **Synthetic data:** a 320-element board (freedraw, shapes, text, arrows) and three live Desmos graphs on the real API.
+- **Notation:** "N >16.7 ms" counts frames that missed 60 fps. "LoAF" is a Long Animation Frame over 50 ms. "Ptr→rAF" is a scheduling proxy, not visible-ink latency.
+
+| Scenario | 1× CPU | 4× CPU | Budget | Result |
+| --- | --- | --- | --- | --- |
+| Draw 200 strokes | clean: longest frame 12.5 ms; ptr→rAF p95 4.3 ms | **225 >16.7 ms, 30 >33 ms, longest 45.9 ms**; 0 LoAF; ptr→rAF p95 5 ms | 60 fps, nothing >33 ms, no LoAF | ❌ 4× |
+| Hand pan, 320 elements + 3 Desmos | **2 >16.7 ms (longest 25 ms)** | **132 >16.7 ms, 5 >33 ms, longest 179 ms; 1 LoAF of 172 ms** (a `setTimeout` handler in our bundle); ptr→rAF p95 15.5 ms | same | ❌ both |
+| Ctrl-wheel zoom, same board | **1 frame of 46 ms** | **23 >16.7 ms, 1 >33 ms, stall 210 ms/s; a 53 ms LoAF while settling** | same | ❌ both |
+| Wheel scroll, same board | clean | **1 frame of 20.8 ms** | same | ❌ 4× |
+| Desmos slider drag | clean: longest 12.5 ms | **118 >16.7 ms, 4 >33 ms, longest 37.6 ms** | same | ❌ 4× |
+| Tool switches and clicks | clean; worst interaction 24 ms | **11 >16.7 ms, 4 >33 ms, 2 LoAF (max 108 ms)**; worst interaction 64 ms | same, plus INP ≤ 100 ms | ❌ 4× frames; INP ✅ |
+| Warm open: empty / 320-element / 3-Desmos board / study workspace | 172 / 210 / 343 / 101 ms | 464 / 756 / **1,516** / 327 ms | ≤ 1 s warm | ❌ 3-Desmos at 4× |
+| Warm open: Math Whiteboard Lab / Math Lab | 151 / 253 ms | 664 / **1,165** ms | ≤ 1 s warm | ❌ Math Lab at 4× |
+| Warm open: all 29 chemistry modules | 366–420 ms | 425–714 ms (periodic table slowest) | ≤ 1 s warm | ✅ |
+| 3 × 10 Desmos collapse/expand cycles | +1.42 MB warm-up, then +0.34 / +0.18 MB; 1 live and 1 retained calculator of 33; DOM nodes −4 | +1.31 MB warm-up, then +0.32 / +0.21 MB; same counts | no growth after 10 cycles | ✅ |
+
+Cold opens at 4× are slower: 927 / 1,145 / 2,050 / 846 ms for the four boards. The budget is the warm open, but cold numbers will be reported after fixes too.
+
+What this shows:
+- **Everything passes at 1× except pan and zoom.** At 4× the board misses 60 fps while drawing, panning, zooming, dragging a Desmos slider and switching tools.
+- **The worst single stall is the pan settle.** A 172 ms long frame comes from a timer handler in our own bundle, which matches the profile below: a camera-only change prepares a full-board save.
+- **The 3-Desmos board and the Math Lab miss the 1 s warm open** at 4×. Chemistry modules pass.
+- **No memory leak.** Destroyed calculators are released, and growth flattens after the first batch.
+
+### Dev-server stress reference (first run, superseded for budgets)
+
 Raw reports: `docs/whiteboard-mission/perf/baseline-2026-10-31T15-27-25-334Z.md` (draw, pan, tools, open) and `baseline-desmos-labs-2026-10-31T15-38-53-349Z.md` (slider, memory, labs).
 
-- **Machine:** RTX 5090 through ANGLE/D3D11, 32 cores, Chrome headless, 1440×900.
-- **Synthetic data:** a 320-element board (freedraw, shapes, text, arrows) and three live Desmos graphs using the real API.
+These ran on the Vite dev server, before the harness fixes listed below. React's development-mode overhead inflates them, so they are kept only as a stress reference.
 
-| Scenario | 1× CPU | 4× CPU (a typical student laptop) | Budget |
+| Scenario | 1× CPU | 4× CPU | Budget |
 | --- | --- | --- | --- |
-| Draw 200 strokes | 0 dropped frames, pointer→frame p95 4.3 ms | **219 long animation frames (max 134 ms), 316 frames over 33 ms**, 2.25% dropped; pointer→frame p95 4 ms | 60 fps, no frame over 33 ms, no long frame over 50 ms |
+| Draw 200 strokes | 0 dropped frames, ptr→rAF proxy p95 4.3 ms | **219 long animation frames (max 134 ms), 316 frames over 33 ms**, 2.25% dropped; ptr→rAF proxy p95 4 ms | 60 fps, no frame over 33 ms, no long frame over 50 ms |
 | Pan/zoom, 320 elements + 3 Desmos | 0.26% dropped, **1 frame of 33.4 ms** | **9.8% dropped, 15 frames over 33 ms, 11 long frames (max 296 ms), worst interaction 304 ms** | same |
 | Desmos slider drag | 0 dropped, p95 4.3 ms | 2.6% dropped, 1 frame of 41.6 ms | same |
 | Tool switches and clicks | worst 40 ms | **worst 256 ms** | ≤ 100 ms (INP) |
 | Warm open: empty / 320-element / 3-Desmos board | 193 / 163 / 339 ms | 879 / **1,140** / **2,233** ms | ≤ 1 s |
 | Warm open: Math Whiteboard Lab (picker → New Whiteboard → canvas) | 252 ms | **1,346 ms** | ≤ 1 s |
 | Warm open: Math Lab / chemistry modules | 115 ms / 383–446 ms | 495 ms / 587–759 ms, **periodic table 1,198 ms** | ≤ 1 s |
-| Ten Desmos open/close cycles (collapse/expand) | **heap +3.14 MB**, nodes +13, listeners +7; calculators 11 created, 10 destroyed (1 live) | **heap +2.56 MB**, nodes +9 | no growth |
+| Ten Desmos open/close cycles (collapse/expand) | heap +3.14 MB (test artifact, withdrawn; see the review below) | heap +2.56 MB (same) | no growth |
 
-What this shows:
-- **Ink stays glued.** Pointer→frame p95 is about 4 ms even at 4×.
-- **The cost lands at stroke end and pan settle.** Long Animation Frame attribution at 4× while drawing is mostly `dispatchDiscreteEvent` (8.5 s) and Excalidraw's `onpointerup` (7.1 s). That is the stroke-end flush, which is consistent with Astra's serialization hypothesis. CPU profiles are running to split our code from Excalidraw's.
-- **Desmos `destroy()` works.** No calculators leak, but the heap still grows per open/close cycle.
+What the first run suggested, and what held up:
+- **The pointer→rAF proxy stays near 4 ms, even at 4×.** This is a scheduling proxy, not measured visible-ink latency.
+- **The cost lands at stroke end and pan settle.** Long Animation Frame attribution at 4× while drawing is mostly `dispatchDiscreteEvent` (8.5 s) and Excalidraw's `onpointerup` (7.1 s). That is the stroke-end flush, which is consistent with Astra's serialization hypothesis. The CPU profiles below split our code from Excalidraw's.
+- **Desmos `destroy()` works.** The apparent heap growth came from the test loader holding destroyed calculators.
 
 ### CPU-profile attribution (4×, dev server, `--profile`; `perf/profile-4x-*.json`)
 
@@ -111,10 +148,10 @@ Screenshots are in `docs/whiteboard-mission/screens/`. They were captured on the
 
 | # | Friction point | Evidence |
 | --- | --- | --- |
-| 1 | **Every finished stroke stalls slower laptops.** One long frame per stroke end at 4× (up to 134 ms), worsening as the board grows. | Baseline draw at 4×; LoAF attribution to `onpointerup` and the stroke-end flush, which runs `JSON.stringify` on both whole scenes at `whiteboard-serialization.ts:175` plus a recovery write. |
-| 2 | **Panning a real board (Desmos plus ink) drops frames.** 9.8% at 4×, one 296 ms freeze, worst input 304 ms. | Baseline pan at 4× and pan at 1× (a 33 ms frame). |
-| 3 | **Clicks and tool switches exceed 100 ms** on a busy board (256 ms at 4×). | Baseline tools at 4×. |
-| 4 | **Large or graph-heavy boards open slowly:** 1.1–2.2 s warm at 4×. The lab needs an extra picker click: 1.35 s. | Baseline open and labs; screenshot `01-lab-first-run-picker`. |
+| 1 | **Drawing misses 60 fps on slower laptops.** At 4×, 200 strokes produce 225 frames over 16.7 ms and 30 over 33 ms (longest 46 ms). Drawing is the most frequent action on the board. | Production baseline, draw at 4×. The dev profiles attribute the stroke-end cost to `onpointerup` and our flush, which runs `JSON.stringify` on both whole scenes at `whiteboard-serialization.ts:175` plus a recovery write. |
+| 2 | **Panning and zooming a real board (Desmos plus ink) stutters, even at full speed.** At 4×, a hand pan has 132 frames over 16.7 ms and one 179 ms freeze, and zooming stalls 210 ms of every second. At 1×, a pan still drops 2 frames and a zoom has a 46 ms frame. | Production baseline, pan at 1× and 4×. The 172 ms long frame is a timer handler in our bundle. Profiles: `getBoundingClientRect`, per-frame `querySelectorAll`, and a full save prepared on camera-only changes. |
+| 3 | **Tool switches drop frames on a busy board.** At 4×: 11 frames over 16.7 ms, 4 over 33 ms, and 2 long frames up to 108 ms. Input response stays within budget (worst 64 ms). | Production baseline, tools at 4×. The dev run's 256 ms worst interaction was development-mode overhead and did not reproduce. |
+| 4 | **The graph board and the Math Lab open slowly.** Warm opens at 4×: 1.52 s for the board with three graphs (2.05 s cold) and 1.17 s for the Math Lab. The Whiteboard Lab also needs an extra picker click before any canvas. | Production baseline, open and labs; screenshot `01-lab-first-run-picker`. |
 | 5 | **Desmos cards are bright white on the dark board and start empty.** The headline feature looks bolted on. | `04-lab-desmos-card` |
 | 6 | **New cards land on top of existing ones.** A calculator covered the graph. | `05-lab-second-module-placement`; `findOpenWhiteboardModuleFrameNearViewport` ignores `_existingModules` (`whiteboard-layout.ts:113`). |
 | 7 | **Graph work is not part of the board save.** Desmos state lives in device-local storage, so a board reopened elsewhere can lose its expressions. | Astra's code read: `whiteboard-pinned-object-layer.tsx:564`, `use-math-workspace.ts:318`, `whiteboard-export.ts:55`. To be confirmed by a test in Phase A. |
@@ -130,7 +167,7 @@ Screenshots are in `docs/whiteboard-mission/screens/`. They were captured on the
 Also noted, outside the top 15:
 - SVG export turns graphs into text cards.
 - The three-board cap: the user's real account shows "3 / 3 saved".
-- The periodic table opens slowly.
+- The periodic table is the slowest chemistry module: 714 ms warm at 4×, within budget.
 - Card header actions are icon-only.
 
 ## Step 3: research (Claude Opus 5.5 high, read-only, cited)
@@ -291,3 +328,15 @@ Next after the top 10: springy inertial pan and zoom (once camera alignment is p
   - **Files:** `e2e/fixtures/lab.html`, `lab.tsx`, `auth.tsx`, `lab.vite.config.ts`.
   - **Setup:** a synthetic local learner profile with a stubbed Supabase client, running on port 5198. The existing e2e fixture config is untouched.
   - **Why:** signed-in production pages would write data even when only observed. The lesson reader records activity on open, and boards save to Supabase.
+- **16:40–16:41.** Committed the harness (`dede3b9`), the lab fixture (`7e4bb24`), and the first baseline, audit, screenshots and idea lists (`4aeeb1f`).
+- **16:41–16:55.** Astra's independent review of the harness diff (`astra/03-diff-review-output.md`, 13 findings) withdrew the memory finding and the ink-latency claim and surfaced the key incident (disclosed in Step 2). Hardened the harness and fixture loader and added production fixture builds (`40f4ed4`).
+- **16:55.** Ran the production-build baseline. Every scenario was valid. The report file names carry the UTC start time (`15-55-02`).
+- **16:58–16:59.** Cherry-picked the record of the second Codex review from the study-continuity work (`0e617f3`). Committed the harness review, profiles, research and checkpoint plan (`c553317`).
+- **17:10.** Budget rules r2 in the harness:
+  - The pointer proxy is no longer judged on wheel gestures.
+  - Memory is judged after a warm-up batch.
+  - Tool switches face the frame budgets.
+  - A new `--rebudget` mode re-scores a saved report without a browser.
+  - **Result:** the production baseline re-scored to 109 passes and 19 real failures, with the measurements unchanged. It replaces the dev run as the official baseline, and friction points 1–4 now cite it.
+  - A scan of 27,333 files under `docs`, `scripts`, `e2e`, `src` and the mission's `.tmp` logs found no Desmos key.
+  - **Stopped at the checkpoint for owner decisions.** The AI explainer needs a paid API key.
