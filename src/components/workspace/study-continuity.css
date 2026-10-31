@@ -1,0 +1,65 @@
+/* Keep reading and writing ahead of repeated orientation copy. Scoped to the
+   existing study-panels presentation; no preference or stored layout changes. */
+.facelift-simple-shell .private-notes-overview > div:first-child > div:first-child > p:last-child,
+.facelift-simple-shell .private-notes-editor-intro > div:first-child {
+  display: none;
+}
+.facelift-simple-shell .private-notes-editor-intro:has(> :only-child) {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .facelift-simple-shell .facelift-simple-shell__overline,
+  .facelift-simple-shell .facelift-simple-shell__subtitle,
+  .facelift-simple-shell .facelift-next-step,
+  .facelift-simple-shell .facelift-context-ribbon,
+  .facelift-simple-shell .facelift-next-board,
+  .facelift-simple-shell .facelift-guide-card[aria-label="Current document"],
+  .facelift-simple-shell .facelift-guide-card > strong,
+  .facelift-simple-shell .facelift-consumer-mode__copy > small,
+  .facelift-simple-shell .facelift-consumer-shortcut > small {
+    display: none;
+  }
+  .facelift-simple-shell .facelift-guide-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .facelift-simple-shell .facelift-consumer-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .facelift-simple-shell .facelift-consumer-shortcut {
+    min-height: 44px;
+  }
+  .facelift-simple-shell .facelift-guide-card {
+    min-height: 44px;
+    grid-template-rows: auto;
+  }
+  .facelift-simple-shell .facelift-guide-card--next {
+    grid-column: 1 / -1;
+  }
+  .facelift-simple-shell .facelift-guide-card--next > strong {
+    display: block;
+  }
+  .facelift-simple-shell .facelift-simple-shell__actions {
+    gap: 8px;
+  }
+  .facelift-simple-shell .facelift-simple-shell__actions .ui-button-motion,
+  .facelift-simple-shell .facelift-mobile-switcher button {
+    min-height: 44px;
+  }
+  .facelift-simple-shell .facelift-quiet-status {
+    flex-basis: 100%;
+  }
+  .facelift-simple-shell .source-lesson-hero h4,
+  .facelift-simple-shell .source-lesson-hero > div:first-child > div:first-child > p:last-child,
+  .facelift-simple-shell .source-lesson-stats {
+    display: none;
+  }
+  .facelift-simple-shell .private-notes-overview h4 {
+    display: none;
+  }
+  .facelift-simple-shell .private-notes-editor-hero,
+  .facelift-simple-shell .private-notes-editor-frame {
+    padding: 10px;
+  }
+}

@@ -1,6 +1,9 @@
 import {
   BookOpen,
   CheckCircle2,
+  CircleAlert,
+  Clock3,
+  LoaderCircle,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -38,6 +41,7 @@ import {
 import { getPrimaryFolder } from "@/lib/workspace-structure";
 import { cn } from "@/lib/utils";
 import "@/workspace-fit.css";
+import "./study-continuity.css";
 import type {
   FaceliftDensity,
   WorkspaceModuleId,
@@ -530,8 +534,8 @@ export function FaceliftSimpleShell({
         </div>
 
         <div className="facelift-simple-shell__actions">
-          <div className="facelift-quiet-status" aria-label="Saved status">
-            <CheckCircle2 className="size-4" />
+          <div className="facelift-quiet-status" aria-label="Note save status" role="status">
+            {context.autosaveStatus === "saved" ? <CheckCircle2 className="size-4" /> : context.autosaveStatus === "saving" ? <LoaderCircle className="size-4" /> : context.autosaveStatus === "error" ? <CircleAlert className="size-4" /> : <Clock3 className="size-4" />}
             <span>{context.noteSaveLabel ?? "Saved status"}</span>
           </div>
           {compactStudyChrome && onChangeWorkspaceViewMode ? (
