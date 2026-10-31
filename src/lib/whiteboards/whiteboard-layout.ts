@@ -180,12 +180,14 @@ export function findOpenWhiteboardModuleFrameNearViewport(
   existingModules: WhiteboardModuleElement[],
   definition: WhiteboardModuleDefinition,
   transform: WhiteboardViewportTransform,
+  /** Screen areas covered by app chrome (such as the control panel), in board-viewport pixels. */
+  reserved: Frame[] = [],
 ) {
   const center = getViewportCenterBoardPoint(transform);
   const width = definition.defaultWidth;
   const height = definition.defaultHeight;
   const centered = { x: center.x - width / 2, y: center.y - height / 2, width, height };
-  if (!existingModules.length) {
+  if (!existingModules.length && !reserved.length) {
     return centered;
   }
 
@@ -202,7 +204,8 @@ export function findOpenWhiteboardModuleFrameNearViewport(
   };
   const start = layerRect(probe, transform);
   const view = { x: 0, y: 0, width: transform.viewportWidth, height: transform.viewportHeight };
-  const free = findFreeLayerFrame(start, existingModules.map((moduleElement) => layerRect(moduleElement, transform)), view, 10);
+  const obstacles = [...existingModules.map((moduleElement) => layerRect(moduleElement, transform)), ...reserved];
+  const free = findFreeLayerFrame(start, obstacles, view, 10);
   if (free === start) {
     return centered;
   }
@@ -224,6 +227,7 @@ export function findOpenWhiteboardViewportModuleFrame(
   existingModules: WhiteboardModuleElement[],
   definition: WhiteboardModuleDefinition,
   transform: WhiteboardViewportTransform,
+  reserved: Frame[] = [],
 ) {
   const width = definition.defaultWidth;
   const height = definition.defaultHeight;
@@ -233,12 +237,13 @@ export function findOpenWhiteboardViewportModuleFrame(
     width,
     height,
   };
-  if (!existingModules.length) {
+  if (!existingModules.length && !reserved.length) {
     return start;
   }
 
   const view = { x: 0, y: 0, width: transform.viewportWidth, height: transform.viewportHeight };
-  const free = findFreeLayerFrame(start, existingModules.map((moduleElement) => layerRect(moduleElement, transform)), view, 20);
+  const obstacles = [...existingModules.map((moduleElement) => layerRect(moduleElement, transform)), ...reserved];
+  const free = findFreeLayerFrame(start, obstacles, view, 20);
   return free ? { ...start, x: free.x, y: free.y } : { ...start, x: start.x + 40, y: start.y + 40 };
 }
 

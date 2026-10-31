@@ -52,6 +52,10 @@ export function WhiteboardModuleLauncher({
       modules: modules.filter((module) => module.moduleId === "desmos-graph" || module.moduleId === "saved-graphs"),
     },
     {
+      label: "Chemistry",
+      modules: modules.filter((module) => module.moduleId.startsWith("chem-")),
+    },
+    {
       label: "History",
       modules: modules.filter(
         (module) =>

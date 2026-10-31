@@ -70,6 +70,18 @@ try {
       }
     }
   }
+  // A chemistry tool on the board (from the launcher's Chemistry group).
+  const addChemistry = page.getByRole("button", { name: /^Add module/ }).first();
+  await addChemistry.click();
+  await page.waitForTimeout(400);
+  const ph = page.getByRole("button", { name: /pH Calculator/i }).first();
+  if (!(await ph.count())) skip("05c-lab-chemistry-card", "pH Calculator launcher entry not found");
+  else {
+    await ph.click();
+    await page.waitForTimeout(1500);
+    await shot(page, "05c-lab-chemistry-card", "pH Calculator placed on the board beside the other cards");
+  }
+
   // Minimal mode: the board and one small control pill (Excalidraw Zen mode mirrors it).
   const enterMinimal = page.getByTestId("whiteboard-minimal-enter");
   if (!(await enterMinimal.count())) skip("05b-lab-minimal-mode", "Minimal mode button not found");

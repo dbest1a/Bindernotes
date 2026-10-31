@@ -176,6 +176,16 @@ function whiteboardModulesChanged(previous: WhiteboardModuleElement[], next: Whi
 
 const WHITEBOARD_MINIMAL_MODE_KEY = "bindernotes:whiteboard:minimal-mode";
 
+// App chrome floating over the board (the control panel or pill) counts as occupied when a new
+// card is placed, so cards do not open underneath it. Read once per add, never per frame.
+function getReservedOverlayRects(transform: WhiteboardViewportTransform) {
+  if (typeof document === "undefined") return [];
+  const dock = document.querySelector<HTMLElement>('[data-testid="whiteboard-lab-dock"] > *');
+  const rect = dock?.getBoundingClientRect();
+  if (!rect?.width || !rect.height) return [];
+  return [{ x: rect.left - (transform.offsetLeft ?? 0), y: rect.top - (transform.offsetTop ?? 0), width: rect.width, height: rect.height }];
+}
+
 type ViewportStore = {
   get: () => WhiteboardViewportTransform;
   set: (next: WhiteboardViewportTransform) => void;
@@ -1432,7 +1442,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             width: definition.defaultWidth,
             height: definition.defaultHeight,
           }
-        : findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current);
+        : findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current, getReservedOverlayRects(viewportTransformRef.current));
       const timestamp = new Date().toISOString();
       const targetId = `module-private-notes-${crypto.randomUUID()}`;
       const noteText = `${pending.prefix}: ${pending.text}`;
@@ -1535,9 +1545,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       const anchorMode = getDefaultWhiteboardModuleAnchorMode(definition.moduleId);
       const frame =
         anchorMode === "viewport"
-          ? findOpenWhiteboardViewportModuleFrame(current.modules, definition, viewportTransformRef.current)
+          ? findOpenWhiteboardViewportModuleFrame(current.modules, definition, viewportTransformRef.current, getReservedOverlayRects(viewportTransformRef.current))
           : labMode
-            ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current)
+            ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current, getReservedOverlayRects(viewportTransformRef.current))
             : findOpenWhiteboardModuleFrame(current.modules, definition);
       const chooseSourceFirst = shouldChooseSourceBeforeOpening(definition.moduleId, labMode);
       const moduleId = `module-${definition.moduleId}-${crypto.randomUUID()}`;
@@ -1607,9 +1617,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       const anchorMode = patch.anchorMode ?? getDefaultWhiteboardModuleAnchorMode(patch.moduleId);
       const frame =
         anchorMode === "viewport"
-          ? findOpenWhiteboardViewportModuleFrame(current.modules, definition, viewportTransformRef.current)
+          ? findOpenWhiteboardViewportModuleFrame(current.modules, definition, viewportTransformRef.current, getReservedOverlayRects(viewportTransformRef.current))
           : labMode
-            ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current)
+            ? findOpenWhiteboardModuleFrameNearViewport(current.modules, definition, viewportTransformRef.current, getReservedOverlayRects(viewportTransformRef.current))
             : findOpenWhiteboardModuleFrame(current.modules, definition);
 
       const moduleId = `module-${patch.moduleId}-${crypto.randomUUID()}`;

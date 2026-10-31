@@ -104,6 +104,52 @@ const embeddableWhiteboardModules: WhiteboardModuleDefinition[] = [
     defaultHeight: 320,
     defaultAnchorMode: "board-fixed-size",
   },
+  // Chemistry tools for the math and science board. Each renders its live module lazily.
+  {
+    moduleId: "chem-periodic-table",
+    label: "Periodic Table",
+    description: "Look up elements, groups and trends beside your work.",
+    heavy: false,
+    defaultWidth: 640,
+    defaultHeight: 480,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "chem-ph-calculator",
+    label: "pH Calculator",
+    description: "Work out pH and the species in a solution.",
+    heavy: false,
+    defaultWidth: 460,
+    defaultHeight: 480,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "chem-titration-lab",
+    label: "Titration Lab",
+    description: "Run a titration and read pH at any volume.",
+    heavy: false,
+    defaultWidth: 620,
+    defaultHeight: 520,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "chem-kinetics-simulator",
+    label: "Kinetics Simulator",
+    description: "Simulate rate laws and mechanisms over time.",
+    heavy: false,
+    defaultWidth: 600,
+    defaultHeight: 500,
+    defaultAnchorMode: "board-fixed-size",
+  },
+  {
+    moduleId: "chem-reaction-balancer",
+    label: "Reaction Balancer",
+    description: "Balance a chemical equation step by step.",
+    heavy: false,
+    defaultWidth: 480,
+    defaultHeight: 400,
+    defaultAnchorMode: "board-fixed-size",
+  },
   {
     moduleId: "history-timeline",
     label: "Timeline",
@@ -141,6 +187,15 @@ const mathWhiteboardModuleIds = new Set<WorkspaceModuleId>([
   "saved-graphs",
 ]);
 
+// Chemistry tools sit on the math and science board (and general boards), not history boards.
+const chemistryWhiteboardModuleIds = new Set<WorkspaceModuleId>([
+  "chem-periodic-table",
+  "chem-ph-calculator",
+  "chem-titration-lab",
+  "chem-kinetics-simulator",
+  "chem-reaction-balancer",
+]);
+
 const historyWhiteboardModuleIds = new Set<WorkspaceModuleId>([
   "history-timeline",
   "history-evidence",
@@ -155,6 +210,10 @@ export function getEmbeddableWhiteboardModules(contextKind: WhiteboardModuleCont
 
     if (mathWhiteboardModuleIds.has(definition.moduleId)) {
       return contextKind === "math";
+    }
+
+    if (chemistryWhiteboardModuleIds.has(definition.moduleId)) {
+      return contextKind !== "history";
     }
 
     return true;
