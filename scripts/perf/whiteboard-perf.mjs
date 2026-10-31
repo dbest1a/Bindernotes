@@ -16,6 +16,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { chromium } from "@playwright/test";
+import { generateNKeysBetween } from "fractional-indexing";
 import { resolveDesmosKey } from "./desmos-key.mjs";
 
 // ---------- arguments ----------
@@ -80,6 +81,11 @@ function makeScene(count, { spread = [5200, 3600], origin = [-1600, -1200] } = {
     else if (kind === 6) elements.push(baseElement("arrow", x, y, 160, 40, { points: [[0, 0], [160, 40]], startBinding: null, endBinding: null, startArrowhead: null, endArrowhead: "arrow", lastCommittedPoint: null, elbowed: false }));
     else elements.push(baseElement("diamond", x, y, 110 + rand() * 80, 80 + rand() * 60));
   }
+  // Real boards carry Excalidraw's fractional z-order indices (written on every save). Seeded
+  // boards get them too; without them Excalidraw assigns indices on open, which bumps element
+  // versions and autosaves once inside the measurement.
+  const indices = generateNKeysBetween(null, null, elements.length);
+  elements.forEach((element, index) => { element.index = indices[index]; });
   return elements;
 }
 function desmosModule(index, x, y, width = 620, height = 460, anchorMode = "board") {
@@ -197,6 +203,45 @@ function summarize(raw) {
 // --profile: CPU-profile the measured interaction (diagnostic runs only; never budget runs).
 // PERF_PROFILE_ALL_FRAMES=1: inclusive attribution for every named frame (unminified builds).
 const PROFILE_ALL_FRAMES = process.env.PERF_PROFILE_ALL_FRAMES === "1";
+// PERF_PROBE_LISTENERS=1 (diagnostic): which scripts listen on window/document/body for
+// pointer, mouse and touch events, and which scripts read layout (getBoundingClientRect).
+const PROBE_LISTENERS = process.env.PERF_PROBE_LISTENERS === "1";
+function probeListeners() {
+  const scriptOf = () => {
+    const frames = (new Error().stack ?? "").split("\n").slice(3);
+    const frame = frames.find((line) => /https?:\/\//.test(line)) ?? "";
+    const match = frame.match(/https?:\/\/[^/]+(\/[^?:)\s]+)/);
+    return match ? match[1].replace(/-[A-Za-z0-9_]{8}\.js$/, ".js") : "unknown";
+  };
+  const registrations = {};
+  const add = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (type, listener, options) {
+    if (/^(pointer|mouse|touch)/.test(type) && (this === window || this === document || this === document.body)) {
+      const target = this === window ? "window" : this === document ? "document" : "body";
+      const capture = typeof options === "boolean" ? options : Boolean(options?.capture);
+      const key = `${target} ${type}${capture ? " (capture)" : ""} <- ${scriptOf()}`;
+      registrations[key] = (registrations[key] ?? 0) + 1;
+    }
+    return add.call(this, type, listener, options);
+  };
+  const reads = {};
+  const rect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () {
+    const key = scriptOf();
+    reads[key] = (reads[key] ?? 0) + 1;
+    return rect.call(this);
+  };
+  // Who writes the board or its recovery draft (stack of the first few writes).
+  const writes = [];
+  const setItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (key, value) {
+    if (/whiteboard/i.test(String(key)) && writes.length < 6) writes.push({ key: String(key).slice(0, 60), at: Math.round(performance.now()), stack: (new Error().stack ?? "").split(String.fromCharCode(10)).slice(2, 14).map((line) => line.trim().replace(/https?:[/][/][^/]+/, "")).join(" | ") });
+    return setItem.call(this, key, value);
+  };
+  window.__perfWrites = writes;
+  const desmosReads = () => Object.entries(reads).filter(([key]) => key.includes("calculator.js")).reduce((sum, [, count]) => sum + count, 0);
+  window.__perfListenerProbe = { summary: () => ({ registrations, layoutReadsByScript: reads }), desmosReads };
+}
 let activeCdp = null;
 function summarizeProfile(profile) {
   const parent = new Map();
@@ -227,7 +272,7 @@ function summarizeProfile(profile) {
     }
   });
   const top = (map, count) => [...map.entries()].filter(([key]) => !key.startsWith("(idle)") && !key.startsWith("(program)")).sort((a, b) => b[1] - a[1]).slice(0, count).map(([key, ms]) => `${Math.round(ms)}ms ${key}`);
-  return { samplingIntervalUs: 200, durationMs: Math.round((profile.endTime - profile.startTime) / 1000), topSelf: top(self, 15), topAppInclusive: top(inclusiveApp, 15) };
+  return { samplingIntervalUs: 200, durationMs: Math.round((profile.endTime - profile.startTime) / 1000), topSelf: top(self, 15), topAppInclusive: top(inclusiveApp, PROFILE_ALL_FRAMES ? 60 : 15) };
 }
 
 // ---------- helpers ----------
@@ -351,6 +396,23 @@ const scenarios = {
     const cameraBefore = await page.evaluate(() => window.__BINDERNOTES_WHITEBOARD_CAMERA__?.() ?? null);
     const result = {};
     const directions = [[1, 0.3], [-1, 0.5], [0.4, -1], [-0.6, -0.8], [1, 1], [-1, -0.4]];
+    if (PROBE_LISTENERS) {
+      // Where Desmos's layout reads come from: idle time, plain hover moves over the canvas, or panning.
+      const desmosReads = () => page.evaluate(() => window.__perfListenerProbe.desmosReads());
+      const phases = {};
+      const calls = () => page.evaluate(() => (window.__desmosChecks ?? []).filter((item) => !item.destroyed).map((item) => ({ resize: item.resizeCalls, setState: item.setStateCalls })));
+      let last = await desmosReads();
+      const callsBefore = await calls();
+      await sleep(1000);
+      phases.idle1s = (await desmosReads()) - last;
+      phases.idleApiCalls = { before: callsBefore, after: await calls() };
+      last = await desmosReads();
+      const hover = await freePoint(page);
+      for (let step = 0; step < 100; step += 1) { await page.mouse.move(hover.x + (step % 20) * 6, hover.y + Math.floor(step / 20) * 6); await sleep(INPUT_INTERVAL_MS); }
+      phases.hover100Moves = (await desmosReads()) - last;
+      result.probePhases = phases;
+      result.probeReadsBeforePan = await desmosReads();
+    }
     result.handPan = await measure(page, async () => {
       for (const [dx, dy] of directions) {
         const point = await freePoint(page, { path: (x, y) => ({ x: x + dx * 30 * 12, y: y + dy * 30 * 12 }) });
@@ -360,6 +422,8 @@ const scenarios = {
         await page.mouse.up();
       }
     });
+    if (PROBE_LISTENERS) result.probePhases.handPan = (await page.evaluate(() => window.__perfListenerProbe.desmosReads())) - result.probeReadsBeforePan;
+    if (PROBE_LISTENERS) result.probeWrites = await page.evaluate(() => window.__perfWrites);
     const zoomAt = await freePoint(page);
     await page.mouse.move(zoomAt.x, zoomAt.y);
     result.ctrlWheelZoom = await measure(page, async () => {
@@ -369,6 +433,7 @@ const scenarios = {
       await page.keyboard.up("Control");
     });
     result.wheelScroll = await measure(page, async () => { for (let step = 0; step < 20; step += 1) { await page.mouse.wheel(0, 80); await sleep(16); } });
+    if (PROBE_LISTENERS) result.listenerProbe = await page.evaluate(() => window.__perfListenerProbe?.summary());
     const cameraAfter = await page.evaluate(() => window.__BINDERNOTES_WHITEBOARD_CAMERA__?.() ?? null);
     if (cameraBefore && cameraAfter) expectThat(cameraBefore.scrollX !== cameraAfter.scrollX || cameraBefore.scrollY !== cameraAfter.scrollY, "camera did not move");
     return result;
@@ -382,8 +447,11 @@ const scenarios = {
       calculator.setExpression({ id: "a", latex: "a=1", sliderBounds: { min: "-5", max: "5", step: "" } });
       calculator.setExpression({ id: "f", latex: "y=a\\sin(x)\\cos(3x)+\\frac{a}{4}x" });
       calculator.setExpression({ id: "g", latex: "y=\\frac{1}{1+e^{-ax}}" });
+      // Board graphs open graph-first; like a student, open the expression list to reach the slider.
+      calculator.updateSettings({ expressionsCollapsed: false });
     });
     await setSlider();
+    await sleep(600); // the expression list animates open; drag once it has settled
     const track = page.locator(".dcg-slider-interior").first(); // zero-height track: wait for attachment
     if (!(await track.waitFor({ state: "attached", timeout: 5_000 }).then(() => true, () => false))) { await setSlider(); await track.waitFor({ state: "attached", timeout: 15_000 }); }
     const box = await track.boundingBox();
@@ -524,6 +592,7 @@ const scenarios = {
 async function newScenarioPage(browser, throttle) {
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   await context.addInitScript(instrument);
+  if (PROBE_LISTENERS) await context.addInitScript(probeListeners);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(redact(error.message)));
