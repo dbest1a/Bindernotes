@@ -367,6 +367,44 @@ What the profiles and probes found:
 - Desmos now works in the local preview too: the existing client key was copied into the gitignored `.env.development.local` (never printed).
 - This project has no linter configured; strict TypeScript checking stands in for "lint".
 
+### Independent review before any deploy (GPT-6 Astra, ultra, read-only CLI)
+
+Prompt and output: `docs/whiteboard-mission/astra/04-persistence-review-*.md`. Astra reviewed `fda96a7..5f2a1a1` and recommended holding deployment for five findings, all in one feature: writing Desmos graph state into the board save (`8e70755`).
+
+| # | Finding | Severity |
+| --- | --- | --- |
+| 1 | A reload could keep showing an older cached graph and later save it over newer remote work | High |
+| 2 | "Undo card" could roll back saved graph content while the screen showed the newer graph | High |
+| 3 | Graph edits missed the board-switch and page-exit flushes | High |
+| 4 | Device clock skew could let an older graph win the `savedAt` comparison | High |
+| 5 | A pending graph sync could undo a collapse or pin change | Medium |
+
+**Decision: reverted the graph-to-board sync (`4b70615`)** rather than rush a redesign. Graphs are back to the previous device-local behavior, which adds no new risk; friction point 7 (graphs not portable across devices) is deliberately deferred with Astra's design: revision-aware reconciliation, synchronous board-scoped flushers, graph-only patches. Kept, because they only remove redundant work: load-time normalization is not an edit, and identical or no-op workspace updates neither re-render nor rewrite storage.
+
+Astra found no serious problem in the scene signatures, idle recovery drafts, camera store, card transforms, placement, minimal mode or the phone layout.
+
+### More seamlessness and design
+
+- **Chemistry on the board** (`c716dba`): the launcher gains a Chemistry group (Periodic Table, pH Calculator, Titration Lab, Kinetics Simulator, Reaction Balancer). New cards also avoid the floating control panel.
+- **Snapping** (`5f2a1a1`): Excalidraw's object snapping with alignment guides is on by default (Alt+S toggles it); pen strokes are unaffected.
+- **Impeccable polish pass** (`a0a0e94`): the resize handle is a quiet grip instead of a teal block on every card; save sits beside its status; New Whiteboard has its icon; the board count is sentence case. On a crowded view a new card takes a free spot partly off screen rather than covering a card, and when most of it would open off screen the camera shifts just enough to show it.
+- **Tried and reverted:** starting off-screen graphs only when they come into view. It did not speed up the measured 3-graph open (all three graphs start on screen) and moved one calculator start into a pan.
+
+### Open times now (production build, warm, median of 3)
+
+| Demo | 1× | 4× | Budget (≤ 1 s) |
+| --- | --- | --- | --- |
+| Empty / 320-element board | 173 / 223 ms | 448 / 715 ms | ✅ |
+| Board with 3 live graphs | 323 ms | 1,274 ms (was 1,516) | ❌ at 4×: three Desmos calculators are created on one thread; the board itself is drawable after ~0.45 s |
+| Math Whiteboard Lab / Math Lab | 148 / 263 ms | 656 / 982 ms (was 1,165) | ✅ |
+| All 29 chemistry modules | 355–400 ms | 412–655 ms | ✅ |
+
+### Deployment readiness
+
+- `main` on GitHub (`ac24e66`) is an ancestor of this branch, so a deploy is a fast-forward and no live feature is rolled back. Vercel builds every push (`vercel.json`), and the live CSP already allows Desmos, WebAssembly (`'unsafe-eval'`) and same-origin workers.
+- The real production build script (`scripts/build-client.mjs`: typecheck, Vite build, client env guard) passes locally.
+- Full unit suite: 171 files, 1,299 tests pass.
+
 ## Log
 
 - **16:15.** Created the branch and this log. Started Astra's independent brainstorm and performance deep dive (prompts and outputs in `docs/whiteboard-mission/astra/`). Started a Claude Opus high research delegate.
@@ -407,3 +445,6 @@ What the profiles and probes found:
 - **18:05–18:35.** Save-path, camera and study-panel performance work; an interleaved A/B confirmed it (`6cc888a`); placement, graph sync and harness profiling commits.
 - **18:40.** Owner: keep working, make sure Desmos works, pushing live to Vercel and Supabase allowed. Local Desmos key added (gitignored); Desmos probes, graph-first cards and the load-is-not-an-edit fix (`9cff6b8`, `064e6d4`).
 - **19:10.** Minimal mode, dark graph cards, honest notes status, phone layout and copy fixes (`d879cfc`); screen-pinned placement (`ea62a11`). Real-Desmos and whiteboard end-to-end suites pass.
+- **19:25.** Chemistry tools on the board; Desmos features checked (the free key enables 2D, 3D, Geometry, Scientific, Four-Function).
+- **19:40.** Astra's persistence review: five findings in graph sync; reverted it (`4b70615`). History rewritten locally before any push so the revert and the chemistry feature are separate commits.
+- **19:55.** Impeccable polish pass (`a0a0e94`); open-time measurements; production build script passes.
