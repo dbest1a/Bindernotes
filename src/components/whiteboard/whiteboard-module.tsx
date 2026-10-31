@@ -975,7 +975,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
             if (result.status !== "saved") {
               setWarning(result.message);
             } else {
-              setWarning(result.warning ?? validateWhiteboardForStorage(nextBoard).warnings[0] ?? null);
+              // The board content is what was validated just before saving, so its warnings still
+              // apply; validating again would serialize the whole board a second time.
+              setWarning(result.warning ?? validation.warnings[0] ?? null);
             }
             setBoards((currentBoards) => {
               const withoutSaved = currentBoards.filter((candidate) => candidate.id !== nextBoard.id);
