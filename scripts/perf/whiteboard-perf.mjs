@@ -195,6 +195,8 @@ function summarize(raw) {
 }
 
 // --profile: CPU-profile the measured interaction (diagnostic runs only; never budget runs).
+// PERF_PROFILE_ALL_FRAMES=1: inclusive attribution for every named frame (unminified builds).
+const PROFILE_ALL_FRAMES = process.env.PERF_PROFILE_ALL_FRAMES === "1";
 let activeCdp = null;
 function summarizeProfile(profile) {
   const parent = new Map();
@@ -214,7 +216,10 @@ function summarizeProfile(profile) {
     const seen = new Set();
     for (let current = nodeId; current !== undefined; current = parent.get(current)) {
       const ancestor = nodes.get(current);
-      if (!ancestor?.callFrame.url.includes("/src/")) continue;
+      // Dev servers serve app code from /src/. Production bundles have no such path, so a
+      // profile of an unminified build (PERF_PROFILE_BUILD=1) attributes every named frame.
+      const appFrame = ancestor?.callFrame.url.includes("/src/") || (PROFILE_ALL_FRAMES && ancestor?.callFrame.functionName);
+      if (!appFrame) continue;
       const key = label(ancestor);
       if (seen.has(key)) continue;
       seen.add(key);
