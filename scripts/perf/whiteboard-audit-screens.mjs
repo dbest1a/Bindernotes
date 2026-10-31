@@ -20,15 +20,21 @@ async function session(viewport) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.addInitScript((key) => { if (location.protocol !== "about:" && key) window.__BINDER_NOTES_DESMOS_API_KEY__ = key; }, KEY);
-  return { context, page, errors };
+  page.on("pageerror", (error) => errors.push(KEY ? error.message.replaceAll(KEY, "[redacted]") : error.message));
+  // The key reaches only loopback fixture documents.
+  await page.addInitScript((key) => { if (location.hostname === "127.0.0.1" && key) window.__BINDER_NOTES_DESMOS_API_KEY__ = key; }, KEY);
+  const entry = { context, page, errors };
+  sessions.push(entry);
+  return entry;
 }
 async function shot(page, name, note) {
   await page.screenshot({ path: join(OUT, `${name}.png`) });
-  notes.push({ name, note });
+  notes.push({ name, note, status: "captured" });
 }
+const skip = (name, reason) => notes.push({ name, note: reason, status: "NOT CAPTURED" });
+const sessions = [];
 
+try {
 // 1. Whiteboard lab first run (desktop), then a new board, the launcher and a live Desmos card.
 {
   const { context, page, errors } = await session({ width: 1440, height: 900 });
@@ -40,21 +46,24 @@ async function shot(page, name, note) {
   await page.waitForTimeout(800);
   await shot(page, "02-lab-new-board", "New empty lab board: chrome, hints and side panel");
   const add = page.getByRole("button", { name: /^Add module/ }).first();
-  if (await add.count()) {
+  if (!(await add.count())) skip("03-lab-add-module-launcher", "Add module button not found");
+  else {
     await add.click();
     await page.waitForTimeout(700);
     await shot(page, "03-lab-add-module-launcher", "Add module launcher");
     const desmos = page.getByRole("button", { name: /Desmos graph/i }).first();
-    if (await desmos.count()) {
+    if (!(await desmos.count())) skip("04-lab-desmos-card", "Desmos graph launcher entry not found");
+    else {
       await desmos.click();
-      await page.locator("[data-desmos-canvas] canvas.dcg-graph-inner").first().waitFor({ timeout: 30_000 }).catch(() => {});
+      const live = await page.locator("[data-desmos-canvas] canvas.dcg-graph-inner").first().waitFor({ timeout: 30_000 }).then(() => true, () => false);
       await page.waitForTimeout(1200);
-      await shot(page, "04-lab-desmos-card", "Live Desmos card on the dark lab board");
+      await shot(page, "04-lab-desmos-card", live ? "Live Desmos card on the dark lab board" : "Desmos card (graph did NOT become ready)");
       const second = page.getByRole("button", { name: /^Add module/ }).first();
       await second.click();
       await page.waitForTimeout(500);
       const calculator = page.getByRole("button", { name: /Scientific calculator|Calculator/i }).first();
-      if (await calculator.count()) {
+      if (!(await calculator.count())) skip("05-lab-second-module-placement", "Scientific calculator launcher entry not found");
+      else {
         await calculator.click();
         await page.waitForTimeout(1200);
         await shot(page, "05-lab-second-module-placement", "Second module placement relative to the first");
@@ -108,6 +117,9 @@ async function shot(page, name, note) {
   await context.close();
 }
 
+notes.push({ name: "page-errors", note: sessions.flatMap((entry) => entry.errors).slice(0, 8).join(" | ") || "none", status: "info" });
+} finally {
+  await browser.close();
+}
 writeFileSync(join(OUT, "README.md"), ["# Whiteboard audit screenshots", "", "Captured on isolated fixtures (synthetic local learner, stubbed backend).", "", ...notes.map((note) => `- \`${note.name}\`: ${note.note}`)].join("\n") + "\n");
-await browser.close();
 console.log(notes.map((note) => `${note.name}: ${note.note}`).join("\n"));

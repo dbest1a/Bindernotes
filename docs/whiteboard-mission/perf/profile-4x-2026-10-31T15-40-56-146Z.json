@@ -1,0 +1,298 @@
+{
+  "label": "profile-4x",
+  "startedAt": "2026-10-31T15:40:56.146Z",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "desmosReal": true,
+  "strokes": 60,
+  "results": {
+    "draw@4x": {
+      "frames": 6024,
+      "avgFps": 188.2,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 133.3,
+      "framesOver16ms": 123,
+      "pctFramesOver16ms": 2.04,
+      "framesOver33ms": 119,
+      "loafScriptMs": 5651.1,
+      "loafRenderMs": 44.5,
+      "loafStyleLayoutMs": 5,
+      "longAnimationFrames": 91,
+      "maxLoafMs": 630.7,
+      "loafForcedLayoutMs": 92.6,
+      "topLoafScripts": [
+        "react-dom_client.js:dispatchDiscreteEvent 3018ms",
+        "@excalidraw_excalidraw.js:DOMWindow.onpointerup 2575ms",
+        "react-dom_client.js:performWorkUntilDeadline 58ms"
+      ],
+      "pointerToFrameP50Ms": 1.9,
+      "pointerToFrameP95Ms": 3.8,
+      "pointerToFrameMaxMs": 4.2,
+      "pointerMoves": 1020,
+      "worstInteractionMs": 144,
+      "interactionsOver100ms": 12,
+      "slowEventNames": [
+        "keydown",
+        "keypress",
+        "pointerup",
+        "mouseup",
+        "lostpointercapture",
+        "click",
+        "pointerdown",
+        "mousedown"
+      ],
+      "wallMs": 32096,
+      "cpuProfile": {
+        "topSelf": [
+          "2141ms exports.jsx chunk-IECXKS2X.js:239",
+          "621ms run :0",
+          "419ms exports.jsxs chunk-IECXKS2X.js:250",
+          "385ms ReactElement chunk-IECXKS2X.js:127",
+          "379ms addObjectDiffToProperties react-dom_client.js:3081",
+          "329ms translate :0",
+          "303ms (garbage collector) :0",
+          "303ms (anonymous) :0",
+          "288ms measure :0",
+          "268ms drawImage :0",
+          "249ms getSvgPathFromStroke2 chunk-RR7OOXK2.js:16360",
+          "249ms getContext :0",
+          "199ms requestAnimationFrame :0",
+          "180ms exports.jsxDEV react_jsx-dev-runtime.js:239",
+          "179ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116"
+        ],
+        "topAppInclusive": [
+          "366ms (anonymous) whiteboard-canvas.tsx:145",
+          "366ms (anonymous) whiteboard-canvas.tsx:164",
+          "364ms (anonymous) whiteboard-canvas.tsx:114",
+          "254ms (anonymous) whiteboard-canvas.tsx:362",
+          "250ms (anonymous) whiteboard-module.tsx:818",
+          "247ms (anonymous) whiteboard-module.tsx:790",
+          "196ms (anonymous) whiteboard-canvas.tsx:75",
+          "186ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116",
+          "171ms (anonymous) whiteboard-canvas.tsx:43",
+          "157ms writeWhiteboardRecoveryDraft whiteboard-recovery.ts:7",
+          "78ms WhiteboardStudyTools whiteboard-study-tools.tsx:22",
+          "59ms sanitizeWhiteboardForStorage whiteboard-serialization.ts:119",
+          "56ms estimateJsonSizeBytes whiteboard-serialization.ts:11",
+          "52ms (anonymous) whiteboard-canvas.tsx:132",
+          "47ms WhiteboardBoardList whiteboard-board-list.tsx:8"
+        ]
+      },
+      "pageErrors": []
+    },
+    "pan@4x": {
+      "frames": 1143,
+      "avgFps": 102,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 29.1,
+      "maxFrameMs": 179.1,
+      "framesOver16ms": 193,
+      "pctFramesOver16ms": 16.9,
+      "framesOver33ms": 35,
+      "loafScriptMs": 1016.1,
+      "loafRenderMs": 326.1,
+      "loafStyleLayoutMs": 244.6,
+      "longAnimationFrames": 20,
+      "maxLoafMs": 2033.7,
+      "loafForcedLayoutMs": 34.9,
+      "topLoafScripts": [
+        "react-dom_client.js:performWorkUntilDeadline 755ms",
+        "whiteboard-module.tsx:TimerHandler:setTimeout 166ms",
+        "react-dom_client.js:dispatchDiscreteEvent 44ms",
+        "@excalidraw_excalidraw.js:#document.onkeyup 25ms",
+        "calculator.js:FrameRequestCallback 13ms"
+      ],
+      "pointerToFrameP50Ms": 2.8,
+      "pointerToFrameP95Ms": 9.9,
+      "pointerToFrameMaxMs": 18.9,
+      "pointerMoves": 187,
+      "worstInteractionMs": 88,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 11208,
+      "cpuProfile": {
+        "topSelf": [
+          "899ms getBoundingClientRect :0",
+          "447ms exports.jsx chunk-IECXKS2X.js:239",
+          "214ms addObjectDiffToProperties react-dom_client.js:3081",
+          "186ms logComponentRender react-dom_client.js:3167",
+          "151ms querySelectorAll :0",
+          "112ms drawImage :0",
+          "109ms exports.jsxs chunk-IECXKS2X.js:250",
+          "91ms addValueToProperties react-dom_client.js:2956",
+          "79ms (garbage collector) :0",
+          "79ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116",
+          "76ms estimateJsonSizeBytes whiteboard-serialization.ts:11",
+          "75ms run :0",
+          "74ms measure :0",
+          "73ms ReactElement chunk-IECXKS2X.js:127",
+          "71ms exports.jsxDEV react_jsx-dev-runtime.js:239"
+        ],
+        "topAppInclusive": [
+          "264ms (anonymous) whiteboard-module.tsx:400",
+          "260ms syncWhiteboardPinnedModuleLayerToViewport whiteboard-pinned-object-layer.tsx:165",
+          "164ms (anonymous) whiteboard-module.tsx:729",
+          "162ms (anonymous) whiteboard-module.tsx:662",
+          "114ms saveWhiteboard whiteboard-storage.ts:574",
+          "93ms sanitizeWhiteboardForStorage whiteboard-serialization.ts:119",
+          "93ms estimateJsonSizeBytes whiteboard-serialization.ts:11",
+          "88ms (anonymous) whiteboard-canvas.tsx:75",
+          "81ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116",
+          "81ms (anonymous) whiteboard-canvas.tsx:114",
+          "75ms (anonymous) whiteboard-pinned-object-layer.tsx:178",
+          "72ms (anonymous) whiteboard-canvas.tsx:99",
+          "67ms (anonymous) whiteboard-canvas.tsx:145",
+          "67ms (anonymous) whiteboard-canvas.tsx:164",
+          "66ms writeWhiteboardRecoveryDraft whiteboard-recovery.ts:7"
+        ]
+      },
+      "pageErrors": []
+    },
+    "tools@4x": {
+      "frames": 724,
+      "avgFps": 170.3,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 237.5,
+      "framesOver16ms": 21,
+      "pctFramesOver16ms": 2.9,
+      "framesOver33ms": 14,
+      "loafScriptMs": 1057.5,
+      "loafRenderMs": 28.4,
+      "loafStyleLayoutMs": 0.7,
+      "longAnimationFrames": 14,
+      "maxLoafMs": 515.5,
+      "loafForcedLayoutMs": 68,
+      "topLoafScripts": [
+        "react-dom_client.js:dispatchDiscreteEvent 892ms",
+        "whiteboard-module.tsx:TimerHandler:setTimeout 103ms",
+        "@excalidraw_excalidraw.js:DOMWindow.onpointerup 30ms",
+        "react-dom_client.js:dispatchContinuousEvent 22ms",
+        "react-dom_client.js:performWorkUntilDeadline 10ms"
+      ],
+      "pointerToFrameP50Ms": 2.7,
+      "pointerToFrameP95Ms": 2.9,
+      "pointerToFrameMaxMs": 3.9,
+      "pointerMoves": 5,
+      "worstInteractionMs": 200,
+      "interactionsOver100ms": 2,
+      "slowEventNames": [
+        "keydown",
+        "keypress",
+        "pointerout",
+        "pointerleave",
+        "pointerover",
+        "pointerenter",
+        "mouseout",
+        "mouseover",
+        "pointerdown",
+        "mousedown",
+        "pointerup",
+        "mouseup",
+        "click"
+      ],
+      "wallMs": 4263,
+      "cpuProfile": {
+        "topSelf": [
+          "127ms exports.jsx chunk-IECXKS2X.js:239",
+          "72ms getBoundingClientRect :0",
+          "56ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116",
+          "39ms exports.jsxs chunk-IECXKS2X.js:250",
+          "38ms estimateJsonSizeBytes whiteboard-serialization.ts:11",
+          "29ms exports.jsxDEV react_jsx-dev-runtime.js:239",
+          "26ms requestAnimationFrame :0",
+          "24ms run :0",
+          "21ms ReactElement chunk-IECXKS2X.js:127",
+          "20ms measure :0",
+          "20ms addObjectDiffToProperties react-dom_client.js:3081",
+          "20ms isElementHiddenForAria :3546",
+          "20ms writeWhiteboardRecoveryDraft whiteboard-recovery.ts:7",
+          "20ms react_stack_bottom_frame react-dom_client.js:18505",
+          "18ms elementsFromPoint :0"
+        ],
+        "topAppInclusive": [
+          "101ms (anonymous) whiteboard-module.tsx:729",
+          "99ms (anonymous) whiteboard-module.tsx:662",
+          "74ms (anonymous) whiteboard-canvas.tsx:362",
+          "73ms (anonymous) whiteboard-canvas.tsx:75",
+          "72ms (anonymous) whiteboard-canvas.tsx:43",
+          "61ms saveWhiteboard whiteboard-storage.ts:574",
+          "58ms hasPersistentWhiteboardSceneChange whiteboard-serialization.ts:116",
+          "58ms (anonymous) whiteboard-canvas.tsx:114",
+          "55ms sanitizeWhiteboardForStorage whiteboard-serialization.ts:119",
+          "54ms estimateJsonSizeBytes whiteboard-serialization.ts:11",
+          "41ms (anonymous) whiteboard-canvas.tsx:145",
+          "41ms (anonymous) whiteboard-canvas.tsx:164",
+          "40ms writeWhiteboardRecoveryDraft whiteboard-recovery.ts:7",
+          "29ms run whiteboard-storage.ts:582",
+          "29ms saveWhiteboardSnapshot whiteboard-storage.ts:596"
+        ]
+      },
+      "pageErrors": []
+    }
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "cores": 32
+  },
+  "budgets": [
+    {
+      "key": "draw@4x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "2.04% (123)",
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no frame > 33 ms",
+      "value": 119,
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no LoAF > 50 ms",
+      "value": 91,
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 3.8,
+      "pass": true
+    },
+    {
+      "key": "pan@4x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "16.9% (193)",
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "no frame > 33 ms",
+      "value": 35,
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "no LoAF > 50 ms",
+      "value": 20,
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 9.9,
+      "pass": true
+    },
+    {
+      "key": "tools@4x",
+      "check": "every interaction ≤ 100 ms (INP)",
+      "value": 200,
+      "pass": false
+    }
+  ]
+}
