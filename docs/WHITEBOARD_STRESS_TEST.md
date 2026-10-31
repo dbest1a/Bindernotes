@@ -172,22 +172,34 @@ Give the structure and its complete name, including any stereodescriptor.
 
 ## Results
 
-| Question | Board evidence | Correctness /4 | Visuals /3 | Interactivity /2 | Speed /1 | Total | Notes |
-|---|---|---|---|---|---|---|---|
-| Q1 Contour integral | | | | | | | |
-| Q2 Definite integral | | | | | | | |
-| Q3 3D vector calculus | | | | | | | |
-| Q4 Phase portrait | | | | | | | |
-| Q5 Jordan form / e^{At} | | | | | | | |
-| Q6 Probability (pattern race) | | | | | | | |
-| Q7 Number theory | | | | | | | |
-| Q8 Geometry construction | | | | | | | |
-| Q9 Exact polyprotic pH | | | | | | | |
-| Q10 Titration curve | | | | | | | |
-| Q11 Complexation + solubility | | | | | | | |
-| Q12 Nernst | | | | | | | |
-| Q13 van 't Hoff | | | | | | | |
-| Q14 Kinetics mechanism | | | | | | | |
-| Q15 E2 stereochemistry | | | | | | | |
-| Q16 NMR elucidation | | | | | | | |
-| **Total** | | /64 | /48 | /32 | /16 | /160 | |
+Run on 31 October 2026 with `scripts/stress/run-stress-boards.mjs`: each board opened in the isolated lab fixture (dev server, synthetic learner, real Desmos and RDKit), every card rendered, and each Worked Solution card ran the app's own checker. All 16 boards rendered with no page errors, no Desmos expression errors and no KaTeX errors.
+
+Scores are from an independent reviewer (Claude Sonnet 5.5, read-only, no access to the lead's opinions), who read the questions, the answer key, every screenshot and every run record. Speed was scored strictly by measured open time (1 point at 1.0 s or less, 0.5 up to 1.5 s), which is harsher than the rubric's 60-second wording. Checks are verified / not checked / mismatched steps.
+
+| Question | Checks v/u/m | Open | Correctness /4 | Visuals /3 | Interactivity /2 | Speed /1 | Total | Reviewer's note |
+|---|---|---|---|---|---|---|---|---|
+| Q1 Contour integral | 8/3/0 | 0.8 s | 4 | 2.5 | 2 | 1 | 9.5 | Matches the key; the ML bounds and residue equation are not checked; contour has no arrowheads. |
+| Q2 Definite integral | 13/0/0 | 0.8 s | 4 | 2.5 | 2 | 1 | 9.5 | All 13 steps verified; the integrand graph is a spike and a flat line. |
+| Q3 3D vector calculus | 12/0/0 | 1.0 s | 4 | 2.5 | 1.5 | 0.5 | 8.5 | −20π correct; good 3D scene, rotation only; two steps clipped. |
+| Q4 Phase portrait | 12/1/0 | 0.7 s | 4 | 2.5 | 2 | 1 | 9.5 | Equilibria and limits right; draggable trajectory. |
+| Q5 Jordan form and e^{At} | 16/1/0 | 0.8 s | 3.5 | 2 | 2 | 1 | 8.5 | J and x(1) correct; the Jordan matrix is not checkable; answer truncated. |
+| Q6 Probability (pattern race) | 9/14/0 | 0.8 s | 3.5 | 1.5 | 1 | 1 | 7.0 | Answers right; 14 steps are premises ("given"); small chain cards; static bars. |
+| Q7 Number theory | 8/1/0 | 0.7 s | 4 | 1.5 | 1 | 1 | 7.5 | Complete proof; the 1,173-dot search grid adds little; static. |
+| Q8 Geometry construction | 13/0/0 | 0.7 s | 4 | 2.5 | 2 | 1 | 9.5 | All verified; dragging A updates IN live; I and N labels collide. |
+| Q9 Exact polyprotic pH | 9/2/0 | 0.7 s | 4 | 2 | 2 | 1 | 9.0 | pH 9.138 and species right; a clipped label and step. |
+| Q10 Titration curve | 8/1/0 | 0.7 s | 4 | 2 | 1 | 1 | 8.0 | All six pH values right; static curve; answer clipped. |
+| Q11 Complexation and solubility | 5/2/0 | 0.7 s | 4 | 2 | 1 | 1 | 8.0 | S and 0.9994 right; no ammonia slider; overlapping axis labels. |
+| Q12 Nernst | 8/0/0 | 0.7 s | 4 | 2.5 | 2 | 1 | 9.5 | All checked; pH drag and cell diagram. |
+| Q13 van 't Hoff | 7/1/0 | 0.7 s | 4 | 2 | 2 | 1 | 9.0 | All four results right; draggable T; answer hid α. |
+| Q14 Kinetics mechanism | 7/1/0 | 0.8 s | 4 | 2 | 2 | 1 | 9.0 | All values right; drag-t readout; nested fractions hard to read. |
+| Q15 E2 stereochemistry | 4/4/0 | 0.6 s | 3.5 | 2.5 | 1.5 | 1 | 8.5 | (E) product, Newman and arrows correct; the stereochemistry itself is not machine-checked. |
+| Q16 NMR elucidation | 7/0/0 | 0.6 s | 4 | 2 | 1.5 | 1 | 8.5 | Structure and E right; the checks are only arithmetic; name truncated. |
+| **Total** | **146/31/0** | | **62.5/64** | **34.5/48** | **26.5/32** | **15.5/16** | **139/160** | **Average 8.69 / 10** (target 8.0) |
+
+### What changed after the review
+
+The reviewer's three main weaknesses, and what was done (no second scoring pass was run, to save cost):
+
+1. **Clipped lines in Worked Solution cards** (seven answers and many steps). Fixed in the app (`b698493`): display math now wraps where TeX would break it (after relations, `;`, `,` and `\quad`), with continuation lines indented and KaTeX's own spacing, so a line that fits looks unchanged. The Q6, Q10, Q12, Q13 and Q15 answers are now fully visible, and Q3's long integral wraps after its "=". Only a single piece wider than the card still scrolls, behind a soft edge fade (Q5's x(1) tuple, Q16's full name, the left sides of two Q11 and Q14 steps).
+2. **"Checked" can read as more assurance than it is.** The edit view now says plainly that checks confirm the math inside each line (values, identities, solutions), not the reasoning between lines, and each chip's tooltip says what was checked. Numeric inequalities are now checked too (`da32447`: Q4 10 → 12 verified, Q16 6 → 7).
+3. **Thin interactivity and some low-value diagrams** (Q6, Q7, Q10, Q11, Q15, Q16). These are board content rather than app features: sliders for pKa (Q10), total ammonia (Q11) and rate constants (Q14), a state diagram for Q6, a lighter Q7 search plot and arrowheads on the Q1 contour would each add a point or so. They are listed as next steps in the mission report.

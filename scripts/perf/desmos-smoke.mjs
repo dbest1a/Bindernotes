@@ -122,6 +122,8 @@ try {
   // Chemistry graph modules: each opens its own live Desmos graph.
   for (const moduleId of ["chem-desmos-titration-curve", "chem-desmos-kinetics-plot", "chem-desmos-concentration-graph"]) {
     await page.goto(`${LAB}?page=chemistry&module=${moduleId}`);
+    // Chemistry graphs show an exact preview and start Desmos on request.
+    await page.locator(`[data-chem-module="${moduleId}"]`).getByRole("button", { name: "Open live graph" }).click({ timeout: 30_000 });
     await page.waitForFunction(() => window.__desmosCreated.length > 0, null, { timeout: 60_000 }).catch(() => problems.push(`${moduleId}: no Desmos calculator`));
     await page.waitForTimeout(1500);
     report[moduleId] = await describeCalculators(page);

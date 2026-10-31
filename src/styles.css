@@ -13133,6 +13133,13 @@
   padding: 0.85rem;
 }
 
+/* A stat reads as a label above its value. */
+.chem-stat-grid article {
+  display: grid;
+  align-content: start;
+  gap: 0.2rem;
+}
+
 .chem-stat-grid span,
 .chem-reagent-card span,
 .chem-tool-card span,

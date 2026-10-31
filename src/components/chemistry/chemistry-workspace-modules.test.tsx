@@ -13,7 +13,10 @@ import {
   ChemistryReferenceSafetyModule,
   ChemistryStoichiometryCoachModule,
   ChemistryTitrationLabModule,
+  ChemistryGraphModule,
+  MoleculeLewisBuilderModule,
 } from "@/components/chemistry/chemistry-workspace-modules";
+import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import { workspaceModuleRegistry } from "@/components/workspace/workspace-modules";
 import { getWorkspaceMobileModuleTabs, getWorkspacePresetDesign } from "@/lib/workspace-preset-designs";
 
@@ -127,6 +130,33 @@ describe("chemistry workspace modules", () => {
     fireEvent.click(screen.getByRole("button", { name: /reset/i }));
     expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
     expect(screen.queryByText("25.00 mL")).toBeNull();
+  });
+
+  it("draws real Lewis structures and computes the counts from the drawing", () => {
+    render(<MoleculeLewisBuilderModule />);
+
+    expect(screen.getByRole("img", { name: /Lewis structure of H₂O: O with 2 lone pairs, H, H; 2 bonds/ })).toBeTruthy();
+    expect(screen.getByText("Every atom complete")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Molecule" }), { target: { value: "NO3-" } });
+    expect(screen.getByRole("img", { name: /Lewis structure of NO₃⁻/ })).toBeTruthy();
+    expect(screen.getByText("24")).toBeTruthy();
+    expect(screen.queryByText(/MVP/)).toBeNull();
+  });
+
+  it("shows an exact preview first and starts Desmos only when asked", () => {
+    vi.mocked(hasDesmosApiKey).mockReturnValue(true);
+    try {
+      render(<ChemistryGraphModule kind="titration" />);
+      expect(screen.getByLabelText("Titration curve preview")).toBeTruthy();
+      expect(screen.getByText(/weak acid \(pKa 4\.76\)/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: /open live graph/i })).toBeTruthy();
+    } finally {
+      vi.mocked(hasDesmosApiKey).mockReturnValue(false);
+    }
+    cleanup();
+    render(<ChemistryGraphModule kind="kinetics" />);
+    expect(screen.getByText(/simple fallback chart/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /open live graph/i })).toBeNull();
   });
 
   it("switches the titration lab to a weak acid and shows exact equivalence and half-equivalence", () => {

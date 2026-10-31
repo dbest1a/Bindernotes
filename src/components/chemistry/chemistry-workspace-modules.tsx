@@ -53,6 +53,7 @@ import { solubilityRules } from "@/lib/chemistry/solubility-rules";
 import { solveStoichiometryProblem } from "@/lib/chemistry/stoichiometry";
 import { calculateHeatTransfer, describeHeatSign } from "@/lib/chemistry/thermochemistry";
 import { generateStrongAcidStrongBaseCurve } from "@/lib/chemistry/titration";
+import { generateExactTitrationCurve } from "@/lib/chemistry/exact-titration";
 import {
   calculateTitrationPh,
   classifyTitrationVolume,
@@ -68,6 +69,7 @@ import {
 import type { TitrationAcidKind } from "@/lib/chemistry/chemistry-types";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import { chemistryDesmosState, type ChemistryGraphKind } from "@/lib/chemistry/chemistry-desmos-states";
+import { drawnValenceElectrons, lewisStructures, octetReport, type LewisStructure } from "@/lib/chemistry/lewis-structures";
 import type { WorkspaceModuleId } from "@/types";
 
 const stoichTemplate = {
@@ -104,10 +106,22 @@ function Sparkline({
 // Chemistry graph modules load Desmos only when one is opened.
 const LazyDesmosGraph = lazy(() => import("@/components/math/desmos-graph").then((module) => ({ default: module.DesmosGraph })));
 
-const chemistryGraphCopy: Record<ChemistryGraphKind, { title: string; description: string }> = {
-  concentration: { title: "Concentration graph", description: "Dilution with C₁V₁ = C₂V₂. Drag the point or the sliders." },
-  titration: { title: "Titration curve", description: "An exact acid-base titration curve. Drag the sliders to change the acid." },
-  kinetics: { title: "Kinetics plot", description: "Zero, first and second order side by side, with linearized forms." },
+const chemistryGraphCopy: Record<ChemistryGraphKind, { title: string; description: string; preview: string }> = {
+  concentration: {
+    title: "Concentration graph",
+    description: "Dilution with C₁V₁ = C₂V₂. Drag the point or the sliders.",
+    preview: "Preview: diluting 25 mL of 1.0 M stock.",
+  },
+  titration: {
+    title: "Titration curve",
+    description: "An exact acid-base titration curve. Drag the sliders to change the acid.",
+    preview: "Preview: 0.100 M weak acid (pKa 4.76) with 0.100 M NaOH.",
+  },
+  kinetics: {
+    title: "Kinetics plot",
+    description: "Zero, first and second order side by side, with linearized forms.",
+    preview: "Preview: first-order decay with k = 0.02 s⁻¹.",
+  },
 };
 
 type PeriodicViewMode = "table" | "list" | "builder" | "compare";
@@ -970,52 +984,136 @@ export function PeriodicTrendsGraphModule() {
   );
 }
 
+const LEWIS_ATOM_COLORS: Record<string, string> = { O: "#d1453b", N: "#3b6fd1" };
+
+/** Draws a Lewis structure: bonds of order 1–3, lone pairs as dot pairs, formal charges, brackets for ions. */
+function LewisStructureDrawing({ structure }: { structure: LewisStructure }) {
+  const atomRadius = 10;
+  const describe = structure.atoms
+    .map((atom) => (atom.lonePairs.length ? `${atom.symbol} with ${atom.lonePairs.length} lone pair${atom.lonePairs.length > 1 ? "s" : ""}` : atom.symbol))
+    .join(", ");
+  return (
+    <svg
+      aria-label={`Lewis structure of ${structure.label}: ${describe}; ${structure.bonds.length} bonds.`}
+      className="mx-auto h-auto w-full max-w-[320px]"
+      role="img"
+      viewBox="0 0 200 120"
+    >
+      {structure.bonds.map((bond, index) => {
+        const a = structure.atoms[bond.from];
+        const b = structure.atoms[bond.to];
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        const ux = (b.x - a.x) / length;
+        const uy = (b.y - a.y) / length;
+        const offsets = bond.order === 1 ? [0] : bond.order === 2 ? [-2.6, 2.6] : [-4, 0, 4];
+        return offsets.map((offset) => (
+          <line
+            key={`${index}-${offset}`}
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+            x1={a.x + ux * atomRadius - uy * offset}
+            x2={b.x - ux * atomRadius - uy * offset}
+            y1={a.y + uy * atomRadius + ux * offset}
+            y2={b.y - uy * atomRadius + ux * offset}
+          />
+        ));
+      })}
+      {structure.atoms.map((atom, index) => (
+        <g key={index}>
+          <text
+            dominantBaseline="central"
+            fill={LEWIS_ATOM_COLORS[atom.symbol] ?? "currentColor"}
+            fontSize="15"
+            fontWeight="600"
+            textAnchor="middle"
+            x={atom.x}
+            y={atom.y}
+          >
+            {atom.symbol}
+          </text>
+          {atom.lonePairs.map((degrees) => {
+            const radians = (degrees * Math.PI) / 180;
+            const cx = atom.x + Math.cos(radians) * 12.5;
+            const cy = atom.y + Math.sin(radians) * 12.5;
+            return [-2.4, 2.4].map((spread) => (
+              <circle
+                cx={cx - Math.sin(radians) * spread}
+                cy={cy + Math.cos(radians) * spread}
+                fill="currentColor"
+                key={`${degrees}-${spread}`}
+                r="1.3"
+              />
+            ));
+          })}
+          {atom.formalCharge ? (
+            <text
+              dominantBaseline="central"
+              fill="currentColor"
+              fontSize="9"
+              textAnchor="middle"
+              x={atom.x + Math.cos(((atom.chargeAngle ?? 318) * Math.PI) / 180) * 13.5}
+              y={atom.y + Math.sin(((atom.chargeAngle ?? 318) * Math.PI) / 180) * 13.5}
+            >
+              {atom.formalCharge > 0 ? "+" : "−"}
+            </text>
+          ) : null}
+        </g>
+      ))}
+      {structure.charge !== 0 ? (
+        <g fill="none" stroke="currentColor" strokeWidth="1.2">
+          <path d="M28 6 H22 V114 H28" />
+          <path d="M172 6 H178 V114 H172" />
+          <text fill="currentColor" fontSize="11" stroke="none" x="182" y="12">
+            {structure.charge < 0 ? "−" : "+"}
+          </text>
+        </g>
+      ) : null}
+    </svg>
+  );
+}
+
 export function MoleculeLewisBuilderModule() {
-  const [molecule, setMolecule] = useState("H2O");
-  const moleculeMap: Record<string, { geometry: string; valence: number; note: string }> = {
-    H2O: { geometry: "bent", valence: 8, note: "Two O-H bonds and two lone pairs on oxygen." },
-    CO2: { geometry: "linear", valence: 16, note: "Two C=O double bonds keep carbon at an octet." },
-    NH3: { geometry: "trigonal pyramidal", valence: 8, note: "Three N-H bonds and one lone pair." },
-    CH4: { geometry: "tetrahedral", valence: 8, note: "Four C-H bonds around carbon." },
-    NO3: { geometry: "trigonal planar", valence: 24, note: "Resonance spreads charge across oxygens." },
-  };
-  const detail = moleculeMap[molecule] ?? moleculeMap.H2O;
+  const [moleculeId, setMoleculeId] = useState(lewisStructures[0].id);
+  const structure = lewisStructures.find((item) => item.id === moleculeId) ?? lewisStructures[0];
+  const valence = drawnValenceElectrons(structure);
+  const octetsComplete = octetReport(structure).every((entry) => entry.complete);
+  const centralLonePairs = structure.atoms[structure.central].lonePairs.length;
 
   return (
-    <WorkspacePanel description="MVP Lewis builder for valence, octet, formal charge, and VSEPR thinking." title="Molecule / Lewis builder">
+    <WorkspacePanel
+      description="Bonds, lone pairs and formal charges for common molecules. Every count is computed from the drawing."
+      title="Lewis structures"
+    >
       <div className="chem-showcase-module" data-chemistry-module="molecule-builder">
         <div className="chem-showcase-toolbar">
-          <select className="chem-select" onChange={(event) => setMolecule(event.target.value)} value={molecule}>
-            {Object.keys(moleculeMap).map((formula) => (
-              <option key={formula} value={formula}>
-                {formula}
+          <select aria-label="Molecule" className="chem-select" onChange={(event) => setMoleculeId(event.target.value)} value={structure.id}>
+            {lewisStructures.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
               </option>
             ))}
           </select>
-          <Badge variant="secondary">{detail.geometry}</Badge>
+          <Badge variant="secondary">{structure.geometry}</Badge>
         </div>
-        <div className="chem-molecule-stage">
-          <div className="chem-molecule-node">{molecule.replace(/\d/g, "")[0]}</div>
-          <div className="chem-bond-line" />
-          <div className="chem-molecule-node chem-molecule-node-small">H</div>
-          <div className="chem-bond-line chem-bond-line-alt" />
-          <div className="chem-molecule-node chem-molecule-node-small">O</div>
+        <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+          <LewisStructureDrawing structure={structure} />
         </div>
         <div className="chem-stat-grid">
           <article>
             <span>Valence electrons</span>
-            <strong>{detail.valence}</strong>
+            <strong>{valence}</strong>
           </article>
           <article>
-            <span>Geometry</span>
-            <strong>{detail.geometry}</strong>
+            <span>Lone pairs on {structure.atoms[structure.central].symbol}</span>
+            <strong>{centralLonePairs}</strong>
           </article>
           <article>
             <span>Octet check</span>
-            <strong>guided</strong>
+            <strong>{octetsComplete ? "Every atom complete" : "Incomplete"}</strong>
           </article>
         </div>
-        <p className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm">{detail.note}</p>
+        <p className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm">{structure.note}</p>
       </div>
     </WorkspacePanel>
   );
@@ -1173,25 +1271,38 @@ export function AcidBaseCalculatorModule() {
   );
 }
 
-export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration" | "kinetics" | "concentration" }) {
-  const titrationPoints = generateStrongAcidStrongBaseCurve({
-    acidMolarity: 0.1,
-    acidVolumeMl: 25,
-    baseMolarity: 0.1,
-    stepMl: 2.5,
-  }).map((point) => ({ x: (point.volumeMl / 50) * 100, y: (point.ph / 14) * 100 }));
-  const kineticsPoints = generateKineticsDataset({
-    order: 1,
-    initialConcentrationM: 1,
-    rateConstant: 0.02,
-  }).map((point) => ({ x: (point.timeS / 120) * 100, y: point.concentrationM * 100 }));
-  const concentrationPoints = Array.from({ length: 8 }, (_, index) => ({ x: index * 14, y: 90 - index * 10 }));
-  const points = kind === "kinetics" ? kineticsPoints : kind === "concentration" ? concentrationPoints : titrationPoints;
+/** Exact preview curves (0–100 on both axes) matching each live graph's opening state. */
+function chemistryGraphPreviewPoints(kind: ChemistryGraphKind): Array<{ x: number; y: number }> {
+  if (kind === "kinetics") {
+    return generateKineticsDataset({ order: 1, initialConcentrationM: 1, rateConstant: 0.02 }).map((point) => ({
+      x: (point.timeS / 150) * 100,
+      y: point.concentrationM * 100,
+    }));
+  }
+  if (kind === "concentration") {
+    return Array.from({ length: 46 }, (_, index) => 25 + index * 5).map((volume) => ({ x: (volume / 250) * 100, y: (25 / volume) * 100 }));
+  }
+  // 25.00 mL of 0.100 M weak acid (pKa 4.76) with 0.100 M NaOH; volumes in m³, concentrations in mol/m³.
+  const experiment = {
+    analyte: { families: [{ id: "acid", concentration: 100, pKa: [4.76], protonatedCharge: 0, species: ["HA", "A−"] }] },
+    initialVolume: 25e-6,
+    titrantConcentration: 100,
+    titrant: "base" as const,
+  };
+  return generateExactTitrationCurve(experiment, 50e-6, { maxPoints: 160 }).map((point) => ({
+    x: (point.volume / 50e-6) * 100,
+    y: (point.pH / 14) * 100,
+  }));
+}
 
+export function ChemistryGraphModule({ kind = "titration" }: { kind?: ChemistryGraphKind }) {
+  // Desmos starts only when asked: an open expression list keeps it reading layout every frame.
+  const [live, setLive] = useState(false);
   const canUseDesmos = hasDesmosApiKey();
   const desmosState = useMemo(() => chemistryDesmosState(kind), [kind]);
+  const points = useMemo(() => chemistryGraphPreviewPoints(kind), [kind]);
   const copy = chemistryGraphCopy[kind];
-  const fallback = <Sparkline ariaLabel={`${copy.title} (simple chart)`} points={points} />;
+  const preview = <Sparkline ariaLabel={`${copy.title} preview`} points={points} />;
 
   return (
     <WorkspacePanel
@@ -1199,12 +1310,23 @@ export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration
       title={copy.title}
     >
       <div className="chem-showcase-module" data-chemistry-module={`desmos-${kind}-graph`}>
-        {canUseDesmos ? (
-          <Suspense fallback={fallback}>
+        {canUseDesmos && live ? (
+          <Suspense fallback={preview}>
             <LazyDesmosGraph height="380px" showKeypad={false} state={desmosState} />
           </Suspense>
         ) : (
-          fallback
+          <>
+            {preview}
+            {canUseDesmos ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">{copy.preview}</p>
+                <Button onClick={() => setLive(true)} size="sm" type="button">
+                  <LineChart data-icon="inline-start" />
+                  Open live graph
+                </Button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </WorkspacePanel>

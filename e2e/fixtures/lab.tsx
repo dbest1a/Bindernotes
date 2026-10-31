@@ -8,13 +8,18 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { MathLabPage } from "@/pages/math-lab-page";
 import { MathWhiteboardLabPage } from "@/pages/math-whiteboard-lab-page";
 import { workspaceModuleRegistry } from "@/components/workspace/workspace-modules";
+import { boardOnlyWhiteboardModuleIds } from "@/lib/whiteboards/whiteboard-module-registry";
+import type { WorkspaceModuleId } from "@/types";
 import { AuthProvider } from "./auth";
 import "@/styles.css";
 import "@/workspace-fit.css";
 
 const params = new URLSearchParams(location.search);
 const page = params.get("page") ?? "whiteboard";
-const chemistryModules = Object.keys(workspaceModuleRegistry).filter((id) => id.startsWith("chem-"));
+// Board objects (the Molecule card) only show a "lives on whiteboards" notice outside a board.
+const chemistryModules = Object.keys(workspaceModuleRegistry).filter(
+  (id) => id.startsWith("chem-") && !boardOnlyWhiteboardModuleIds.has(id as WorkspaceModuleId),
+);
 
 function ChemistryGallery() {
   const only = params.get("module");
