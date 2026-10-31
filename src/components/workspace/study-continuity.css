@@ -1,7 +1,9 @@
 /* Keep reading and writing ahead of repeated orientation copy. Scoped to the
-   existing study-panels presentation; no preference or stored layout changes. */
-.facelift-simple-shell .private-notes-overview > div:first-child > div:first-child > p:last-child,
-.facelift-simple-shell .private-notes-editor-intro > div:first-child {
+   Facelift shell (.facelift-simple-shell): this first block applies at every
+   width, the media block below only on phones. Presentation only; no
+   preference or stored layout changes. */
+.facelift-simple-shell .private-notes-overview__description,
+.facelift-simple-shell .private-notes-editor-intro__copy {
   display: none;
 }
 .facelift-simple-shell .private-notes-editor-intro:has(> :only-child) {

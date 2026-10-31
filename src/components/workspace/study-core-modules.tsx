@@ -602,7 +602,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <h4 className="mt-1.5 text-lg font-semibold tracking-tight">
                 {selectedLessonTitle}
               </h4>
-              <p className="mt-1.5 text-xs leading-5 text-muted-foreground sm:text-sm">
+              <p className="private-notes-overview__description mt-1.5 text-xs leading-5 text-muted-foreground sm:text-sm">
                 This stays beside the source, but it writes into the larger notebook structure behind it.
               </p>
             </div>
@@ -739,7 +739,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
           role="presentation"
         >
           <div className="private-notes-editor-intro flex flex-wrap items-start justify-between gap-3" data-compact-module-detail="private-notes-intro">
-            <div className="min-w-0">
+            <div className="private-notes-editor-intro__copy min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Notebook slice
               </p>
