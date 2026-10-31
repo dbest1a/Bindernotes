@@ -6,7 +6,7 @@ import path from "node:path";
 export default defineConfig({
   cacheDir: "node_modules/.vite-e2e-fixtures",
   plugins: [react()],
-  optimizeDeps: { entries: ["e2e/fixtures/index.html"] },
+  optimizeDeps: { entries: ["e2e/fixtures/index.html", "e2e/fixtures/search.html"] },
   resolve: { alias: [
     { find: "@/lib/desmos-loader", replacement: path.resolve("e2e/fixtures/desmos-loader.ts") },
     { find: "@/lib/supabase", replacement: path.resolve("e2e/fixtures/supabase.ts") },
