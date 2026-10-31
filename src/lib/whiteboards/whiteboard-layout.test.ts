@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findOpenWhiteboardModuleFrame,
   findOpenWhiteboardModuleFrameNearViewport,
+  findOpenWhiteboardViewportModuleFrame,
   normalizeWhiteboardLabModules,
 } from "@/lib/whiteboards/whiteboard-layout";
 import type { WhiteboardModuleDefinition } from "@/lib/whiteboards/whiteboard-module-registry";
@@ -219,6 +220,27 @@ describe("whiteboard module layout", () => {
     }
     const cascaded = findOpenWhiteboardModuleFrameNearViewport(packed, lessonDefinition, viewport);
     expect(cascaded).toMatchObject({ x: centered.x + 40, y: centered.y + 40 });
+  });
+
+  it("keeps a new screen-pinned card off a graph at the center and fully on screen", () => {
+    const calculatorDefinition: WhiteboardModuleDefinition = {
+      moduleId: "scientific-calculator", label: "Scientific Calculator", description: "Calculator",
+      heavy: true, defaultWidth: 360, defaultHeight: 420, defaultAnchorMode: "viewport",
+    };
+    const viewport = { scrollX: 0, scrollY: 0, zoom: 1, viewportWidth: 1440, viewportHeight: 900 };
+    const graph = moduleElement({ id: "graph", moduleId: "desmos-graph", anchorMode: "board-fixed-size", x: 360, y: 170, width: 720, height: 560 });
+
+    const frame = findOpenWhiteboardViewportModuleFrame([graph], calculatorDefinition, viewport);
+
+    const overlap = Math.max(0, Math.min(frame.x + frame.width, graph.x + graph.width) - Math.max(frame.x, graph.x)) *
+      Math.max(0, Math.min(frame.y + frame.height, graph.y + graph.height) - Math.max(frame.y, graph.y));
+    // At most a sliver of overlap (under the 14% the layout treats as meaningful).
+    expect(overlap / (frame.width * frame.height)).toBeLessThan(0.14);
+    expect(frame.x).toBeGreaterThanOrEqual(0);
+    expect(frame.y).toBeGreaterThanOrEqual(0);
+    expect(frame.x + frame.width).toBeLessThanOrEqual(1440);
+    expect(frame.y + frame.height).toBeLessThanOrEqual(900);
+    expect(findOpenWhiteboardViewportModuleFrame([], calculatorDefinition, viewport)).toEqual({ x: 540, y: 240, width: 360, height: 420 });
   });
 
   it("only falls back when module placement data is invalid", () => {

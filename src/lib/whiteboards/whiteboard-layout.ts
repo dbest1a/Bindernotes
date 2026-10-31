@@ -5,6 +5,7 @@ import {
 } from "@/lib/whiteboards/whiteboard-module-registry";
 import {
   getViewportCenterBoardPoint,
+  getWhiteboardModuleAnchorMode,
   getWhiteboardModuleScreenRect,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
@@ -114,12 +115,66 @@ export function findOpenWhiteboardModuleFrame(
 
 const placementGap = 24;
 
+// A card's rectangle on the card layer, in screen pixels relative to the board viewport.
+function layerRect(moduleElement: WhiteboardModuleElement, transform: WhiteboardViewportTransform): Frame {
+  const rect = getWhiteboardModuleScreenRect(moduleElement, transform);
+  if (getWhiteboardModuleAnchorMode(moduleElement) === "viewport") return rect;
+  return { ...rect, x: rect.x - (transform.offsetLeft ?? 0), y: rect.y - (transform.offsetTop ?? 0) };
+}
+
 /**
- * Where a new card goes on the board: centered on the current view, unless that spot would
- * cover a card already there. Then it tries spots right beside each existing card and in
- * widening rings around the center, and takes the free spot that shows the most of the new
- * card, nearest first. Collisions are judged on screen, so board-pinned, fixed-size and
- * floating cards are all compared by what the student actually sees.
+ * The nearest spot for a new card of `start`'s size that does not cover an existing card:
+ * `start` itself when free, otherwise spots right beside each existing card and in widening
+ * rings around `start` (each also pulled inside the view). Spots clear of every card rank
+ * first, then by how much of the card the view shows (5% steps), then nearest. `minShown` is
+ * the visible share required (0-20 in 5% steps). Null when none fits.
+ */
+function findFreeLayerFrame(start: Frame, obstacles: Frame[], view: Frame, minShown: number): Frame | null {
+  if (!collides(start, obstacles)) return start;
+  const positions: Array<{ x: number; y: number }> = [];
+  for (const obstacle of obstacles) {
+    positions.push(
+      { x: obstacle.x - placementGap - start.width, y: start.y },
+      { x: obstacle.x + obstacle.width + placementGap, y: start.y },
+      { x: start.x, y: obstacle.y - placementGap - start.height },
+      { x: start.x, y: obstacle.y + obstacle.height + placementGap },
+    );
+  }
+  const stepX = start.width + placementGap;
+  const stepY = start.height + placementGap;
+  for (let ring = 1; ring <= 3; ring += 1) {
+    for (let column = -ring; column <= ring; column += 1) {
+      for (let row = -ring; row <= ring; row += 1) {
+        if (Math.max(Math.abs(column), Math.abs(row)) === ring) positions.push({ x: start.x + column * stepX, y: start.y + row * stepY });
+      }
+    }
+  }
+  // Each spot is also tried pulled inside the view, so a card can sit flush against the edge.
+  const edge = 8;
+  for (const position of [...positions]) {
+    const x = Math.min(Math.max(position.x, view.x + edge), view.x + view.width - start.width - edge);
+    const y = Math.min(Math.max(position.y, view.y + edge), view.y + view.height - start.height - edge);
+    if (x !== position.x || y !== position.y) positions.push({ x, y });
+  }
+  const candidates = positions.map((position) => {
+    const frame = { ...position, width: start.width, height: start.height };
+    return {
+      frame,
+      touches: obstacles.some((obstacle) => intersectionArea(frame, obstacle) > 0),
+      shown: Math.round((intersectionArea(frame, view) / (frame.width * frame.height)) * 20),
+      distance: Math.hypot(position.x - start.x, position.y - start.y),
+    };
+  });
+  // Clear of every card first, then the most visible, then the nearest.
+  candidates.sort((first, second) => Number(first.touches) - Number(second.touches) || second.shown - first.shown || first.distance - second.distance);
+  return candidates.find((candidate) => candidate.shown >= minShown && !collides(candidate.frame, obstacles))?.frame ?? null;
+}
+
+/**
+ * Where a new board-pinned card goes: centered on the current view, unless that would cover a
+ * card already there; then the nearest free spot that still shows at least half of it. Overlap
+ * is judged on screen, so pinned, fixed-size and floating cards compare by what the student
+ * sees. A packed board cascades the card into view instead of stacking it exactly on top.
  */
 export function findOpenWhiteboardModuleFrameNearViewport(
   existingModules: WhiteboardModuleElement[],
@@ -145,47 +200,15 @@ export function findOpenWhiteboardModuleFrameNearViewport(
     updatedAt: "",
     ...centered,
   };
-  const obstacles = existingModules.map((moduleElement) => getWhiteboardModuleScreenRect(moduleElement, transform));
-  const start = getWhiteboardModuleScreenRect(probe, transform);
-  if (!collides(start, obstacles)) {
+  const start = layerRect(probe, transform);
+  const view = { x: 0, y: 0, width: transform.viewportWidth, height: transform.viewportHeight };
+  const free = findFreeLayerFrame(start, existingModules.map((moduleElement) => layerRect(moduleElement, transform)), view, 10);
+  if (free === start) {
     return centered;
   }
 
   const zoom = transform.zoom > 0 ? transform.zoom : 1;
-  const view = { x: transform.offsetLeft ?? 0, y: transform.offsetTop ?? 0, width: transform.viewportWidth, height: transform.viewportHeight };
-  const positions: Array<{ x: number; y: number }> = [];
-  for (const obstacle of obstacles) {
-    positions.push(
-      { x: obstacle.x - placementGap - start.width, y: start.y },
-      { x: obstacle.x + obstacle.width + placementGap, y: start.y },
-      { x: start.x, y: obstacle.y - placementGap - start.height },
-      { x: start.x, y: obstacle.y + obstacle.height + placementGap },
-    );
-  }
-  const stepX = start.width + placementGap;
-  const stepY = start.height + placementGap;
-  for (let ring = 1; ring <= 3; ring += 1) {
-    for (let column = -ring; column <= ring; column += 1) {
-      for (let row = -ring; row <= ring; row += 1) {
-        if (Math.max(Math.abs(column), Math.abs(row)) === ring) positions.push({ x: start.x + column * stepX, y: start.y + row * stepY });
-      }
-    }
-  }
-  const candidates = positions.map((position) => {
-    const frame = { ...position, width: start.width, height: start.height };
-    return {
-      ...frame,
-      // Visible share in 5% steps, so "about as visible" ties go to the nearer spot.
-      shown: Math.round((intersectionArea(frame, view) / (frame.width * frame.height)) * 20),
-      distance: Math.hypot(position.x - start.x, position.y - start.y),
-    };
-  });
-  candidates.sort((first, second) => second.shown - first.shown || first.distance - second.distance);
-  // A spot that hides most of the new card is no better than stacking it, so it must show
-  // at least half; otherwise (a packed board) cascade in view instead of stacking exactly on top.
-  const free = candidates.find((candidate) => candidate.shown >= 10 && !collides(candidate, obstacles));
   const screenOffset = free ? { x: free.x - start.x, y: free.y - start.y } : { x: 40, y: 40 };
-
   return {
     ...centered,
     x: centered.x + screenOffset.x / zoom,
@@ -193,20 +216,30 @@ export function findOpenWhiteboardModuleFrameNearViewport(
   };
 }
 
+/**
+ * Where a new screen-pinned card goes: centered in the view unless that would cover another
+ * card; then the nearest free spot fully on screen (a screen card cannot be panned into view).
+ */
 export function findOpenWhiteboardViewportModuleFrame(
-  _existingModules: WhiteboardModuleElement[],
+  existingModules: WhiteboardModuleElement[],
   definition: WhiteboardModuleDefinition,
   transform: WhiteboardViewportTransform,
 ) {
   const width = definition.defaultWidth;
   const height = definition.defaultHeight;
-
-  return {
+  const start = {
     x: Math.max(24, transform.viewportWidth / 2 - width / 2),
     y: Math.max(24, transform.viewportHeight / 2 - height / 2),
     width,
     height,
   };
+  if (!existingModules.length) {
+    return start;
+  }
+
+  const view = { x: 0, y: 0, width: transform.viewportWidth, height: transform.viewportHeight };
+  const free = findFreeLayerFrame(start, existingModules.map((moduleElement) => layerRect(moduleElement, transform)), view, 20);
+  return free ? { ...start, x: free.x, y: free.y } : { ...start, x: start.x + 40, y: start.y + 40 };
 }
 
 function finiteNumber(value: unknown, fallback: number) {
