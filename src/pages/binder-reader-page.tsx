@@ -1461,10 +1461,20 @@ export function BinderReaderPage() {
         return;
       }
 
+      const fieldTarget = (field: string) => `argument-chain:${chainId}:${field}`;
+      const savePatch = (fields: typeof patch) => () => historyMutations.updateArgumentChain.mutateAsync({ chainId, patch: fields });
       await saveQueue.run({
         entityType: "history_argument",
         scopeKey: `history-argument:${binderId}:${profile.id}`,
-        runner: () => historyMutations.updateArgumentChain.mutateAsync({ chainId, patch }),
+        runner: savePatch(patch),
+        // A newer saved edit to the same field wins over a retried older one.
+        targets: Object.keys(patch).map(fieldTarget),
+        rebase: (remaining) => {
+          const remainingPatch = Object.fromEntries(
+            Object.entries(patch).filter(([field]) => remaining.includes(fieldTarget(field))),
+          ) as typeof patch;
+          return Object.keys(remainingPatch).length ? savePatch(remainingPatch) : null;
+        },
       });
     },
     [binderId, historyMutations.updateArgumentChain, profile],
@@ -2393,12 +2403,13 @@ export function BinderReaderPage() {
     [binderQuery.data?.highlights, profile?.id, queryClient],
   );
   const runQueuedHighlightOperation = useCallback(
-    <T,>(scopeKey: string, runner: () => Promise<T>): Promise<T> => {
+    <T,>(scopeKey: string, runner: () => Promise<T>, targets?: readonly string[]): Promise<T> => {
       const run = () =>
         saveQueue.run({
           entityType: "highlight",
           scopeKey,
           runner,
+          targets,
         });
       const next = highlightOperationRef.current.then(run, run);
       highlightOperationRef.current = next.catch(() => undefined);
@@ -3086,7 +3097,7 @@ export function BinderReaderPage() {
         await annotations.highlight.mutateAsync(
           buildHighlightInputFromSelection(selection, color, activeBinderId, activeLessonId),
         );
-      }).catch(() => undefined);
+      }, [highlightSelectionTarget(selection)]).catch(() => undefined);
     },
     onRemoveHighlight: (selection, highlightIds) => {
       if (!binderId || !selectedLesson || !profile) {
@@ -3142,7 +3153,7 @@ export function BinderReaderPage() {
             }
           }),
         );
-      }).catch(() => undefined);
+      }, [highlightSelectionTarget(selection)]).catch(() => undefined);
     },
     onSaveSelectionAsEvidence: (selection) => {
       void saveSelectionAsEvidence(selection);
@@ -4233,6 +4244,11 @@ function appearanceColorsChanged(
     previous.appearance.customPalette.accent !== next.appearance.customPalette.accent ||
     previous.appearance.customPalette.sourceTheme !== next.appearance.customPalette.sourceTheme
   );
+}
+
+/** Highlight writes re-apply their intent at run time; a newer saved change to the same text wins. */
+function highlightSelectionTarget(selection: LessonTextSelection) {
+  return `highlight-range:${selection.blockId ?? "lesson"}:${selection.startOffset}:${selection.endOffset}`;
 }
 
 function getLearnerNoteSaveErrorMessage(caught: unknown) {
