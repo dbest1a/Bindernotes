@@ -1100,6 +1100,42 @@ describe("DashboardPage", () => {
     expect(screen.getAllByText("History").length).toBeGreaterThan(1);
   });
 
+  it("matches dashboard search words in any order, with small typos", async () => {
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    for (const query of ["alba founding", "longa myth rome", "fonding myth"]) {
+      fireEvent.change(screen.getByPlaceholderText("Search folders, binders, documents, lessons"), {
+        target: { value: query },
+      });
+      await waitFor(() => {
+        expect(screen.getAllByTestId("normal-binder-card")).toHaveLength(1);
+      });
+      expect(screen.getAllByTestId("normal-document-row")).toHaveLength(1);
+    }
+  });
+
+  it("finds documents that are not in the recent list and links them to the reader", async () => {
+    mocks.dashboardState.data.recentLessons = [];
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("normal-document-row")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("Search folders, binders, documents, lessons"), {
+      target: { value: "alba" },
+    });
+
+    const row = await screen.findByTestId("normal-document-row");
+    expect(row.getAttribute("href")).toBe("/binders/binder-real/documents/lesson-real");
+    expect(screen.getByRole("heading", { name: "Matching documents" })).toBeTruthy();
+  });
+
   it("does not stringify full lesson content during dashboard search", () => {
     const stringifySpy = vi.spyOn(JSON, "stringify");
 

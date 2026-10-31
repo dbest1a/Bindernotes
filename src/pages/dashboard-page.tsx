@@ -62,6 +62,12 @@ import {
   saveDashboardOrganizationDraft,
 } from "@/lib/dashboard-organization";
 import { markDevPerformance, measureDevPerformance } from "@/lib/performance-marks";
+import {
+  createSearchQuery,
+  matchesSearchText,
+  prepareSearchText,
+  scoreSearchFields,
+} from "@/lib/search/text-match";
 import { cn } from "@/lib/utils";
 import type { DashboardData, Profile } from "@/types";
 
@@ -159,35 +165,38 @@ export function DashboardPage() {
           .join(" "),
       ]),
     );
-    const recentDocumentSearchTextById = new Map(
-      data.recentLessons.map((lesson) => {
-        const binder = data.binders.find((candidate) => candidate.id === lesson.binder_id);
+    const bindersById = new Map(data.binders.map((binder) => [binder.id, binder]));
+    const documentSearchTextById = new Map(
+      data.lessons.map((lesson) => {
+        const binder = bindersById.get(lesson.binder_id);
         return [
           lesson.id,
-          `${deriveLessonTitle(lesson)} ${folderNamesByBinderId[lesson.binder_id] ?? ""} ${
-            binder ? deriveBinderTitle(binder, lessonsByBinderId[lesson.binder_id] ?? []) : ""
-          }`.toLowerCase(),
+          prepareSearchText(
+            `${deriveLessonTitle(lesson)} ${folderNamesByBinderId[lesson.binder_id] ?? ""} ${
+              binder ? deriveBinderTitle(binder, lessonsByBinderId[lesson.binder_id] ?? []) : ""
+            }`,
+          ),
         ];
       }),
     );
     const binderSearchTextById = new Map(
       data.binders.map((binder) => [
         binder.id,
-        `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description} ${
-          folderNamesByBinderId[binder.id] ?? ""
-        } ${lessonSearchTextByBinderId.get(binder.id) ?? ""} ${
-          noteSearchTextByBinderId.get(binder.id) ?? ""
-        }`.toLowerCase(),
+        prepareSearchText(
+          `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${binder.subject} ${binder.description} ${
+            folderNamesByBinderId[binder.id] ?? ""
+          } ${lessonSearchTextByBinderId.get(binder.id) ?? ""} ${noteSearchTextByBinderId.get(binder.id) ?? ""}`,
+        ),
       ]),
     );
 
     return {
       binderSearchTextById,
+      documentSearchTextById,
       folderNamesByBinderId,
       lessonSearchTextByBinderId,
       lessonsByBinderId,
       noteSearchTextByBinderId,
-      recentDocumentSearchTextById,
     };
   }, [data]);
 
@@ -198,40 +207,54 @@ export function DashboardPage() {
           return null;
         }
 
-        const normalized = deferredQuery.trim().toLowerCase();
+        // Words can be typed in any order, with small typos; empty searches show everything.
+        const searchQuery = createSearchQuery(deferredQuery);
+        const hasQuery = searchQuery.tokens.length > 0;
         const {
           binderSearchTextById,
+          documentSearchTextById,
           folderNamesByBinderId,
           lessonSearchTextByBinderId,
           lessonsByBinderId,
           noteSearchTextByBinderId,
-          recentDocumentSearchTextById,
         } = dashboardSearchIndex;
 
         const folderSummaries = data.folders
           .map((folder) =>
             createFolderSummary(folder, data.binders, data.folderBinders, data.notes, data.lessons),
           )
-          .filter((summary) =>
-            `${getDisplayTitle(summary.folder.name, "Recovered Folder")} ${summary.binders
-              .map(
-                (binder) =>
-                  `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${
-                    lessonSearchTextByBinderId.get(binder.id) ?? ""
-                  } ${noteSearchTextByBinderId.get(binder.id) ?? ""}`,
-              )
-              .join(" ")}`
-              .toLowerCase()
-              .includes(normalized),
+          .filter(
+            (summary) =>
+              !hasQuery ||
+              matchesSearchText(
+                searchQuery,
+                `${getDisplayTitle(summary.folder.name, "Recovered Folder")} ${summary.binders
+                  .map(
+                    (binder) =>
+                      `${deriveBinderTitle(binder, lessonsByBinderId[binder.id] ?? [])} ${
+                        lessonSearchTextByBinderId.get(binder.id) ?? ""
+                      } ${noteSearchTextByBinderId.get(binder.id) ?? ""}`,
+                  )
+                  .join(" ")}`,
+              ),
           );
 
-        const studyReadyBinders = data.binders.filter((binder) =>
-          (binderSearchTextById.get(binder.id) ?? "").includes(normalized),
+        const studyReadyBinders = data.binders.filter(
+          (binder) => !hasQuery || matchesSearchText(searchQuery, binderSearchTextById.get(binder.id)),
         );
 
-        const recentDocuments = data.recentLessons
-          .filter((lesson) => (recentDocumentSearchTextById.get(lesson.id) ?? "").includes(normalized))
-          .slice(0, 6);
+        // A search looks through every document, not just the six most recent ones.
+        const recentDocuments = hasQuery
+          ? data.lessons
+              .map((lesson) => ({
+                lesson,
+                score: scoreSearchFields(searchQuery, [{ text: documentSearchTextById.get(lesson.id) }]),
+              }))
+              .filter((match): match is { lesson: (typeof data.lessons)[number]; score: number } => match.score !== null)
+              .sort((left, right) => right.score - left.score)
+              .slice(0, 6)
+              .map((match) => match.lesson)
+          : data.recentLessons.slice(0, 6);
 
         return { folderSummaries, studyReadyBinders, recentDocuments, lessonsByBinderId, folderNamesByBinderId };
       }),
@@ -1361,7 +1384,7 @@ function MinimalDashboardView({
         <aside className="minimal-dashboard-section minimal-document-panel" id="minimal-documents">
           <div className="minimal-dashboard-section__heading">
             <span className="page-kicker">Documents</span>
-            <h2>Recent documents</h2>
+            <h2>{hasSearchQuery ? "Matching documents" : "Recent documents"}</h2>
           </div>
           <div className="minimal-document-list" data-testid={`${dashboardPrefix}-document-list`}>
             {filtered.recentDocuments.map((lesson) => (
