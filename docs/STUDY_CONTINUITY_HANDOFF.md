@@ -79,7 +79,22 @@ Exclusive file ownership was kept throughout, and only the root lead staged and 
 - **Tests.** Three regression tests, including the reviewer's reproducer, fail without the fix.
 - **Sound, per the reviewer.** Independent failures stay visible, scopes are serialized, retry batches are claimed without duplicates, status counters behave, and the reconnect rejection is handled.
 
-**Second review** (same model, read-only): a re-check of that fix plus the Claude reader-recovery commits `ccd2b8e` to `8f1fcb5`. Running at the time of writing: `<t3-thread://v2/4b80b5ec-8fc9-41a1-8053-c079d147a486/thread:delegated-task:command%3Amcp%3Affd98327-083e-421c-baae-00aa939acc6e%3Adelegate-task%3Aa4a0ae48-acc5-41ed-9c35-9657aa128cc1>`.
+**Second review** (same model, read-only, at `b6c5519`): a re-check of that fix plus the Claude reader-recovery commits `ccd2b8e` to `8f1fcb5` (`<t3-thread://v2/4b80b5ec-8fc9-41a1-8053-c079d147a486/thread:delegated-task:command%3Amcp%3Affd98327-083e-421c-baae-00aa939acc6e%3Adelegate-task%3Aa4a0ae48-acc5-41ed-9c35-9657aa128cc1>`).
+
+- **Result: no new concrete issues.**
+- **The earlier high-severity finding is fixed by `e201f72`.**
+  - Retries keep their original order and recompute superseded targets when they run.
+  - Fully superseded retries skip their write; partially superseded patches rebase.
+  - New items with no targets still retry.
+- **Checked and found sound:**
+  - Canonical, key-order-insensitive comparison, and microsecond-precise revision ordering. Older refetches can't regress the save baseline.
+  - Save-before-open, including typing added during an in-flight save.
+  - Deleted-note recovery: the draft is kept and re-inserted.
+  - Unchanged server ownership and `updated_at` predicates.
+  - Journal memory fallback with conditional clearing.
+  - The problems-only live region, and guarded focus.
+  - Personal Notes URL anchoring: no wrong-note exposure.
+- **Tests:** its focused run passed, 62 tests in 5 files.
 
 ## Protected baseline and commits
 
