@@ -107,7 +107,7 @@ describe("chemistry workspace modules", () => {
   it("upgrades titration into a checkpoint lab with reset, observations, endpoint hint, and compact graph fallback", () => {
     render(<ChemistryTitrationLabModule />);
 
-    expect(screen.getByText(/simplified strong acid\/strong base model/i)).toBeTruthy();
+    expect(screen.getByText(/exact model: full charge balance/i)).toBeTruthy();
     expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
     expect(screen.getByText(/fallback chart active/i)).toBeTruthy();
     expect(screen.getByText(/hypothesis/i)).toBeTruthy();
@@ -127,6 +127,21 @@ describe("chemistry workspace modules", () => {
     fireEvent.click(screen.getByRole("button", { name: /reset/i }));
     expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
     expect(screen.queryByText("25.00 mL")).toBeNull();
+  });
+
+  it("switches the titration lab to a weak acid and shows exact equivalence and half-equivalence", () => {
+    render(<ChemistryTitrationLabModule />);
+
+    fireEvent.click(screen.getByRole("button", { name: /weak acid \(ha\)/i }));
+    expect(screen.getByLabelText("pKa")).toBeTruthy();
+    expect(screen.getByText(/weak acid HA \(pKa 4\.76\)/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /show exact curve/i }));
+    expect(screen.getByText(/equivalence: 25\.00 ml\. half-equivalence: 12\.50 ml \(pH 4\.76\)/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /diprotic acid/i }));
+    expect(screen.getByLabelText("pKa 2")).toBeTruthy();
+    expect(screen.getByText(/equivalence: 25.00 ml and 50.00 ml/i)).toBeTruthy();
   });
 
   it("makes Element Explorer useful with complete data, search, trends, inspector, builder, and compare", () => {

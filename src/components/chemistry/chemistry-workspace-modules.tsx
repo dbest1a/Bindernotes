@@ -54,9 +54,18 @@ import { solveStoichiometryProblem } from "@/lib/chemistry/stoichiometry";
 import { calculateHeatTransfer, describeHeatSign } from "@/lib/chemistry/thermochemistry";
 import { generateStrongAcidStrongBaseCurve } from "@/lib/chemistry/titration";
 import {
+  calculateTitrationPh,
+  classifyTitrationVolume,
   createTitrationInitialState,
+  describeTitrationAcid,
+  generateTitrationCurve,
+  getTitrationGraphMaxMl,
+  getTitrationMarkers,
   titrationReducer,
+  type TitrationMarkers,
+  type TitrationZone,
 } from "@/lib/chemistry/titration-lab";
+import type { TitrationAcidKind } from "@/lib/chemistry/chemistry-types";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
 import type { WorkspaceModuleId } from "@/types";
 
@@ -567,33 +576,57 @@ function AtomBuilderWorkbench({
   );
 }
 
-function getTitrationObservation(progress: number) {
-  if (progress >= 0.96 && progress <= 1.04) {
+function getTitrationObservation(zone: TitrationZone) {
+  if (zone === "endpoint") {
     return "Endpoint zone; pH jumps sharply near equivalence.";
   }
 
-  if (progress < 0.96) {
-    return "acidic; keep adding titrant";
+  if (zone === "half-equivalence") {
+    return "Half-equivalence; pH is close to the pKa.";
   }
 
-  return "basic after endpoint; stop and evaluate overshoot";
+  if (zone === "between") {
+    return "between endpoints; keep adding titrant";
+  }
+
+  if (zone === "past") {
+    return "basic after endpoint; stop and evaluate overshoot";
+  }
+
+  return "acidic; keep adding titrant";
 }
 
-function getTitrationHint(progress: number) {
-  if (progress === 0) {
+function getTitrationHint(zone: TitrationZone, markers: TitrationMarkers, volumeMl: number) {
+  const nextEquivalence = markers.equivalenceMl.find((volume) => volume >= volumeMl) ?? markers.equivalenceMl.at(-1) ?? 0;
+  const nearestEquivalence = markers.equivalenceMl.reduce(
+    (best, volume) => (Math.abs(volume - volumeMl) < Math.abs(best - volumeMl) ? volume : best),
+    nextEquivalence,
+  );
+
+  if (zone === "start") {
     return "Next: add titrant and record pH.";
   }
 
-  if (progress >= 0.96 && progress <= 1.04) {
-    return "Endpoint zone. Equivalence point is near 25.00 mL.";
+  if (zone === "endpoint") {
+    return `Endpoint zone. Equivalence point is near ${nearestEquivalence.toFixed(2)} mL.`;
   }
 
-  if (progress < 0.96) {
-    return "Approaching endpoint. Slow down near 25.00 mL.";
+  if (zone === "half-equivalence") {
+    return "Half-equivalence zone. For a weak acid, the pH is close to its pKa here.";
   }
 
-  return "Past endpoint. Compare your overshoot to the measurement table.";
+  if (zone === "past") {
+    return "Past endpoint. Compare your overshoot to the measurement table.";
+  }
+
+  return `Approaching endpoint. Slow down near ${nextEquivalence.toFixed(2)} mL.`;
 }
+
+const titrationAcidChoices: { kind: TitrationAcidKind; label: string }[] = [
+  { kind: "strong", label: "Strong acid (HCl)" },
+  { kind: "weak-monoprotic", label: "Weak acid (HA)" },
+  { kind: "weak-diprotic", label: "Diprotic acid (H2A)" },
+];
 
 export function InteractivePeriodicTableModule({
   onSendToNotes,
@@ -1593,21 +1626,28 @@ export function ChemistryLabCoachModule({
 
 export function ChemistryTitrationLabModule() {
   const [state, dispatch] = useReducer(titrationReducer, undefined, createTitrationInitialState);
+  const [showExact, setShowExact] = useState(false);
   const points = state.measurements.length > 0 ? state.measurements : [{ titrantVolumeMl: 0, ph: state.ph, equivalenceProgress: 0 }];
-  const latestProgress = state.measurements.at(-1)?.equivalenceProgress ?? 0;
-  const endpointHint = getTitrationHint(latestProgress);
+  const markers = getTitrationMarkers(state);
+  const graphMaxMl = getTitrationGraphMaxMl(state);
+  const currentZone: TitrationZone =
+    state.measurements.length === 0 ? "start" : classifyTitrationVolume(markers, state.titrantAddedMl);
+  const endpointHint = getTitrationHint(currentZone, markers, state.titrantAddedMl);
   const desmosReady = hasDesmosApiKey();
-  const path = points
-    .map((point, index) => {
-      const x = Math.min(100, (point.titrantVolumeMl / 50) * 100);
-      const y = 100 - Math.min(100, Math.max(0, (point.ph / 14) * 100));
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
+  const toPath = (curve: { volumeMl: number; ph: number }[]) =>
+    curve
+      .map((point, index) => {
+        const x = Math.min(100, (point.volumeMl / graphMaxMl) * 100);
+        const y = 100 - Math.min(100, Math.max(0, (point.ph / 14) * 100));
+        return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+      })
+      .join(" ");
+  const path = toPath(points.map((point) => ({ volumeMl: point.titrantVolumeMl, ph: point.ph })));
+  const exactPath = showExact ? toPath(generateTitrationCurve(state)) : "";
 
   return (
     <WorkspacePanel
-      description="Strong acid and strong base titration with controlled checkpoints."
+      description="Titrate a strong, weak or diprotic acid with NaOH using controlled checkpoints."
       title="Acid-base titration lab"
     >
       <div className="chem-titration-v2 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1617,13 +1657,50 @@ export function ChemistryTitrationLabModule() {
               <div>
                 <p className="text-sm font-semibold">Objective</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Determine the endpoint for 25.00 mL of 0.100 M HCl using 0.100 M NaOH.
+                  Determine the endpoint for {describeTitrationAcid(state)} using {state.baseMolarity.toFixed(3)} M NaOH.
                 </p>
                 <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                  Simplified strong acid/strong base model
+                  Exact model: full charge balance at every volume
                 </p>
               </div>
               <Badge variant="outline">{state.ph.toFixed(2)} pH</Badge>
+            </div>
+            <div aria-label="Acid type" className="mt-3 flex flex-wrap items-center gap-2" role="group">
+              {titrationAcidChoices.map((choice) => (
+                <Button
+                  aria-pressed={state.acidKind === choice.kind}
+                  key={choice.kind}
+                  onClick={() => dispatch({ type: "configure_acid", acidKind: choice.kind })}
+                  size="sm"
+                  type="button"
+                  variant={state.acidKind === choice.kind ? "default" : "outline"}
+                >
+                  {choice.label}
+                </Button>
+              ))}
+              {state.pKa.map((value, index) => (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground" key={index}>
+                  {state.pKa.length > 1 ? `pKa ${index + 1}` : "pKa"}
+                  <Input
+                    aria-label={state.pKa.length > 1 ? `pKa ${index + 1}` : "pKa"}
+                    className="h-8 w-20"
+                    max={14}
+                    min={0}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "configure_acid",
+                        acidKind: state.acidKind,
+                        pKa: state.pKa.map((current, position) =>
+                          position === index ? Number.parseFloat(event.target.value) : current,
+                        ),
+                      })
+                    }
+                    step={0.01}
+                    type="number"
+                    value={value}
+                  />
+                </label>
+              ))}
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-4">
               {["0.50", "1.00", "5.00"].map((volume) => (
@@ -1654,15 +1731,58 @@ export function ChemistryTitrationLabModule() {
             <svg aria-label="Titration curve" className="mt-3 h-48 w-full overflow-visible rounded-xl bg-background/75" viewBox="0 0 100 100">
               <line stroke="currentColor" strokeOpacity="0.18" x1="0" x2="100" y1="50" y2="50" />
               <line stroke="currentColor" strokeOpacity="0.18" x1="50" x2="50" y1="0" y2="100" />
-              <line stroke="hsl(var(--primary))" strokeDasharray="3 4" strokeOpacity="0.55" x1="50" x2="50" y1="0" y2="100" />
+              {showExact
+                ? markers.equivalenceMl.map((volume) => (
+                    <line
+                      key={`eq-${volume}`}
+                      stroke="hsl(var(--primary))"
+                      strokeDasharray="3 4"
+                      strokeOpacity="0.55"
+                      x1={(volume / graphMaxMl) * 100}
+                      x2={(volume / graphMaxMl) * 100}
+                      y1="0"
+                      y2="100"
+                    />
+                  ))
+                : null}
+              {showExact
+                ? markers.halfEquivalenceMl.map((volume) => (
+                    <line
+                      key={`half-${volume}`}
+                      stroke="currentColor"
+                      strokeDasharray="1 4"
+                      strokeOpacity="0.4"
+                      x1={(volume / graphMaxMl) * 100}
+                      x2={(volume / graphMaxMl) * 100}
+                      y1="0"
+                      y2="100"
+                    />
+                  ))
+                : null}
+              {showExact ? (
+                <path d={exactPath} fill="none" stroke="currentColor" strokeDasharray="2 3" strokeOpacity="0.45" strokeWidth="1.5" />
+              ) : null}
               <path d={path} fill="none" stroke="hsl(var(--primary))" strokeLinecap="round" strokeWidth="3" />
             </svg>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge variant={latestProgress >= 0.96 && latestProgress <= 1.04 ? "default" : "outline"}>
-                {latestProgress >= 0.96 && latestProgress <= 1.04 ? "Endpoint zone" : "Endpoint watch"}
+              <Badge variant={currentZone === "endpoint" ? "default" : "outline"}>
+                {currentZone === "endpoint" ? "Endpoint zone" : "Endpoint watch"}
               </Badge>
               <span className="text-xs text-muted-foreground">{endpointHint}</span>
+              <Button aria-pressed={showExact} onClick={() => setShowExact((value) => !value)} size="sm" type="button" variant="outline">
+                {showExact ? "Hide exact curve" : "Show exact curve"}
+              </Button>
             </div>
+            {showExact ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Equivalence: {markers.equivalenceMl.map((volume) => `${volume.toFixed(2)} mL`).join(" and ")}.
+                {markers.halfEquivalenceMl.length > 0
+                  ? ` Half-equivalence: ${markers.halfEquivalenceMl
+                      .map((volume) => `${volume.toFixed(2)} mL (pH ${calculateTitrationPh(state, volume).toFixed(2)})`)
+                      .join(" and ")}.`
+                  : ""}
+              </p>
+            ) : null}
           </div>
         </section>
 
@@ -1691,7 +1811,9 @@ export function ChemistryTitrationLabModule() {
                   >
                     <span>{measurement.titrantVolumeMl.toFixed(2)} mL</span>
                     <span className="font-medium">pH {measurement.ph.toFixed(2)}</span>
-                    <span className="text-muted-foreground">{getTitrationObservation(measurement.equivalenceProgress)}</span>
+                    <span className="text-muted-foreground">
+                      {getTitrationObservation(classifyTitrationVolume(markers, measurement.titrantVolumeMl))}
+                    </span>
                   </div>
                 ))
               )}
