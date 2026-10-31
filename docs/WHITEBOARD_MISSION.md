@@ -412,7 +412,7 @@ Astra found no serious problem in the scene signatures, idle recovery drafts, ca
 | Worked Solution card | Claude Fable 5.1, high | KaTeX steps with notes; scrubbable reveal (play, step, keyboard) that writes each step in; checks by Compute Engine in a Web Worker (identities at random points, numeric values, equation chains; honest "not checked" otherwise); 5 free generators (linear, quadratic, derivative, integral, small systems and matrices); MathLive input loaded on demand; 56 tests | `eae5ea1` |
 | Molecule card | Claude Sonnet 5.5, high | RDKit.js drawings with R/S and E/Z, 1-based atom numbers for NMR and mechanisms, reactions with an atom-balance check, a 26-molecule offline library; 110 tests; checked in Chrome | `1925995` |
 | Stress test | Claude Opus 5.5, high | 16 questions with worked keys; 16 Python scripts assert every number | `23bf13b` |
-| Exact chemistry engines | GPT-6.1 Sol, high | still running | — |
+| Exact chemistry engines | GPT-6.1 Sol drafted them and stalled in context compaction; Claude Sonnet 5.5 (high) finished them | Equilibrium, exact titration, complex solubility, Nernst and van 't Hoff, with tests that reproduce the Q9–Q13 answer key; the titration lab now handles strong, weak and diprotic acids exactly | `3ac1ee4` (merge `24da23d`) |
 
 - **On the board** (`b78aa8f`): Worked Solution in the Math group and Molecule in the Chemistry group of Add module. Both load lazily, save their content on the card through their own strict sanitizers (no schema change), and stay out of the windowed workspace launcher.
 - **Polish** (`bd3f680`): a generated solution plays itself onto the card one step at a time and ends fully shown (all at once under reduced motion); labels are sentence case; new cards are revealed unless at least 90% is already in view.
@@ -421,12 +421,152 @@ Astra found no serious problem in the scene signatures, idle recovery drafts, ca
 
 ### Stress test: answer keys cross-checked
 
-GPT-6 Astra (ultra, read-only CLI) solved all 16 questions blind (`astra/05-blind-solve-output.md`) and matched the verified key on every one, with high confidence throughout. No question was ambiguous, so none was dropped. The 16 boards that run each question through BinderNotes are being built by a Claude Opus 5.5 workstream (seeds and a runner under `scripts/stress/`); scoring follows when they land.
+GPT-6 Astra (ultra, read-only CLI) solved all 16 questions blind (`astra/05-blind-solve-output.md`) and matched the verified key on every one, with high confidence throughout. No question was ambiguous, so none was dropped. The 16 boards that run each question through BinderNotes were built by a Claude Opus 5.5 workstream (`b9d5a3f`, seeds and a runner under `scripts/stress/`). The scored results are in the final report below and in [WHITEBOARD_STRESS_TEST.md](WHITEBOARD_STRESS_TEST.md#results).
 
-### Deployment status
+### Deployment status (20:10)
 
 - The branch was pushed to GitHub as `whiteboard/best-on-internet` (no force push; production `main` untouched). Vercel's automatic preview build failed within a minute, exactly as the October 2 release preview did, so the failure is project configuration rather than this code (the build passes locally with the production build script).
 - Production has been deployed from a local prebuilt output with the Vercel CLI since April; this machine has no Vercel credentials. A request for a Vercel token through T3's private secret card timed out. Pushing `main` would deploy to production without the staged check the last release used, so nothing has been deployed.
+
+
+## Final report (31 October 2026)
+
+### Against "done means"
+
+| Requirement | Where it landed |
+| --- | --- |
+| Budgets met, with before/after numbers | **Partly.** At 1× CPU, drawing, wheel scrolling and slider drags meet every budget, while a hand pan, a zoom and a tool switch each drop one frame. At 4× nothing meets the strict "no frame over 16.7 ms" budget. Drawing improved the most: 137 slow frames and 5 over 33 ms became 34 and 0 (stall 13 → 1.4 ms/s). A board with three Desmos graphs still opens in 1.3–1.5 s at 4×, against a 1 s budget. Numbers below. |
+| Friction points fixed or deliberately deferred | **8 fixed:** #5 bright graph cards, #6 cards landing on cards, #8 overlays, #9 the dense panel, #10 the phone layout, #13 the wrong Lewis structures, #14 the fake titration graph, #15 jargon and dishonest status.<br>**Improved but not to budget:** #1 drawing, #2 panning and zooming.<br>**Barely changed:** #3 tool switches, #4 slow opens.<br>**Deferred after review:** #7 graphs following a board across devices.<br>**Not started:** #11 the two undo systems, #12 SVG export turning graphs into text. |
+| Stress-test average ≥ 8/10 | **8.69 / 10** (139/160), scored by an independent reviewer. No check failed, and no board showed an error. See [WHITEBOARD_STRESS_TEST.md](WHITEBOARD_STRESS_TEST.md#results). |
+| Tests pass | Yes. Full list below. |
+| Claude design skills used | impeccable, emil-design-eng and animation-performance guided each polish pass: sentence case, quiet chrome, motion only where it explains something, and reduced motion respected. |
+| A minimal mode that feels great | Focus mode (Alt+Z or the Focus button) leaves only the board, the cards and one small pill, which fades while you draw. The choice is remembered per device. |
+
+### What changed
+
+**Speed (kept only where measured):**
+- Strokes, pans and tool switches no longer touch the save path. Saving uses version signatures, idle-time recovery drafts, a settled-camera store and cached geometry (`6cc888a`).
+- Board graphs open graph-first. Desmos's expression list reads layout every frame on its own, so a collapsed list removes about 1,000 layout reads per second per graph (`9cff6b8`).
+- Opening a board is no longer recorded as an edit.
+- A board is validated once per save instead of twice (`0996ea8`).
+
+**Seamlessness:**
+- New cards land beside existing ones, clear of the control panel, and the camera reveals them when needed.
+- Shapes snap with alignment guides.
+- The save state is honest ("Local draft", "Saved", "Save now").
+- The board-controls panel remembers whether it was collapsed.
+- Card titles truncate instead of wrapping the header.
+- Excalidraw's idle "To move canvas…" hint no longer covers card headers.
+- Board graphs switch between 2D and 3D from the card footer. Until now, students had no way to make a 3D graph on a board.
+
+**New board objects and tools (all free and local):**
+- **Worked Solution card:**
+  - KaTeX steps that write themselves in, with a scrubbable reveal.
+  - A local Compute Engine checker in a Web Worker. It confirms values, identities, solution chains and numeric inequalities, and says plainly what it does not check.
+  - Free generators for common problem types.
+  - Long lines wrap where TeX would break them.
+- **Molecule card:** RDKit structures with R/S and E/Z labels, atom numbers, reactions with an atom-balance check, and an offline library.
+- **Exact chemistry engines:** equilibrium, titration, complex solubility, Nernst and van 't Hoff. They reproduce the verified answer key for stress questions Q9–Q13.
+- **Titration lab:** now handles strong, weak and diprotic acids exactly.
+- **Lewis structures:** the chemistry Lewis builder showed H—H—O for water; it now draws five real Lewis structures with lone pairs and formal charges, and computes its counts from the drawing.
+- **Chemistry graph modules:** now live Desmos graphs:
+  - a titration curve with pKa and concentration sliders;
+  - zero, first and second order kinetics side by side;
+  - dilution with a draggable final volume.
+
+  Before this, they drew a static sketch while claiming a Desmos graph was ready.
+
+**Desmos:** every surface the app uses was verified with the real API: board 2D and 3D, gestures on board cards, the Math Lab graph and scientific calculator, and the three chemistry graphs. The new `scripts/perf/desmos-smoke.mjs` fails on any graph that doesn't draw, any expression error and any page error. On licensing, see Owner decisions above:
+- Desmos's terms count any production use by other people as commercial, even on a free site. So the free key covers the owner's own use and local testing, and the deployed site is a gap the owner has chosen to accept.
+- The Desmos branding stays visible on every graph, as §5.b requires.
+
+Zero-cost options if Desmos ever objects:
+- Ask Desmos for an education agreement (partnerships@desmos.com). Asking costs nothing.
+- Use function-plot (MIT) or JSXGraph (MIT or LGPL) for 2D graphs, and Plotly.js (MIT) for 3D surfaces. They are less polished, and sliders would have to be built into the cards.
+- The Worked Solution checker, the chemistry engines, the Lewis structures and the Molecule card don't use Desmos at all.
+
+### Measurements (production builds, pre-mission code `fda96a7` against the final code)
+
+Two interleaved runs on the same machine, pre-mission code against the final code. The second run happened while the owner's own browser was busy, so both of its sides are slower. Compare before and after within a run, not across runs. Cells give frames over 16.7 ms / over 33 ms, then main-thread stall.
+
+| Scenario at 4× CPU | Run 1 (quiet machine), before → after | Run 2 (busy machine), before → after |
+| --- | --- | --- |
+| Draw 200 strokes | 137 / 5, 13 ms/s → **34 / 0, 1.4 ms/s** | 178 / 15, 21 ms/s → **117 / 2, 5.8 ms/s** |
+| Hand pan | 77 / 4, 70 ms/s → **60 / 4, 58 ms/s** | 108 / 2, 92 ms/s → **81 / 4, 64 ms/s** |
+| Ctrl-wheel zoom | 14 frames, 33 ms/s → **4 frames, 16 ms/s** | 16 / 1, 93 ms/s → 19 / 0, 104 ms/s (noise) |
+| Desmos slider drag | about the same | about the same (median of three alternating runs: 206 / 8, 89 ms/s → 192 / 5, 83 ms/s) |
+| Tool switches | about the same | 10 / 3, 72 ms/s → 12 / 5, 78 ms/s |
+| Open a board with three Desmos graphs (warm) | about 1.3 s on both | 1.55 s → 1.54 s |
+| Open the Math Lab (warm) | about 1.0 s | 1.17 s → 1.22 s |
+
+- **At 1× CPU:** drawing, wheel scrolling and slider drags have no frame over 16.7 ms; a hand pan, a zoom and a tool switch each drop at most one.
+- **Memory:** heap growth flattens after a warm-up batch (about 1.2, then 0.3, then 0.17 MB per 10 graph open/close cycles), and every calculator is destroyed except the one left open.
+- **Desmos layout reads:** with graph-first cards, one idle second costs 2 reads instead of 2,150, and one hand pan 54 instead of 15,012.
+
+- **Lab pages (warm reopen at 4×, final code):** every chemistry module opens in 0.78 s or less, and the whiteboard lab in 0.66 s. The three chemistry graphs take about 0.44 s now that Desmos starts on request; they took 1.23–1.30 s while it started on open. The Math Lab, which starts Desmos at once, takes 1.26 s against the 1 s budget, as it did before the mission (1.17 s). That leaves 61 of 62 lab budgets met.
+
+### Tests on the final code
+
+All on the final code (31 October, 22:30):
+
+- Typecheck: clean.
+- Unit tests: 184 files, 1,513 tests pass.
+- End to end (Playwright, Chrome, real Desmos): 33 of 33 pass. The search test that measured a button at 43.99 px mid-animation now waits for the panel's entrance animation.
+- Real-Desmos interactions (`scripts/verify-desmos-interactions.mjs`): 3 of 3 pass.
+- Desmos smoke test (`scripts/perf/desmos-smoke.mjs`): every surface drew, with 0 expression errors and 0 page errors. It covers a board graph switched from 2D to 3D, the Math Lab graph and scientific calculator, and the three chemistry graphs.
+- Stress boards (`scripts/stress/run-stress-boards.mjs`): 16 of 16 render with no errors. Of the steps, 146 are verified, 31 are not checked (premises, symbolic bounds, a Jordan matrix) and 0 are mismatched.
+- Production build (`scripts/build-client.mjs`: typecheck, Vite build, client env guard): passes. The entry chunk is 55 KB, the same as the live site.
+
+### Screenshots
+
+- Mission screens: `whiteboard-mission/screens-after/` (01–12 from earlier passes).
+- `13-board-graph-3d-switch.jpg`: a board graph in 3D, with the new 2D/3D switch in the card footer.
+- `14-chemistry-desmos-graphs.jpg`: the three chemistry graphs, now live Desmos.
+- `15-titration-lab-diprotic.jpg`: the exact diprotic titration with readings.
+- `16a-long-math-before.jpg` and `16b-answers-after-wrap.jpg`: long math before and after TeX-style wrapping.
+- `17-lewis-structures.jpg`: the five Lewis structures with lone pairs and formal charges.
+- `stress/sheet-1.jpg` to `sheet-8.jpg`: all 16 stress boards after the app's checker ran.
+
+### Deferred, and why
+
+- **Graphs that follow a board across devices (friction #7).** The first sync was reverted after review. It needs revision-aware saving so that two devices can't overwrite each other's graph.
+- **Desmos-heavy opens at 4× CPU, against a 1 s budget:** a board with three graphs takes about 1.5 s, and the Math Lab about 1.25 s. Most of that time is Desmos's own start-up per calculator. Starting board graphs only as they scroll into view did not help in testing, so it was reverted. The Math Lab could adopt the chemistry graphs' "preview first, live on request" pattern.
+- **One long task (about 130–150 ms) after a long hand pan at 4×.** It is the autosave that follows the pan, in both the old and new code. Splitting the scene snapshot across idle callbacks is the next step.
+- **Stress-board content.** The reviewer wanted sliders for pKa (Q10), ammonia (Q11) and rate constants (Q14), a state diagram for Q6, a lighter Q7 plot and arrowheads on the Q1 contour. Each is a board edit, not an app change.
+- **Deploying to bindernotes.com.** It needs a Vercel token, and the private request timed out twice. See below.
+
+### What would make it unbeatable
+
+1. Revision-aware sync of board graphs, so a board looks the same on every device, and offline edits merge instead of overwriting.
+2. Checks across lines, not just within them. Each new line would be confirmed as following from the previous one (equivalence or implication), so "Checked" covers the reasoning.
+3. Handwriting to math, done locally. A free on-device model would turn ink into a Worked Solution step that is checked immediately.
+4. Board templates per course (calculus, kinetics, titration) that open with the right graphs, sliders and checks, built on the new card footer and Desmos states.
+5. Live collaboration on a board through Supabase Realtime, which the free tier already covers.
+
+### Deployment
+
+**Not deployed.** You allowed it, but bindernotes.com is deployed with the Vercel CLI and this machine has no Vercel sign-in. The private token request timed out twice (20:10 and 22:05). Production still serves the October release (`f26e6d4`), byte for byte (its entry bundle matches that release's build output).
+
+- **Supabase:** nothing to push. This branch adds no migrations since the live release; all ten migrations it carries beyond GitHub's `main` were applied with that release.
+- **To go live:** say "deploy" and I'll ask for a token through the private card again. Then:
+  1. Build with the production environment.
+  2. Package the prebuilt output in the same layout the October release used (static files plus the `vercel.json` headers and SPA rewrite).
+  3. Run `vercel deploy --prebuilt --prod`.
+  4. Check the rendered sign-in page and Desmos on the live site.
+  5. Run `vercel rollback` at once if anything is wrong.
+- **Doing it yourself** with the Vercel CLI signed in, from this repo: `vercel pull --yes --environment=production`, then `vercel build --prod`, then `vercel deploy --prebuilt --prod`.
+- **A rollback caveat.** The October release doesn't know the new Worked Solution and Molecule cards. If production were rolled back after students saved boards with those cards, saving such a board in the old app would drop the cards' contents. Roll back soon after a bad deploy, or export boards first.
+
+### How to undo
+
+- **Code:** everything is on the branch `whiteboard/best-on-internet`; `main` is untouched.
+  - To drop all of it, keep using `main`.
+  - To drop one change, run `git revert <commit>` (the commits are listed in the log).
+  - To return the branch to before the build phase, run `git reset --hard c553317` (destructive; prefer a new branch from that commit).
+- **GitHub:** delete the branch with `git push https://github.com/dbest1a/Bindernotes.git --delete whiteboard/best-on-internet`.
+- **Local connection:** delete `.env.development.local` to disconnect the local app from Supabase and Desmos.
+- **Worktrees:** `git worktree list`, then `git worktree remove <path>` for each `.t3/worktrees/...` and `.tmp/...` entry.
+- **Production:** nothing changed. bindernotes.com still serves the October release (`f26e6d4`), and Supabase was not touched.
 
 ## Log
 
@@ -474,3 +614,11 @@ GPT-6 Astra (ultra, read-only CLI) solved all 16 questions blind (`astra/05-blin
 - **20:05.** Final before/after A/B (pre-mission against current, same machine load) recorded; one board validation per save (`0996ea8`).
 - **20:10.** Pushed the branch to GitHub; the Vercel preview failed as the October 2 one did. Vercel token request timed out; nothing deployed.
 - **20:20.** Merged the Worked Solution, Molecule and stress-test workstreams; integrated both cards on the board; Astra's blind solve matched 16/16. Stress-test boards delegated.
+- **20:25.** The GPT-6.1 Sol chemistry workstream had been stuck in context compaction for over an hour; cancelled it and handed its six engine drafts to Claude Sonnet 5.5 with a narrower brief.
+- **20:40.** Worked Solution: long display math no longer wraps into colliding lines, and it scrolls with an edge fade instead. The check chip shrinks to its icon on narrow cards. Opening a card no longer jumps to the last step. The controls panel remembers being collapsed (`5412581`).
+- **21:00.** First full stress run: 16/16 boards render, with no mismatches. The checker now handles numeric inequalities, and Excalidraw's idle panning hint no longer covers card headers (`da32447`).
+- **21:15.** "Make sure Desmos is working": every Desmos surface was checked. Board graphs had no way to reach 3D, so they gained a 2D/3D switch in the card footer, and narrow card headers keep one row (`e108f6d`). Added `scripts/perf/desmos-smoke.mjs`. The search e2e flake (a 43.99 px button measured mid-animation) is fixed.
+- **21:30.** Independent stress scoring (Claude Sonnet 5.5, read-only): 8.69/10. The top weakness, clipped lines, is fixed with TeX-style wrapping (`b698493`). Merged Sonnet's exact chemistry engines and the weak/diprotic titration lab (`3ac1ee4`, merge `24da23d`).
+- **21:45.** The chemistry "Desmos" graphs had never mounted Desmos. They are now live graphs with sliders (`64c76db`). A Vercel token request timed out again, so nothing was deployed.
+- **22:10.** Interleaved A/B re-measure on the final code; the slider scenario was rechecked with alternating runs and is unchanged. The Lewis builder drew H—H—O for water; it now draws five real Lewis structures. The chemistry graphs open with an exact preview and start Desmos on request, keeping their open time under budget (`52c0ff1`).
+- **22:30.** Final verification. Typecheck clean; 1,513 unit tests; 33/33 e2e; real-Desmos interactions 3/3; Desmos smoke clean; 16/16 stress boards; production build passes. Final report written.

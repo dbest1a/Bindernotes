@@ -22,3 +22,13 @@ Captured on isolated fixtures (synthetic local learner, stubbed backend).
 - `09-chem-chem-periodic-table`: Chemistry module chem-periodic-table
 - `10-study-workspace`: Study workspace (Notes Focus) fixture
 - `page-errors`: none
+
+Final pass (31 October, evening):
+
+- `13-board-graph-3d-switch`: a board graph switched to 3D with the new 2D/3D control in the card footer
+- `14-chemistry-desmos-graphs`: the titration, kinetics and concentration graphs as live Desmos graphs, opened from their previews
+- `15-titration-lab-diprotic`: the exact diprotic titration with readings, equivalence and half-equivalence
+- `16a-long-math-before`: a long Worked Solution step before the fix: wrapped lines collide and the overflow is cut off
+- `16b-answers-after-wrap`: the stress answers the reviewer flagged, wrapping where TeX would break them
+- `17-lewis-structures`: the five Lewis structures (H₂O, CO₂, NH₃, CH₄, NO₃⁻)
+- `stress/sheet-1` to `sheet-8`: all 16 stress boards after the app checked every Worked Solution
