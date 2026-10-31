@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
+import { NoteRecoveryActions, type NoteRecoveryControls } from "@/components/workspace/note-recovery-actions";
 import {
   cleanAccidentalNotePrefix,
   detectAccidentalNotePrefix,
@@ -337,6 +338,8 @@ export const SourceLessonModule = memo(function SourceLessonModule({
 
 export const PrivateNotesModule = memo(function PrivateNotesModule({
   autosaveStatus,
+  noteRecovery,
+  onOpenPersonalNote,
   canRetryNoteSave,
   currentNotebookSection,
   hasUnsavedNoteChanges,
@@ -376,6 +379,8 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   studentCalmMode = false,
 }: {
   autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error";
+  noteRecovery?: NoteRecoveryControls;
+  onOpenPersonalNote?: () => void;
   canRetryNoteSave: boolean;
   currentNotebookSection: BinderNotebookSection | null;
   hasUnsavedNoteChanges: boolean;
@@ -438,7 +443,9 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
   const showHygienePrompt = Boolean(accidentalPrefix && hygienePromptKey !== ignoredHygienePromptKey);
   const revampNotesUi = studentCalmMode;
   const saveButtonTitle =
-    autosaveStatus === "saving"
+    noteRecovery?.conflict
+      ? "Choose a version"
+      : autosaveStatus === "saving"
       ? "Saving..."
       : hasUnsavedNoteChanges
         ? "Save now"
@@ -446,7 +453,9 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
           ? "No changes to save"
           : "Already saved";
   const saveStatusLabel =
-    autosaveStatus === "saving"
+    noteRecovery?.conflict
+      ? "Choose a version"
+      : autosaveStatus === "saving"
       ? "Saving..."
       : autosaveStatus === "error"
         ? "Sync failed - retry"
@@ -606,7 +615,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               <Button
                 aria-label={saveButtonTitle}
                 aria-describedby={revampNotesUi ? saveStatusHelpId : undefined}
-                disabled={autosaveStatus === "saving" || !hasUnsavedNoteChanges}
+                disabled={Boolean(noteRecovery?.conflict || noteRecovery?.busy) || autosaveStatus === "saving" || !hasUnsavedNoteChanges}
                 onClick={onSaveNoteNow}
                 size="sm"
                 title={saveButtonDisabledReason ?? saveButtonTitle}
@@ -614,8 +623,9 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
                 variant={hasUnsavedNoteChanges ? "default" : "outline"}
               >
                 <Save data-icon="inline-start" />
-                {hasUnsavedNoteChanges ? "Save now" : saveButtonTitle}
+                {hasUnsavedNoteChanges && !noteRecovery?.conflict ? "Save now" : saveButtonTitle}
               </Button>
+              {onOpenPersonalNote ? <Button onClick={onOpenPersonalNote} size="sm" type="button" variant="outline">Open in Personal Notes</Button> : null}
               {studentCalmMode && !noteLooksBlank ? (
                 <Button
                   aria-label="Reset current lesson note"
@@ -659,6 +669,8 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               Slash bar
             </button>
             <p
+              role="status"
+              aria-live="polite"
               id={revampNotesUi ? saveStatusHelpId : undefined}
               className={cn(
                 "text-xs leading-5",
@@ -682,6 +694,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               </Button>
             ) : null}
           </div>
+          {noteRecovery ? <NoteRecoveryActions recovery={noteRecovery} /> : null}
           {showHygienePrompt && accidentalPrefix ? (
             <div className="note-hygiene-prompt mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm">
               <p className="font-semibold">This note starts with accidental-looking text. Clean it up?</p>

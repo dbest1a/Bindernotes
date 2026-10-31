@@ -611,7 +611,7 @@ export function FaceliftSimpleShell({
                 <div className="facelift-menu__group">
                   <span>Quick actions</span>
                   <div>
-                    <button className="facelift-menu-item" onClick={context.onSaveNoteNow} type="button">
+                    <button className="facelift-menu-item" disabled={context.noteRecovery?.conflict || context.noteRecovery?.busy || context.autosaveStatus === "saving" || !context.hasUnsavedNoteChanges} onClick={context.onSaveNoteNow} type="button">
                       <Save className="size-4" />
                       Save now
                     </button>

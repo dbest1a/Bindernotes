@@ -1,4 +1,5 @@
 import type { JSONContent } from "@tiptap/react";
+import { LearnerNoteConflictError } from "@/lib/note-conflict";
 import { supabase, supabaseProjectRef } from "@/lib/supabase";
 import {
   demoBinders,
@@ -1898,6 +1899,15 @@ export async function getBinderOverview(
   };
 }
 
+/** Read-only recovery query; never seeds or repairs account content. */
+export async function getLatestLearnerNote(input: { ownerId: string; binderId: string; lessonId: string }): Promise<LearnerNote | null> {
+  const { data, error } = await getAccountDataSupabaseClient().from("learner_notes")
+    .select("*").eq("owner_id", input.ownerId).eq("binder_id", input.binderId)
+    .eq("lesson_id", input.lessonId).maybeSingle();
+  if (error) throw error;
+  return data as LearnerNote | null;
+}
+
 export async function upsertLearnerNote(input: {
   id?: string;
   expectedUpdatedAt?: string | null;
@@ -1914,7 +1924,7 @@ export async function upsertLearnerNote(input: {
   await requireRemoteAccountDataStorage(input.binderId, "Private note", input.ownerId);
 
   if (input.id && !input.expectedUpdatedAt) {
-    throw new Error("This note needs its saved revision before updating. Refresh to reload it; keep a copy of your draft.");
+    throw new LearnerNoteConflictError("This note needs its saved revision before updating. Keep your draft as a separate note, or load the latest version.");
   }
   const persistWithFolderId = (folderId: string | null) => {
     const payload = {
@@ -1948,12 +1958,12 @@ export async function upsertLearnerNote(input: {
   }
 
   if (error) {
-    if (error.code === "23505") throw new Error("Another tab already created this lesson note. Your draft is preserved; reopen Personal Notes to keep a separate copy.");
+    if (error.code === "23505") throw new LearnerNoteConflictError("Another tab already created this lesson note. Keep your draft as a separate note, or load the latest version.");
     throwAccountDataErrorInsteadOfShadowFallback(input.binderId, error, "Private note");
     throw error;
   }
 
-  if (!data) throw new Error("A newer saved version exists. Your draft is preserved in this tab. Open Personal Notes to keep a separate copy.");
+  if (!data) throw new LearnerNoteConflictError();
 
   return data as LearnerNote;
 }

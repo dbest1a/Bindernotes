@@ -10,6 +10,7 @@ const {
   mockLearnerNoteSelect,
   mockLearnerNoteInsert,
   mockLearnerNoteEq,
+  mockLearnerReadEq,
 } =
   vi.hoisted(() => {
     const bindersMaybeSingle = vi.fn();
@@ -27,6 +28,7 @@ const {
     const single = vi.fn();
     const select = vi.fn(() => ({ single, maybeSingle: single }));
     const eq: ReturnType<typeof vi.fn> = vi.fn(() => ({ eq, select }));
+    const readEq: ReturnType<typeof vi.fn> = vi.fn(() => ({ eq: readEq, maybeSingle: single }));
     const upsert = vi.fn(() => ({ select, eq }));
     const from = vi.fn((table: string) => {
       if (table === "binders") {
@@ -44,7 +46,7 @@ const {
       }
 
       if (table === "learner_notes") {
-        return { insert: upsert, update: upsert };
+        return { insert: upsert, update: upsert, select: vi.fn(() => ({ eq: readEq })) };
       }
 
       throw new Error(`Unexpected table access in test: ${table}`);
@@ -60,6 +62,7 @@ const {
       mockLearnerNoteSelect: select,
       mockLearnerNoteInsert: upsert,
       mockLearnerNoteEq: eq,
+      mockLearnerReadEq: readEq,
     };
   });
 
@@ -71,7 +74,8 @@ vi.mock("@/lib/supabase", () => ({
   supabaseProjectRef: "test-project",
 }));
 
-import { upsertLearnerNote } from "@/services/binder-service";
+import { getLatestLearnerNote, upsertLearnerNote } from "@/services/binder-service";
+import { LearnerNoteConflictError } from "@/lib/note-conflict";
 import {
   CHEMISTRY_SHOWCASE_BINDER_ID,
   chemistryShowcaseLessons,
@@ -91,8 +95,25 @@ describe("binder-service learner note persistence", () => {
     mockBinderLessonsUpsert.mockResolvedValue({ error: null });
     mockLearnerNoteInsert.mockClear();
     mockLearnerNoteEq.mockClear();
+    mockLearnerReadEq.mockClear();
     mockLearnerNoteSelect.mockClear();
     mockLearnerNoteSingle.mockReset();
+  });
+
+  it("loads the latest version with owner and source predicates, without writes", async () => {
+    const note = { id: "note", title: "Latest" };
+    mockLearnerNoteSingle.mockResolvedValue({ data: note, error: null });
+    expect(await getLatestLearnerNote({ ownerId: "owner", binderId: "binder", lessonId: "lesson" })).toBe(note);
+    expect(mockLearnerReadEq.mock.calls).toEqual([["owner_id", "owner"], ["binder_id", "binder"], ["lesson_id", "lesson"]]);
+    expect(mockLearnerNoteInsert).not.toHaveBeenCalled();
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies creation races as conflicts without overwriting an existing note", async () => {
+    mockLearnerNoteSingle.mockResolvedValue({ data: null, error: { code: "23505" } });
+    await expect(upsertLearnerNote({ ownerId: "user-1", binderId: "custom-binder", lessonId: "lesson-1", title: "Draft", content: emptyDoc("draft"), mathBlocks: [] })).rejects.toBeInstanceOf(LearnerNoteConflictError);
+    expect(mockLearnerNoteInsert).toHaveBeenCalledTimes(1);
+    expect(mockLearnerNoteEq).not.toHaveBeenCalled();
   });
 
   it("retries without an optional folder id when a synthetic UI folder fails the foreign key", async () => {

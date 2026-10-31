@@ -38,7 +38,30 @@ function WorkspaceFixture() {
   const [title,setTitle]=useState(localStorage.getItem("fixture-note-title")??"My chemistry notes");
   const [content,setContent]=useState(JSON.parse(localStorage.getItem("fixture-note")??JSON.stringify(doc("An atom is a unit of an element."))));
   const [dirty,setDirty]=useState(false);
+  // Isolated recovery UI only: these handlers never access an account/backend.
+  const [conflict,setConflict]=useState(params.has("recovery"));
+  const [recoveryBusy,setRecoveryBusy]=useState(false);
+  const [recoveryMessage,setRecoveryMessage]=useState<string|null>(null);
+  const [copyUrl,setCopyUrl]=useState<string|null>(null);
+  const recover = async (keepBoth:boolean) => {
+    setRecoveryBusy(true);
+    await new Promise(resolve=>setTimeout(resolve,150));
+    if(params.has("recovery-error")) setRecoveryMessage("Connection interrupted. Your draft is still here.");
+    else {
+      if(keepBoth) setCopyUrl("#isolated-saved-copy");
+      setConflict(false);setDirty(false);setContent(doc("Latest account version — isolated fixture."));
+      setRecoveryMessage(keepBoth?"Both versions are kept. You're viewing the latest account version.":"Latest account version loaded.");
+    }
+    setRecoveryBusy(false);
+  };
   const context={...baseContext,noteContent:content,noteTitle:title,hasUnsavedNoteChanges:dirty,autosaveStatus:dirty?"unsaved":"saved",noteSaveLabel:dirty?"Unsaved":"Saved",onNoteTitleChange:(v:string)=>{setTitle(v);setDirty(true)},onNoteContentChange:(v:any)=>{setContent(v);setDirty(true)},onSaveNoteNow:()=>{localStorage.setItem("fixture-note",JSON.stringify(content));localStorage.setItem("fixture-note-title",title);setDirty(false)},onApplyPreset:(preset:string)=>setPreferences((p:any)=>({...p,preset}))};
+  if(params.has("recovery")) Object.assign(context,{
+    autosaveStatus:conflict?"error":"saved",noteSaveLabel:conflict?"Choose a version":"Saved",noteSaveDetail:conflict?"A newer saved version is available.":"Isolated recovery complete.",
+    noteRecovery:{conflict,busy:recoveryBusy,message:recoveryMessage,copyUrl,onKeepBoth:()=>void recover(true),onUseLatest:()=>void recover(false),onDownload:()=>{
+      const url=URL.createObjectURL(new Blob([JSON.stringify({format:"bindernotes-note-draft",version:1,title,content,mathBlocks:[]})],{type:"application/json"}));
+      const link=document.createElement("a");link.href=url;link.download="isolated-note-draft.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }}
+  });
   if(params.has("board")) {
     if(params.has("notebook")) {
       const notebookContext={...context,binder:{...binder,id:"canvas-notebook",title:"Personal canvas"},selectedLesson:{...lesson,id:"canvas-page",binder_id:"canvas-notebook"},compactWhiteboardTools:true};

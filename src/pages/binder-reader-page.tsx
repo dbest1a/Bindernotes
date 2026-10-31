@@ -58,6 +58,10 @@ import {
 import { buildBinderNotebookStructure } from "@/lib/notebook-structure";
 import { formatNoteSavedAt, NOTE_SAVE_BEFORE_SIGN_OUT_EVENT } from "@/lib/note-save";
 import { saveQueue } from "@/lib/save-queue";
+import { LearnerNoteConflictError } from "@/lib/note-conflict";
+import { getLatestLearnerNote } from "@/services/binder-service";
+import { createLoosePersonalNote } from "@/services/personal-notes-service";
+import { queryKeys } from "@/lib/query-keys";
 import { extractPlainText, isWorkspaceContainerId } from "@/lib/workspace-records";
 import {
   buildSelectionQuoteContext,
@@ -235,6 +239,13 @@ export function BinderReaderPage() {
   const [noteMath, setNoteMath] = useState<MathBlock[]>([]);
   const [noteInsertRequest, setNoteInsertRequest] = useState<NoteInsertRequest | null>(null);
   const [noteSaveError, setNoteSaveError] = useState<string | null>(null);
+  const [noteConflict, setNoteConflict] = useState(false);
+  const [noteRecoveryBusy, setNoteRecoveryBusy] = useState(false);
+  const [noteRecoveryMessage, setNoteRecoveryMessage] = useState<string | null>(null);
+  const [noteRecoveryCopyUrl, setNoteRecoveryCopyUrl] = useState<string | null>(null);
+  const conflictedNoteScopesRef = useRef(new Set<string>());
+  const recoveringNoteScopeRef = useRef<string | null>(null);
+  const recoveryCopiesRef = useRef(new Map<string, { snapshot: string; id: string }>());
   const [isNoteSaveActive, setIsNoteSaveActive] = useState(false);
   const [noteLastSavedAt, setNoteLastSavedAt] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() =>
@@ -481,7 +492,7 @@ export function BinderReaderPage() {
     return "History suite content is still being prepared for this binder.";
   })();
   const ownerId = profile?.id ?? null;
-  const currentNoteScopeKey = binderId && selectedLesson ? `${binderId}:${selectedLesson.id}` : "";
+  const currentNoteScopeKey = ownerId && binderId && selectedLesson ? `${ownerId}:${binderId}:${selectedLesson.id}` : "";
   const activeFolderId = useMemo(() => {
     const folderId = binderQuery.data?.folderLinks[0]?.folder_id ?? null;
     if (!folderId || isWorkspaceContainerId(folderId)) {
@@ -1735,6 +1746,10 @@ export function BinderReaderPage() {
     if (!currentDraft) {
       return false;
     }
+    if (conflictedNoteScopesRef.current.has(currentDraft.scopeKey) || recoveringNoteScopeRef.current === currentDraft.scopeKey) {
+      preserveNoteDraft(currentDraft);
+      return false;
+    }
 
     const currentSnapshot = serializeNoteSnapshot(
       currentDraft.input.title,
@@ -1755,6 +1770,10 @@ export function BinderReaderPage() {
     noteScopeHydratedRef.current = false;
     noteHasLocalEditsRef.current = false;
     clearNoteSaveTimer();
+    setNoteConflict(conflictedNoteScopesRef.current.has(currentNoteScopeKey));
+    setNoteRecoveryBusy(recoveringNoteScopeRef.current === currentNoteScopeKey);
+    setNoteRecoveryMessage(null);
+    setNoteRecoveryCopyUrl(null);
     const previousDraft = latestVisibleNoteDraftRef.current;
     if (
       previousDraft &&
@@ -1788,6 +1807,10 @@ export function BinderReaderPage() {
 
     const pendingDraft = pendingNoteSaveRef.current;
     if (!pendingDraft) {
+      return;
+    }
+    if (conflictedNoteScopesRef.current.has(pendingDraft.scopeKey) || recoveringNoteScopeRef.current === pendingDraft.scopeKey) {
+      pendingNoteSaveRef.current = null;
       return;
     }
 
@@ -1840,8 +1863,15 @@ export function BinderReaderPage() {
         noteHasLocalEditsRef.current = visibleSnapshot !== savedSnapshot;
       }
     } catch (caught) {
-      retryNoteSaveRef.current = pendingDraft;
+      const conflict = caught instanceof LearnerNoteConflictError;
+      retryNoteSaveRef.current = conflict ? null : pendingDraft;
+      if (conflict) {
+        conflictedNoteScopesRef.current.add(pendingDraft.scopeKey);
+        const queuedAfterFailure = pendingNoteSaveRef.current as PendingNoteSave | null;
+        if (queuedAfterFailure?.scopeKey === pendingDraft.scopeKey) pendingNoteSaveRef.current = null;
+      }
       if (pendingDraft.scopeKey === activeNoteScopeRef.current) {
+        setNoteConflict(conflict);
         setNoteSaveError(getLearnerNoteSaveErrorMessage(caught));
       }
     } finally {
@@ -1880,6 +1910,83 @@ export function BinderReaderPage() {
       void flushQueuedNoteSave();
     }
   }, [clearNoteSaveTimer, flushQueuedNoteSave, queueCurrentDraftForSave]);
+
+  const downloadNoteDraft = useCallback(() => {
+    const draft = latestVisibleNoteDraftRef.current;
+    if (!draft || draft.scopeKey !== activeNoteScopeRef.current) return;
+    const blob = new Blob([JSON.stringify({ format: "bindernotes-note-draft", version: 1, exportedAt: new Date().toISOString(), ...draft.input }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bindernotes-note-draft.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, []);
+
+  const recoverNote = useCallback(async (keepBoth: boolean) => {
+    const draft = latestVisibleNoteDraftRef.current;
+    if (!draft?.input.ownerId || draft.scopeKey !== activeNoteScopeRef.current || recoveringNoteScopeRef.current || noteSaveActiveRef.current) return;
+    const captured = structuredClone(draft);
+    const snapshot = serializeNoteSnapshot(captured.input.title, captured.input.content, captured.input.mathBlocks);
+    recoveringNoteScopeRef.current = captured.scopeKey;
+    clearNoteSaveTimer();
+    setNoteRecoveryBusy(true);
+    setNoteRecoveryMessage(null);
+    preserveNoteDraft(captured);
+    const stillCurrent = () => latestVisibleNoteDraftRef.current?.scopeKey === captured.scopeKey && activeNoteScopeRef.current === captured.scopeKey;
+    try {
+      if (keepBoth) {
+        let copy = recoveryCopiesRef.current.get(captured.scopeKey);
+        if (!copy || copy.snapshot !== snapshot) {
+          const saved = await createLoosePersonalNote({
+            ownerId: captured.input.ownerId!,
+            title: `${captured.input.title} (recovered copy)`,
+            content: captured.input.content,
+            mathBlocks: captured.input.mathBlocks,
+          });
+          copy = { snapshot, id: saved.id };
+          recoveryCopiesRef.current.set(captured.scopeKey, copy);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.personalNotes.forProfile(captured.input.ownerId) });
+        }
+        if (stillCurrent()) {
+          setNoteRecoveryCopyUrl(`/notes/n/${copy.id}`);
+          setNoteRecoveryMessage("Your draft was saved as a separate Personal Note.");
+        }
+      }
+      const latest = await getLatestLearnerNote({ ownerId: captured.input.ownerId!, binderId: captured.input.binderId, lessonId: captured.input.lessonId });
+      if (!stillCurrent()) return;
+      const visible = latestVisibleNoteDraftRef.current!;
+      if (serializeNoteSnapshot(visible.input.title, visible.input.content, visible.input.mathBlocks) !== snapshot) {
+        setNoteRecoveryMessage(keepBoth ? "The copy is saved. You made more edits while it saved; those edits are still here. Choose again to preserve them too." : "You made more edits while the latest version loaded. Your draft is still here; choose again when you're ready.");
+        return;
+      }
+      if (!latest) throw new Error("The account note is no longer available. Your draft remains here; keep a copy before leaving.");
+      // Never discard a newer journal or an edit made while recovery was pending.
+      clearReaderNoteDraft(captured);
+      if (pendingNoteSaveRef.current?.scopeKey === captured.scopeKey) pendingNoteSaveRef.current = null;
+      if (retryNoteSaveRef.current?.scopeKey === captured.scopeKey) retryNoteSaveRef.current = null;
+      conflictedNoteScopesRef.current.delete(captured.scopeKey);
+      noteRevisionsRef.current.set(captured.scopeKey, { id: latest.id, updatedAt: latest.updated_at });
+      syncedSnapshotRef.current = serializeNoteSnapshot(latest.title, latest.content, latest.math_blocks);
+      noteHasLocalEditsRef.current = false;
+      submittedNoteSnapshotRef.current = null;
+      latestVisibleNoteDraftRef.current = { ...captured, input: { ...captured.input, id: latest.id, expectedUpdatedAt: latest.updated_at, title: latest.title, content: latest.content, mathBlocks: latest.math_blocks } };
+      setNoteId(latest.id);
+      setNoteTitle(latest.title);
+      setNoteContent(latest.content);
+      setNoteMath(latest.math_blocks);
+      setNoteLastSavedAt(latest.updated_at);
+      setNoteConflict(false);
+      setNoteSaveError(null);
+      setNoteRecoveryMessage(keepBoth ? "Both versions are kept. You're viewing the latest account version." : "Latest account version loaded.");
+      queryClient.setQueryData<BinderBundle>(queryKeys.binder.detail(captured.input.binderId, captured.input.ownerId), (bundle) => bundle ? { ...bundle, notes: [...bundle.notes.filter((note) => note.id !== latest.id), latest] } : bundle);
+    } catch (error) {
+      if (stillCurrent()) setNoteRecoveryMessage(getLearnerNoteSaveErrorMessage(error));
+    } finally {
+      recoveringNoteScopeRef.current = null;
+      if (stillCurrent()) setNoteRecoveryBusy(false);
+    }
+  }, [clearNoteSaveTimer, preserveNoteDraft, queryClient]);
 
   useEffect(() => {
     if (!isOnline || noteSaveActiveRef.current) {
@@ -1975,7 +2082,7 @@ export function BinderReaderPage() {
   ]);
 
   useEffect(() => {
-    if (!selectedLesson) {
+    if (!selectedLesson || recoveringNoteScopeRef.current === currentNoteScopeKey) {
       return;
     }
 
@@ -2012,7 +2119,7 @@ export function BinderReaderPage() {
       : "";
     const isOwnSubmittedSaveEcho =
       submittedNoteSnapshotRef.current?.scopeKey === currentNoteScopeKey &&
-      submittedNoteSnapshotRef.current.snapshot === currentSnapshot;
+      submittedNoteSnapshotRef.current.snapshot === nextSnapshot;
 
     if (
       currentNoteScopeKey === activeNoteScopeRef.current &&
@@ -2020,12 +2127,16 @@ export function BinderReaderPage() {
       noteHasLocalEditsRef.current &&
       currentDraft?.scopeKey === currentNoteScopeKey &&
       currentSnapshot !== syncedSnapshotRef.current &&
-      nextSnapshot !== currentSnapshot &&
-      !isOwnSubmittedSaveEcho
+      nextSnapshot !== currentSnapshot
     ) {
-      setNoteSaveError(
-        "A newer saved version is available in another tab. Your draft is preserved. Open Personal Notes to save a separate copy.",
-      );
+      if (nextSnapshot !== syncedSnapshotRef.current && !isOwnSubmittedSaveEcho) {
+        conflictedNoteScopesRef.current.add(currentNoteScopeKey);
+        setNoteConflict(true);
+        clearNoteSaveTimer();
+        setNoteSaveError("A newer saved version is available. Keep both versions or choose which one to use.");
+      }
+      // A harmless query refresh or our own save acknowledgement must not
+      // hydrate over more recent typing in the editor.
       return;
     }
 
@@ -2070,6 +2181,11 @@ export function BinderReaderPage() {
     }
 
     if (!noteHasLocalEditsRef.current) {
+      clearNoteSaveTimer();
+      return;
+    }
+
+    if (conflictedNoteScopesRef.current.has(currentNoteScopeKey) || recoveringNoteScopeRef.current === currentNoteScopeKey) {
       clearNoteSaveTimer();
       return;
     }
@@ -2265,7 +2381,9 @@ export function BinderReaderPage() {
     [noteContent, noteMath, noteTitle, selectedLessonTitle],
   );
   const hasUnsavedChanges = autosaveSnapshot !== syncedSnapshotRef.current;
-  const autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error" = isNoteSaveActive
+  const autosaveStatus: "saved" | "saving" | "unsaved" | "offline" | "error" = noteConflict
+    ? "error"
+    : isNoteSaveActive
     ? "saving"
     : !isOnline && hasUnsavedChanges
       ? "offline"
@@ -2276,7 +2394,9 @@ export function BinderReaderPage() {
           : "saved";
   const hasPersistedCurrentNote = Boolean(noteId || noteLastSavedAt);
   const noteSaveLabel =
-    autosaveStatus === "saving"
+    noteConflict
+      ? "Choose a version"
+      : autosaveStatus === "saving"
       ? "Saving..."
       : autosaveStatus === "offline"
         ? "Offline - keep this tab open"
@@ -2303,7 +2423,7 @@ export function BinderReaderPage() {
               : hasPersistedCurrentNote
                 ? "Saved to your account."
                 : "No private note saved for this lesson yet.";
-  const canRetryNoteSave = autosaveStatus === "error";
+  const canRetryNoteSave = autosaveStatus === "error" && !noteConflict;
 
   const createSticky = useCallback(
     async (anchorText?: string | null, body = "") => {
@@ -2682,6 +2802,16 @@ export function BinderReaderPage() {
     noteSaveLabel,
     noteSaveDetail,
     noteSaveError,
+    noteRecovery: noteConflict || autosaveStatus === "error" || autosaveStatus === "offline" || noteRecoveryMessage ? {
+      conflict: noteConflict,
+      busy: noteRecoveryBusy,
+      message: noteRecoveryMessage,
+      copyUrl: noteRecoveryCopyUrl,
+      onKeepBoth: () => { void recoverNote(true); },
+      onUseLatest: () => { void recoverNote(false); },
+      onDownload: downloadNoteDraft,
+    } : undefined,
+    onOpenPersonalNote: noteId ? () => navigate(`/notes/n/${noteId}`) : undefined,
     canRetryNoteSave,
     noteInsertRequest,
     mathModules,

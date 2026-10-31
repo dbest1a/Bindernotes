@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
+import { NoteRecoveryActions } from "@/components/workspace/note-recovery-actions";
 import {
   buildLessonContentSelector,
   LessonContentRenderer,
@@ -275,8 +276,8 @@ export function SimplePresentationShell({
                     <h3>Build your explanation</h3>
                   </div>
                   <Button
-                    disabled={context.autosaveStatus === "saving" || !context.hasUnsavedNoteChanges}
                     onClick={context.onSaveNoteNow}
+                    disabled={context.noteRecovery?.conflict || context.noteRecovery?.busy || context.autosaveStatus === "saving" || !context.hasUnsavedNoteChanges}
                     size="sm"
                     type="button"
                     variant={context.hasUnsavedNoteChanges ? "default" : "outline"}
@@ -306,6 +307,9 @@ export function SimplePresentationShell({
                 >
                   {context.noteSaveError ?? context.noteSaveDetail}
                 </p>
+                {context.canRetryNoteSave ? <Button onClick={context.onRetryNoteSave} size="sm" type="button" variant="outline">Retry save</Button> : null}
+                {context.noteRecovery ? <NoteRecoveryActions recovery={context.noteRecovery} /> : null}
+                {context.onOpenPersonalNote ? <Button onClick={context.onOpenPersonalNote} size="sm" type="button" variant="outline">Open in Personal Notes</Button> : null}
               </section>
             ) : null}
 

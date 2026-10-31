@@ -4,3 +4,11 @@ export class PersonalNoteConflictError extends Error {
     this.name = "PersonalNoteConflictError";
   }
 }
+
+/** A conditional write rejected an obsolete (or missing) account revision. */
+export class LearnerNoteConflictError extends Error {
+  constructor(message = "A newer saved version exists. Keep your draft as a separate note, or load the latest version.") {
+    super(message);
+    this.name = "LearnerNoteConflictError";
+  }
+}

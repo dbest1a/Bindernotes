@@ -10,6 +10,7 @@ import {
   createDefaultWorkspacePreferences,
 } from "@/lib/workspace-preferences";
 import { emptyDoc } from "@/lib/utils";
+import { LearnerNoteConflictError } from "@/lib/note-conflict";
 import type { BinderBundle, Profile } from "@/types";
 
 const mocks = vi.hoisted(() => {
@@ -24,6 +25,8 @@ const mocks = vi.hoisted(() => {
 
   return {
     profile,
+    getLatestNote: vi.fn(),
+    createNoteCopy: vi.fn(),
     binderBundle: {
       data: undefined as BinderBundle | undefined,
       error: null as Error | null,
@@ -143,6 +146,15 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+vi.mock("@/services/binder-service", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/services/binder-service")>(),
+  getLatestLearnerNote: mocks.getLatestNote,
+}));
+vi.mock("@/services/personal-notes-service", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/services/personal-notes-service")>(),
+  createLoosePersonalNote: mocks.createNoteCopy,
+}));
+
 vi.mock("@/hooks/use-binders", () => ({
   useBinderBundle: () => mocks.binderBundle,
   useLearnerNoteMutation: () => mocks.noteMutation,
@@ -179,15 +191,17 @@ function renderReaderPage(initialEntry: string) {
     },
   });
 
-  return render(
+  const tree = () => (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
         </Routes>
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const rendered = render(tree());
+  return { ...rendered, refresh: () => rendered.rerender(tree()) };
 }
 
 function setTestViewportWidth(width: number) {
@@ -288,6 +302,21 @@ function createSingleLessonBundle(
 }
 
 describe("BinderReaderPage", () => {
+  async function conflictReader() {
+    mocks.workspacePreferences.active = { ...createDefaultWorkspacePreferences("user-1", "binder-1"), activeMode: "simple", styleChoiceCompleted: true };
+    mocks.binderBundle.isLoading = false;
+    mocks.binderBundle.error = null;
+    const saved = { id: "saved-note", owner_id: "user-1", binder_id: "binder-1", lesson_id: "lesson-1", folder_id: null, title: "Baseline", content: emptyDoc("Baseline body"), math_blocks: [{ id: "equation", type: "latex" as const, latex: "x^2 + y^2 = r^2" }], pinned: false, created_at: "2026-10-01T10:00:00.000Z", updated_at: "2026-10-01T10:00:00.000Z" };
+    mocks.binderBundle.data = { ...createSingleLessonBundle(), notes: [saved] };
+    mocks.noteMutation.mutateAsync.mockReset().mockRejectedValue(new LearnerNoteConflictError());
+    mocks.getLatestNote.mockReset().mockResolvedValue({ ...saved, title: "Other tab's version", content: emptyDoc("New account body"), updated_at: "2026-10-31T10:00:00.000Z" });
+    mocks.createNoteCopy.mockReset().mockResolvedValue({ id: "recovered-copy" });
+    const rendered = renderReaderPage("/binders/binder-1/documents/lesson-1");
+    const title = await screen.findByPlaceholderText("Like Terms notes");
+    fireEvent.change(title, { target: { value: "My unsaved reasoning" } });
+    await screen.findByRole("button", { name: "Keep both" }, { timeout: 2500 });
+    return { title: title as HTMLInputElement, saved, rendered };
+  }
   beforeEach(() => {
     window.sessionStorage.clear();
     setTestViewportSize(1024, 768);
@@ -315,6 +344,80 @@ describe("BinderReaderPage", () => {
     cleanup();
     window.localStorage.clear();
     vi.unstubAllGlobals();
+  });
+
+  it("offers keep-both instead of retrying an obsolete revision and preserves both versions", async () => {
+    const { title, saved } = await conflictReader();
+    expect(screen.queryByRole("button", { name: "Retry save" })).toBeNull();
+    expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    await screen.findByText("Both versions are kept. You're viewing the latest account version.");
+    expect(mocks.createNoteCopy).toHaveBeenCalledWith({ ownerId: "user-1", title: "My unsaved reasoning (recovered copy)", content: saved.content, mathBlocks: saved.math_blocks });
+    expect(mocks.getLatestNote).toHaveBeenCalledWith({ ownerId: "user-1", binderId: "binder-1", lessonId: "lesson-1" });
+    expect(title.value).toBe("Other tab's version");
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toBeNull();
+    expect(screen.getByRole("link", { name: "Open saved copy in Personal Notes" }).getAttribute("href")).toBe("/notes/n/recovered-copy");
+    expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires an explicit replacement choice and keeps the draft if loading fails", async () => {
+    const { title } = await conflictReader();
+    mocks.getLatestNote.mockRejectedValueOnce(new Error("Connection interrupted"));
+    fireEvent.click(screen.getByRole("button", { name: "Use latest…" }));
+    expect(mocks.getLatestNote).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Replace my draft" }));
+    await screen.findByText("Connection interrupted");
+    expect(title.value).toBe("My unsaved reasoning");
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toContain("My unsaved reasoning");
+    expect(mocks.createNoteCopy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Use latest…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replace my draft" }));
+    await screen.findByText("Latest account version loaded.");
+    expect(title.value).toBe("Other tab's version");
+  });
+
+  it("retains edits typed while a recovery copy is saving", async () => {
+    const { title } = await conflictReader();
+    let finishCopy!: (value: { id: string }) => void;
+    mocks.createNoteCopy.mockImplementationOnce(() => new Promise((resolve) => { finishCopy = resolve; }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    fireEvent.change(title, { target: { value: "Even newer reasoning" } });
+    finishCopy({ id: "earlier-copy" });
+    await screen.findByText(/You made more edits while it saved/);
+    expect(title.value).toBe("Even newer reasoning");
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toContain("Even newer reasoning");
+    expect(screen.getByRole("button", { name: "Keep both" })).toBeTruthy();
+    expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the original draft when creating the separate copy fails", async () => {
+    const { title } = await conflictReader();
+    mocks.createNoteCopy.mockRejectedValueOnce(new Error("Copy unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    await screen.findByText("Copy unavailable");
+    expect(title.value).toBe("My unsaved reasoning");
+    expect(mocks.getLatestNote).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toContain("My unsaved reasoning");
+  });
+
+  it("reuses an acknowledged recovery copy if reloading the account version fails", async () => {
+    await conflictReader();
+    mocks.getLatestNote.mockRejectedValueOnce(new Error("Reload unavailable"));
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    await screen.findByText("Reload unavailable");
+    expect(screen.getByRole("link", { name: "Open saved copy in Personal Notes" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    await screen.findByText("Both versions are kept. You're viewing the latest account version.");
+    expect(mocks.createNoteCopy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not hydrate an unchanged account refetch over a dirty draft", async () => {
+    const { title, rendered } = await conflictReader();
+    mocks.binderBundle.data = structuredClone(mocks.binderBundle.data);
+    rendered.refresh();
+    expect(title.value).toBe("My unsaved reasoning");
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toContain("My unsaved reasoning");
+    expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
   });
 
   it("shows the loading shell instead of crashing before lessons are available", () => {

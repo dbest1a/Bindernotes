@@ -9,6 +9,7 @@ import {
   SourceLessonModule,
 } from "@/components/workspace/study-core-modules";
 import { WorkspacePanel } from "@/components/workspace/workspace-panel";
+import type { NoteRecoveryControls } from "@/components/workspace/note-recovery-actions";
 import { LearningAcceleratorsModule } from "@/components/workspace/learning-accelerators";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -305,6 +306,8 @@ export type WorkspaceModuleContext = {
   noteSaveLabel: string;
   noteSaveDetail: string;
   noteSaveError: string | null;
+  noteRecovery?: NoteRecoveryControls;
+  onOpenPersonalNote?: () => void;
   canRetryNoteSave: boolean;
   noteInsertRequest: NoteInsertRequest | null;
   mathModules?: MathWorkspaceModuleBindings;
@@ -482,6 +485,8 @@ export const workspaceModuleRegistry: Record<WorkspaceModuleId, WorkspaceModuleD
         selectedLessonTitle={context.selectedLesson.title}
         autosaveStatus={context.autosaveStatus}
         canRetryNoteSave={context.canRetryNoteSave}
+        noteRecovery={context.noteRecovery}
+        onOpenPersonalNote={context.onOpenPersonalNote}
         noteSaveDetail={context.noteSaveDetail}
         noteSaveError={context.noteSaveError}
         noteSaveLabel={context.noteSaveLabel}
