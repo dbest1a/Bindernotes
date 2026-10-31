@@ -38,7 +38,7 @@ export function WhiteboardBoardList({
   return (
     <div className="whiteboard-board-manager grid gap-2" data-testid="whiteboard-board-manager">
       <div className="whiteboard-sidebar-section-heading flex items-center justify-between gap-2">
-        <p className="flex min-w-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground">
           <Layers3 className="size-3.5" />
           <span>Recent whiteboards</span>
         </p>

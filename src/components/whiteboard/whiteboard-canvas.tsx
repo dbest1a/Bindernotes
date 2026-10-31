@@ -30,6 +30,9 @@ type WhiteboardCanvasProps = {
   onViewportRequestReady?: (requestViewport: ((transform: WhiteboardViewportTransform) => void) | null) => void;
   onActionsReady?: (actions: WhiteboardCanvasActions | null) => void;
   fullscreen?: boolean;
+  /** Minimal mode, mirrored to Excalidraw's Zen mode (Alt+Z toggles both). */
+  zenMode?: boolean;
+  onZenModeChange?: (enabled: boolean) => void;
 };
 
 type ExcalidrawCameraApi = {
@@ -57,6 +60,8 @@ export function WhiteboardCanvas({
   onViewportRequestReady,
   onActionsReady,
   fullscreen = false,
+  zenMode,
+  onZenModeChange,
 }: WhiteboardCanvasProps) {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState<ComponentType<Record<string, unknown>> | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +83,11 @@ export function WhiteboardCanvas({
   const lastHostSizeRef = useRef<{ width: number; height: number } | null>(null);
   const latestBoardRef = useRef(board);
   latestBoardRef.current = board;
+  const zenModeRef = useRef(zenMode);
+  zenModeRef.current = zenMode;
+  const onZenModeChangeRef = useRef(onZenModeChange);
+  onZenModeChangeRef.current = onZenModeChange;
+  const reportedZenModeRef = useRef<boolean | null>(null);
 
   // Excalidraw reports every pointer move and camera frame. Reading layout on each one
   // forced a synchronous reflow, so the host box is cached: it is re-measured at gesture
@@ -243,6 +253,7 @@ export function WhiteboardCanvas({
       if (!hadActiveDrawingPointer || drawingPointerIdsRef.current.size > 0) {
         return;
       }
+      hostRef.current?.removeAttribute("data-drawing");
 
       flushPendingSceneChange();
       if (pendingResizeRefreshRef.current) {
@@ -262,6 +273,7 @@ export function WhiteboardCanvas({
 
   const handleDrawingPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     drawingPointerIdsRef.current.add(event.pointerId);
+    hostRef.current?.setAttribute("data-drawing", "true");
     invalidateHostRect();
   }, [invalidateHostRect]);
 
@@ -310,6 +322,9 @@ export function WhiteboardCanvas({
   const handleExcalidrawApi = useCallback(
     (api: ExcalidrawCameraApi) => {
       excalidrawApiRef.current = api;
+      if (zenModeRef.current) {
+        api.updateScene?.({ appState: { zenModeEnabled: true } });
+      }
       if (import.meta.env.DEV && typeof window !== "undefined") {
         (window as WhiteboardDebugWindow).__BINDERNOTES_WHITEBOARD_CAMERA__ = () => api.getAppState?.() ?? null;
       }
@@ -489,8 +504,22 @@ export function WhiteboardCanvas({
     [initialData],
   );
 
+  useEffect(() => {
+    const api = excalidrawApiRef.current;
+    if (zenMode === undefined || !api?.updateScene) return;
+    const current = Boolean((api.getAppState?.() as { zenModeEnabled?: boolean } | undefined)?.zenModeEnabled);
+    if (current !== zenMode) api.updateScene({ appState: { zenModeEnabled: zenMode } });
+  }, [ExcalidrawComponent, zenMode]);
+
   const handleExcalidrawChange = useCallback(
     (elements: readonly unknown[], appState: unknown, files: unknown) => {
+      const zen = Boolean((appState as { zenModeEnabled?: boolean } | null)?.zenModeEnabled);
+      if (reportedZenModeRef.current !== zen) {
+        const firstReport = reportedZenModeRef.current === null;
+        reportedZenModeRef.current = zen;
+        // Alt+Z inside Excalidraw toggles Zen mode; minimal mode follows it.
+        if (!firstReport && zen !== zenModeRef.current) onZenModeChangeRef.current?.(zen);
+      }
       emitViewportChange(appState as Record<string, unknown>);
       pendingSceneRef.current = {
         elements,

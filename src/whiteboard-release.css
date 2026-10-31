@@ -177,8 +177,10 @@
   scrollbar-gutter: stable;
 }
 
-/* The lab dock is always dark, including when the surrounding app is light. */
-.bindernotes-whiteboard-lab .whiteboard-control-panel {
+/* The lab dock is always dark, including when the surrounding app is light. Graph cards on the
+   lab board are dark through and through too: a dark graph in a white frame looked bolted on. */
+.bindernotes-whiteboard-lab .whiteboard-control-panel,
+.bindernotes-whiteboard-lab .whiteboard-module-card[data-whiteboard-module="desmos-graph"] {
   color-scheme: dark;
   --background: 230 14% 9%;
   --foreground: 210 30% 96%;
@@ -257,4 +259,80 @@
 .whiteboard-module-card__chrome,
 .whiteboard-module-card__resize-handle {
   touch-action: none;
+}
+
+/* Minimal mode: a calm sheet of paper. One small pill keeps the save state, adding a module
+   and the way back to all controls; it steps back while a pen or finger is on the canvas. */
+.whiteboard-minimal-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(225 10% 32% / 0.8);
+  background-color: hsl(230 12% 14% / 0.94);
+  color: hsl(210 30% 96%);
+  box-shadow: 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.whiteboard-minimal-pill__button {
+  border-radius: 9999px;
+  color: inherit;
+}
+
+.whiteboard-minimal-pill__button:hover {
+  background-color: hsl(230 11% 22%);
+}
+
+.whiteboard-minimal-pill__button:active {
+  transform: scale(0.96);
+}
+
+.whiteboard-minimal-pill__status {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-inline: 0.625rem 0.25rem;
+  border-radius: 9999px;
+  background-color: hsl(170 66% 46%);
+  transition: background-color 180ms ease;
+}
+
+.whiteboard-minimal-pill__status[data-status="saving"] {
+  background-color: hsl(38 92% 60%);
+}
+
+.whiteboard-minimal-pill__status[data-status="offline-draft"] {
+  background-color: hsl(214 15% 66%);
+}
+
+.whiteboard-minimal-pill__status:is([data-status="error"], [data-status="limit"], [data-status="storage-limit"], [data-status="unavailable"]) {
+  background-color: hsl(0 72% 65%);
+}
+
+.bindernotes-whiteboard-lab:has([data-drawing="true"]) .whiteboard-minimal-pill {
+  opacity: 0.18;
+}
+
+.whiteboard-minimal-pill:hover,
+.whiteboard-minimal-pill:focus-within {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whiteboard-minimal-pill,
+  .whiteboard-minimal-pill__status {
+    transition: none;
+  }
+
+  .whiteboard-minimal-pill__button:active {
+    transform: none;
+  }
+}
+
+/* In minimal mode on larger screens the pill lines up with the drawing toolbar. */
+@media (min-width: 641px) {
+  .bindernotes-whiteboard-lab[data-minimal="true"] [data-testid="whiteboard-lab-dock"] {
+    top: 1rem;
+  }
 }

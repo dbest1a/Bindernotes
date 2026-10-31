@@ -923,19 +923,6 @@ export function WhiteboardModuleCard({
               preview
             </span>
           ) : null}
-          {!pinned ? (
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              screen
-            </span>
-          ) : anchorMode === "board-fixed-size" ? (
-            <span className="whiteboard-module-card__anchor-label shrink-0 whitespace-nowrap rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground" title="Pinned to the board; keeps its screen size when zooming">
-              fixed
-            </span>
-          ) : (
-            <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              board
-            </span>
-          )}
         </div>
         {presentation === "chip" ? (
           <Button

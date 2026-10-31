@@ -29,6 +29,7 @@ import { WorkspacePanel } from "@/components/workspace/workspace-panel";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
 import { WhiteboardCanvas, type WhiteboardCanvasActions } from "@/components/whiteboard/whiteboard-canvas";
+import { WhiteboardSaveStatusContext } from "@/components/whiteboard/whiteboard-save-status-context";
 import { WhiteboardStudyTools } from "@/components/whiteboard/whiteboard-study-tools";
 import { WhiteboardRecoveryTools } from "@/components/whiteboard/whiteboard-recovery-tools";
 import { getWhiteboardModuleExportFrame, whiteboardPlainText } from "@/lib/whiteboards/whiteboard-navigation";
@@ -172,6 +173,8 @@ function whiteboardModulesChanged(previous: WhiteboardModuleElement[], next: Whi
   if (previous.length !== next.length) return true;
   return next.some((moduleElement, index) => moduleElement !== previous[index] && JSON.stringify(moduleElement) !== JSON.stringify(previous[index]));
 }
+
+const WHITEBOARD_MINIMAL_MODE_KEY = "bindernotes:whiteboard:minimal-mode";
 
 type ViewportStore = {
   get: () => WhiteboardViewportTransform;
@@ -380,7 +383,24 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const [browserFullscreen, setBrowserFullscreen] = useState(false);
   const enterWhiteboardFocus = context.onEnterWhiteboardFocus;
   const exitWhiteboardFocus = onBack ?? context.onExitWhiteboardFocus;
-  const [showFocusExitHint, setShowFocusExitHint] = useState(() => Boolean(exitWhiteboardFocus));
+  const [showFocusExitHint, setShowFocusExitHint] = useState(false);
+  // Minimal mode: the board, its cards and one small control pill. Remembered per device and
+  // mirrored to Excalidraw's Zen mode, so Alt+Z toggles both.
+  const [minimalMode, setMinimalModeState] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.localStorage.getItem(WHITEBOARD_MINIMAL_MODE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setMinimalMode = useCallback((enabled: boolean) => {
+    setMinimalModeState(enabled);
+    try {
+      window.localStorage.setItem(WHITEBOARD_MINIMAL_MODE_KEY, enabled ? "1" : "0");
+    } catch {
+      // The mode still applies for this visit.
+    }
+  }, []);
   const moduleContextKind = useMemo(() => getWhiteboardContextKind(context), [context]);
   const scope = useMemo<WhiteboardScope | null>(
     () =>
@@ -851,6 +871,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
       return;
     }
 
+    // Explain how to leave full screen once per device, then keep the canvas clear.
+    const seenKey = "bindernotes:whiteboard:focus-hint-seen";
+    try {
+      if (window.localStorage.getItem(seenKey) === "1") return;
+      window.localStorage.setItem(seenKey, "1");
+    } catch {
+      // Without storage the hint simply shows each time.
+    }
     setShowFocusExitHint(true);
     const timeout = window.setTimeout(() => setShowFocusExitHint(false), 5000);
     return () => window.clearTimeout(timeout);
@@ -1714,11 +1742,12 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     return (
       <div
         className="bindernotes-whiteboard-lab fixed inset-0 z-[999] h-screen w-screen overflow-hidden bg-[#10131a] text-foreground"
+        data-minimal={minimalMode ? "true" : "false"}
         data-testid="whiteboard-lab-page"
       >
         {activeBoard ? (
           <>
-            {exitWhiteboardFocus ? (
+            {exitWhiteboardFocus && !minimalMode ? (
               <div
                 className="whiteboard-focus-return pointer-events-none fixed"
                 data-testid="whiteboard-focus-return"
@@ -1744,13 +1773,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 </Button>
               </div>
             ) : null}
-            {showFocusExitHint ? (
+            {showFocusExitHint && !minimalMode ? (
               <div
                 className="whiteboard-focus-exit-hint whiteboard-focus-exit-hint--fullscreen pointer-events-none fixed left-1/2 z-[160] w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border px-4 py-3 text-center text-sm font-semibold shadow-xl"
                 data-testid="whiteboard-focus-exit-hint"
                 role="status"
               >
-                Whiteboard focus is on. Use Back to workspace or Esc to return to your menus.
+                Full-screen board. Press Esc or use Back to workspace to return.
               </div>
             ) : null}
             <WhiteboardCanvas
@@ -1761,7 +1790,10 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               onSceneChange={handleActiveSceneChange}
               onViewportChange={handleViewportChange}
               onViewportRequestReady={handleViewportRequestReady}
+              onZenModeChange={setMinimalMode}
+              zenMode={minimalMode}
             />
+            <WhiteboardSaveStatusContext.Provider value={saveStatus}>
             <WithSettledViewport store={viewportStore}>{(viewportTransform) => <WhiteboardPinnedObjectLayer
               context={context}
               fixed
@@ -1782,6 +1814,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               renderModule={renderModule}
               viewportTransform={viewportTransform}
             />}</WithSettledViewport>
+            </WhiteboardSaveStatusContext.Provider>
 
             <WhiteboardFloatingUiLayer
               activeBoard={activeBoard}
@@ -1803,6 +1836,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               warning={warning}
               studyTools={studyTools}
               templates={<details><summary className="cursor-pointer p-2 font-semibold">Start from a template</summary><WhiteboardTemplatePicker compact onCreateFromTemplate={createBoardFromTemplate} /></details>}
+              minimalMode={minimalMode}
+              onMinimalModeChange={setMinimalMode}
             />
             {pendingNotesInsertion ? (
               <div
@@ -1885,10 +1920,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
           <div className="grid h-full w-full place-items-center bg-[#10131a] p-6">
             <div className="whiteboard-control-panel grid w-[min(28rem,calc(100vw-2rem))] gap-4 rounded-lg border p-4 text-sm" data-testid="whiteboard-start-panel">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Whiteboard Lab</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Start a whiteboard</h2>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">Start a whiteboard</h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Create a Supabase-saved board, or reopen one you already made.
+                  Start a new board, or reopen one of yours. Boards save to your account.
                 </p>
               </div>
               <Button
@@ -1929,7 +1963,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   return (
     <WorkspacePanel
       className="whiteboard-workspace-panel whiteboard-workspace-panel--module h-full min-h-0"
-      description="Local review draft with graph-paper drawing and live BinderNotes modules"
+      description="Draw beside your lesson with live graphs and study tools."
       title="Math Whiteboard"
     >
       <div
@@ -2129,7 +2163,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               data-testid="whiteboard-focus-exit-hint"
               role="status"
             >
-              Whiteboard focus is on. Use Back to workspace or Esc to return to your menus.
+              Full-screen board. Press Esc or use Back to workspace to return.
             </div>
           ) : null}
           {activeBoard ? (
@@ -2142,6 +2176,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 onViewportChange={handleViewportChange}
                 onViewportRequestReady={handleViewportRequestReady}
               />
+              <WhiteboardSaveStatusContext.Provider value={saveStatus}>
               <WithSettledViewport store={viewportStore}>{(viewportTransform) => <WhiteboardPinnedObjectLayer
                 context={context}
                 getViewportTransform={getLatestViewportTransform}
@@ -2161,6 +2196,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 renderModule={renderModule}
                 viewportTransform={viewportTransform}
               />}</WithSettledViewport>
+              </WhiteboardSaveStatusContext.Provider>
               <WhiteboardToolbar
                 objectCount={activeBoard.objectCount}
                 onSaveNow={saveLatestBoard}

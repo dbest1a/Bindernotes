@@ -70,6 +70,17 @@ try {
       }
     }
   }
+  // Minimal mode: the board and one small control pill (Excalidraw Zen mode mirrors it).
+  const enterMinimal = page.getByTestId("whiteboard-minimal-enter");
+  if (!(await enterMinimal.count())) skip("05b-lab-minimal-mode", "Minimal mode button not found");
+  else {
+    await enterMinimal.click();
+    await page.getByTestId("whiteboard-minimal-pill").waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(700);
+    await shot(page, "05b-lab-minimal-mode", "Minimal mode: board, cards and one control pill");
+    await page.getByTestId("whiteboard-minimal-exit").click();
+    await page.waitForTimeout(400);
+  }
   notes.push({ name: "lab-desktop-errors", note: errors.slice(0, 5).join(" | ") || "none" });
   await context.close();
 }

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ import {
 import type { WhiteboardModuleElement } from "@/lib/whiteboards/whiteboard-types";
 import type { WorkspaceModuleContext } from "@/components/workspace/workspace-modules";
 import { WhiteboardModuleCard } from "@/components/whiteboard/whiteboard-module-card";
+import { describeBoardNoteSave, WhiteboardSaveStatusContext } from "@/components/whiteboard/whiteboard-save-status-context";
+import type { WhiteboardSaveStatus } from "@/lib/whiteboards/whiteboard-types";
 import { useMathWorkspace } from "@/hooks/use-math-workspace";
 import { prepareExpressionForGraph } from "@/lib/scientific-calculator";
 import { extractPlainTextFromJson } from "@/lib/learning-accelerators";
@@ -380,6 +382,7 @@ function getSourceLessonModuleContext(
   moduleElement: WhiteboardModuleElement,
   onChangeModule: (moduleElement: WhiteboardModuleElement) => void,
   onRouteSelectionToNotes?: WhiteboardPinnedObjectLayerProps["onRouteSelectionToNotes"],
+  boardSaveStatus: WhiteboardSaveStatus | null = null,
 ): WorkspaceModuleContext {
   if (moduleElement.moduleId === "private-notes") {
     const appendToModuleNote = (text: string) => {
@@ -395,10 +398,8 @@ function getSourceLessonModuleContext(
       surface: "whiteboard",
       noteTitle: moduleElement.noteTitle ?? moduleElement.title ?? context.noteTitle,
       noteContent: moduleElement.noteContent ?? emptyNoteDoc(),
-      autosaveStatus: "saved",
-      noteSaveLabel: "Saved with board",
-      noteSaveDetail: "This Private Notes card saves with the whiteboard.",
-      noteSaveError: null,
+      // Notes save with the board, so they report the board's real save state.
+      ...describeBoardNoteSave(boardSaveStatus),
       canRetryNoteSave: false,
       hasUnsavedNoteChanges: false,
       onNoteTitleChange: (value: string) =>
@@ -1047,6 +1048,7 @@ function WhiteboardObjectOverlay({
   testId,
   viewportTransform = defaultWhiteboardViewportTransform,
 }: WhiteboardObjectOverlayProps) {
+  const boardSaveStatus = useContext(WhiteboardSaveStatusContext);
   return (
     <div className={className} data-testid={testId}>
       {modules.map((moduleElement) => {
@@ -1055,6 +1057,7 @@ function WhiteboardObjectOverlay({
           moduleElement,
           onChangeModule,
           onRouteSelectionToNotes,
+          boardSaveStatus,
         );
         const sourceScoped = lessonScopedWhiteboardModules.has(moduleElement.moduleId);
         const confirmedSource = sourceScoped ? isSourceConfirmed(moduleElement) : true;

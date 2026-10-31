@@ -1,4 +1,4 @@
-import { Home, Maximize2, Minimize2, PanelLeftOpen, Save, Settings2, Trash2, TriangleAlert } from "lucide-react";
+import { Focus, Home, Maximize2, Minimize2, PanelLeftOpen, PanelRightOpen, Plus, Save, Settings2, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { WhiteboardBoardList } from "@/components/whiteboard/whiteboard-board-list";
@@ -26,6 +26,9 @@ type WhiteboardFloatingUiLayerProps = {
   warning: string | null;
   studyTools?: ReactNode;
   templates?: ReactNode;
+  /** Minimal mode: the board and one small pill (save state, add, the way back). */
+  minimalMode?: boolean;
+  onMinimalModeChange?: (enabled: boolean) => void;
 };
 
 const fallbackSaveLabels: Record<WhiteboardSaveStatus, string> = {
@@ -58,8 +61,13 @@ export function WhiteboardFloatingUiLayer({
   warning,
   studyTools,
   templates,
+  minimalMode = false,
+  onMinimalModeChange,
 }: WhiteboardFloatingUiLayerProps) {
-  const [controlsCollapsed, setControlsCollapsed] = useState(false);
+  // On a phone the full panel would cover most of the board, so it starts as a chip there.
+  const [controlsCollapsed, setControlsCollapsed] = useState(
+    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches,
+  );
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const statusLabel = saveMessage || fallbackSaveLabels[saveStatus];
   const visibleStatusLabel = saveStatus === "offline-draft" ? "Local draft" : statusLabel;
@@ -75,7 +83,47 @@ export function WhiteboardFloatingUiLayer({
         className="pointer-events-none absolute right-4 top-24 flex justify-end"
         data-testid="whiteboard-lab-dock"
       >
-        {controlsCollapsed ? (
+        {minimalMode ? (
+          <div
+            aria-label="Board controls"
+            className="whiteboard-minimal-pill pointer-events-auto"
+            data-testid="whiteboard-minimal-pill"
+            role="toolbar"
+          >
+            <span
+              aria-live="polite"
+              className="whiteboard-minimal-pill__status"
+              data-status={saveStatus}
+              role="status"
+              title={visibleStatusLabel}
+            >
+              <span className="sr-only">{visibleStatusLabel}</span>
+            </span>
+            <Button
+              aria-label="Add module"
+              className="whiteboard-minimal-pill__button"
+              onClick={() => onDrawerOpenChange(!drawerOpen)}
+              size="icon"
+              title="Add module"
+              type="button"
+              variant="ghost"
+            >
+              <Plus className="size-4" />
+            </Button>
+            <Button
+              aria-label="Show all controls"
+              className="whiteboard-minimal-pill__button"
+              data-testid="whiteboard-minimal-exit"
+              onClick={() => onMinimalModeChange?.(false)}
+              size="icon"
+              title="Show all controls (Alt+Z)"
+              type="button"
+              variant="ghost"
+            >
+              <PanelRightOpen className="size-4" />
+            </Button>
+          </div>
+        ) : controlsCollapsed ? (
           <button
             aria-label="Open whiteboard controls"
             className="whiteboard-control-chip pointer-events-auto"
@@ -98,6 +146,23 @@ export function WhiteboardFloatingUiLayer({
             <PanelLeftOpen data-icon="inline-start" />
             Add module
           </Button>
+          {onMinimalModeChange ? (
+            <Button
+              aria-label="Minimal mode"
+              className="whiteboard-action-button"
+              data-testid="whiteboard-minimal-enter"
+              onClick={() => {
+                onDrawerOpenChange(false);
+                onMinimalModeChange(true);
+              }}
+              size="icon"
+              title="Minimal mode (Alt+Z)"
+              type="button"
+              variant="ghost"
+            >
+              <Focus className="size-4" />
+            </Button>
+          ) : null}
           <Button
             aria-label="Minimize whiteboard controls"
             className="whiteboard-action-button"
@@ -114,7 +179,7 @@ export function WhiteboardFloatingUiLayer({
           </Button>
           </div>
           <label className="grid gap-1">
-            <span className="whiteboard-control-panel__label text-[10px] font-semibold uppercase tracking-[0.16em]">Board name</span>
+            <span className="whiteboard-control-panel__label text-xs font-medium">Board name</span>
             <input
               aria-label="Whiteboard name"
               className="whiteboard-control-panel__input h-9 rounded-md border px-2 text-sm outline-none transition"
@@ -218,7 +283,7 @@ export function WhiteboardFloatingUiLayer({
         )}
       </div>
 
-      {drawerOpen && !controlsCollapsed ? (
+      {drawerOpen && (minimalMode || !controlsCollapsed) ? (
         <WhiteboardModuleLauncher
           contextKind={moduleContextKind}
           onAddModule={(definition) => {

@@ -91,7 +91,8 @@ test("a phone-sized board keeps controls usable and a dragged card stays at the 
   await page.setViewportSize({width:390,height:844});
   await seedBoard(page);
   await page.goto("/e2e/fixtures/index.html?board=1");
-  await page.getByRole("button",{name:"Minimize whiteboard controls",exact:true}).click();
+  // On a phone the controls start as a compact chip so the board stays visible.
+  await expect(page.getByRole("button",{name:"Open whiteboard controls",exact:true})).toBeVisible();
   const card=page.getByTestId("whiteboard-module-card-drag-card");
   const header=card.locator(".whiteboard-module-card__chrome");
   await expect(header).toBeVisible();
