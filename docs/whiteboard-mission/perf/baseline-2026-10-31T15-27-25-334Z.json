@@ -1,0 +1,444 @@
+{
+  "label": "baseline",
+  "startedAt": "2026-10-31T15:27:25.334Z",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "desmosReal": true,
+  "strokes": 200,
+  "results": {
+    "draw@1x": {
+      "frames": 13205,
+      "avgFps": 232,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 16.7,
+      "framesOver16ms": 0,
+      "pctFramesOver16ms": 0,
+      "framesOver33ms": 0,
+      "loafScriptMs": 0,
+      "loafRenderMs": 0,
+      "loafStyleLayoutMs": 0,
+      "longAnimationFrames": 0,
+      "maxLoafMs": 0,
+      "loafForcedLayoutMs": 0,
+      "topLoafScripts": [],
+      "pointerToFrameP50Ms": 2.2,
+      "pointerToFrameP95Ms": 4.3,
+      "pointerToFrameMaxMs": 8.2,
+      "pointerMoves": 3400,
+      "worstInteractionMs": 32,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 57018,
+      "pageErrors": []
+    },
+    "pan@1x": {
+      "frames": 1162,
+      "avgFps": 233.4,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 33.4,
+      "framesOver16ms": 3,
+      "pctFramesOver16ms": 0.26,
+      "framesOver33ms": 1,
+      "loafScriptMs": 0,
+      "loafRenderMs": 0,
+      "loafStyleLayoutMs": 0,
+      "longAnimationFrames": 0,
+      "maxLoafMs": 0,
+      "loafForcedLayoutMs": 0,
+      "topLoafScripts": [],
+      "pointerToFrameP50Ms": 1.7,
+      "pointerToFrameP95Ms": 3.8,
+      "pointerToFrameMaxMs": 12.9,
+      "pointerMoves": 187,
+      "worstInteractionMs": 16,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 4987,
+      "pageErrors": []
+    },
+    "slider@1x": {
+      "error": "locator.waitFor: Timeout 20000ms exceeded.",
+      "pageErrors": []
+    },
+    "tools@1x": {
+      "frames": 725,
+      "avgFps": 229.5,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 29.2,
+      "framesOver16ms": 2,
+      "pctFramesOver16ms": 0.28,
+      "framesOver33ms": 0,
+      "loafScriptMs": 0,
+      "loafRenderMs": 0,
+      "loafStyleLayoutMs": 0,
+      "longAnimationFrames": 0,
+      "maxLoafMs": 0,
+      "loafForcedLayoutMs": 0,
+      "topLoafScripts": [],
+      "pointerToFrameP50Ms": 1.8,
+      "pointerToFrameP95Ms": 2.1,
+      "pointerToFrameMaxMs": 2.3,
+      "pointerMoves": 5,
+      "worstInteractionMs": 40,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 3169,
+      "pageErrors": []
+    },
+    "open@1x": {
+      "emptyBoard": {
+        "warmCanvasMs": 193,
+        "warmReadyMs": 193
+      },
+      "board320": {
+        "warmCanvasMs": 163,
+        "warmReadyMs": 163
+      },
+      "board3Desmos": {
+        "warmCanvasMs": 326,
+        "warmReadyMs": 339
+      },
+      "studyWorkspace": {
+        "warmReadyMs": 347,
+        "coldIncludedMs": 575
+      },
+      "pageErrors": []
+    },
+    "memory@1x": {
+      "error": "locator.click: Timeout 30000ms exceeded.",
+      "pageErrors": []
+    },
+    "draw@4x": {
+      "frames": 18239,
+      "avgFps": 184.7,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.4,
+      "maxFrameMs": 129.2,
+      "framesOver16ms": 411,
+      "pctFramesOver16ms": 2.25,
+      "framesOver33ms": 316,
+      "loafScriptMs": 15613.1,
+      "loafRenderMs": 67.7,
+      "loafStyleLayoutMs": 8.2,
+      "longAnimationFrames": 219,
+      "maxLoafMs": 134.3,
+      "loafForcedLayoutMs": 151.1,
+      "topLoafScripts": [
+        "react-dom_client.js:dispatchDiscreteEvent 8502ms",
+        "@excalidraw_excalidraw.js:DOMWindow.onpointerup 7065ms",
+        "react-dom_client.js:performWorkUntilDeadline 46ms"
+      ],
+      "pointerToFrameP50Ms": 2.2,
+      "pointerToFrameP95Ms": 4,
+      "pointerToFrameMaxMs": 8.1,
+      "pointerMoves": 3400,
+      "worstInteractionMs": 144,
+      "interactionsOver100ms": 39,
+      "slowEventNames": [
+        "pointerover",
+        "pointerenter",
+        "mouseover",
+        "pointerdown",
+        "mousedown",
+        "gotpointercapture",
+        "pointerup",
+        "mouseup",
+        "lostpointercapture",
+        "click",
+        "keydown",
+        "keypress",
+        "pointerout",
+        "pointerleave",
+        "mouseout"
+      ],
+      "wallMs": 98969,
+      "pageErrors": []
+    },
+    "pan@4x": {
+      "frames": 1007,
+      "avgFps": 109.2,
+      "p50FrameMs": 4.3,
+      "p95FrameMs": 20.9,
+      "maxFrameMs": 179.2,
+      "framesOver16ms": 99,
+      "pctFramesOver16ms": 9.84,
+      "framesOver33ms": 15,
+      "loafScriptMs": 962,
+      "loafRenderMs": 102,
+      "loafStyleLayoutMs": 33.5,
+      "longAnimationFrames": 11,
+      "maxLoafMs": 295.9,
+      "loafForcedLayoutMs": 39.4,
+      "topLoafScripts": [
+        "react-dom_client.js:performWorkUntilDeadline 385ms",
+        "react-dom_client.js:dispatchDiscreteEvent 218ms",
+        "whiteboard-module.tsx:TimerHandler:setTimeout 155ms",
+        "whiteboard-canvas.tsx:TimerHandler:setTimeout 51ms",
+        "calculator.js:FrameRequestCallback 46ms"
+      ],
+      "pointerToFrameP50Ms": 2.8,
+      "pointerToFrameP95Ms": 7.8,
+      "pointerToFrameMaxMs": 12.3,
+      "pointerMoves": 187,
+      "worstInteractionMs": 304,
+      "interactionsOver100ms": 2,
+      "slowEventNames": [
+        "pointerover",
+        "pointerenter",
+        "mouseover",
+        "pointerdown",
+        "mousedown",
+        "gotpointercapture",
+        "pointerup",
+        "mouseup",
+        "lostpointercapture",
+        "click",
+        "keydown"
+      ],
+      "wallMs": 9203,
+      "pageErrors": []
+    },
+    "slider@4x": {
+      "error": "locator.waitFor: Timeout 20000ms exceeded.",
+      "pageErrors": []
+    },
+    "tools@4x": {
+      "frames": 731,
+      "avgFps": 162.7,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 270.7,
+      "framesOver16ms": 18,
+      "pctFramesOver16ms": 2.47,
+      "framesOver33ms": 16,
+      "loafScriptMs": 1336.7,
+      "loafRenderMs": 33,
+      "loafStyleLayoutMs": 1.2,
+      "longAnimationFrames": 15,
+      "maxLoafMs": 262.5,
+      "loafForcedLayoutMs": 90.9,
+      "topLoafScripts": [
+        "react-dom_client.js:dispatchDiscreteEvent 1149ms",
+        "whiteboard-module.tsx:TimerHandler:setTimeout 123ms",
+        "@excalidraw_excalidraw.js:DOMWindow.onpointerup 37ms",
+        "react-dom_client.js:dispatchContinuousEvent 28ms"
+      ],
+      "pointerToFrameP50Ms": 2.8,
+      "pointerToFrameP95Ms": 3,
+      "pointerToFrameMaxMs": 3.6,
+      "pointerMoves": 5,
+      "worstInteractionMs": 256,
+      "interactionsOver100ms": 6,
+      "slowEventNames": [
+        "pointerover",
+        "pointerenter",
+        "mouseover",
+        "pointerdown",
+        "mousedown",
+        "gotpointercapture",
+        "pointerup",
+        "mouseup",
+        "lostpointercapture",
+        "click",
+        "keydown",
+        "keypress",
+        "pointerout",
+        "pointerleave",
+        "mouseout"
+      ],
+      "wallMs": 4506,
+      "pageErrors": []
+    },
+    "open@4x": {
+      "emptyBoard": {
+        "warmCanvasMs": 879,
+        "warmReadyMs": 879
+      },
+      "board320": {
+        "warmCanvasMs": 1140,
+        "warmReadyMs": 1140
+      },
+      "board3Desmos": {
+        "warmCanvasMs": 1242,
+        "warmReadyMs": 2233
+      },
+      "studyWorkspace": {
+        "warmReadyMs": 495,
+        "coldIncludedMs": 1756
+      },
+      "pageErrors": []
+    },
+    "memory@4x": {
+      "error": "locator.click: Timeout 30000ms exceeded.",
+      "pageErrors": []
+    }
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "cores": 32
+  },
+  "budgets": [
+    {
+      "key": "draw@1x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "0% (0)",
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "no frame > 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "no LoAF > 50 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "draw@1x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 4.3,
+      "pass": true
+    },
+    {
+      "key": "pan@1x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "0.26% (3)",
+      "pass": true
+    },
+    {
+      "key": "pan@1x",
+      "check": "no frame > 33 ms",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "pan@1x",
+      "check": "no LoAF > 50 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "pan@1x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 3.8,
+      "pass": true
+    },
+    {
+      "key": "tools@1x",
+      "check": "every interaction ≤ 100 ms (INP)",
+      "value": 40,
+      "pass": true
+    },
+    {
+      "key": "open@1x:emptyBoard",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 193,
+      "pass": true
+    },
+    {
+      "key": "open@1x:board320",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 163,
+      "pass": true
+    },
+    {
+      "key": "open@1x:board3Desmos",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 339,
+      "pass": true
+    },
+    {
+      "key": "open@1x:studyWorkspace",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 347,
+      "pass": true
+    },
+    {
+      "key": "draw@4x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "2.25% (411)",
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no frame > 33 ms",
+      "value": 316,
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "no LoAF > 50 ms",
+      "value": 219,
+      "pass": false
+    },
+    {
+      "key": "draw@4x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 4,
+      "pass": true
+    },
+    {
+      "key": "pan@4x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "9.84% (99)",
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "no frame > 33 ms",
+      "value": 15,
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "no LoAF > 50 ms",
+      "value": 11,
+      "pass": false
+    },
+    {
+      "key": "pan@4x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 7.8,
+      "pass": true
+    },
+    {
+      "key": "tools@4x",
+      "check": "every interaction ≤ 100 ms (INP)",
+      "value": 256,
+      "pass": false
+    },
+    {
+      "key": "open@4x:emptyBoard",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 879,
+      "pass": true
+    },
+    {
+      "key": "open@4x:board320",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 1140,
+      "pass": false
+    },
+    {
+      "key": "open@4x:board3Desmos",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 2233,
+      "pass": false
+    },
+    {
+      "key": "open@4x:studyWorkspace",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 495,
+      "pass": true
+    }
+  ]
+}

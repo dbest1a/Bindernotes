@@ -1,0 +1,747 @@
+{
+  "label": "baseline-desmos-labs",
+  "startedAt": "2026-10-31T15:38:53.349Z",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "desmosReal": true,
+  "strokes": 200,
+  "results": {
+    "slider@1x": {
+      "frames": 988,
+      "avgFps": 238.8,
+      "p50FrameMs": 4.2,
+      "p95FrameMs": 4.3,
+      "maxFrameMs": 16.6,
+      "framesOver16ms": 0,
+      "pctFramesOver16ms": 0,
+      "framesOver33ms": 0,
+      "loafScriptMs": 0,
+      "loafRenderMs": 0,
+      "loafStyleLayoutMs": 0,
+      "longAnimationFrames": 0,
+      "maxLoafMs": 0,
+      "loafForcedLayoutMs": 0,
+      "topLoafScripts": [],
+      "pointerToFrameP50Ms": 2,
+      "pointerToFrameP95Ms": 3.9,
+      "pointerToFrameMaxMs": 15.2,
+      "pointerMoves": 247,
+      "worstInteractionMs": 16,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 4148,
+      "sliderMoved": true,
+      "sliderBefore": "a=1",
+      "sliderAfter": "a=4",
+      "pageErrors": []
+    },
+    "memory@1x": {
+      "before": {
+        "heapMB": 28.78,
+        "nodes": 1456,
+        "listeners": 619,
+        "documents": 5
+      },
+      "after": {
+        "heapMB": 31.92,
+        "nodes": 1469,
+        "listeners": 626,
+        "documents": 5
+      },
+      "heapGrowthMB": 3.14,
+      "nodeGrowth": 13,
+      "listenerGrowth": 7,
+      "calculators": {
+        "created": 11,
+        "destroyed": 10
+      },
+      "liveCalculators": 1,
+      "pageErrors": []
+    },
+    "labs@1x": {
+      "mathWhiteboardLab": {
+        "warmReadyMs": 252
+      },
+      "mathLab": {
+        "warmReadyMs": 115
+      },
+      "chem-concept-cards": {
+        "warmReadyMs": 388
+      },
+      "chem-quick-tools": {
+        "warmReadyMs": 383
+      },
+      "chem-periodic-table": {
+        "warmReadyMs": 446
+      },
+      "chem-element-builder": {
+        "warmReadyMs": 383
+      },
+      "chem-electron-config-builder": {
+        "warmReadyMs": 388
+      },
+      "chem-periodic-trends-graph": {
+        "warmReadyMs": 384
+      },
+      "chem-molecule-builder": {
+        "warmReadyMs": 387
+      },
+      "chem-geometry-viewer": {
+        "warmReadyMs": 384
+      },
+      "chem-reaction-balancer": {
+        "warmReadyMs": 392
+      },
+      "chem-tri-reaction-view": {
+        "warmReadyMs": 375
+      },
+      "chem-lab-coach": {
+        "warmReadyMs": 383
+      },
+      "chem-stoichiometry-coach": {
+        "warmReadyMs": 379
+      },
+      "chem-molar-mass-calculator": {
+        "warmReadyMs": 384
+      },
+      "chem-solution-mixer": {
+        "warmReadyMs": 389
+      },
+      "chem-molarity-calculator": {
+        "warmReadyMs": 379
+      },
+      "chem-desmos-concentration-graph": {
+        "warmReadyMs": 384
+      },
+      "chem-ph-calculator": {
+        "warmReadyMs": 381
+      },
+      "chem-titration-lab": {
+        "warmReadyMs": 383
+      },
+      "chem-desmos-titration-curve": {
+        "warmReadyMs": 380
+      },
+      "chem-kinetics-simulator": {
+        "warmReadyMs": 379
+      },
+      "chem-desmos-kinetics-plot": {
+        "warmReadyMs": 393
+      },
+      "chem-data-table": {
+        "warmReadyMs": 387
+      },
+      "chem-calorimetry-lab": {
+        "warmReadyMs": 379
+      },
+      "chem-energy-diagram": {
+        "warmReadyMs": 391
+      },
+      "chem-calculation-sheet": {
+        "warmReadyMs": 383
+      },
+      "chem-safety-cards": {
+        "warmReadyMs": 378
+      },
+      "chem-review-queue": {
+        "warmReadyMs": 380
+      },
+      "chem-lab-notebook": {
+        "warmReadyMs": 383
+      },
+      "chem-reference-safety": {
+        "warmReadyMs": 380
+      },
+      "pageErrors": []
+    },
+    "slider@4x": {
+      "frames": 1181,
+      "avgFps": 138.4,
+      "p50FrameMs": 4.3,
+      "p95FrameMs": 16.6,
+      "maxFrameMs": 41.6,
+      "framesOver16ms": 31,
+      "pctFramesOver16ms": 2.63,
+      "framesOver33ms": 1,
+      "loafScriptMs": 0,
+      "loafRenderMs": 0,
+      "loafStyleLayoutMs": 0,
+      "longAnimationFrames": 0,
+      "maxLoafMs": 0,
+      "loafForcedLayoutMs": 0,
+      "topLoafScripts": [],
+      "pointerToFrameP50Ms": 1.3,
+      "pointerToFrameP95Ms": 3.9,
+      "pointerToFrameMaxMs": 8.9,
+      "pointerMoves": 247,
+      "worstInteractionMs": 40,
+      "interactionsOver100ms": 0,
+      "slowEventNames": [],
+      "wallMs": 8540,
+      "sliderMoved": true,
+      "sliderBefore": "a=1",
+      "sliderAfter": "a=4",
+      "pageErrors": []
+    },
+    "memory@4x": {
+      "before": {
+        "heapMB": 29.43,
+        "nodes": 1460,
+        "listeners": 619,
+        "documents": 5
+      },
+      "after": {
+        "heapMB": 31.99,
+        "nodes": 1469,
+        "listeners": 626,
+        "documents": 5
+      },
+      "heapGrowthMB": 2.56,
+      "nodeGrowth": 9,
+      "listenerGrowth": 7,
+      "calculators": {
+        "created": 11,
+        "destroyed": 10
+      },
+      "liveCalculators": 1,
+      "pageErrors": []
+    },
+    "labs@4x": {
+      "mathWhiteboardLab": {
+        "warmReadyMs": 1346
+      },
+      "mathLab": {
+        "warmReadyMs": 495
+      },
+      "chem-concept-cards": {
+        "warmReadyMs": 587
+      },
+      "chem-quick-tools": {
+        "warmReadyMs": 630
+      },
+      "chem-periodic-table": {
+        "warmReadyMs": 1198
+      },
+      "chem-element-builder": {
+        "warmReadyMs": 759
+      },
+      "chem-electron-config-builder": {
+        "warmReadyMs": 649
+      },
+      "chem-periodic-trends-graph": {
+        "warmReadyMs": 650
+      },
+      "chem-molecule-builder": {
+        "warmReadyMs": 622
+      },
+      "chem-geometry-viewer": {
+        "warmReadyMs": 612
+      },
+      "chem-reaction-balancer": {
+        "warmReadyMs": 630
+      },
+      "chem-tri-reaction-view": {
+        "warmReadyMs": 629
+      },
+      "chem-lab-coach": {
+        "warmReadyMs": 630
+      },
+      "chem-stoichiometry-coach": {
+        "warmReadyMs": 594
+      },
+      "chem-molar-mass-calculator": {
+        "warmReadyMs": 599
+      },
+      "chem-solution-mixer": {
+        "warmReadyMs": 687
+      },
+      "chem-molarity-calculator": {
+        "warmReadyMs": 601
+      },
+      "chem-desmos-concentration-graph": {
+        "warmReadyMs": 627
+      },
+      "chem-ph-calculator": {
+        "warmReadyMs": 642
+      },
+      "chem-titration-lab": {
+        "warmReadyMs": 612
+      },
+      "chem-desmos-titration-curve": {
+        "warmReadyMs": 626
+      },
+      "chem-kinetics-simulator": {
+        "warmReadyMs": 683
+      },
+      "chem-desmos-kinetics-plot": {
+        "warmReadyMs": 596
+      },
+      "chem-data-table": {
+        "warmReadyMs": 608
+      },
+      "chem-calorimetry-lab": {
+        "warmReadyMs": 617
+      },
+      "chem-energy-diagram": {
+        "warmReadyMs": 600
+      },
+      "chem-calculation-sheet": {
+        "warmReadyMs": 588
+      },
+      "chem-safety-cards": {
+        "warmReadyMs": 602
+      },
+      "chem-review-queue": {
+        "warmReadyMs": 667
+      },
+      "chem-lab-notebook": {
+        "warmReadyMs": 583
+      },
+      "chem-reference-safety": {
+        "warmReadyMs": 603
+      },
+      "pageErrors": []
+    }
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5090 (0x00002B85) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "cores": 32
+  },
+  "budgets": [
+    {
+      "key": "slider@1x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "0% (0)",
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "no frame > 33 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "no LoAF > 50 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@1x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 3.9,
+      "pass": true
+    },
+    {
+      "key": "memory@1x",
+      "check": "no growth after 10 open/close (heap ≤ +1 MB, 0 live extra calculators)",
+      "value": "3.14 MB, 1 live",
+      "pass": false
+    },
+    {
+      "key": "labs@1x:mathWhiteboardLab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 252,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:mathLab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 115,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-concept-cards",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 388,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-quick-tools",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-periodic-table",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 446,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-element-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-electron-config-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 388,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-periodic-trends-graph",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 384,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molecule-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 387,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-geometry-viewer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 384,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-reaction-balancer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 392,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-tri-reaction-view",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 375,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-lab-coach",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-stoichiometry-coach",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 379,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molar-mass-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 384,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-solution-mixer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 389,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-molarity-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 379,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-concentration-graph",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 384,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-ph-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 381,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-titration-lab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-titration-curve",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 380,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-kinetics-simulator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 379,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-desmos-kinetics-plot",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 393,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-data-table",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 387,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-calorimetry-lab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 379,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-energy-diagram",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 391,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-calculation-sheet",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-safety-cards",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 378,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-review-queue",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 380,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-lab-notebook",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 383,
+      "pass": true
+    },
+    {
+      "key": "labs@1x:chem-reference-safety",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 380,
+      "pass": true
+    },
+    {
+      "key": "slider@4x",
+      "check": "60 fps: ≤1% frames over 16.7 ms",
+      "value": "2.63% (31)",
+      "pass": false
+    },
+    {
+      "key": "slider@4x",
+      "check": "no frame > 33 ms",
+      "value": 1,
+      "pass": false
+    },
+    {
+      "key": "slider@4x",
+      "check": "no LoAF > 50 ms",
+      "value": 0,
+      "pass": true
+    },
+    {
+      "key": "slider@4x",
+      "check": "ink/pointer → frame p95 ≤ 20 ms",
+      "value": 3.9,
+      "pass": true
+    },
+    {
+      "key": "memory@4x",
+      "check": "no growth after 10 open/close (heap ≤ +1 MB, 0 live extra calculators)",
+      "value": "2.56 MB, 1 live",
+      "pass": false
+    },
+    {
+      "key": "labs@4x:mathWhiteboardLab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 1346,
+      "pass": false
+    },
+    {
+      "key": "labs@4x:mathLab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 495,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-concept-cards",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 587,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-quick-tools",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 630,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-periodic-table",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 1198,
+      "pass": false
+    },
+    {
+      "key": "labs@4x:chem-element-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 759,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-electron-config-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 649,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-periodic-trends-graph",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 650,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molecule-builder",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 622,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-geometry-viewer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 612,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-reaction-balancer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 630,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-tri-reaction-view",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 629,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-lab-coach",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 630,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-stoichiometry-coach",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 594,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molar-mass-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 599,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-solution-mixer",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 687,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-molarity-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 601,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-concentration-graph",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 627,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-ph-calculator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 642,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-titration-lab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 612,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-titration-curve",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 626,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-kinetics-simulator",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 683,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-desmos-kinetics-plot",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 596,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-data-table",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 608,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-calorimetry-lab",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 617,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-energy-diagram",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 600,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-calculation-sheet",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 588,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-safety-cards",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 602,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-review-queue",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 667,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-lab-notebook",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 583,
+      "pass": true
+    },
+    {
+      "key": "labs@4x:chem-reference-safety",
+      "check": "warm interactive ≤ 1000 ms",
+      "value": 603,
+      "pass": true
+    }
+  ]
+}
