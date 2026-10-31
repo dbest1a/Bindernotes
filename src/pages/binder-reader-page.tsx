@@ -2082,7 +2082,7 @@ export function BinderReaderPage() {
   ]);
 
   useEffect(() => {
-    if (!selectedLesson || recoveringNoteScopeRef.current === currentNoteScopeKey) {
+    if (!selectedLesson || (recoveringNoteScopeRef.current === currentNoteScopeKey && noteScopeHydratedRef.current)) {
       return;
     }
 

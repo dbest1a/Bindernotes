@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyWorkspaceMode,
@@ -184,6 +184,8 @@ let viewportWidth = 1024;
 let viewportHeight = 768;
 
 function renderReaderPage(initialEntry: string) {
+  let navigate: ReturnType<typeof useNavigate>;
+  function CaptureNavigation() { navigate = useNavigate(); return null; }
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -194,6 +196,7 @@ function renderReaderPage(initialEntry: string) {
   const tree = () => (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialEntry]}>
+        <CaptureNavigation />
         <Routes>
           <Route path="/binders/:binderId/documents/:lessonId" element={<BinderReaderPage />} />
         </Routes>
@@ -201,7 +204,7 @@ function renderReaderPage(initialEntry: string) {
     </QueryClientProvider>
   );
   const rendered = render(tree());
-  return { ...rendered, refresh: () => rendered.rerender(tree()) };
+  return { ...rendered, refresh: () => rendered.rerender(tree()), navigate: (path: string) => act(() => { void navigate(path); }) };
 }
 
 function setTestViewportWidth(width: number) {
@@ -418,6 +421,23 @@ describe("BinderReaderPage", () => {
     expect(title.value).toBe("My unsaved reasoning");
     expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toContain("My unsaved reasoning");
     expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("can return to a note while its recovery is pending without getting stuck or losing the draft", async () => {
+    const { rendered } = await conflictReader();
+    const bundle = mocks.binderBundle.data!;
+    mocks.binderBundle.data = { ...bundle, lessons: [...bundle.lessons, { ...bundle.lessons[0], id: "lesson-2", title: "Second lesson", order_index: 2 }] };
+    rendered.refresh();
+    let finishCopy!: (value: { id: string }) => void;
+    mocks.createNoteCopy.mockImplementationOnce(() => new Promise((resolve) => { finishCopy = resolve; }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+    rendered.navigate("/binders/binder-1/documents/lesson-2");
+    await screen.findByPlaceholderText("Second lesson notes");
+    rendered.navigate("/binders/binder-1/documents/lesson-1");
+    expect((await screen.findByPlaceholderText("Like Terms notes") as HTMLInputElement).value).toBe("My unsaved reasoning");
+    finishCopy({ id: "recovered-copy" });
+    await screen.findByText("Both versions are kept. You're viewing the latest account version.");
+    expect((screen.getByPlaceholderText("Like Terms notes") as HTMLInputElement).value).toBe("Other tab's version");
   });
 
   it("shows the loading shell instead of crashing before lessons are available", () => {
