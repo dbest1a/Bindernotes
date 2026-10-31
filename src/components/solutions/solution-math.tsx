@@ -19,6 +19,72 @@ export function renderLatex(latex: string, displayMode: boolean): string {
   }
 }
 
+const LEADING_SPACE = /^(?:\s|\\[;,:! ]|\\q?quad\b|~)+/;
+const TRAILING_SPACE = /(?:\s|\\[;,:! ]|\\q?quad|~)+$/;
+
+/** The space that follows a piece: a quad between results, a word space after a comma, a relation's thick space. */
+export type MathPieceGap = "wide" | "narrow" | "relation";
+
+const RELATION_COMMANDS = new Set([
+  "approx", "equiv", "sim", "simeq", "cong", "propto", "le", "leq", "ge", "geq", "ne", "neq",
+  "to", "Rightarrow", "Leftrightarrow", "implies", "iff",
+]);
+const RELATION_CHARS = new Set(["=", "<", ">", ":"]);
+
+/**
+ * Splits display LaTeX where TeX would let a long line break: after top-level relations (=, ≈, ≤,
+ * ⇒ …), after ";" and ",", and at \quad or \qquad (dropped). The pieces sit side by side and wrap
+ * only when the card is too narrow, so a line that fits looks unchanged. Never splits inside
+ * braces, brackets, \left…\right pairs or environments.
+ */
+export function splitDisplayMath(latex: string): Array<{ latex: string; gap: MathPieceGap }> {
+  const pieces: Array<{ latex: string; gap: MathPieceGap }> = [];
+  const push = (part: string, gap: MathPieceGap) => {
+    const trimmed = part.replace(LEADING_SPACE, "").replace(TRAILING_SPACE, "");
+    if (trimmed) pieces.push({ latex: trimmed, gap });
+  };
+  // A relation directly followed by another (":=", "<=") is one symbol, so it does not split.
+  const joinsNext = (from: number) => /^\s*(?:[=<>:]|\\(?:approx|equiv|le|leq|ge|geq|ne|neq)\b)/.test(latex.slice(from));
+  let depth = 0;
+  let start = 0;
+  let index = 0;
+  while (index < latex.length) {
+    const char = latex[index];
+    if (char === "\\") {
+      const command = /^\\(?:[a-zA-Z]+|.)/.exec(latex.slice(index))?.[0] ?? "\\";
+      const name = command.slice(1);
+      const end = index + command.length;
+      if (name === "left" || name === "begin" || name === "{" || name === "langle") {
+        depth += 1;
+      } else if (name === "right" || name === "end" || name === "}" || name === "rangle") {
+        depth -= 1;
+      } else if (depth === 0 && (name === "quad" || name === "qquad")) {
+        push(latex.slice(start, index), "wide");
+        start = end;
+      } else if (depth === 0 && RELATION_COMMANDS.has(name) && !joinsNext(end)) {
+        push(latex.slice(start, end), "relation");
+        start = end;
+      }
+      index = end;
+      continue;
+    }
+    if (char === "{" || char === "(" || char === "[") {
+      depth += 1;
+    } else if (char === "}" || char === ")" || char === "]") {
+      depth -= 1;
+    } else if (depth === 0 && (char === ";" || char === ",")) {
+      push(latex.slice(start, index + 1), char === ";" ? "wide" : "narrow");
+      start = index + 1;
+    } else if (depth === 0 && RELATION_CHARS.has(char) && !joinsNext(index + 1)) {
+      push(latex.slice(start, index + 1), "relation");
+      start = index + 1;
+    }
+    index += 1;
+  }
+  push(latex.slice(start), "wide");
+  return pieces.length > 0 ? pieces : [{ latex, gap: "wide" }];
+}
+
 /** Renders one LaTeX expression with KaTeX. Memoised so scrubbing never re-typesets untouched rows. */
 export const SolutionMath = memo(function SolutionMath({
   latex,
@@ -31,12 +97,28 @@ export const SolutionMath = memo(function SolutionMath({
   className?: string;
   ariaLabel?: string;
 }) {
-  const html = useMemo(() => renderLatex(latex, display), [latex, display]);
+  const pieces = useMemo(
+    () =>
+      (display ? splitDisplayMath(latex) : [{ latex, gap: "wide" as const }]).map((piece) => ({
+        html: renderLatex(piece.latex, display),
+        gap: piece.gap,
+      })),
+    [latex, display],
+  );
+  if (pieces.length > 1) {
+    return (
+      <span aria-label={ariaLabel ?? latex} className={cn("solution-math solution-math--display solution-math--parts", className)} role="math">
+        {pieces.map((piece, index) => (
+          <span className="solution-math__part" dangerouslySetInnerHTML={{ __html: piece.html }} data-gap={piece.gap} key={index} />
+        ))}
+      </span>
+    );
+  }
   return (
     <span
       aria-label={ariaLabel ?? latex}
       className={cn("solution-math", display ? "solution-math--display" : "solution-math--inline", className)}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: pieces[0].html }}
       role="math"
     />
   );

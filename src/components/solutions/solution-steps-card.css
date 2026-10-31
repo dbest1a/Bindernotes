@@ -18,7 +18,8 @@
   text-align: left;
 }
 
-.solution-math {
+.solution-math,
+.solution-math__part {
   display: block;
   max-width: 100%;
   overflow-x: auto;
@@ -26,6 +27,43 @@
   padding-block: 0.15em;
   scrollbar-width: thin;
   overscroll-behavior-x: contain;
+}
+
+/* A long line wraps where TeX would break it (after relations, ";", "," and \quad); the gaps
+   match KaTeX's own spacing, so a line that fits looks unchanged. A piece too wide on its own
+   still scrolls. */
+.solution-math--parts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  row-gap: 0.1em;
+  overflow: visible;
+  padding-block: 0;
+  /* Continuation lines are indented, as in TeX; the first piece is pulled back to the edge. */
+  padding-inline-start: 1.25em;
+}
+
+.solution-math--parts > .solution-math__part:first-child {
+  max-width: calc(100% + 1.25em);
+  margin-inline-start: -1.25em;
+}
+
+.solution-math__part {
+  min-width: 0;
+  margin-inline-end: 1.1em;
+}
+
+.solution-math__part[data-gap="narrow"] {
+  margin-inline-end: 0.35em;
+}
+
+/* KaTeX's thick space around a relation is 5/18 em of the math size (1.14em here). */
+.solution-math__part[data-gap="relation"] {
+  margin-inline-end: 0.32em;
+}
+
+.solution-math__part:last-child {
+  margin-inline-end: 0;
 }
 
 @property --solution-fade-start {
@@ -42,7 +80,8 @@
 
 /* The scroll timeline is inactive when the line fits, so both fades stay at 0. */
 @supports (animation-timeline: scroll()) {
-  .solution-math--display {
+  .solution-math--display:not(.solution-math--parts),
+  .solution-math__part {
     animation: solution-math-edges linear both;
     animation-timeline: scroll(self inline);
     mask-image: linear-gradient(

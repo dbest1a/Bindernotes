@@ -176,7 +176,7 @@ const CheckChip = memo(function CheckChip({ check, expanded, onToggle }: { check
       )}
       data-status={status}
       onClick={check?.detail ? onToggle : undefined}
-      title={chipLabel(check)}
+      title={check?.detail ? `${chipLabel(check)}: ${check.detail}` : chipLabel(check)}
       type="button"
     >
       <Icon aria-hidden className="size-3" />
@@ -812,6 +812,10 @@ export function SolutionStepsCard({ value, onChange, readOnly = false, className
             Check all steps
           </Button>
         </div>
+        <p className="-mt-1 text-[12px] leading-5 text-muted-foreground">
+          Checks confirm the math inside each line: values, identities and solutions. They don't judge why one line follows from
+          the last.
+        </p>
         <Input
           aria-label="Final answer (LaTeX)"
           className="h-10 font-mono text-[13px]"
