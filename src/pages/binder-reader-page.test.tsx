@@ -566,6 +566,23 @@ describe("BinderReaderPage", () => {
     });
   });
 
+  it("saves the draft as the lesson note again when the account note was removed elsewhere", async () => {
+    const { title } = await conflictReader();
+    mocks.getLatestNote.mockReset().mockResolvedValue(null);
+    mocks.noteMutation.mutateAsync.mockReset().mockImplementation(async (input: { title: string }) => ({ id: "recreated-note", owner_id: "user-1", binder_id: "binder-1", lesson_id: "lesson-1", folder_id: null, title: input.title, content: emptyDoc("Baseline body"), math_blocks: [], pinned: false, created_at: "2026-10-31T11:00:00.000Z", updated_at: "2026-10-31T11:00:00.000Z" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep both" }));
+
+    await screen.findByText("The copy is saved. The account version was removed elsewhere, so this draft is saving as the lesson note again.");
+    await waitFor(() => expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1));
+    const resaved = mocks.noteMutation.mutateAsync.mock.calls[0][0] as { id?: string; expectedUpdatedAt?: string | null; title: string };
+    expect(resaved.title).toBe("My unsaved reasoning");
+    expect(resaved.id).toBeUndefined();
+    expect(resaved.expectedUpdatedAt ?? null).toBeNull();
+    expect(title.value).toBe("My unsaved reasoning");
+    expect(mocks.createNoteCopy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Keep both" })).toBeNull();
+  });
+
   it("shows the loading shell instead of crashing before lessons are available", () => {
     mocks.workspacePreferences.active = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.binderBundle.isLoading = true;

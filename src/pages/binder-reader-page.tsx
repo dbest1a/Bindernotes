@@ -1966,6 +1966,7 @@ export function BinderReaderPage() {
     setNoteRecoveryMessage(null);
     preserveNoteDraft(captured);
     const stillCurrent = () => latestVisibleNoteDraftRef.current?.scopeKey === captured.scopeKey && activeNoteScopeRef.current === captured.scopeKey;
+    let saveDraftAsNewNote = false;
     try {
       if (keepBoth) {
         let copy = recoveryCopiesRef.current.get(captured.scopeKey);
@@ -1992,7 +1993,30 @@ export function BinderReaderPage() {
         setNoteRecoveryMessage(keepBoth ? "The copy is saved. You made more edits while it saved; those edits are still here. Choose again to preserve them too." : "You made more edits while the latest version loaded. Your draft is still here; choose again when you're ready.");
         return;
       }
-      if (!latest) throw new Error("The account note is no longer available. Your draft remains here; keep a copy before leaving.");
+      if (!latest) {
+        // The account note was removed elsewhere (lesson notes have no in-app
+        // delete). Save this draft as the lesson note again instead of
+        // re-entering the same conflict after every reload.
+        const fresh: PendingNoteSave = { ...visible, input: { ...visible.input, id: undefined, expectedUpdatedAt: null } };
+        conflictedNoteScopesRef.current.delete(captured.scopeKey);
+        noteRevisionsRef.current.set(captured.scopeKey, { updatedAt: null });
+        syncedSnapshotRef.current = "";
+        noteHasLocalEditsRef.current = true;
+        latestVisibleNoteDraftRef.current = fresh;
+        preserveNoteDraft(fresh);
+        pendingNoteSaveRef.current = fresh;
+        retryNoteSaveRef.current = null;
+        saveDraftAsNewNote = true;
+        setNoteId(undefined);
+        setNoteLastSavedAt(null);
+        setNoteConflict(false);
+        setNoteSaveError(null);
+        setNoteRecoveryMessage(keepBoth
+          ? "The copy is saved. The account version was removed elsewhere, so this draft is saving as the lesson note again."
+          : "There's no account version to load anymore, so your draft stays here and is saving as the lesson note again.");
+        queryClient.setQueryData<BinderBundle>(queryKeys.binder.detail(captured.input.binderId, captured.input.ownerId), (bundle) => bundle ? { ...bundle, notes: bundle.notes.filter((note) => !(note.lesson_id === captured.input.lessonId && note.owner_id === captured.input.ownerId)) } : bundle);
+        return;
+      }
       // Never discard a newer journal or an edit made while recovery was pending.
       clearReaderNoteDraft(captured);
       if (pendingNoteSaveRef.current?.scopeKey === captured.scopeKey) pendingNoteSaveRef.current = null;
@@ -2016,8 +2040,9 @@ export function BinderReaderPage() {
     } finally {
       recoveringNoteScopeRef.current = null;
       if (stillCurrent()) setNoteRecoveryBusy(false);
+      if (saveDraftAsNewNote) void flushQueuedNoteSave();
     }
-  }, [clearNoteSaveTimer, preserveNoteDraft, queryClient]);
+  }, [clearNoteSaveTimer, flushQueuedNoteSave, preserveNoteDraft, queryClient]);
 
   useEffect(() => {
     if (!isOnline || noteSaveActiveRef.current) {
