@@ -108,10 +108,9 @@ describe("WhiteboardModuleCard", () => {
     fireEvent.pointerDown(chrome, { pointerId: 12, clientX: 210, clientY: 250, button: 0 });
     fireEvent.pointerMove(window, { pointerId: 12, clientX: 330, clientY: 310 });
     act(() => vi.advanceTimersByTime(20));
-    expect(card.style.left).toBe("320px");
+    expect(card.style.transform).toBe("translate3d(320px, 300px, 0)");
     rerender(<WhiteboardModuleCard {...cardProps} viewportTransform={{ ...viewportTransform, scrollY: -300 }}>Updated lesson</WhiteboardModuleCard>);
-    expect(card.style.left).toBe("320px");
-    expect(card.style.top).toBe("300px");
+    expect(card.style.transform).toBe("translate3d(320px, 300px, 0)");
     fireEvent.pointerCancel(window, { pointerId: 12, clientX: 0, clientY: 0 });
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ x: 160, y: 150 }));
@@ -1034,8 +1033,8 @@ describe("WhiteboardModuleCard", () => {
 
     const card = screen.getByTestId("whiteboard-module-card-module-1");
     expect(card.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
-    expect(card.getAttribute("style")).toContain("left: 75px");
-    expect(card.getAttribute("style")).toContain("top: 55px");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(75px, 55px, 0)");
+    expect(card.getAttribute("style")).toContain("left: 0px; top: 0px");
     expect(card.getAttribute("style")).toContain("width: 420px");
     expect(card.getAttribute("style")).toContain("height: 320px");
     expect(card.getAttribute("style")).not.toContain("scale(");

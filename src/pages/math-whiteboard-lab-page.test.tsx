@@ -567,8 +567,8 @@ describe("MathWhiteboardLabPage", () => {
     await waitFor(() => {
       const card = container.querySelector('[data-whiteboard-module="lesson"]');
       expect(card?.getAttribute("data-whiteboard-module-anchor")).toBe("board-fixed-size");
-      expect(card?.getAttribute("style")).toContain("left: 250px");
-      expect(card?.getAttribute("style")).toContain("top: 137.5px");
+      expect(card?.getAttribute("style")).toContain("transform: translate3d(250px, 138px, 0)");
+      expect(card?.getAttribute("style")).toContain("left: 0px; top: 0px");
       expect(card?.getAttribute("style")).toContain("width: 560px");
       expect(card?.getAttribute("style")).toContain("height: 420px");
     });

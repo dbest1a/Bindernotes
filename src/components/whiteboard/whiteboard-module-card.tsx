@@ -91,8 +91,14 @@ function getBoardRenderPoint(moduleElement: WhiteboardModuleElement, viewportTra
 function getUnscaledPositionStyle(moduleElement: WhiteboardModuleElement, x: number, y: number): StylePatch {
   // Translating the live calculator avoids relaying out its entire DOM on each
   // card/camera frame. Keep its CSS dimensions and graph coordinates unscaled.
-  return moduleElement.moduleId === "desmos-graph"
-    ? { left: "0px", top: "0px", transform: `translate3d(${x}px, ${y}px, 0)` }
+  if (moduleElement.moduleId === "desmos-graph") {
+    return { left: "0px", top: "0px", transform: `translate3d(${x}px, ${y}px, 0)` };
+  }
+  // Board-pinned cards follow the camera, so they move by transform too (no layout per
+  // frame), snapped to whole pixels to keep their text crisp. Must match
+  // syncWhiteboardPinnedModuleLayerToViewport. Screen-pinned cards never follow the camera.
+  return getWhiteboardModuleAnchorMode(moduleElement) === "board-fixed-size"
+    ? { left: "0px", top: "0px", transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)` }
     : { left: `${x}px`, top: `${y}px`, transform: "none" };
 }
 

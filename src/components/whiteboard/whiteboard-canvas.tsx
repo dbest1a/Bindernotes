@@ -5,10 +5,8 @@ import {
   whiteboardViewportTransformsEqual,
   type WhiteboardViewportTransform,
 } from "@/lib/whiteboards/whiteboard-coordinate-utils";
-import {
-  hasPersistentWhiteboardSceneChange,
-  sanitizeExcalidrawInitialData,
-} from "@/lib/whiteboards/whiteboard-serialization";
+import { sanitizeExcalidrawInitialData } from "@/lib/whiteboards/whiteboard-serialization";
+import { getWhiteboardSceneSignature } from "@/lib/whiteboards/whiteboard-scene-signature";
 import {
   isWorkspaceMovementActive,
   recordWhiteboardPerformanceDiagnostic,
@@ -65,24 +63,45 @@ export function WhiteboardCanvas({
   const excalidrawApiRef = useRef<ExcalidrawCameraApi | null>(null);
   const latestViewportTransformRef = useRef<WhiteboardViewportTransform | null>(null);
   const initialData = useMemo(() => sanitizeExcalidrawInitialData(board.scene), [board.scene]);
-  const latestPersistentSceneRef = useRef<WhiteboardSceneData>(initialData);
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
+  // Signature of the last scene handed to onSceneChange. A signature, not the scene:
+  // Excalidraw mutates element objects in place, so a kept scene would change with them.
+  const latestPersistentSignatureRef = useRef<string | null>(null);
   const pendingSceneRef = useRef<PendingSceneInput | null>(null);
   const sceneChangeTimerRef = useRef<number | null>(null);
+  const lastSceneChangeAtRef = useRef(0);
+  const hostRectRef = useRef<{ width: number; height: number; offsetLeft: number; offsetTop: number } | null>(null);
+  const hostRectMeasuredAtRef = useRef(0);
   const drawingPointerIdsRef = useRef(new Set<number>());
   const pendingResizeRefreshRef = useRef(false);
   const lastHostSizeRef = useRef<{ width: number; height: number } | null>(null);
   const latestBoardRef = useRef(board);
   latestBoardRef.current = board;
 
+  // Excalidraw reports every pointer move and camera frame. Reading layout on each one
+  // forced a synchronous reflow, so the host box is cached: it is re-measured at gesture
+  // starts, after resizes and scrolls, and at most every 500 ms while in use.
+  const invalidateHostRect = useCallback(() => {
+    hostRectRef.current = null;
+  }, []);
+
   const getViewportSize = useCallback(() => {
+    const now = performance.now();
+    if (hostRectRef.current && now - hostRectMeasuredAtRef.current < 500) {
+      return hostRectRef.current;
+    }
+
     const rect = hostRef.current?.getBoundingClientRect();
     if (rect?.width && rect?.height) {
-      return {
+      hostRectRef.current = {
         width: rect.width,
         height: rect.height,
         offsetLeft: rect.left,
         offsetTop: rect.top,
       };
+      hostRectMeasuredAtRef.current = now;
+      return hostRectRef.current;
     }
 
     if (typeof window !== "undefined") {
@@ -163,23 +182,45 @@ export function WhiteboardCanvas({
       return;
     }
 
-    const scene = sanitizeExcalidrawInitialData({
-      elements: pendingScene.elements as unknown[],
-      appState: pendingScene.appState,
-      files: pendingScene.files,
-    });
-    if (!hasPersistentWhiteboardSceneChange(latestPersistentSceneRef.current, scene)) {
+    // Camera moves, selection and tool changes also arrive here; only content edits
+    // (element versions, files, persistent appState) are passed on to be saved.
+    const signature = getWhiteboardSceneSignature(pendingScene as WhiteboardSceneData);
+    latestPersistentSignatureRef.current ??= getWhiteboardSceneSignature(initialDataRef.current);
+    if (signature === latestPersistentSignatureRef.current) {
       return;
     }
 
-    latestPersistentSceneRef.current = scene;
-    onSceneChange(scene);
+    latestPersistentSignatureRef.current = signature;
+    onSceneChange(
+      sanitizeExcalidrawInitialData({
+        elements: pendingScene.elements as unknown[],
+        appState: pendingScene.appState,
+        files: pendingScene.files,
+      }),
+    );
   }, [clearSceneChangeTimer, onSceneChange]);
 
+  // One timer per quiet period: changes only move a timestamp, and the timer re-arms
+  // itself for the remaining time instead of being cleared and recreated on every change.
   const scheduleSceneChangeFlush = useCallback(() => {
-    clearSceneChangeTimer();
-    sceneChangeTimerRef.current = window.setTimeout(flushPendingSceneChange, AUTOSAVE_DEBOUNCE_MS);
-  }, [clearSceneChangeTimer, flushPendingSceneChange]);
+    lastSceneChangeAtRef.current = performance.now();
+    if (sceneChangeTimerRef.current !== null) {
+      return;
+    }
+
+    const arm = (delay: number) => {
+      sceneChangeTimerRef.current = window.setTimeout(() => {
+        sceneChangeTimerRef.current = null;
+        const remaining = AUTOSAVE_DEBOUNCE_MS - (performance.now() - lastSceneChangeAtRef.current);
+        if (remaining > 16) {
+          arm(remaining);
+          return;
+        }
+        flushPendingSceneChange();
+      }, delay);
+    };
+    arm(AUTOSAVE_DEBOUNCE_MS);
+  }, [flushPendingSceneChange]);
 
   const refreshCanvasAfterLayout = useCallback(() => {
     const api = excalidrawApiRef.current;
@@ -221,7 +262,8 @@ export function WhiteboardCanvas({
 
   const handleDrawingPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     drawingPointerIdsRef.current.add(event.pointerId);
-  }, []);
+    invalidateHostRect();
+  }, [invalidateHostRect]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -229,6 +271,7 @@ export function WhiteboardCanvas({
     }
 
     const flushDeferredLayoutRefresh = () => {
+      invalidateHostRect();
       if (!pendingResizeRefreshRef.current || drawingPointerIdsRef.current.size > 0) {
         return;
       }
@@ -249,6 +292,8 @@ export function WhiteboardCanvas({
     window.addEventListener("blur", clearPointers);
     window.addEventListener("pagehide", flushForPageExit);
     window.addEventListener(workspaceMovementEndEvent, flushDeferredLayoutRefresh);
+    window.addEventListener("resize", invalidateHostRect);
+    window.addEventListener("scroll", invalidateHostRect, { capture: true, passive: true });
     document.addEventListener("visibilitychange", flushWhenHidden);
     return () => {
       window.removeEventListener("pointerup", finishPointer);
@@ -256,9 +301,11 @@ export function WhiteboardCanvas({
       window.removeEventListener("blur", clearPointers);
       window.removeEventListener("pagehide", flushForPageExit);
       window.removeEventListener(workspaceMovementEndEvent, flushDeferredLayoutRefresh);
+      window.removeEventListener("resize", invalidateHostRect);
+      window.removeEventListener("scroll", invalidateHostRect, { capture: true });
       document.removeEventListener("visibilitychange", flushWhenHidden);
     };
-  }, [finishDrawingPointerById, flushPendingSceneChange, refreshCanvasAfterLayout]);
+  }, [finishDrawingPointerById, flushPendingSceneChange, invalidateHostRect, refreshCanvasAfterLayout]);
 
   const handleExcalidrawApi = useCallback(
     (api: ExcalidrawCameraApi) => {
@@ -344,7 +391,7 @@ export function WhiteboardCanvas({
 
   useEffect(() => {
     flushPendingSceneChange();
-    latestPersistentSceneRef.current = initialData;
+    latestPersistentSignatureRef.current = getWhiteboardSceneSignature(initialData);
   }, [board.id, flushPendingSceneChange, initialData]);
 
   useEffect(() => {
@@ -399,6 +446,7 @@ export function WhiteboardCanvas({
         width: Math.round(entry.contentRect.width),
         height: Math.round(entry.contentRect.height),
       };
+      invalidateHostRect();
       const lastSize = lastHostSizeRef.current;
       if (lastSize?.width === nextSize.width && lastSize.height === nextSize.height) {
         return;
@@ -425,7 +473,7 @@ export function WhiteboardCanvas({
       }
       resizeObserver.disconnect();
     };
-  }, [ExcalidrawComponent, refreshCanvasAfterLayout]);
+  }, [ExcalidrawComponent, invalidateHostRect, refreshCanvasAfterLayout]);
 
   const excalidrawInitialData = useMemo(
     () => ({

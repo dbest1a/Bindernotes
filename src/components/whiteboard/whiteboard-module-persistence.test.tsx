@@ -257,7 +257,9 @@ describe("WhiteboardModule persistence ordering", () => {
     await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-id")).toBe("board-workspace"));
     draw("board-workspace", "unsaved-rectangle");
     expect(storageMocks.pendingSaves).toHaveLength(0);
-    expect(readWhiteboardRecoveryDraft({ ownerId: "user-1" }, "board-workspace")?.scene.elements).toMatchObject([{ id: "unsaved-rectangle" }]);
+    // The crash-recovery draft is written in the next idle moment, within 200 ms of the stroke.
+    await waitFor(() => expect(readWhiteboardRecoveryDraft({ ownerId: "user-1" }, "board-workspace")?.scene.elements).toMatchObject([{ id: "unsaved-rectangle" }]));
+    expect(storageMocks.pendingSaves).toHaveLength(0);
 
     fireEvent.click(screen.getByTestId("whiteboard-open-board-second"));
     await waitFor(() => expect(screen.getByTestId("whiteboard-excalidraw-host").getAttribute("data-board-id")).toBe("board-second"));

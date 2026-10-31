@@ -7,6 +7,7 @@ import {
   getDefaultWhiteboardModuleAnchorMode,
   getWhiteboardModuleDefinition,
 } from "@/lib/whiteboards/whiteboard-module-registry";
+import { getWhiteboardSceneSignature } from "@/lib/whiteboards/whiteboard-scene-signature";
 import type {
   BinderWhiteboard,
   WhiteboardModuleAnchorMode,
@@ -65,10 +66,6 @@ const safeExcalidrawAppStateKeys = new Set([
   "zoom",
   "name",
 ]);
-
-const persistentAppStateKeys = new Set(
-  [...safeExcalidrawAppStateKeys].filter((key) => key !== "scrollX" && key !== "scrollY" && key !== "zoom"),
-);
 
 export function sanitizeExcalidrawInitialData(raw: unknown): WhiteboardSceneData {
   const source = isRecord(raw) ? raw : {};
@@ -155,24 +152,17 @@ export function sanitizeWhiteboardModuleElement(
   return sanitized;
 }
 
-function pickPersistentSceneState(scene: WhiteboardSceneData) {
-  const source = sanitizeExcalidrawInitialData(scene);
-  const appState = Object.fromEntries(
-    Object.entries(source.appState ?? {}).filter(([key]) => persistentAppStateKeys.has(key)),
-  );
-
-  return {
-    elements: source.elements,
-    files: source.files ?? {},
-    appState,
-  };
-}
-
+/**
+ * True when two scenes differ in anything a save persists (elements, files, persistent
+ * appState); camera-only changes are not edits. Compares cheap version signatures instead
+ * of serializing both scenes. Callers holding live Excalidraw elements must compare against
+ * a signature recorded earlier, because Excalidraw mutates element objects in place.
+ */
 export function hasPersistentWhiteboardSceneChange(
   previousScene: WhiteboardSceneData,
   nextScene: WhiteboardSceneData,
 ) {
-  return JSON.stringify(pickPersistentSceneState(previousScene)) !== JSON.stringify(pickPersistentSceneState(nextScene));
+  return getWhiteboardSceneSignature(previousScene) !== getWhiteboardSceneSignature(nextScene);
 }
 
 export function sanitizeWhiteboardForStorage(board: BinderWhiteboard): BinderWhiteboard {

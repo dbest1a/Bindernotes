@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
@@ -162,6 +163,63 @@ function getBoardPinnedGeometrySnapshot(modules: WhiteboardModuleElement[]) {
       ].join(":"),
     )
     .join("|");
+}
+
+// Cards are updated immutably, so unchanged cards keep their object. Only replaced cards are
+// compared by content, which still catches no-op rewrites (normalization) without
+// serializing every card, including large graph states, on each edit.
+function whiteboardModulesChanged(previous: WhiteboardModuleElement[], next: WhiteboardModuleElement[]) {
+  if (previous.length !== next.length) return true;
+  return next.some((moduleElement, index) => moduleElement !== previous[index] && JSON.stringify(moduleElement) !== JSON.stringify(previous[index]));
+}
+
+type ViewportStore = {
+  get: () => WhiteboardViewportTransform;
+  set: (next: WhiteboardViewportTransform) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+// The settled camera, used for card culling and the minimap. It lives in a tiny store so a
+// camera change re-renders only those consumers instead of this whole board component.
+function createViewportStore(initial: WhiteboardViewportTransform): ViewportStore {
+  let value = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next) => {
+      if (next === value) return;
+      value = next;
+      listeners.forEach((listener) => listener());
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+function WithSettledViewport({
+  store,
+  children,
+}: {
+  store: ViewportStore;
+  children: (viewportTransform: WhiteboardViewportTransform) => ReactElement;
+}) {
+  const viewportTransform = useSyncExternalStore(store.subscribe, store.get, store.get);
+  return children(viewportTransform);
+}
+
+// Crash-recovery drafts serialize the whole board, so they wait for an idle moment (at most
+// 200 ms after a stroke) instead of running inside the pointer-up that ends it.
+function scheduleIdleTask(task: () => void, timeoutMs: number): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(task, { timeout: timeoutMs });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(task, Math.min(timeoutMs, 250));
+  return () => window.clearTimeout(id);
 }
 
 function keepSceneCameraInSync(
@@ -349,7 +407,6 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const autosaveTimerRef = useRef<number | null>(null);
   const viewportTransformRef = useRef<WhiteboardViewportTransform>(defaultWhiteboardViewportTransform);
   const boardPinnedGeometrySnapshotRef = useRef("");
-  const lastCountUpdateRef = useRef(0);
   const saveStatusRef = useRef(saveStatus);
   const saveRequestIdRef = useRef(0);
   const transitionIdRef = useRef(0);
@@ -381,9 +438,8 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
   const viewportSettleTimerRef = useRef<number | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const pinnedObjectLayerRef = useRef<HTMLDivElement | null>(null);
-  const [viewportTransform, setViewportTransform] = useState<WhiteboardViewportTransform>(
-    defaultWhiteboardViewportTransform,
-  );
+  const [viewportStore] = useState(() => createViewportStore(defaultWhiteboardViewportTransform));
+  const recoveryDraftCancelRef = useRef<(() => void) | null>(null);
 
   const layoutStyle = useMemo(
     () =>
@@ -505,14 +561,14 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     // panels and graph trees reconcile once the gesture settles.
     viewportSettleTimerRef.current = window.setTimeout(() => {
       viewportSettleTimerRef.current = null;
-      setViewportTransform(viewportTransformRef.current);
+      viewportStore.set(viewportTransformRef.current);
     }, 100);
     if (viewportUpdateRafRef.current !== null) {
       return;
     }
 
     if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-      setViewportTransform(transform);
+      viewportStore.set(transform);
       pendingViewportTransformRef.current = null;
       return;
     }
@@ -525,7 +581,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         syncWhiteboardPinnedModuleLayerToViewport(pinnedObjectLayerRef.current, nextTransform);
       }
     });
-  }, []);
+  }, [viewportStore]);
   const getLatestViewportTransform = useCallback(() => viewportTransformRef.current, []);
 
   useEffect(() => {
@@ -778,6 +834,13 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         window.cancelAnimationFrame(viewportUpdateRafRef.current);
       }
       if (viewportSettleTimerRef.current !== null) window.clearTimeout(viewportSettleTimerRef.current);
+      if (recoveryDraftCancelRef.current) {
+        // Leaving with a queued draft: write it now, so every finished stroke still reaches
+        // crash recovery exactly as when drafts were written synchronously.
+        recoveryDraftCancelRef.current();
+        recoveryDraftCancelRef.current = null;
+        if (boardRef.current && dirtyRef.current) writeWhiteboardRecoveryDraft(boardRef.current);
+      }
     },
     [],
   );
@@ -820,6 +883,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         const scene = getCurrentCanvasScene() ?? latestSceneRef.current ?? board.scene;
         latestSceneRef.current = scene;
         const saved = { ...board, scene, objectCount: countWhiteboardObjects({ scene, modules: board.modules }) };
+        // This save writes the recovery draft itself, so a queued idle draft is redundant.
+        recoveryDraftCancelRef.current?.();
+        recoveryDraftCancelRef.current = null;
         const recovery = writeWhiteboardRecoveryDraft(saved);
         saved.recoveryStorage = recovery.memoryToken ? "memory" : undefined;
         setActiveBoard(saved);
@@ -946,34 +1012,45 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     setBrowserFullscreen(true);
   }, []);
 
+  const scheduleRecoveryDraft = useCallback(() => {
+    if (recoveryDraftCancelRef.current) {
+      return;
+    }
+
+    recoveryDraftCancelRef.current = scheduleIdleTask(() => {
+      recoveryDraftCancelRef.current = null;
+      const board = boardRef.current;
+      if (!board || !dirtyRef.current) {
+        return;
+      }
+      const recovery = writeWhiteboardRecoveryDraft(board);
+      board.recoveryStorage = recovery.memoryToken ? "memory" : undefined;
+      if (recovery.error) setWarning(recovery.error);
+    }, 200);
+  }, []);
+
   const handleSceneChange = useCallback(
     (scene: WhiteboardSceneData, sourceBoardId?: string) => {
       const current = boardRef.current;
       if (!current || (sourceBoardId && current.id !== sourceBoardId)) {
         return;
       }
-      const previousScene = latestSceneRef.current ?? current.scene;
+      // The canvas reports only content edits (it compares version signatures), and this
+      // runs at the end of every stroke, so it stays light: no serialization and no
+      // re-render here. The object count and warnings refresh with the autosave.
       latestSceneRef.current = scene;
-
-      const objectCount = countWhiteboardObjects({ scene, modules: current.modules });
-      const now = performance.now();
-      if (now - lastCountUpdateRef.current > 1000) {
-        lastCountUpdateRef.current = now;
-        setActiveBoard((board) => (board ? { ...board, objectCount } : board));
-        setWarning(objectCount >= MAX_OBJECTS_WARNING ? `This board has ${objectCount} objects. Use sections before it gets slow.` : null);
-      }
-      if (!hasPersistentWhiteboardSceneChange(previousScene, scene)) {
-        return;
-      }
       editGenerationRef.current += 1;
       dirtyRef.current = true;
-      boardRef.current = { ...current, scene, objectCount, updatedAt: new Date().toISOString() };
-      const recovery = writeWhiteboardRecoveryDraft(boardRef.current);
-      boardRef.current.recoveryStorage = recovery.memoryToken ? "memory" : undefined;
-      if (recovery.error) setWarning(recovery.error);
+      boardRef.current = {
+        ...current,
+        scene,
+        objectCount: countWhiteboardObjects({ scene, modules: current.modules }),
+        updatedAt: new Date().toISOString(),
+      };
+      scheduleRecoveryDraft();
       scheduleAutosave();
     },
-    [scheduleAutosave],
+    [scheduleAutosave, scheduleRecoveryDraft],
   );
 
   // Keep canvas registrations stable during toolbar, save-status, and camera renders.
@@ -1005,7 +1082,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         modules: updater(current.modules),
         updatedAt: new Date().toISOString(),
       };
-      if (JSON.stringify(current.modules) === JSON.stringify(nextBoard.modules)) return;
+      if (!whiteboardModulesChanged(current.modules, nextBoard.modules)) return;
       if (recordHistory) {
         const history = moduleHistoryRef.current.boardId === current.id
           ? moduleHistoryRef.current : { boardId: current.id, past: [], future: [] };
@@ -1576,16 +1653,16 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
     setSaveMessage(board.storageMode === "supabase" ? "Restored" : "Restored on this device");
     setWarning("Restored. Linked sources must be available in your account; use Change on a card to relink an unavailable lesson.");
   }} /> : null;
-  const sourceText = Object.fromEntries((activeBoard?.modules ?? []).map((module) => {
+  const sourceText = useMemo(() => Object.fromEntries((activeBoard?.modules ?? []).map((module) => {
     const lesson = [context.selectedLesson, ...(context.library?.lessons ?? []), ...(context.lessons ?? [])].find((item) => item.id === module.lessonId);
     return [module.id, lesson ? `${lesson.title}\n${whiteboardPlainText(lesson.content)}` : ""];
-  }));
+  })), [activeBoard?.modules, context.library?.lessons, context.lessons, context.selectedLesson]);
   const studyTools = activeBoard ? <div className="grid gap-2">
     <div className="grid grid-cols-2 gap-2">
       <Button size="sm" variant="outline" aria-label="Undo module change" disabled={!canUndoModules} onClick={undoModuleChange}>Undo card</Button>
       <Button size="sm" variant="outline" aria-label="Redo module change" disabled={!canRedoModules} onClick={redoModuleChange}>Redo card</Button>
     </div>
-    <WhiteboardStudyTools
+    <WithSettledViewport store={viewportStore}>{(viewportTransform) => <WhiteboardStudyTools
     key={activeBoard.id}
     board={activeBoard}
     getActions={() => canvasActionsBoardIdRef.current === activeBoard.id ? canvasActionsRef.current : null}
@@ -1620,7 +1697,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
         });
       });
     }}
-  />{recoveryTools}</div> : recoveryTools;
+  />}</WithSettledViewport>{recoveryTools}</div> : recoveryTools;
 
   if (!scope) {
     return (
@@ -1685,7 +1762,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               onViewportChange={handleViewportChange}
               onViewportRequestReady={handleViewportRequestReady}
             />
-            <WhiteboardPinnedObjectLayer
+            <WithSettledViewport store={viewportStore}>{(viewportTransform) => <WhiteboardPinnedObjectLayer
               context={context}
               fixed
               getViewportTransform={getLatestViewportTransform}
@@ -1703,7 +1780,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               onRouteSelectionToNotes={routeSelectionToPrivateNotes}
               renderModule={renderModule}
               viewportTransform={viewportTransform}
-            />
+            />}</WithSettledViewport>
 
             <WhiteboardFloatingUiLayer
               activeBoard={activeBoard}
@@ -2064,7 +2141,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 onViewportChange={handleViewportChange}
                 onViewportRequestReady={handleViewportRequestReady}
               />
-              <WhiteboardPinnedObjectLayer
+              <WithSettledViewport store={viewportStore}>{(viewportTransform) => <WhiteboardPinnedObjectLayer
                 context={context}
                 getViewportTransform={getLatestViewportTransform}
                 layerRef={pinnedObjectLayerRef}
@@ -2081,7 +2158,7 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 onRouteSelectionToNotes={routeSelectionToPrivateNotes}
                 renderModule={renderModule}
                 viewportTransform={viewportTransform}
-              />
+              />}</WithSettledViewport>
               <WhiteboardToolbar
                 objectCount={activeBoard.objectCount}
                 onSaveNow={saveLatestBoard}

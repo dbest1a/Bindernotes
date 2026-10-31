@@ -856,8 +856,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
     const card = screen.getByTestId("whiteboard-module-card-module-1");
     expect(boardOverlay.querySelector('[data-whiteboard-module="scientific-calculator"]')).toBeTruthy();
     expect(viewportOverlay.querySelector('[data-whiteboard-module="scientific-calculator"]')).toBeNull();
-    expect(card.getAttribute("style")).toContain("left: 240px");
-    expect(card.getAttribute("style")).toContain("top: 180px");
+    expect(card.getAttribute("style")).toContain("transform: translate3d(240px, 180px, 0)");
+    expect(card.getAttribute("style")).toContain("left: 0px; top: 0px");
     expect(card.getAttribute("style")).toContain("width: 420px");
     expect(card.getAttribute("style")).toContain("height: 320px");
     expect(card.getAttribute("data-card-render-layer")).toBe("board");
@@ -917,8 +917,8 @@ describe("WhiteboardModuleOverlayLayer", () => {
       width: 720,
       height: 560,
     });
-    expect(after.getAttribute("style")).toContain("left: 240px");
-    expect(after.getAttribute("style")).toContain("top: 120px");
+    expect(after.getAttribute("style")).toContain("transform: translate3d(240px, 120px, 0)");
+    expect(after.getAttribute("style")).toContain("left: 0px; top: 0px");
     expect(after.getAttribute("style")).toContain("width: 720px");
     expect(after.getAttribute("style")).toContain("height: 560px");
   });

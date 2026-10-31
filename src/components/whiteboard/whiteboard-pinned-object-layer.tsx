@@ -236,12 +236,7 @@ export function syncWhiteboardPinnedModuleLayerToViewport(
   layer.dataset.whiteboardViewportOffsetLeft = String(layerTransform.offsetLeft ?? 0);
   layer.dataset.whiteboardViewportOffsetTop = String(layerTransform.offsetTop ?? 0);
 
-  const boardCards = layer.querySelectorAll<HTMLElement>(
-    '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board"],' +
-      '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board-fixed-size"]',
-  );
-
-  boardCards.forEach((card) => {
+  getBoardCards(layer).forEach((card) => {
     if (card.dataset.dragging === "true") {
       return;
     }
@@ -263,16 +258,36 @@ export function syncWhiteboardPinnedModuleLayerToViewport(
     }
 
     card.dataset.cardRenderZoom = "1";
-    if (card.dataset.whiteboardModule === "desmos-graph") {
-      card.style.setProperty("left", "0px");
-      card.style.setProperty("top", "0px");
-      card.style.setProperty("transform", `translate3d(${point.x}px, ${point.y}px, 0)`);
-      return;
-    }
-    card.style.setProperty("left", `${point.x}px`);
-    card.style.setProperty("top", `${point.y}px`);
-    card.style.setProperty("transform", "none");
+    card.style.setProperty("left", "0px");
+    card.style.setProperty("top", "0px");
+    // Same rule as the card's own render (getUnscaledPositionStyle): Desmos keeps exact
+    // positions; other cards snap to whole pixels so their text stays crisp.
+    card.style.setProperty(
+      "transform",
+      card.dataset.whiteboardModule === "desmos-graph"
+        ? `translate3d(${point.x}px, ${point.y}px, 0)`
+        : `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0)`,
+    );
   });
+}
+
+const boardCardSelector =
+  '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board"],' +
+  '[data-whiteboard-card="true"][data-card-render-layer="board"][data-card-anchor="board-fixed-size"]';
+const boardCardCache = new WeakMap<HTMLElement, { key: string; cards: HTMLElement[] }>();
+
+// Camera sync runs every frame, so the card list is cached per layer and re-queried only
+// when the layer's card set (data-card-set-key) changes or a cached card left the DOM.
+function getBoardCards(layer: HTMLElement) {
+  const key = layer.dataset.cardSetKey ?? "";
+  const cached = boardCardCache.get(layer);
+  if (key && cached?.key === key && cached.cards.every((card) => card.isConnected)) {
+    return cached.cards;
+  }
+
+  const cards = Array.from(layer.querySelectorAll<HTMLElement>(boardCardSelector));
+  boardCardCache.set(layer, { key, cards });
+  return cards;
 }
 
 function moduleFrameSignature(moduleElement: WhiteboardModuleElement) {
@@ -1210,6 +1225,11 @@ export function WhiteboardPinnedObjectLayer({
       normalizedModules.filter((moduleElement) => getWhiteboardModuleAnchorMode(moduleElement) === "viewport"),
     [normalizedModules],
   );
+  // Identifies the set of board-following cards for the per-frame camera sync's cache.
+  const cardSetKey = useMemo(
+    () => `cards:${boardModules.map((moduleElement) => `${moduleElement.id}@${getWhiteboardModuleAnchorMode(moduleElement)}`).join("|")}`,
+    [boardModules],
+  );
   const pendingFloatingNormalizations = useMemo(
     () => floatingNormalizationResults.filter((result) => result.needsCommit),
     [floatingNormalizationResults],
@@ -1232,6 +1252,7 @@ export function WhiteboardPinnedObjectLayer({
   return (
     <div
       className={cn("pointer-events-none inset-0 z-[55]", fixed ? "fixed" : "absolute")}
+      data-card-set-key={cardSetKey}
       data-whiteboard-layer-fixed={fixed ? "true" : "false"}
       data-whiteboard-window-layer="modules"
       data-whiteboard-viewport-scroll-x={pinnedTransform.scrollX}

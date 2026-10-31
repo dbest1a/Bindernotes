@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { WhiteboardCanvasActions } from "./whiteboard-canvas";
 import type { BinderWhiteboard } from "@/lib/whiteboards/whiteboard-types";
@@ -39,17 +39,30 @@ export function WhiteboardStudyTools({ board, getActions, viewport, onViewport, 
   const [exporting, setExporting] = useState(false);
   const key = `bindernotes:whiteboard-bookmarks:${board.ownerId}:${board.id}`;
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(() => readBookmarks(key));
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     setBookmarks(readBookmarks(key));
     setQuery("");
     setBookmarkName("");
     setMessage("");
   }, [key]);
-  const current = { ...board, scene: getActions()?.getScene() ?? board.scene };
-  const results = searchWhiteboard(current, query, sourceText);
-  const frames = [...getDrawingFrames(current.scene.elements), ...board.modules.map((module) => getWhiteboardModuleExportFrame(module, viewport))];
-  const bounds = getFramesBounds(frames);
-  const mapBounds = { x: bounds.x - 40, y: bounds.y - 40, width: bounds.width + 80, height: bounds.height + 80 };
+  // The panel is usually closed. Scanning every drawing for search and the overview map
+  // happens only while it is open, instead of on every board render.
+  const scene = open ? getActions()?.getScene() ?? board.scene : null;
+  const elements = scene?.elements;
+  const results = useMemo(
+    () => (scene && query.trim() ? searchWhiteboard({ ...board, scene }, query, sourceText) : []),
+    [board, elements, query, sourceText],
+  );
+  const drawingFrames = useMemo(() => (elements ? getDrawingFrames(elements) : []), [elements]);
+  const frames = useMemo(
+    () => (open ? [...drawingFrames, ...board.modules.map((module) => getWhiteboardModuleExportFrame(module, viewport))] : []),
+    [board.modules, drawingFrames, open, viewport],
+  );
+  const mapBounds = useMemo(() => {
+    const bounds = getFramesBounds(frames);
+    return { x: bounds.x - 40, y: bounds.y - 40, width: bounds.width + 80, height: bounds.height + 80 };
+  }, [frames]);
   const exportSvg = async () => {
     setExporting(true);
     setMessage("");
@@ -61,8 +74,9 @@ export function WhiteboardStudyTools({ board, getActions, viewport, onViewport, 
     } catch (error) { setMessage(error instanceof Error ? error.message : "Export failed. Your board is unchanged."); }
     finally { setExporting(false); }
   };
-  return <details className="whiteboard-study-tools rounded-md border border-border p-2" onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
-    <summary className="cursor-pointer py-1 font-semibold">Navigate, organize & export</summary>
+  return <details className="whiteboard-study-tools rounded-md border border-border p-2" onToggle={(event) => setOpen(event.currentTarget.open)} onKeyDown={(event) => event.stopPropagation()} onKeyUp={(event) => event.stopPropagation()}>
+    {/* The toggle event arrives a task later; predicting it on click keeps the panel responsive. */}
+    <summary className="cursor-pointer py-1 font-semibold" onClick={(event) => setOpen(!(event.currentTarget.parentElement as HTMLDetailsElement).open)}>Navigate, organize & export</summary>
     <div className="mt-2 grid gap-2">
       <div className="grid grid-cols-2 gap-2">
         <Button size="sm" variant="outline" onClick={() => {
