@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useMemo, useReducer, useState, type CSSProperties } from "react";
 import {
   AlertTriangle,
   Atom,
@@ -67,6 +67,7 @@ import {
 } from "@/lib/chemistry/titration-lab";
 import type { TitrationAcidKind } from "@/lib/chemistry/chemistry-types";
 import { hasDesmosApiKey } from "@/lib/desmos-loader";
+import { chemistryDesmosState, type ChemistryGraphKind } from "@/lib/chemistry/chemistry-desmos-states";
 import type { WorkspaceModuleId } from "@/types";
 
 const stoichTemplate = {
@@ -100,12 +101,14 @@ function Sparkline({
   );
 }
 
-function desmosStatusCopy() {
-  const hasKey = hasDesmosApiKey();
-  return hasKey
-    ? "Desmos key detected; this graph surface is ready to mount the live chemistry graph when selected."
-    : "Desmos unavailable locally. Showing the lightweight fallback chart so the preset does not waste space.";
-}
+// Chemistry graph modules load Desmos only when one is opened.
+const LazyDesmosGraph = lazy(() => import("@/components/math/desmos-graph").then((module) => ({ default: module.DesmosGraph })));
+
+const chemistryGraphCopy: Record<ChemistryGraphKind, { title: string; description: string }> = {
+  concentration: { title: "Concentration graph", description: "Dilution with C₁V₁ = C₂V₂. Drag the point or the sliders." },
+  titration: { title: "Titration curve", description: "An exact acid-base titration curve. Drag the sliders to change the acid." },
+  kinetics: { title: "Kinetics plot", description: "Zero, first and second order side by side, with linearized forms." },
+};
 
 type PeriodicViewMode = "table" | "list" | "builder" | "compare";
 type StudyLayer = "chem101" | "ap";
@@ -945,11 +948,11 @@ export function PeriodicTrendsGraphModule() {
     }));
 
   return (
-    <WorkspacePanel description="Desmos-ready periodic trend graph with a fast fallback chart." title="Periodic trends graph">
+    <WorkspacePanel description="Compare one property across the elements." title="Periodic trends graph">
       <div className="chem-showcase-module" data-chemistry-module="periodic-trends-graph">
         <div className="chem-showcase-toolbar">
           <LineChart className="size-5 text-primary" />
-          <p className="text-sm text-muted-foreground">{desmosStatusCopy()}</p>
+          <p className="text-sm text-muted-foreground">Pick a property to chart it across the elements.</p>
         </div>
         <div className="chem-showcase-segment" role="group" aria-label="Trend">
           {(["electronegativity", "atomic-radius", "ionization-energy", "electron-affinity", "density", "metallic-character"] as TrendMode[]).map((mode) => (
@@ -1185,10 +1188,24 @@ export function ChemistryGraphModule({ kind = "titration" }: { kind?: "titration
   const concentrationPoints = Array.from({ length: 8 }, (_, index) => ({ x: index * 14, y: 90 - index * 10 }));
   const points = kind === "kinetics" ? kineticsPoints : kind === "concentration" ? concentrationPoints : titrationPoints;
 
+  const canUseDesmos = hasDesmosApiKey();
+  const desmosState = useMemo(() => chemistryDesmosState(kind), [kind]);
+  const copy = chemistryGraphCopy[kind];
+  const fallback = <Sparkline ariaLabel={`${copy.title} (simple chart)`} points={points} />;
+
   return (
-    <WorkspacePanel description={desmosStatusCopy()} title={`Desmos ${kind} graph`}>
+    <WorkspacePanel
+      description={canUseDesmos ? copy.description : "Desmos isn't available here, so this is a simple fallback chart."}
+      title={copy.title}
+    >
       <div className="chem-showcase-module" data-chemistry-module={`desmos-${kind}-graph`}>
-        <Sparkline ariaLabel={`${kind} chemistry graph fallback`} points={points} />
+        {canUseDesmos ? (
+          <Suspense fallback={fallback}>
+            <LazyDesmosGraph height="380px" showKeypad={false} state={desmosState} />
+          </Suspense>
+        ) : (
+          fallback
+        )}
       </div>
     </WorkspacePanel>
   );
@@ -1633,7 +1650,6 @@ export function ChemistryTitrationLabModule() {
   const currentZone: TitrationZone =
     state.measurements.length === 0 ? "start" : classifyTitrationVolume(markers, state.titrantAddedMl);
   const endpointHint = getTitrationHint(currentZone, markers, state.titrantAddedMl);
-  const desmosReady = hasDesmosApiKey();
   const toPath = (curve: { volumeMl: number; ph: number }[]) =>
     curve
       .map((point, index) => {
@@ -1726,7 +1742,7 @@ export function ChemistryTitrationLabModule() {
               <span className="text-xs text-muted-foreground">{state.titrantAddedMl.toFixed(2)} mL NaOH</span>
             </div>
             <p className="mt-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              {desmosReady ? "Desmos curve ready when this graph surface is selected." : "Fallback chart active"}
+              {state.measurements.length ? "Exact curve; dots are your readings." : "Exact curve. Add titrant to record readings."}
             </p>
             <svg aria-label="Titration curve" className="mt-3 h-48 w-full overflow-visible rounded-xl bg-background/75" viewBox="0 0 100 100">
               <line stroke="currentColor" strokeOpacity="0.18" x1="0" x2="100" y1="50" y2="50" />

@@ -74,7 +74,7 @@ describe("chemistry workspace modules", () => {
     expect(screen.getByText(/chemistry lab coach/i)).toBeTruthy();
     expect(screen.getByText(/interactive periodic table/i)).toBeTruthy();
     expect(screen.getAllByText(/Build Carbon-14/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/fallback chart/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/pick a property to chart it across the elements/i)).toBeTruthy();
     expect(screen.getByText(/Balanced result/i)).toBeTruthy();
     expect(screen.getAllByText(/Effective nuclear charge/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/unit ladder/i)).toBeTruthy();
@@ -109,7 +109,7 @@ describe("chemistry workspace modules", () => {
 
     expect(screen.getByText(/exact model: full charge balance/i)).toBeTruthy();
     expect(screen.getByText(/no measurements yet/i)).toBeTruthy();
-    expect(screen.getByText(/fallback chart active/i)).toBeTruthy();
+    expect(screen.getByText(/exact curve. add titrant to record readings/i)).toBeTruthy();
     expect(screen.getByText(/hypothesis/i)).toBeTruthy();
     expect(screen.getByText(/error analysis/i)).toBeTruthy();
 

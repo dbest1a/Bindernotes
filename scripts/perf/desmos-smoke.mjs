@@ -2,7 +2,7 @@
 // Desmos smoke test on the isolated lab fixture (synthetic learner, stubbed backend; never signs in).
 // Opens every Desmos calculator type the app uses and reports what actually rendered:
 //   board: Desmos Graph card (2D), switched to 3D from its footer, and the Scientific Calculator card
-//   (the app's own calculator on boards);
+//   (the app's own calculator on boards); the chemistry titration, kinetics and concentration graphs;
 //   Math Lab page: its graph surface.
 // Usage: node scripts/perf/desmos-smoke.mjs [--out .tmp/desmos-smoke]
 // Needs the lab fixture on 5198 and a Desmos key (see scripts/perf/desmos-key.mjs; never printed).
@@ -118,6 +118,15 @@ try {
   await page.waitForTimeout(1500);
   report.mathLab = await describeCalculators(page);
   await page.screenshot({ path: join(OUT, "math-lab-desmos.png") });
+
+  // Chemistry graph modules: each opens its own live Desmos graph.
+  for (const moduleId of ["chem-desmos-titration-curve", "chem-desmos-kinetics-plot", "chem-desmos-concentration-graph"]) {
+    await page.goto(`${LAB}?page=chemistry&module=${moduleId}`);
+    await page.waitForFunction(() => window.__desmosCreated.length > 0, null, { timeout: 60_000 }).catch(() => problems.push(`${moduleId}: no Desmos calculator`));
+    await page.waitForTimeout(1500);
+    report[moduleId] = await describeCalculators(page);
+    await page.locator(`[data-chem-module="${moduleId}"]`).first().screenshot({ path: join(OUT, `${moduleId}.png`) });
+  }
 
   for (const [surface, calculators] of Object.entries(report)) {
     for (const calculator of calculators.filter((entry) => entry.attached)) {
