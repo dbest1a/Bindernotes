@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { betaFeaturesStorageKeyForUser } from "@/lib/beta-features";
@@ -338,13 +339,35 @@ vi.mock("@/components/editor/rich-text-editor", () => ({
   },
 }));
 
+// Global search reads the library only after it opens; these tests search notes alone.
+vi.mock("@/hooks/use-binders", () => ({
+  useDashboard: () => ({ data: undefined, isError: false, isFetching: false, refetch: vi.fn() }),
+}));
+
 vi.mock("@/components/personal-notes/personal-canvas-notebook", () => ({
   PersonalCanvasNotebook: ({ binder, layout }: { binder: { id: string; title: string }; layout: string }) => <div aria-label="Canvas notebook" data-binder-id={binder.id} data-layout={layout}>{binder.title}</div>,
 }));
 
 import { PersonalNotesPage } from "@/pages/personal-notes-page";
+import { GlobalSearchProvider } from "@/components/search/global-search-provider";
 
 function CurrentLocation() { return <span data-testid="current-route">{useLocation().pathname}</span>; }
+
+function renderPageInSignedInShell(path = "/notes") {
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={[path]}>
+        <GlobalSearchProvider profile={profile}>
+          <CurrentLocation />
+          <Routes>
+            <Route element={<PersonalNotesPage />} path="/notes" />
+            <Route element={<PersonalNotesPage />} path="/notes/n/:noteId" />
+          </Routes>
+        </GlobalSearchProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 function HistoryControls() { const navigate = useNavigate(); return <button onClick={() => navigate(-1)}>Browser back</button>; }
 
 function renderPage(path = "/notes", historyControls = false) {
@@ -1739,5 +1762,75 @@ describe("PersonalNotesPage", () => {
       expect((palette.getByRole("button", { name: new RegExp(command) }) as HTMLButtonElement).disabled).toBe(true);
     }
     expect((palette.getByRole("button", { name: /Open source binder workspace/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("lets global search own Ctrl/Cmd+K and keeps Personal Notes commands one step away", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPageInSignedInShell("/notes/n/personal-note-1");
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const searchInput = await screen.findByRole("combobox", { name: "Search lessons, binders, and notes" });
+    expect(screen.queryByRole("dialog", { name: "Personal Notes command palette" })).toBeNull();
+    expect(screen.getByRole("group", { name: "On this page" })).toBeTruthy();
+
+    fireEvent.change(searchInput, { target: { value: "fullscreen" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Personal Notes commands/ }));
+
+    const palette = await screen.findByRole("dialog", { name: "Personal Notes command palette" });
+    expect(screen.queryByRole("combobox", { name: "Search lessons, binders, and notes" })).toBeNull();
+    expect((within(palette).getByLabelText("Command search") as HTMLInputElement).value).toBe("fullscreen");
+    expect(within(palette).getByRole("button", { name: /Enter fullscreen focus/ })).toBeTruthy();
+
+    // Ctrl/Cmd+K from the page palette switches back to global search instead of stacking dialogs.
+    fireEvent.keyDown(within(palette).getByLabelText("Command search"), { key: "k", ctrlKey: true });
+    expect(await screen.findByRole("combobox", { name: "Search lessons, binders, and notes" })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Personal Notes command palette" })).toBeNull();
+  });
+
+  it("opens the note a search result names even when Personal Notes filters hide it", async () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPageInSignedInShell("/notes/n/personal-note-1");
+
+    fireEvent.change(screen.getByLabelText("Search Personal Notes"), { target: { value: "quadratics" } });
+    await waitFor(() => expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-math"));
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const searchInput = await screen.findByRole("combobox", { name: "Search lessons, binders, and notes" });
+    fireEvent.change(searchInput, { target: { value: "russian revolution" } });
+    fireEvent.click(await screen.findByRole("option", { name: /^Russian Revolution private note,/ }));
+
+    await waitFor(() => expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-1"));
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(learnerNote.title);
+    expect((screen.getByLabelText("Search Personal Notes") as HTMLInputElement).value).toBe("");
+    expect(within(screen.getByTestId("notes-list-pane")).getByRole("button", { name: /Russian Revolution private note/ })).toBeTruthy();
+  });
+
+  it("keeps a linked note open from its link while binder notes are hidden in the list", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    mocks.preferences = { ...defaultPersonalNotesPreferences, showBinderNotes: false };
+
+    renderPage("/notes/n/learner-note-1");
+
+    expect(screen.getByTestId("current-route").textContent).toBe("/notes/n/learner-note-1");
+    expect((screen.getByLabelText("Note title") as HTMLInputElement).value).toBe(learnerNote.title);
+  });
+
+  it("opens Personal Notes commands from the toolbar and matches words in any order", () => {
+    mocks.personalNotesState.data = workspaceWithEntries;
+    renderPage("/notes/n/personal-note-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Commands" }));
+    const palette = within(screen.getByRole("dialog", { name: "Personal Notes command palette" }));
+    const commandSearch = palette.getByLabelText("Command search");
+
+    fireEvent.change(commandSearch, { target: { value: "monitor hide" } });
+    expect(palette.getByRole("button", { name: /Hide side monitor/ })).toBeTruthy();
+
+    fireEvent.change(commandSearch, { target: { value: "fulscreen" } });
+    expect(palette.getByRole("button", { name: /Enter fullscreen focus/ })).toBeTruthy();
+
+    fireEvent.change(commandSearch, { target: { value: "revolution russian" } });
+    expect(palette.getByRole("button", { name: /Open note: Russian Revolution private note/ })).toBeTruthy();
+    expect(palette.queryByRole("button", { name: /Open note: Quadratics private note/ })).toBeNull();
   });
 });

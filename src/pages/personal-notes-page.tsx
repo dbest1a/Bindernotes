@@ -54,6 +54,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichTextEditor } from "@/components/editor/lazy-rich-text-editor";
+import { useGlobalSearch, useGlobalSearchPage } from "@/components/search/global-search-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useBetaFeatures } from "@/hooks/use-beta-features";
 import { usePersonalNoteDraft, type NoteDraft } from "@/hooks/use-personal-note-draft";
@@ -69,6 +70,7 @@ import {
   getPersonalNoteSourceReferences,
   personalNoteTemplates,
 } from "@/lib/personal-notes";
+import { createSearchQuery, matchesSearchText } from "@/lib/search/text-match";
 import { emptyDoc } from "@/lib/utils";
 import { encodePersonalCanvasDescription, readPersonalCanvasDescription } from "@/lib/personal-canvas";
 import { PersonalCanvasNotebook } from "@/components/personal-notes/personal-canvas-notebook";
@@ -225,6 +227,18 @@ const annotationHotkeyHighlightColors: Record<string, string> = {
   "5": annotationHighlightColors[4].color,
 };
 
+function notesViewFilterKey(
+  query: string,
+  sourceFilter: PersonalNotesSourceFilter,
+  folderFilter: string | null,
+  tagFilter: string | null,
+  scopeId: string,
+  binderId: string | null,
+  showBinderNotes: boolean,
+) {
+  return [query, sourceFilter, folderFilter ?? "", tagFilter ?? "", scopeId, binderId ?? "", showBinderNotes ? "1" : "0"].join("\u0000");
+}
+
 export function PersonalNotesPage() {
   const { profile } = useAuth();
   const params = useParams();
@@ -247,6 +261,8 @@ export function PersonalNotesPage() {
   const [selectedNotebookScopeId, setSelectedNotebookScopeId] = useState("all");
   const [selectedNotebookBinderId, setSelectedNotebookBinderId] = useState<string | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [commandInitialQuery, setCommandInitialQuery] = useState("");
+  const globalSearch = useGlobalSearch();
   const [createDialog, setCreateDialog] = useState<CreateDialogKind | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [focusSideMonitorOpen, setFocusSideMonitorOpen] = useState(false);
@@ -331,13 +347,39 @@ export function PersonalNotesPage() {
     setSelectedNotebookBinderId(null);
     setSelectedNotebookScopeId("all");
   }, [location.key]);
+  // A link from outside this view (global search, the reader, the dashboard) names one note. Clear
+  // filters that would hide it, and keep showing it until the student changes the filters themselves.
+  const viewFilterKey = notesViewFilterKey(query, sourceFilter, folderFilter, tagFilter, selectedNotebookScopeId, selectedNotebookBinderId, preferences.showBinderNotes);
+  const [routeAnchor, setRouteAnchor] = useState({ routeId: routeSelectedId, filterKey: viewFilterKey });
+  if (routeAnchor.routeId !== routeSelectedId) {
+    const hiddenByFilters = Boolean(routeSelectedId)
+      && !notesViewEntries.some((entry) => entry.id === routeSelectedId)
+      && entries.some((entry) => entry.id === routeSelectedId);
+    if (hiddenByFilters) {
+      setQuery("");
+      setSourceFilter("all");
+      setFolderFilter(null);
+      setTagFilter(null);
+      setSelectedNotebookBinderId(null);
+      setSelectedNotebookScopeId("all");
+    }
+    setRouteAnchor({
+      routeId: routeSelectedId,
+      filterKey: hiddenByFilters ? notesViewFilterKey("", "all", null, null, "all", null, preferences.showBinderNotes) : viewFilterKey,
+    });
+  }
+  const routeStillNamesEntry = routeAnchor.routeId === routeSelectedId && routeAnchor.filterKey === viewFilterKey;
   const selectedEntry = useMemo(() => {
     const wanted = routeSelectedId ?? selectedId;
     // A missing explicit record must never expose a different editable note.
     if (routeSelectedId && !entries.some((entry) => entry.id === routeSelectedId && (!params.personalBinderId || entry.personalBinderId === params.personalBinderId))) return null;
     if (restoringHistoryEntry && routeSelectedId) return entries.find((entry) => entry.id === routeSelectedId) ?? null;
-    return notesViewEntries.find((entry) => entry.id === wanted) ?? notesViewEntries[0] ?? null;
-  }, [entries, notesViewEntries, params.personalBinderId, restoringHistoryEntry, routeSelectedId, selectedId]);
+    const inView = notesViewEntries.find((entry) => entry.id === wanted);
+    if (inView) return inView;
+    // Only a filter change by the student may move the selection to another note.
+    if (routeSelectedId && routeStillNamesEntry) return entries.find((entry) => entry.id === routeSelectedId) ?? null;
+    return notesViewEntries[0] ?? null;
+  }, [entries, notesViewEntries, params.personalBinderId, restoringHistoryEntry, routeSelectedId, routeStillNamesEntry, selectedId]);
   useEffect(() => {
     if (selectedEntry && routeSelectedId !== selectedEntry.id) navigate(selectedEntry.quickOpenUrl, { replace: true });
   }, [navigate, routeSelectedId, selectedEntry?.id]);
@@ -499,11 +541,30 @@ export function PersonalNotesPage() {
     setSelectedId(filteredEntries[0].id);
   }, [filteredEntries, routeSelectedId, selectedId]);
 
+  const openPersonalCommands = useCallback((initialQuery = "") => {
+    setCommandInitialQuery(initialQuery);
+    setCommandOpen(true);
+  }, []);
+
+  // Inside the app shell, Ctrl/Cmd+K opens global search; these commands stay one step away there.
+  useGlobalSearchPage({
+    commands: [
+      {
+        id: "personal-notes-commands",
+        label: "Personal Notes commands",
+        description: "Create, focus, side monitor, highlights, and current-note actions",
+        keywords: "command palette new note binder folder document canvas focus fullscreen side monitor highlight annotate tag pin template review settings width",
+        run: openPersonalCommands,
+      },
+    ],
+    onSearchOpen: () => setCommandOpen(false),
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      if (!globalSearch && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setCommandOpen(true);
+        openPersonalCommands();
       }
       if ((event.ctrlKey || event.metaKey) && event.key === "\\") {
         event.preventDefault();
@@ -540,7 +601,7 @@ export function PersonalNotesPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [commandOpen, createDialog, exitFullscreenFocus, filtersOpen, focusActive, newMenuOpen, settingsOpen]);
+  }, [commandOpen, createDialog, exitFullscreenFocus, filtersOpen, focusActive, globalSearch, newMenuOpen, openPersonalCommands, settingsOpen]);
 
   useEffect(() => {
     if (!createDialog) return;
@@ -786,6 +847,7 @@ export function PersonalNotesPage() {
   const commandPalette = commandOpen ? (
     <CommandPalette
       entries={entries}
+      initialQuery={commandInitialQuery}
       onAddTag={addTagToSelected}
       onClose={() => setCommandOpen(false)}
       onCreateBinder={createBinder}
@@ -1041,9 +1103,17 @@ export function PersonalNotesPage() {
                   >
                     <Settings2 />
                   </Button>
-                  <Button className="hidden lg:inline-flex" onClick={() => setCommandOpen(true)} size="sm" type="button" variant="outline">
+                  <Button
+                    aria-keyshortcuts={globalSearch ? undefined : "Control+K Meta+K"}
+                    className="hidden lg:inline-flex"
+                    onClick={() => openPersonalCommands()}
+                    size="sm"
+                    title={globalSearch ? "Personal Notes commands (also listed in Ctrl/Cmd+K search)" : "Personal Notes commands (Ctrl/Cmd+K)"}
+                    type="button"
+                    variant="outline"
+                  >
                     <Command data-icon="inline-start" />
-                    Ctrl/Cmd+K
+                    Commands
                   </Button>
                 </div>
               </div>
@@ -4794,6 +4864,7 @@ function dispatchAnnotationCommand(command: AnnotationCommand) {
 function CommandPalette({
   categories,
   entries,
+  initialQuery = "",
   onAddTag,
   onClose,
   onCreateBinder,
@@ -4833,6 +4904,7 @@ function CommandPalette({
 }: {
   categories: NotebookCategory[];
   entries: PersonalNotesEntry[];
+  initialQuery?: string;
   onAddTag: () => void;
   onClose: () => void;
   onCreateBinder: () => void;
@@ -4870,7 +4942,7 @@ function CommandPalette({
   sidebarsHidden: boolean;
   topChromeHidden: boolean;
 }) {
-  const [commandQuery, setCommandQuery] = useState("");
+  const [commandQuery, setCommandQuery] = useState(initialQuery);
   type CommandPaletteCommand = {
     action: () => void;
     description?: string;
@@ -4887,28 +4959,9 @@ function CommandPalette({
     label: string;
   };
 
-  const normalizedCommandQuery = commandQuery.trim().toLowerCase();
-  const matchesCommandSearch = (text: string) => {
-    if (!normalizedCommandQuery) {
-      return true;
-    }
-    const normalizedText = text.toLowerCase();
-    return normalizedCommandQuery.split(/\s+/).every((term) => {
-      if (normalizedText.includes(term)) {
-        return true;
-      }
-      let termIndex = 0;
-      for (const char of normalizedText) {
-        if (char === term[termIndex]) {
-          termIndex += 1;
-          if (termIndex === term.length) {
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  };
+  const searchQuery = createSearchQuery(commandQuery);
+  const normalizedCommandQuery = searchQuery.normalized;
+  const matchesCommandSearch = (text: string) => !normalizedCommandQuery || matchesSearchText(searchQuery, text);
   const sortedCommandEntries = [...entries].sort((a, b) => {
     if (a.pinned !== b.pinned) {
       return a.pinned ? -1 : 1;
@@ -5222,7 +5275,7 @@ function PersonalNotesSettingsDrawer({
     {
       id: "keyboard",
       label: "Keyboard",
-      terms: "keyboard command palette shortcut ctrl cmd k settings search",
+      terms: "keyboard command palette commands shortcut ctrl cmd k global search settings search",
     },
   ].filter((section) => `${section.label} ${section.terms}`.toLowerCase().includes(normalizedQuery));
 
@@ -5436,7 +5489,7 @@ function PersonalNotesSettingsDrawer({
 
               {section.id === "keyboard" ? (
                 <div className="mt-3 grid gap-3 rounded-xl border border-border/70 bg-background/45 p-3 text-sm leading-6 text-muted-foreground">
-                  <p>Ctrl/Cmd+K opens the command palette for search, notes, panes, focus, annotator tools, and settings.</p>
+                  <p>Ctrl/Cmd+K searches lessons, binders, and notes. Choose Personal Notes commands there, or use the Commands button, for panes, focus, annotator tools, and settings.</p>
                   {preferences.annotatorTools === "hotkeys" ? (
                     <div className="grid gap-2 text-xs font-semibold text-foreground sm:grid-cols-2">
                       <span className="rounded-md border border-border/70 bg-background px-2 py-1">Ctrl+Alt+H highlight</span>
