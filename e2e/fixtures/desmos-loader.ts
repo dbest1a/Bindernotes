@@ -7,7 +7,7 @@ export function getDesmosGraphingConstructor(api: DesmosApi) {
   if (!create) return null;
   return (...args: Parameters<typeof create>) => {
     const calculator = create(...args);
-    const diagnostics = { calculator, resizeCalls: 0, setStateCalls: 0, destroyed: false };
+    const diagnostics: { calculator: typeof calculator | null; resizeCalls: number; setStateCalls: number; destroyed: boolean } = { calculator, resizeCalls: 0, setStateCalls: 0, destroyed: false };
     const scope = window as typeof window & { __desmosChecks?: typeof diagnostics[] };
     (scope.__desmosChecks ??= []).push(diagnostics);
     const resize = calculator.resize.bind(calculator);
@@ -15,7 +15,13 @@ export function getDesmosGraphingConstructor(api: DesmosApi) {
     const setState = calculator.setState.bind(calculator);
     calculator.setState = (...parameters) => { diagnostics.setStateCalls++; setState(...parameters); };
     const destroy = calculator.destroy.bind(calculator);
-    calculator.destroy = () => { diagnostics.destroyed = true; destroy(); };
+    calculator.destroy = () => {
+      destroy();
+      // Count only completed disposal, and keep scalar diagnostics without retaining the instance
+      // (holding it here would make memory checks measure the test, not the product).
+      diagnostics.destroyed = true;
+      diagnostics.calculator = null;
+    };
     return calculator;
   };
 }
