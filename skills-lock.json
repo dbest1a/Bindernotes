@@ -6,6 +6,31 @@
       "sourceType": "github",
       "skillPath": "vibe-security/SKILL.md",
       "computedHash": "cc047d5ac9ba92065ce7464f4ea6ce48ec52fb907caacd564019915b2a847fa4"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/impeccable/SKILL.md",
+      "ref": "d79ce9bd055737a5527ac0bef34b5d2655d54fd0",
+      "license": "Apache-2.0",
+      "note": "SKILL.md and reference docs only; the optional live-browser and font-index scripts are not installed",
+      "computedHash": "63e38ead2c89a9599bd11b203319ae71bc1563e4631f0204464e86b2f2fe6b7f"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "ref": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
+      "license": "MIT",
+      "computedHash": "af4112d6566c72d33455e9fe93ad3dafe41754e44bf51bb03e697e39235ce1b7"
+    },
+    "animation-performance": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-performance/SKILL.md",
+      "ref": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
+      "license": "MIT",
+      "computedHash": "428a19c21acd96011e01f5d2cc306626dc6cf5b667b9a84885f6e0185e099ef2"
     }
   }
 }
