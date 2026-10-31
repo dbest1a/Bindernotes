@@ -361,6 +361,8 @@ describe("BinderReaderPage", () => {
     expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:user-1:binder-1:lesson-1")).toBeNull();
     expect(screen.getByRole("link", { name: "Open saved copy in Personal Notes" }).getAttribute("href")).toBe("/notes/n/recovered-copy");
     expect(mocks.noteMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    fireEvent.change(title, { target: { value: "New work after recovery" } });
+    expect(screen.queryByText("Both versions are kept. You're viewing the latest account version.")).toBeNull();
   });
 
   it("requires an explicit replacement choice and keeps the draft if loading fails", async () => {

@@ -273,6 +273,7 @@ export function BinderReaderPage() {
     catch { setNoteSaveError("Browser recovery storage is unavailable. Keep this tab open until your note saves."); }
   }, []);
   const updateVisibleNoteDraft = useCallback((update: Partial<PendingNoteSave["input"]>) => {
+    setNoteRecoveryMessage(null);
     const current = latestVisibleNoteDraftRef.current;
     if (!current) return;
     const next = { ...current, input: { ...current.input, ...update } };
@@ -521,6 +522,7 @@ export function BinderReaderPage() {
   );
   const updateNoteMathDraft = useCallback(
     (updater: MathBlock[] | ((current: MathBlock[]) => MathBlock[])) => {
+      setNoteRecoveryMessage(null);
       noteHasLocalEditsRef.current = true;
       setNoteMath(updater);
     },
