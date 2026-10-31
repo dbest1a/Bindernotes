@@ -122,6 +122,15 @@ function loadState(userId?: string, scopeId = "math-lab", initialState?: MathWor
   }
 }
 
+/** Shallow comparison of every field except savedAt (updates replace changed fields immutably). */
+function workspaceValuesEqual(left: MathWorkspaceState, right: MathWorkspaceState) {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]) as Set<keyof MathWorkspaceState>;
+  for (const key of keys) {
+    if (key !== "savedAt" && left[key] !== right[key]) return false;
+  }
+  return true;
+}
+
 function mathWorkspaceStatesEqual(left: MathWorkspaceState, right: MathWorkspaceState) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -136,7 +145,12 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
   const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
     const snapshot = activeSnapshotRef.current;
     const updated = typeof update === "function" ? update(snapshot.state) : update;
-    const nextState = updated === snapshot.state ? updated : { ...updated, savedAt: new Date().toISOString() };
+    // Only real changes are edits. Updates that rebuild the state with the same values (such as
+    // showing a graph that is already visible) keep the old state and its timestamp.
+    if (workspaceValuesEqual(updated, snapshot.state)) {
+      return;
+    }
+    const nextState = { ...updated, savedAt: new Date().toISOString() };
     snapshot.state = nextState;
     setRenderedState(nextState);
   }, []);
@@ -327,6 +341,10 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
   const setCurrentGraphState = useCallback((graphState: DesmosState | null, sourceMode?: GraphMode) => {
     const current = scopeSnapshot.state;
     const graphMode = sourceMode ?? current.graphMode;
+    // Unchanged graphs are not edits: no new timestamp, no write, no board save.
+    if (JSON.stringify(current.graphStatesByMode[graphMode] ?? null) === JSON.stringify(graphState ?? null)) {
+      return;
+    }
     const nextState = {
       ...current,
       currentGraphState: graphMode === current.graphMode ? graphState : current.currentGraphState,

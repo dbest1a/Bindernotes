@@ -448,4 +448,38 @@ describe("DesmosGraph", () => {
     await waitFor(() => expect(instances).toHaveLength(2));
     await waitFor(() => expect(instances[1].currentState).toEqual(panned));
   });
+
+  it("does not report loading a saved graph as an edit, only real changes", async () => {
+    vi.useFakeTimers();
+    const saved = { expressions: { list: [{ id: "f", latex: "y=x^2" }] } };
+    const normalized = { version: 11, expressions: { list: [{ id: "f", type: "expression", latex: "y=x^2" }] } };
+    let current: unknown = normalized;
+    let emitChange: () => void = () => {};
+    const calculator = {
+      destroy: vi.fn(),
+      getState: vi.fn(() => current),
+      observeEvent: vi.fn((_name: "change", callback: () => void) => { emitChange = callback; }),
+      resize: vi.fn(),
+      setBlank: vi.fn(),
+      setExpression: vi.fn(),
+      setState: vi.fn(),
+      unobserveEvent: vi.fn(),
+    } as unknown as DesmosGraphingCalculator;
+    vi.mocked(desmosLoader.loadDesmosApi).mockResolvedValue({ GraphingCalculator: vi.fn(() => calculator) } as unknown as DesmosApi);
+    const onStateChange = vi.fn();
+    render(<DesmosGraph onStateChange={onStateChange} state={saved as unknown as DesmosState} />);
+    await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+    expect(calculator.setState).toHaveBeenCalledWith(saved);
+
+    // Desmos normalizes the loaded state and announces a change: not the student's edit.
+    act(() => emitChange());
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(onStateChange).not.toHaveBeenCalled();
+
+    current = { ...normalized, expressions: { list: [{ id: "f", type: "expression", latex: "y=2x^2" }] } };
+    act(() => emitChange());
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(onStateChange).toHaveBeenCalledTimes(1);
+    expect(onStateChange.mock.calls[0][0]).toEqual(current);
+  });
 });

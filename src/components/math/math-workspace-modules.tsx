@@ -42,6 +42,18 @@ export type MathWorkspaceModuleBindings = {
   onGraphLoadApplied?: (id: string) => void;
 };
 
+// On the whiteboard: dark graphs that match the board, opening graph-first. The expression list
+// is one click away (Desmos's own list button), and a collapsed list keeps idle graphs from
+// reading layout every frame (measured: ~1,000 reads a second per open list). Graphs with
+// sliders open with the list, because that is where their sliders live.
+const whiteboardDesmosAppearance = { darkMode: true, expressionsCollapsed: true } as const;
+const whiteboardSliderGraphAppearance = { darkMode: true, expressionsCollapsed: false } as const;
+
+function desmosStateHasSliders(state: unknown) {
+  const list = (state as { expressions?: { list?: unknown } } | null)?.expressions?.list;
+  return Array.isArray(list) && list.some((item) => Boolean(item && typeof item === "object" && "slider" in item));
+}
+
 export function DesmosGraphModule({
   bindings,
   description = "Live Desmos graphing calculator",
@@ -63,6 +75,10 @@ export function DesmosGraphModule({
   );
   const [keypadOpen, setKeypadOpen] = useState(() => !mathPerformanceLazyLoading && showKeypad);
   const [graphExpression, setGraphExpression] = useState("y=x^2");
+  // Chosen once per mount, so editing a graph never collapses its list under the student.
+  const [whiteboardAppearance] = useState(() =>
+    desmosStateHasSliders(controller.state.currentGraphState) ? whiteboardSliderGraphAppearance : whiteboardDesmosAppearance,
+  );
   const [queuedExpression, setQueuedExpression] = useState<string | null>(null);
 
   useEffect(() => {
@@ -221,6 +237,7 @@ export function DesmosGraphModule({
             pendingExpression={pendingExpression}
             showKeypad={effectiveShowKeypad}
             state={controller.state.currentGraphState}
+            appearance={surface === "whiteboard" ? whiteboardAppearance : undefined}
           />
         ) : (
           <DesmosGraph
@@ -232,6 +249,7 @@ export function DesmosGraphModule({
             pendingExpression={pendingExpression}
             showKeypad={effectiveShowKeypad}
             state={controller.state.currentGraphState}
+            appearance={surface === "whiteboard" ? whiteboardAppearance : undefined}
           />
         )
       ) : (

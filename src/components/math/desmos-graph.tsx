@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { DesmosSurface } from "@/components/math/desmos-embed";
+import { DesmosSurface, type DesmosSurfaceAppearance } from "@/components/math/desmos-embed";
 
 type GraphExpressionRequest = {
   id: string;
@@ -27,6 +27,7 @@ export const DesmosGraph = memo(function DesmosGraph({
   pendingExpression,
   showKeypad = true,
   state,
+  appearance,
 }: {
   className?: string;
   height?: string;
@@ -37,6 +38,7 @@ export const DesmosGraph = memo(function DesmosGraph({
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state: DesmosState | null;
+  appearance?: DesmosSurfaceAppearance;
 }) {
   return (
     <DesmosSurface
@@ -50,6 +52,7 @@ export const DesmosGraph = memo(function DesmosGraph({
       pendingExpression={pendingExpression}
       showKeypad={showKeypad}
       state={state}
+      appearance={appearance}
     />
   );
 });
@@ -64,6 +67,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
   pendingExpression,
   showKeypad = true,
   state,
+  appearance,
 }: {
   className?: string;
   height?: string;
@@ -74,6 +78,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state: DesmosState | null;
+  appearance?: DesmosSurfaceAppearance;
 }) {
   return (
     <DesmosSurface
@@ -87,6 +92,7 @@ export const Desmos3DGraph = memo(function Desmos3DGraph({
       pendingExpression={pendingExpression}
       showKeypad={showKeypad}
       state={state}
+      appearance={appearance}
     />
   );
 });

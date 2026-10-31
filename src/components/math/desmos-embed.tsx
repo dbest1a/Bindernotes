@@ -52,7 +52,15 @@ type DesmosSurfaceProps = {
   pendingExpression?: GraphExpressionRequest | null;
   showKeypad?: boolean;
   state?: DesmosState | null;
+  /**
+   * Per-surface look, overriding the workspace theme. Whiteboard cards sit on a dark board and
+   * open graph-first: an open expression list makes Desmos read layout about a thousand times a
+   * second per calculator, even when idle, while a collapsed one costs nothing.
+   */
+  appearance?: DesmosSurfaceAppearance;
 };
+
+export type DesmosSurfaceAppearance = { darkMode?: boolean; expressionsCollapsed?: boolean };
 
 let desmosInstanceCounter = 0;
 
@@ -73,6 +81,7 @@ export const DesmosSurface = memo(function DesmosSurface({
   pendingExpression,
   showKeypad = true,
   state,
+  appearance,
 }: DesmosSurfaceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const calculatorRef = useRef<DesmosBaseCalculator | null>(null);
@@ -98,6 +107,8 @@ export const DesmosSurface = memo(function DesmosSurface({
   const [graphChrome, setGraphChrome] = useState<"standard" | "focused">(() =>
     typeof document !== "undefined" ? resolveGraphChrome(document.documentElement) : "standard",
   );
+  const effectiveDarkMode = appearance?.darkMode ?? darkMode;
+  const expressionsCollapsed = appearance?.expressionsCollapsed ?? graphChrome === "focused";
   const [status, setStatus] = useState<DesmosEmbedStatus>(
     hasDesmosApiKey() ? "loading-script" : "missing-key",
   );
@@ -255,7 +266,8 @@ export const DesmosSurface = memo(function DesmosSurface({
           kind,
         });
         const calculator = createDesmosCalculator(kind, Desmos, container, {
-          darkMode,
+          darkMode: effectiveDarkMode,
+          expressionsCollapsed,
           graphChrome,
           showKeypad: showKeypadRef.current,
         });
@@ -263,10 +275,10 @@ export const DesmosSurface = memo(function DesmosSurface({
 
         if (isGraphingCalculator(calculator) && latestStateRef.current) {
           calculator.setState(latestStateRef.current);
-          lastSerializedStateRef.current = safeSerialize(latestStateRef.current);
-        } else {
-          lastSerializedStateRef.current = "";
         }
+        // Remember the state as Desmos holds it after loading (it normalizes what it is given),
+        // so the change event loading itself triggers is not mistaken for a student's edit.
+        lastSerializedStateRef.current = isGraphingCalculator(calculator) ? safeSerialize(calculator.getState()) : "";
 
         if (isGraphingCalculator(calculator)) {
           calculator.observeEvent("change", () => {
@@ -280,7 +292,11 @@ export const DesmosSurface = memo(function DesmosSurface({
               }
 
               const nextState = calculatorRef.current.getState();
-              lastSerializedStateRef.current = safeSerialize(nextState);
+              const serialized = safeSerialize(nextState);
+              if (serialized === lastSerializedStateRef.current) {
+                return;
+              }
+              lastSerializedStateRef.current = serialized;
               onStateChangeRef.current?.(nextState, kind === "graphing-3d" ? "3d" : "2d");
             }, 250);
           });
@@ -386,17 +402,17 @@ export const DesmosSurface = memo(function DesmosSurface({
     }
 
     calculatorRef.current.updateSettings({
-      invertedColors: darkMode,
+      invertedColors: effectiveDarkMode,
       ...(kind === "graphing" || kind === "graphing-3d"
         ? {
-            expressionsCollapsed: graphChrome === "focused",
+            expressionsCollapsed,
             settingsMenu: graphChrome === "standard",
             zoomButtons: graphChrome === "standard",
           }
         : {}),
     });
     scheduleCalculatorResize("appearance-settings");
-  }, [darkMode, graphChrome, kind, status]);
+  }, [effectiveDarkMode, expressionsCollapsed, graphChrome, kind, status]);
 
   useEffect(() => {
     if (!calculatorRef.current || !isGraphingCalculator(calculatorRef.current)) {
@@ -513,6 +529,7 @@ function createDesmosCalculator(
   container: HTMLElement,
   preferences: {
     darkMode: boolean;
+    expressionsCollapsed: boolean;
     graphChrome: "standard" | "focused";
     showKeypad: boolean;
   },
@@ -533,7 +550,7 @@ function createDesmosCalculator(
       autosize,
       border: false,
       expressions: true,
-      expressionsCollapsed: preferences.graphChrome === "focused",
+      expressionsCollapsed: preferences.expressionsCollapsed,
       folders: true,
       invertedColors: preferences.darkMode,
       keypad: preferences.showKeypad,
@@ -558,7 +575,7 @@ function createDesmosCalculator(
       autosize,
       border: false,
       expressions: true,
-      expressionsCollapsed: preferences.graphChrome === "focused",
+      expressionsCollapsed: preferences.expressionsCollapsed,
       folders: true,
       invertedColors: preferences.darkMode,
       keypad: preferences.showKeypad,
