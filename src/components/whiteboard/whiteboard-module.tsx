@@ -1801,10 +1801,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
               layerRef={pinnedObjectLayerRef}
               modules={activeBoard.modules}
               onAddLinkedModule={addLinkedModule}
-              onChangeModule={(moduleElement, options) =>
-                updateBoardModules(
-                  (modules) => modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
-                  options?.recordHistory ?? true,
+              onChangeModule={(moduleElement) =>
+                updateBoardModules((modules) =>
+                  modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
                 )
               }
               onRemoveModule={(moduleId) =>
@@ -2183,10 +2182,9 @@ export function WhiteboardModule({ context, onBack, renderModule, variant = "mod
                 layerRef={pinnedObjectLayerRef}
                 modules={activeBoard.modules}
                 onAddLinkedModule={addLinkedModule}
-                onChangeModule={(moduleElement, options) =>
-                  updateBoardModules(
-                    (modules) => modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
-                    options?.recordHistory ?? true,
+                onChangeModule={(moduleElement) =>
+                  updateBoardModules((modules) =>
+                    modules.map((candidate) => (candidate.id === moduleElement.id ? moduleElement : candidate)),
                   )
                 }
                 onRemoveModule={(moduleId) =>

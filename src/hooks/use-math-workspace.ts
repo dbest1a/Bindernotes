@@ -49,9 +49,6 @@ export type MathWorkspaceState = {
   currentGraphState: DesmosState | null;
   savedGraphs: SavedGraphState[];
   savedFunctions: SavedMathFunction[];
-  /** When this workspace last changed. A board's copy and this device's cached copy are
-   *  compared by it, so an older copy never replaces newer work from another device. */
-  savedAt?: string;
 };
 
 const MAX_HISTORY = 24;
@@ -94,12 +91,6 @@ function loadState(userId?: string, scopeId = "math-lab", initialState?: MathWor
       return initialState ?? createDefaultState();
     }
     const parsed = JSON.parse(raw) as Partial<MathWorkspaceState>;
-    // A board carries its own copy of the workspace. Prefer it when this device's cache is
-    // older (or predates timestamps), so opening a board elsewhere shows its latest graphs.
-    if (initialState?.savedAt && (!parsed.savedAt || parsed.savedAt < initialState.savedAt)) {
-      return initialState;
-    }
-
     const graphMode = normalizeGraphMode(parsed.graphMode);
     const graphStatesByMode = normalizeGraphStatesByMode(parsed, graphMode);
     return {
@@ -122,11 +113,11 @@ function loadState(userId?: string, scopeId = "math-lab", initialState?: MathWor
   }
 }
 
-/** Shallow comparison of every field except savedAt (updates replace changed fields immutably). */
+/** Shallow comparison of every field (updates replace changed fields immutably). */
 function workspaceValuesEqual(left: MathWorkspaceState, right: MathWorkspaceState) {
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]) as Set<keyof MathWorkspaceState>;
   for (const key of keys) {
-    if (key !== "savedAt" && left[key] !== right[key]) return false;
+    if (left[key] !== right[key]) return false;
   }
   return true;
 }
@@ -145,14 +136,13 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
   const setState = useCallback((update: SetStateAction<MathWorkspaceState>) => {
     const snapshot = activeSnapshotRef.current;
     const updated = typeof update === "function" ? update(snapshot.state) : update;
-    // Only real changes are edits. Updates that rebuild the state with the same values (such as
-    // showing a graph that is already visible) keep the old state and its timestamp.
+    // Updates that rebuild the state with the same values (such as showing a graph that is
+    // already visible) change nothing, so they neither re-render nor rewrite storage.
     if (workspaceValuesEqual(updated, snapshot.state)) {
       return;
     }
-    const nextState = { ...updated, savedAt: new Date().toISOString() };
-    snapshot.state = nextState;
-    setRenderedState(nextState);
+    snapshot.state = updated;
+    setRenderedState(updated);
   }, []);
 
   useEffect(() => {
@@ -341,7 +331,7 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
   const setCurrentGraphState = useCallback((graphState: DesmosState | null, sourceMode?: GraphMode) => {
     const current = scopeSnapshot.state;
     const graphMode = sourceMode ?? current.graphMode;
-    // Unchanged graphs are not edits: no new timestamp, no write, no board save.
+    // An unchanged graph is not an edit: no write and no re-render.
     if (JSON.stringify(current.graphStatesByMode[graphMode] ?? null) === JSON.stringify(graphState ?? null)) {
       return;
     }
@@ -352,7 +342,6 @@ export function useMathWorkspace(userId?: string, scopeId = "math-lab", initialS
         ...current.graphStatesByMode,
         [graphMode]: graphState,
       },
-      savedAt: new Date().toISOString(),
     };
     scopeSnapshot.state = nextState;
     // React effects do not run for an unmounted scope. Persist the final graph
