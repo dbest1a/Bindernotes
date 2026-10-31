@@ -2481,7 +2481,9 @@ export function BinderReaderPage() {
                 ? "Saved"
                 : "Ready";
   const noteSaveDetail =
-    autosaveStatus === "saving"
+    noteConflict
+      ? "A newer version of this note was saved elsewhere. Your draft is still here: keep both, or load the latest."
+      : autosaveStatus === "saving"
       ? "Saving this lesson note to your account now."
       : autosaveStatus === "offline"
         ? "You're offline. Keep this tab open so this note can sync when the connection returns."

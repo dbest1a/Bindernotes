@@ -583,6 +583,21 @@ describe("BinderReaderPage", () => {
     expect(screen.queryByRole("button", { name: "Keep both" })).toBeNull();
   });
 
+  it("explains a conflict restored on return without pointing to a missing Retry button", async () => {
+    const { rendered } = await conflictReader();
+    const bundle = mocks.binderBundle.data!;
+    mocks.binderBundle.data = { ...bundle, lessons: [...bundle.lessons, { ...bundle.lessons[0], id: "lesson-2", title: "Second lesson", order_index: 2 }] };
+    rendered.refresh();
+    rendered.navigate("/binders/binder-1/documents/lesson-2");
+    await screen.findByPlaceholderText("Second lesson notes");
+    rendered.navigate("/binders/binder-1/documents/lesson-1");
+    await screen.findByRole("button", { name: "Keep both" });
+
+    expect(screen.getAllByText("A newer version of this note was saved elsewhere. Your draft is still here: keep both, or load the latest.").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Retry to keep this lesson note/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry save" })).toBeNull();
+  });
+
   it("shows the loading shell instead of crashing before lessons are available", () => {
     mocks.workspacePreferences.active = createDefaultWorkspacePreferences("user-1", "binder-1");
     mocks.binderBundle.isLoading = true;
