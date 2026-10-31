@@ -405,6 +405,29 @@ Astra found no serious problem in the scene signatures, idle recovery drafts, ca
 - The real production build script (`scripts/build-client.mjs`: typecheck, Vite build, client env guard) passes locally.
 - Full unit suite: 171 files, 1,299 tests pass.
 
+### New capabilities from the workstreams (merged and integrated)
+
+| Workstream | Model | Result | Merged as |
+| --- | --- | --- | --- |
+| Worked Solution card | Claude Fable 5.1, high | KaTeX steps with notes; scrubbable reveal (play, step, keyboard) that writes each step in; checks by Compute Engine in a Web Worker (identities at random points, numeric values, equation chains; honest "not checked" otherwise); 5 free generators (linear, quadratic, derivative, integral, small systems and matrices); MathLive input loaded on demand; 56 tests | `eae5ea1` |
+| Molecule card | Claude Sonnet 5.5, high | RDKit.js drawings with R/S and E/Z, 1-based atom numbers for NMR and mechanisms, reactions with an atom-balance check, a 26-molecule offline library; 110 tests; checked in Chrome | `1925995` |
+| Stress test | Claude Opus 5.5, high | 16 questions with worked keys; 16 Python scripts assert every number | `23bf13b` |
+| Exact chemistry engines | GPT-6.1 Sol, high | still running | — |
+
+- **On the board** (`b78aa8f`): Worked Solution in the Math group and Molecule in the Chemistry group of Add module. Both load lazily, save their content on the card through their own strict sanitizers (no schema change), and stay out of the windowed workspace launcher.
+- **Polish** (`bd3f680`): a generated solution plays itself onto the card one step at a time and ends fully shown (all at once under reduced motion); labels are sentence case; new cards are revealed unless at least 90% is already in view.
+- Verified in Chrome on the isolated lab: the quadratic generator produced 5 steps; RDKit drew caffeine (C₈H₁₀N₄O₂, 194.19 g/mol) under the dev server too.
+- Full unit suite: 180 files, 1,466 tests pass.
+
+### Stress test: answer keys cross-checked
+
+GPT-6 Astra (ultra, read-only CLI) solved all 16 questions blind (`astra/05-blind-solve-output.md`) and matched the verified key on every one, with high confidence throughout. No question was ambiguous, so none was dropped. The 16 boards that run each question through BinderNotes are being built by a Claude Opus 5.5 workstream (seeds and a runner under `scripts/stress/`); scoring follows when they land.
+
+### Deployment status
+
+- The branch was pushed to GitHub as `whiteboard/best-on-internet` (no force push; production `main` untouched). Vercel's automatic preview build failed within a minute, exactly as the October 2 release preview did, so the failure is project configuration rather than this code (the build passes locally with the production build script).
+- Production has been deployed from a local prebuilt output with the Vercel CLI since April; this machine has no Vercel credentials. A request for a Vercel token through T3's private secret card timed out. Pushing `main` would deploy to production without the staged check the last release used, so nothing has been deployed.
+
 ## Log
 
 - **16:15.** Created the branch and this log. Started Astra's independent brainstorm and performance deep dive (prompts and outputs in `docs/whiteboard-mission/astra/`). Started a Claude Opus high research delegate.
@@ -448,3 +471,6 @@ Astra found no serious problem in the scene signatures, idle recovery drafts, ca
 - **19:25.** Chemistry tools on the board; Desmos features checked (the free key enables 2D, 3D, Geometry, Scientific, Four-Function).
 - **19:40.** Astra's persistence review: five findings in graph sync; reverted it (`4b70615`). History rewritten locally before any push so the revert and the chemistry feature are separate commits.
 - **19:55.** Impeccable polish pass (`a0a0e94`); open-time measurements; production build script passes.
+- **20:05.** Final before/after A/B (pre-mission against current, same machine load) recorded; one board validation per save (`0996ea8`).
+- **20:10.** Pushed the branch to GitHub; the Vercel preview failed as the October 2 one did. Vercel token request timed out; nothing deployed.
+- **20:20.** Merged the Worked Solution, Molecule and stress-test workstreams; integrated both cards on the board; Astra's blind solve matched 16/16. Stress-test boards delegated.
