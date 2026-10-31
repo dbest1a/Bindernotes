@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
-import { NoteRecoveryActions, type NoteRecoveryControls } from "@/components/workspace/note-recovery-actions";
+import { NoteRecoveryActions, NoteSaveAnnouncer, type NoteRecoveryControls } from "@/components/workspace/note-recovery-actions";
 import {
   cleanAccidentalNotePrefix,
   detectAccidentalNotePrefix,
@@ -669,8 +669,6 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               Slash bar
             </button>
             <p
-              role="status"
-              aria-live="polite"
               id={revampNotesUi ? saveStatusHelpId : undefined}
               className={cn(
                 "text-xs leading-5",
@@ -694,6 +692,7 @@ export const PrivateNotesModule = memo(function PrivateNotesModule({
               </Button>
             ) : null}
           </div>
+          <NoteSaveAnnouncer autosaveStatus={autosaveStatus} conflict={Boolean(noteRecovery?.conflict)} error={noteSaveError} />
           {noteRecovery ? <NoteRecoveryActions recovery={noteRecovery} /> : null}
           {showHygienePrompt && accidentalPrefix ? (
             <div className="note-hygiene-prompt mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm">

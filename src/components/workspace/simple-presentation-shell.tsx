@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SaveStatusPill } from "@/components/ui/save-status-pill";
-import { NoteRecoveryActions } from "@/components/workspace/note-recovery-actions";
+import { NoteRecoveryActions, NoteSaveAnnouncer } from "@/components/workspace/note-recovery-actions";
 import {
   buildLessonContentSelector,
   LessonContentRenderer,
@@ -308,6 +308,7 @@ export function SimplePresentationShell({
                   {context.noteSaveError ?? context.noteSaveDetail}
                 </p>
                 {context.canRetryNoteSave ? <Button onClick={context.onRetryNoteSave} size="sm" type="button" variant="outline">Retry save</Button> : null}
+                <NoteSaveAnnouncer autosaveStatus={context.autosaveStatus} conflict={Boolean(context.noteRecovery?.conflict)} error={context.noteSaveError} />
                 {context.noteRecovery ? <NoteRecoveryActions recovery={context.noteRecovery} /> : null}
                 {context.onOpenPersonalNote ? <Button onClick={context.onOpenPersonalNote} size="sm" type="button" variant="outline">Open in Personal Notes</Button> : null}
               </section>

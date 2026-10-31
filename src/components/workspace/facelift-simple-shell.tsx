@@ -19,6 +19,7 @@ import {
   Settings2,
   Sparkles,
   StickyNote,
+  WifiOff,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -534,9 +535,10 @@ export function FaceliftSimpleShell({
         </div>
 
         <div className="facelift-simple-shell__actions">
-          <div className="facelift-quiet-status" aria-label="Note save status" role="status">
-            {context.autosaveStatus === "saved" ? <CheckCircle2 className="size-4" /> : context.autosaveStatus === "saving" ? <LoaderCircle className="size-4" /> : context.autosaveStatus === "error" ? <CircleAlert className="size-4" /> : <Clock3 className="size-4" />}
-            <span>{context.noteSaveLabel ?? "Saved status"}</span>
+          {/* Not a live region: the note module's announcer reports only problems. */}
+          <div className="facelift-quiet-status">
+            {context.autosaveStatus === "saved" ? <CheckCircle2 aria-hidden="true" className="size-4" /> : context.autosaveStatus === "saving" ? <LoaderCircle aria-hidden="true" className="size-4" /> : context.autosaveStatus === "error" ? <CircleAlert aria-hidden="true" className="size-4" /> : context.autosaveStatus === "offline" ? <WifiOff aria-hidden="true" className="size-4" /> : <Clock3 aria-hidden="true" className="size-4" />}
+            <span><span className="sr-only">Note save status: </span>{context.noteSaveLabel ?? "Saved status"}</span>
           </div>
           {compactStudyChrome && onChangeWorkspaceViewMode ? (
             <WorkspaceModeSwitcher
