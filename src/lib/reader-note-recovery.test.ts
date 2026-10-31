@@ -22,6 +22,39 @@ describe("reader recovery shared with Personal Notes", () => {
     expect(readReaderNoteDraft("owner", "binder", "lesson")).toBeNull();
     expect(JSON.parse(sessionStorage.getItem("bindernotes:note-draft:v1:owner:binder-note:note") || "null").draft.title).toBe(draft.input.title);
   });
+  it("keeps the draft in this tab when session storage rejects writes", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    try {
+      expect(writeReaderNoteDraft(draft)).toBe(false);
+      expect(readReaderNoteDraft("owner", "binder", "lesson")).toEqual(draft);
+      expect(readReaderNoteDraft("other-owner", "binder", "lesson")).toBeNull();
+      const newer = { ...draft, input: { ...draft.input, title: "Newer in memory" } };
+      writeReaderNoteDraft(newer);
+      clearReaderNoteDraft(draft);
+      expect(readReaderNoteDraft("owner", "binder", "lesson")?.input.title).toBe("Newer in memory");
+      clearReaderNoteDraft(newer);
+      expect(readReaderNoteDraft("owner", "binder", "lesson")).toBeNull();
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+  it("drops an older stored journal when a newer write can only be kept in memory", () => {
+    writeReaderNoteDraft(draft);
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    const newer = { ...draft, input: { ...draft.input, title: "Newer in memory" } };
+    try {
+      writeReaderNoteDraft(newer);
+    } finally {
+      setItem.mockRestore();
+    }
+    expect(sessionStorage.getItem("bindernotes:reader-note-draft:v1:owner:binder:lesson")).toBeNull();
+    clearReaderNoteDraft(newer);
+    expect(readReaderNoteDraft("owner", "binder", "lesson")).toBeNull();
+  });
   it("never deletes a newer reader or Personal Notes journal from an older acknowledgement", () => {
     writeReaderNoteDraft(draft);
     sessionStorage.setItem("bindernotes:note-draft:v1:owner:binder-note:note", "newer personal draft");

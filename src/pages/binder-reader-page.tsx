@@ -272,8 +272,8 @@ export function BinderReaderPage() {
   const openPersonalNoteAfterSaveRef = useRef<string | null>(null);
   const noteRevisionsRef = useRef(new Map<string, NoteRevision>());
   const preserveNoteDraft = useCallback((draft: PendingNoteSave) => {
-    try { writeReaderNoteDraft(draft); }
-    catch { setNoteSaveError("Browser recovery storage is unavailable. Keep this tab open until your note saves."); }
+    // Falls back to this tab's memory when session storage rejects the write.
+    writeReaderNoteDraft(draft);
   }, []);
   const updateVisibleNoteDraft = useCallback((update: Partial<PendingNoteSave["input"]>) => {
     setNoteRecoveryMessage(null);
