@@ -141,9 +141,14 @@ export type TitrationMeasurement = {
   equivalenceProgress: number;
 };
 
+export type TitrationAcidKind = "strong" | "weak-monoprotic" | "weak-diprotic";
+
 export type TitrationState = {
   labTemplateId: "acid-base-titration-strong-acid-base";
-  acidFormula: "HCl";
+  acidKind: TitrationAcidKind;
+  /** Sequential acid dissociation constants; empty for a strong acid. */
+  pKa: number[];
+  acidFormula: "HCl" | "HA" | "H2A";
   baseFormula: "NaOH";
   acidMolarity: number;
   acidVolumeMl: number;
@@ -157,5 +162,6 @@ export type TitrationState = {
 
 export type TitrationAction =
   | { type: "add_titrant"; volumeMl: number }
+  | { type: "configure_acid"; acidKind: TitrationAcidKind; pKa?: number[] }
   | { type: "reset" }
   | { type: "update_notebook"; section: TitrationNotebookSection; value: string };
