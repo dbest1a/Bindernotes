@@ -391,7 +391,7 @@ const StepEditor = memo(function StepEditor({ step, index, total, plain, onToggl
   return (
     <li className="rounded-xl border border-border/70 bg-background/60 p-3" data-step-index={index}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Step {index + 1}</span>
+        <span className="text-xs font-medium text-muted-foreground">Step {index + 1}</span>
         <div className="flex items-center gap-1">
           <Button aria-label={`Move step ${index + 1} up`} className="size-11 sm:size-8" disabled={index === 0} onClick={() => onMove(step.id, -1)} size="icon" type="button" variant="ghost">
             <ArrowUp aria-hidden className="size-4" />
@@ -653,13 +653,15 @@ export function SolutionStepsCard({ value, onChange, readOnly = false, className
       update(() => doc, true);
       setShowGenerate(false);
       setMode("present");
-      setRevealedState(0);
+      // New steps write themselves onto the card one at a time and end fully shown; the
+      // scrubber stays available to step back. Reduced motion shows them all at once.
+      setRevealedState(reducedMotion ? doc.steps.length : 0);
       setEnteringIndex(-1);
-      setPlaying(false);
+      setPlaying(!reducedMotion && doc.steps.length > 0);
       void runCheck(doc);
       requestAnimationFrame(() => rootRef.current?.focus());
     },
-    [runCheck, update],
+    [reducedMotion, runCheck, update],
   );
 
   const enterPresent = () => {
@@ -678,7 +680,6 @@ export function SolutionStepsCard({ value, onChange, readOnly = false, className
   const header = (
     <header className="flex flex-wrap items-start justify-between gap-2 border-b border-border/60 px-3 pb-2.5 pt-3 sm:px-4">
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Worked solution</p>
         {effectiveMode === "edit" ? (
           <Input
             aria-label="Title"
@@ -750,7 +751,7 @@ export function SolutionStepsCard({ value, onChange, readOnly = false, className
                 data-entering={enteringIndex === total - 1 && !reducedMotion ? "true" : "false"}
                 data-testid="solution-answer"
               >
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Answer</p>
+                <p className="mb-1 text-xs font-semibold text-primary">Answer</p>
                 <SolutionMath ariaLabel={`Answer: ${draft.answer}`} latex={draft.answer ?? ""} />
               </li>
             ) : null}

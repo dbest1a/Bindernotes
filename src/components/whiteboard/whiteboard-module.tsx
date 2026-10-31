@@ -187,16 +187,16 @@ function getReservedOverlayRects(transform: WhiteboardViewportTransform) {
   return [{ x: rect.left - (transform.offsetLeft ?? 0), y: rect.top - (transform.offsetTop ?? 0), width: rect.width, height: rect.height }];
 }
 
-// A new board card should be seen arriving. When most of it would open off screen (a crowded
-// view), the camera shifts just enough to show it clear of the drawing toolbar, in one jump
-// with no animation. Cards that are mostly visible leave the camera alone.
+// A new board card should be seen arriving. When more than a sliver of it would open off
+// screen (a crowded view), the camera shifts just enough to show it clear of the drawing
+// toolbar, in one jump with no animation. Cards that are nearly all visible leave it alone.
 function revealCardTransform(moduleElement: WhiteboardModuleElement, transform: WhiteboardViewportTransform) {
   const rect = getWhiteboardModuleScreenRect(moduleElement, transform);
   const x = rect.x - (transform.offsetLeft ?? 0);
   const y = rect.y - (transform.offsetTop ?? 0);
   const visibleWidth = Math.max(0, Math.min(x + rect.width, transform.viewportWidth) - Math.max(x, 0));
   const visibleHeight = Math.max(0, Math.min(y + rect.height, transform.viewportHeight) - Math.max(y, 0));
-  if ((visibleWidth * visibleHeight) / Math.max(1, rect.width * rect.height) >= 0.75) return null;
+  if ((visibleWidth * visibleHeight) / Math.max(1, rect.width * rect.height) >= 0.9) return null;
   const margin = { top: 80, side: 24, bottom: 24 };
   const shift = (start: number, size: number, low: number, high: number) =>
     size > high - low || start < low ? low - start : start + size > high ? high - (start + size) : 0;
